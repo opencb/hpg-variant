@@ -3,12 +3,12 @@ CFLAGS = -std=c99 -O3
 CFLAGS_DEBUG = -std=c99 -g
 
 # Source code folders
-ROOT = ~/appl/bioinfo-c
-CONTAINERS_DIR = $(ROOT)/containers
-COMMONS_DIR = $(ROOT)/commons
-BIOINFO_DATA_DIR = $(ROOT)/bioinfo-data
+LIBS_ROOT = libs
+CONTAINERS_DIR = $(LIBS_ROOT)/containers
+COMMONS_DIR = $(LIBS_ROOT)/commons
+BIOINFO_DATA_DIR = $(LIBS_ROOT)/bioformats
 REGION_DIR = $(BIOINFO_DATA_DIR)/features/region
-VCF_TOOLS_DIR = $(ROOT)/ngs-hpc-pipeline/vcf-tools
+VCF_TOOLS_DIR = ../hpg-vcf-tools
 
 # Include and libs folders
 INCLUDES = -I $(CONTAINERS_DIR) -I $(COMMONS_DIR) -I $(REGION_DIR) -I $(BIOINFO_DATA_DIR)/vcf/ -I . -I ./effect/ -I ./vcf-tools/
