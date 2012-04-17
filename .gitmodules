@@ -1,0 +1,9 @@
+[submodule "libs/commons"]
+	path = libs/commons
+	url = git://localhost/bioinfo-c/libs/commons
+[submodule "libs/containers"]
+	path = libs/containers
+	url = git://localhost/bioinfo-c/libs/containers
+[submodule "libs/bioformats"]
+	path = libs/bioformats
+	url = git://localhost/bioinfo-c/libs/bioformats
