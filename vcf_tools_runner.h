@@ -10,7 +10,6 @@
 #include <vcf_file.h>
 #include <vcf_write.h>
 
-#include "main.h"
 #include "error.h"
 #include "vcf_tools.h"
 

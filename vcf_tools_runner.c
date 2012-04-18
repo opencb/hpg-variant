@@ -9,6 +9,8 @@ int execute_vcf_tools(global_options_data_t *global_options_data, vcf_tools_opti
     double start, stop, total;
     vcf_file_t *file = vcf_open(global_options_data->vcf_filename);
     
+    create_directory(global_options_data->output_directory);
+    
 #pragma omp parallel sections private(start, stop, total)
     {
 #pragma omp section
@@ -47,24 +49,34 @@ int execute_vcf_tools(global_options_data_t *global_options_data, vcf_tools_opti
             
             if (global_options_data->output_filename != NULL && 
                 strlen(global_options_data->output_filename) > 0) {
-                passed_file = fopen(global_options_data->output_filename, "w");
+                int dirname_len = strlen(global_options_data->output_directory);
                 int filename_len = strlen(global_options_data->output_filename);
-                char *failed_filename = (char*) malloc ((filename_len+10) * sizeof(char));
-                strncpy(failed_filename, global_options_data->output_filename, filename_len);
-                strncpy(failed_filename + filename_len, ".filtered", 9);
-                failed_filename[filename_len+10] = '\0';
+            
+                char *passed_filename = (char*) calloc ((dirname_len + filename_len + 1), sizeof(char));
+                strncat(passed_filename, global_options_data->output_directory, dirname_len);
+                strncat(passed_filename, global_options_data->output_filename, filename_len);
+                passed_file = fopen(passed_filename, "w");
+            
+                char *failed_filename = (char*) calloc ((dirname_len + filename_len + 10), sizeof(char));
+                strncat(failed_filename, global_options_data->output_directory, dirname_len);
+                strncat(failed_filename, global_options_data->output_filename, filename_len);
+                strncat(failed_filename, ".filtered", 9);
                 failed_file = fopen(failed_filename, "w");
+                dprintf("passed filename = %s\nfailed filename = %s\n", passed_filename, failed_filename);
+                
+                free(passed_filename);
+                free(failed_filename);
             }
             
             // TODO doesn't work (segfault)
-            if (!passed_file) {
+            /*if (!passed_file) {
                 passed_file = stdout;
             }
             if (!failed_file) {
                 failed_file = stderr;
             }
             
-            dprintf("File streams created\n");
+            dprintf("File streams created\n");*/
             
             // Write file format, header entries and delimiter
             vcf_write_to_file(file, passed_file);
@@ -89,25 +101,7 @@ int execute_vcf_tools(global_options_data_t *global_options_data, vcf_tools_opti
                     passed_records = run_filter_chain(input_records, failed_records, filters, num_filters);
                 }
 
-                
-//                 if(is_split()) {
-//                         split(passed_records, batch);
-//                         
-//                 }
-//                 if(is_sort()) {
-//                         sort(passed_records);
-//                         
-//                 }
-//                 if(is_stats()) {
-//                         stats(passed_records);
-//                 }
-//                 if(is_merge()) {
-//                         merge(passed_records, ...);
-//                 }
-//                 if(is_validate()) {
-//                         validate(passed_records);
-//                 }
-                
+                // TODO add more tools
 
                 // Write records that passed and failed to 2 new separated files
                 if (passed_records != NULL && passed_records->length > 0) {
@@ -123,8 +117,8 @@ int execute_vcf_tools(global_options_data_t *global_options_data, vcf_tools_opti
                 vcf_batch_free(item->data_p);
                 list_item_free(item);
                 
-                if (passed_records) free(passed_records);
-                if (failed_records) free(failed_records);
+                if (passed_records) { free(passed_records); }
+                if (failed_records) { free(failed_records); }
                 
                 i++;
             }

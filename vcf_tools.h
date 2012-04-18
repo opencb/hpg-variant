@@ -1,12 +1,13 @@
-#ifndef HPG_VARIANT_VCF_TOOLS_H
-#define HPG_VARIANT_VCF_TOOLS_H
+#ifndef VCF_TOOLS_H
+#define VCF_TOOLS_H
 
 #include <libconfig.h>
 
-#include "vcf_filters.h"
+#include <file_utils.h>
+#include <vcf_filters.h>
 
-#include "main.h"
 #include "error.h"
+#include "global_options.h"
 
 #define NUM_VCF_TOOLS_OPTIONS	3
 
@@ -14,7 +15,7 @@ static struct option vcf_tools_options[] = {
 	// Filters applied to data
 // 	  {"filter-quality",	required_argument, 0, 'q' },
 
-    {"region-file",  required_argument, 0, 'f' },
+	{"region-file",  required_argument, 0, 'f' },
 	{"region",       required_argument, 0, 'r' },
     
 	{"snp",          required_argument, 0, 's' },
