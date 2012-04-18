@@ -25,7 +25,5 @@ int genomic_analysis(void);
 
 int pathway_analysis(void);
 
-int vcf_tools(int argc, char *argv[]);
-
 
 #endif

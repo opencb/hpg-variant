@@ -21,8 +21,6 @@ int main(int argc, char *argv[])
 	} else if (strcmp(tool, "pathway-analysis") == 0) {
 		fprintf(stderr, "%s tool not yet implemented\n", tool);
         exit_code = NOT_IMPLEMENTED_TOOL;
-	} else if (strcmp(tool, "vcf-tools") == 0) {
-		exit_code = vcf_tools(argc - 1, argv + 1);
 	} else {
 		fprintf(stderr, "The requested tool does not exist! (%s)\n", tool);
         exit_code = NOT_IMPLEMENTED_TOOL;
