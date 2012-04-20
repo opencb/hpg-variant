@@ -15,7 +15,7 @@ int execute_vcf_tools(global_options_data_t *global_options_data, vcf_tools_opti
     {
 #pragma omp section
         {
-            dprintf("Thread %d reads the VCF file\n", omp_get_thread_num());
+            LOG_DEBUG_F("Thread %d reads the VCF file\n", omp_get_thread_num());
             // Reading
             start = omp_get_wtime();
 
@@ -24,10 +24,10 @@ int execute_vcf_tools(global_options_data_t *global_options_data, vcf_tools_opti
             stop = omp_get_wtime();
             total = stop - start;
 
-            if (ret_code) dprintf("[%dR] Error code = %d\n", omp_get_thread_num(), ret_code);
+            if (ret_code) { LOG_FATAL_F("[%dR] Error code = %d\n", omp_get_thread_num(), ret_code); }
 
-            bprintf("[%dR] Time elapsed = %f s\n", omp_get_thread_num(), total);
-            bprintf("[%dR] Time elapsed = %e ms\n", omp_get_thread_num(), total*1000);
+            LOG_INFO_F("[%dR] Time elapsed = %f s\n", omp_get_thread_num(), total);
+            LOG_INFO_F("[%dR] Time elapsed = %e ms\n", omp_get_thread_num(), total*1000);
 
             list_decr_writers(read_list);
         }
@@ -62,27 +62,26 @@ int execute_vcf_tools(global_options_data_t *global_options_data, vcf_tools_opti
                 strncat(failed_filename, global_options_data->output_filename, filename_len);
                 strncat(failed_filename, ".filtered", 9);
                 failed_file = fopen(failed_filename, "w");
-                dprintf("passed filename = %s\nfailed filename = %s\n", passed_filename, failed_filename);
+                LOG_DEBUG_F("passed filename = %s\nfailed filename = %s\n", passed_filename, failed_filename);
                 
                 free(passed_filename);
                 free(failed_filename);
             }
             
-            // TODO doesn't work (segfault)
-            /*if (!passed_file) {
+            if (!passed_file) {
                 passed_file = stdout;
             }
             if (!failed_file) {
                 failed_file = stderr;
             }
-            
-            dprintf("File streams created\n");*/
+            int debug = 1;
+            LOG_DEBUG("File streams created\n");
             
             // Write file format, header entries and delimiter
             vcf_write_to_file(file, passed_file);
             vcf_write_to_file(file, failed_file);
 
-            dprintf("VCF header written created\n");
+            LOG_DEBUG("VCF header written created\n");
             
             while ((item = list_remove_item(read_list)) != NULL) {
                 vcf_batch_t *batch = (vcf_batch_t*) item->data_p;
@@ -90,9 +89,9 @@ int execute_vcf_tools(global_options_data_t *global_options_data, vcf_tools_opti
                 list_t *passed_records, *failed_records;
 
                 if (i % 200 == 0) {
-                    dprintf("Batch %d reached by thread %d - %zu/%zu records \n", 
-                            i, omp_get_thread_num(),
-                            batch->length, batch->max_length);
+                    LOG_DEBUG_F("Batch %d reached by thread %d - %zu/%zu records \n", 
+                                i, omp_get_thread_num(),
+                                batch->length, batch->max_length);
                 }
 
                 if (filters != NULL) {
@@ -105,12 +104,12 @@ int execute_vcf_tools(global_options_data_t *global_options_data, vcf_tools_opti
 
                 // Write records that passed and failed to 2 new separated files
                 if (passed_records != NULL && passed_records->length > 0) {
-                    dprintf("[batch %d] %zu passed records\n", i, passed_records->length);
+                    LOG_DEBUG_F("[batch %d] %zu passed records\n", i, passed_records->length);
                     write_batch(passed_records, passed_file);
                 }
                 
                 if (failed_records != NULL && failed_records->length > 0) {
-                    dprintf("[batch %d] %zu failed records\n", i, failed_records->length);
+                    LOG_DEBUG_F("[batch %d] %zu failed records\n", i, failed_records->length);
                     write_batch(failed_records, failed_file);
                 }
                 
@@ -127,12 +126,12 @@ int execute_vcf_tools(global_options_data_t *global_options_data, vcf_tools_opti
 
             total = stop - start;
 
-            bprintf("[%d] Time elapsed = %f s\n", omp_get_thread_num(), total);
-            bprintf("[%d] Time elapsed = %e ms\n", omp_get_thread_num(), total*1000);
+            LOG_INFO_F("[%d] Time elapsed = %f s\n", omp_get_thread_num(), total);
+            LOG_INFO_F("[%d] Time elapsed = %e ms\n", omp_get_thread_num(), total*1000);
 
             // Free resources
-            fclose(passed_file);
-            fclose(failed_file);
+            if (passed_file != NULL && passed_file != stdout) { fclose(passed_file); }
+            if (failed_file != NULL && failed_file != stderr) { fclose(failed_file); }
             
             free(filters);
         }

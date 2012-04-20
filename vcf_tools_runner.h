@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <omp.h>
 
+#include <log.h>
 #include <vcf_batch.h>
 #include <vcf_filters.h>
 #include <vcf_file.h>

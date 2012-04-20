@@ -28,22 +28,22 @@ int read_global_configuration(const char *filename, global_options_data_t *optio
     int ret_code = config_read_file(config, filename);
     if (ret_code == CONFIG_FALSE)
     {
-        fprintf(stderr, "config file error: %s\n", config_error_text(config));
+        LOG_ERROR_F("config file error: %s\n", config_error_text(config));
         return ret_code;
     }
     
     // Read output directory
-    char *tmp_string;
+    const char *tmp_string;
     ret_code = config_lookup_string(config, "global.outdir", &tmp_string);
     if (ret_code == CONFIG_FALSE)
     {
-        fprintf(stderr, "output directory config error: %s\n", config_error_text(config));
+        LOG_ERROR_F("output directory config error: %s\n", config_error_text(config));
         return ret_code;
     } else {
         free(options_data->output_directory);
         options_data->output_directory = (char*) calloc (strlen(tmp_string)+1, sizeof(char));
         strncat(options_data->output_directory, tmp_string, strlen(tmp_string));
-        dprintf("output directory = %s (%zu chars)\n", options_data->output_directory, 
+        LOG_DEBUG_F("output directory = %s (%zu chars)\n", options_data->output_directory, 
                 strlen(options_data->output_directory));
     }
      
@@ -59,7 +59,7 @@ int parse_global_options(int argc, char *argv[], global_options_data_t *options_
     int finished = 0;
     int last_opt_index = optind = start_index;
     
-    dprintf("Parsing global options...\n");
+    LOG_DEBUG("Parsing global options...\n");
     while (!finished && (c = getopt_long (argc, argv, ":A:O:", global_options, &optind)) != 1)
     {
         switch (c)
@@ -68,25 +68,25 @@ int parse_global_options(int argc, char *argv[], global_options_data_t *options_
                 options_data->vcf_filename = (char*) malloc((strlen(optarg)+1) * sizeof(char));
                 strcpy(options_data->vcf_filename, optarg);
                 last_opt_index = optind;
-                dprintf("input vcf filename = %s\n", options_data->vcf_filename);
+                LOG_INFO_F("input vcf filename = %s\n", options_data->vcf_filename);
                 break;
             case 'N':
                 options_data->output_directory = (char*) malloc((strlen(optarg)+1) * sizeof(char));
                 strcpy(options_data->output_directory, optarg);
                 last_opt_index = optind;
-                dprintf("output directory = %s\n", options_data->output_directory);
+                LOG_INFO_F("output directory = %s\n", options_data->output_directory);
                 break;
             case 'O':
                 options_data->output_filename = (char*) malloc((strlen(optarg)+1) * sizeof(char));
                 strcpy(options_data->output_filename, optarg);
                 last_opt_index = optind;
-                dprintf("output filename template = %s\n", options_data->output_filename);
+                LOG_INFO_F("output filename template = %s\n", options_data->output_filename);
                 break;
             case '?':
-                dprintf("undefined common option\n");
+                LOG_WARN("undefined common option");
             default:
                 finished = 1;
-                dprintf("global opts - default\n");
+                LOG_INFO("global opts - default");
         }
     }
     

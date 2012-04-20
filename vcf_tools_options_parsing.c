@@ -18,7 +18,7 @@ int read_vcf_tools_configuration(const char *filename, vcf_tools_options_data_t 
         fprintf(stderr, "num-threads config error: %s\n", config_error_text(config));
         return ret_code;
     }
-    dprintf("num-threads = %ld\n", options_data->num_threads);
+    LOG_INFO_F("num-threads = %ld\n", options_data->num_threads);
     
     // Read number of threads to perform the operations
     ret_code = config_lookup_int(config, "vcf-tools.max-batches", &(options_data->max_batches));
@@ -27,7 +27,7 @@ int read_vcf_tools_configuration(const char *filename, vcf_tools_options_data_t 
         fprintf(stderr, "max-batches config error: %s\n", config_error_text(config));
         return ret_code;
     }
-    dprintf("max-batches = %ld\n", options_data->max_batches);
+    LOG_INFO_F("max-batches = %ld\n", options_data->max_batches);
     
     // Read number of threads to perform the operations
     ret_code = config_lookup_int(config, "vcf-tools.batch-size", &(options_data->batch_size));
@@ -36,7 +36,7 @@ int read_vcf_tools_configuration(const char *filename, vcf_tools_options_data_t 
         fprintf(stderr, "batch-size config error: %s\n", config_error_text(config));
         return ret_code;
     }
-    dprintf("batch-size = %ld\n", options_data->batch_size);
+    LOG_INFO_F("batch-size = %ld\n", options_data->batch_size);
     
     return ret_code;
 }
@@ -56,36 +56,33 @@ void parse_vcf_tools_options(int argc, char *argv[], vcf_tools_options_data_t *o
 	
 	int debug = 1;
 	while ((c = getopt_long (argc, argv, ":A:O:f:r:s:", options, &optind)) != -1) {
-		dprintf("<main> c = %c, opt_idx = %d\n", c, optind);
+		LOG_DEBUG_F("<main> c = %c, opt_idx = %d\n", c, optind);
 		switch (c) {
 			case 'A':
 			case 'O':
 				optind = parse_global_options(argc, argv, global_options_data, previous_opt_index);
 				break;
             case 'f':
-                tmp_string_field = (char*) malloc((strlen(optarg)+1) * sizeof(char));
-                strcpy(tmp_string_field, optarg);
-//                 filter_input = optarg;
+                tmp_string_field = (char*) calloc(strlen(optarg)+1, sizeof(char));
+                strncat(tmp_string_field, optarg, strlen(optarg));
                 filter = create_region_filter(tmp_string_field, 1);
                 options_data->chain = add_to_filter_chain(filter, options_data->chain);
-                dprintf("regions file = %s\n", optarg);
+                LOG_INFO_F("regions file = %s\n", optarg);
                 break;
 			case 'r':
                 tmp_string_field = (char*) malloc((strlen(optarg)+1) * sizeof(char));
                 strcpy(tmp_string_field, optarg);
-//                 filter_input = optarg;
                 filter = create_region_filter(tmp_string_field, 0);
                 options_data->chain = add_to_filter_chain(filter, options_data->chain);
-                dprintf("regions = %s\n", optarg);
-				break;
+                LOG_INFO_F("regions = %s\n", optarg);
 			case 's':
                 filter = create_snp_filter(optarg);
                 options_data->chain = add_to_filter_chain(filter, options_data->chain);
-				dprintf("snp filter to %s SNPs\n", (optarg == NULL)? "include" : optarg);
+				LOG_INFO_F("snp filter to %s SNPs\n", (optarg == NULL)? "include" : optarg);
 				break;
 			case '?':
 			default:
-				dprintf("Option unknown\n");
+				LOG_WARN("Option unknown\n");
 				break;
 		}
 		
