@@ -51,7 +51,7 @@ int execute_effect_query(char *url, global_options_data_t *global_options_data, 
     {
 #pragma omp section
         {
-            dprintf("Thread %d reads the VCF file\n", omp_get_thread_num());
+            LOG_DEBUG_F("Thread %d reads the VCF file\n", omp_get_thread_num());
             // Reading
             start = omp_get_wtime();
 
@@ -61,11 +61,11 @@ int execute_effect_query(char *url, global_options_data_t *global_options_data, 
             total = stop - start;
 
             if (ret_code) {
-                fprintf(stderr, "Error %d while reading the file %s\n", ret_code, file->filename);
+                LOG_FATAL_F("Error %d while reading the file %s\n", ret_code, file->filename);
             }
 
-            bprintf("[%dR] Time elapsed = %f s\n", omp_get_thread_num(), total);
-            bprintf("[%dR] Time elapsed = %e ms\n", omp_get_thread_num(), total*1000);
+            LOG_INFO_F("[%dR] Time elapsed = %f s\n", omp_get_thread_num(), total);
+            LOG_INFO_F("[%dR] Time elapsed = %e ms\n", omp_get_thread_num(), total*1000);
 
             list_decr_writers(read_list);
         }
@@ -105,7 +105,7 @@ int execute_effect_query(char *url, global_options_data_t *global_options_data, 
                 strncat(failed_filename, ".filtered", 9);
                 failed_file = fopen(failed_filename, "w");
                 
-                dprintf("passed filename = %s\nfailed filename = %s\n", passed_filename, failed_filename);
+                LOG_DEBUG_F("passed filename = %s\nfailed filename = %s\n", passed_filename, failed_filename);
                 
                 free(passed_filename);
                 free(failed_filename);
@@ -119,13 +119,13 @@ int execute_effect_query(char *url, global_options_data_t *global_options_data, 
                 failed_file = stderr;
             }
             
-            dprintf("File streams created\n");*/
+            LOG_DEBUG("File streams created\n");*/
             
             // Write file format, header entries and delimiter
             if (passed_file != NULL) { vcf_write_to_file(file, passed_file); }
             if (failed_file != NULL) { vcf_write_to_file(file, failed_file); }
 
-            dprintf("VCF header written\n");
+            LOG_DEBUG("VCF header written\n");
             
             while ((item = list_remove_item(read_list)) != NULL) {
                 vcf_batch_t *batch = (vcf_batch_t*) item->data_p;
@@ -133,7 +133,7 @@ int execute_effect_query(char *url, global_options_data_t *global_options_data, 
                 list_t *passed_records, *failed_records;
 
                 if (i % 200 == 0) {
-                    dprintf("Batch %d reached by thread %d - %zu/%zu records \n", 
+                    LOG_DEBUG_F("Batch %d reached by thread %d - %zu/%zu records \n", 
                             i, omp_get_thread_num(),
                             batch->length, batch->max_length);
                 }
@@ -148,7 +148,7 @@ int execute_effect_query(char *url, global_options_data_t *global_options_data, 
 
                 // Write records that passed to a separate file, and query the WS with them as args
                 if (passed_records->length > 0) {
-                    dprintf("[batch %d] %zu passed records\n", i, passed_records->length);
+                    LOG_DEBUG_F("[batch %d] %zu passed records\n", i, passed_records->length);
                     
                     if (passed_file != NULL) {
                         write_batch(passed_records, passed_file);
@@ -163,21 +163,21 @@ int execute_effect_query(char *url, global_options_data_t *global_options_data, 
                     #pragma omp parallel for
                     for (int j = 0; j < num_chunks; j++) {
                         ret_code = invoke_effect_ws(url, chunk_starts[j], max_chunk_size);
-                        dprintf("[%d] WS invocation finished\n", omp_get_thread_num());
+                        LOG_DEBUG_F("[%d] WS invocation finished\n", omp_get_thread_num());
                     }
                     free(chunk_starts);
                     
-                    dprintf("*** %dth loop finished\n", i);
+                    LOG_DEBUG_F("*** %dth loop finished\n", i);
                     
                     if (ret_code) {
-                        fprintf(stderr, "Effect web service error: %s\n", get_last_http_error(ret_code));
+                        LOG_FATAL_F("Effect web service error: %s\n", get_last_http_error(ret_code));
                         break;
                     }
                 }
                 
                 // Write records that failed to a separate file
                 if (failed_file != NULL && failed_records != NULL && failed_records->length > 0) {
-                    dprintf("[batch %d] %zu failed records\n", i, failed_records->length);
+                    LOG_DEBUG_F("[batch %d] %zu failed records\n", i, failed_records->length);
                     write_batch(failed_records, failed_file);
                 }
                 
@@ -199,8 +199,8 @@ int execute_effect_query(char *url, global_options_data_t *global_options_data, 
 
             total = stop - start;
 
-            bprintf("[%d] Time elapsed = %f s\n", omp_get_thread_num(), total);
-            bprintf("[%d] Time elapsed = %e ms\n", omp_get_thread_num(), total*1000);
+            LOG_INFO_F("[%d] Time elapsed = %f s\n", omp_get_thread_num(), total);
+            LOG_INFO_F("[%d] Time elapsed = %e ms\n", omp_get_thread_num(), total*1000);
 
             // Free resources
             if (passed_file) { fclose(passed_file); }
@@ -274,7 +274,7 @@ char *compose_effect_ws_request(effect_options_data_t *options_data) {
 
 list_item_t** create_chunks(list_t* records, int max_chunk_size, int *num_chunks) {
     *num_chunks = (int) ceil((float) records->length / max_chunk_size);
-    dprintf("%d chunks of %d elements top\n", *num_chunks, max_chunk_size);
+    LOG_DEBUG_F("%d chunks of %d elements top\n", *num_chunks, max_chunk_size);
     
     list_item_t **chunk_starts = (list_item_t**) malloc ((*num_chunks) * sizeof(list_item_t*));
     list_item_t *current = records->first_p;
@@ -303,7 +303,7 @@ int invoke_effect_ws(const char *url, list_item_t *first_item, int max_chunk_siz
     int chr_len, position_len, reference_len, alternate_len;
     int new_len_range;
 
-    dprintf("[%d] WS for batch #%d\n", omp_get_thread_num(), batch_num);
+    LOG_DEBUG_F("[%d] WS for batch #%d\n", omp_get_thread_num(), batch_num);
     batch_num++;
     
     memset(variants, 0, variants_len * sizeof(char));
@@ -315,7 +315,7 @@ int invoke_effect_ws(const char *url, list_item_t *first_item, int max_chunk_siz
         alternate_len = strlen(record->alternate);
         new_len_range = current_index + chr_len + reference_len + alternate_len + 32;
         
-        dprintf("%s:%lu:%s:%s\n", record->chromosome, record->position, record->reference, record->alternate);
+        LOG_DEBUG_F("%s:%lu:%s:%s\n", record->chromosome, record->position, record->reference, record->alternate);
         
         // Reallocate memory if next record won't fit
         if (variants_len < (current_index + new_len_range)) {
@@ -335,7 +335,7 @@ int invoke_effect_ws(const char *url, list_item_t *first_item, int max_chunk_siz
         current_index = strlen(variants);
     }
     
-    dprintf("variants = %s\n", variants);
+    LOG_DEBUG_F("variants = %s\n", variants);
 
     char *params[2] = { "of", "variants" };
     char *params_values[2] = { output_format, variants };
@@ -366,25 +366,25 @@ static size_t write_effect_ws_results(char *contents, size_t size, size_t nmemb,
     char *aux_buffer;
     
     
-    dprintf("Effect WS invoked, response size = %zu bytes\n", realsize);
+    LOG_DEBUG_F("Effect WS invoked, response size = %zu bytes\n", realsize);
     
     while (data_read_len < realsize) {
         assert((line + tid) != NULL);
         assert((max_line_size + tid) != NULL);
         
-        dprintf("[%d] loop iteration #%d\n", tid, i);
+        LOG_DEBUG_F("[%d] loop iteration #%d\n", tid, i);
         // Get length of data to copy
         next_line_len = strcspn(data, "\n");
         
         // If the line[tid] is too long for the current buffers, reallocate a little more than the needed memory
         if (strlen(line[tid]) + next_line_len > max_line_size[tid]) {
-            dprintf("Line too long (%d elements, but %zu needed) in batch #%d\n", 
-                   max_line_size[tid], strlen(line[tid]) + next_line_len, batch_num);
+            LOG_DEBUG_F("Line too long (%d elements, but %zu needed) in batch #%d\n", 
+                        max_line_size[tid], strlen(line[tid]) + next_line_len, batch_num);
             char *aux_1 = (char*) realloc (line[tid], (max_line_size[tid] + next_line_len + 1) * sizeof(char));
             char *aux_2 = (char*) realloc (output_line[tid], (max_line_size[tid] + next_line_len + 1) * sizeof(char));
             
             if (!aux_1 || !aux_2) {
-                fprintf(stderr, "Can't resize buffers\n");
+                LOG_ERROR("Can't resize buffers\n");
                 // Can't resize buffers -> can't keep reading the file
                 if (!aux_1) { free(line[tid]); }
                 if (!aux_2) { free(output_line[tid]); }
@@ -396,9 +396,9 @@ static size_t write_effect_ws_results(char *contents, size_t size, size_t nmemb,
             max_line_size[tid] += next_line_len + 1;
         }
         
-        dprintf("[%d] buffers realloc'd (%d)\n", tid, max_line_size[tid]);
-        dprintf("[%d] position = %d, read = %d, max_size = %zu\n", 
-                i, next_line_len, data_read_len, realsize);
+        LOG_DEBUG_F("[%d] buffers realloc'd (%d)\n", tid, max_line_size[tid]);
+        LOG_DEBUG_F("[%d] position = %d, read = %d, max_size = %zu\n", 
+                    i, next_line_len, data_read_len, realsize);
         
         if (data_read_len + next_line_len >= realsize) {
             // Save current state (line[tid] partially read)
@@ -406,7 +406,7 @@ static size_t write_effect_ws_results(char *contents, size_t size, size_t nmemb,
             chomp(line[tid]);
             line[tid][strlen(line[tid])] = '\0';
             premature_end = 1;
-            dprintf("widow line[tid] = '%s'\n", line[tid]);
+            LOG_DEBUG_F("widow line[tid] = '%s'\n", line[tid]);
             data_read_len = realsize;
             break;
         }
@@ -414,31 +414,31 @@ static size_t write_effect_ws_results(char *contents, size_t size, size_t nmemb,
         strncat(line[tid], data, next_line_len);
         strncat(output_line[tid], line[tid], strlen(line[tid]));
      
-        dprintf("[%d] copy to buffer (%zu)\n", tid, strlen(line[tid]));
+        LOG_DEBUG_F("[%d] copy to buffer (%zu)\n", tid, strlen(line[tid]));
     
         // Find consequence type name (always after SO field)
         SO_found = 0;
         tmp_consequence_type = strtok_r(line[tid], "\t", &aux_buffer);
-        dprintf("[%d] after strtok #1.1 = %s, %s\n", tid, tmp_consequence_type, aux_buffer);
+        LOG_DEBUG_F("[%d] after strtok #1.1 = %s, %s\n", tid, tmp_consequence_type, aux_buffer);
         while (!SO_found) {
             tmp_consequence_type = strtok_r(NULL, "\t", &aux_buffer);
-            dprintf("[%d] after strtok #1.2 = %s, %s\n", tid, tmp_consequence_type, aux_buffer);
+            LOG_DEBUG_F("[%d] after strtok #1.2 = %s, %s\n", tid, tmp_consequence_type, aux_buffer);
             if (starts_with(tmp_consequence_type, "SO:")) {
                 SO_found = 1;
                 break;
             }
         }
-        dprintf("[%d] SO found\n", tid);
+        LOG_DEBUG_F("[%d] SO found\n", tid);
         tmp_consequence_type = strtok_r(NULL, "\t", &aux_buffer);
      
         // Write line[tid] to 'all_variants.txt'
         // TODO ordered by tid
-        dprintf("[%d] before writing all_variants\n", tid);
+        LOG_DEBUG_F("[%d] before writing all_variants\n", tid);
 #pragma omp critical
         {
             fprintf(all_variants_file, "%s\n", output_line[tid]);
         }
-        dprintf("[%d] all_variants written\n", tid);
+        LOG_DEBUG_F("[%d] all_variants written\n", tid);
         
         // If file does not exist, create its descriptor and summary counter
         FILE *aux_file = cp_hashtable_get(output_files, tmp_consequence_type);
@@ -447,7 +447,7 @@ static size_t write_effect_ws_results(char *contents, size_t size, size_t nmemb,
             char *consequence_type = (char*) calloc (consequence_type_len+1, sizeof(char));
             strncat(consequence_type, tmp_consequence_type, consequence_type_len);
             assert(strcmp(consequence_type, tmp_consequence_type) == 0);
-            dprintf("[%d] consequence type copied\n", tid);
+            LOG_DEBUG_F("[%d] consequence type copied\n", tid);
             
             char filename[strlen(output_directory) + consequence_type_len + 5];
             memset(filename, 0, strlen(output_directory) + consequence_type_len + 5);
@@ -462,7 +462,7 @@ static size_t write_effect_ws_results(char *contents, size_t size, size_t nmemb,
             cp_hashtable_put(output_files, consequence_type, aux_file);
             cp_hashtable_put(summary_count, consequence_type, count);
 
-            dprintf("[%d] new CT = %s\n", tid, consequence_type);
+            LOG_DEBUG_F("[%d] new CT = %s\n", tid, consequence_type);
         }
         
         // Write line[tid] to file corresponding to its consequence type
@@ -493,16 +493,6 @@ static size_t write_effect_ws_results(char *contents, size_t size, size_t nmemb,
     if (!premature_end) {
         memset(line[tid], 0, strlen(line[tid]));
         memset(output_line[tid], 0, strlen(line[tid]));
-    }
- 
-    if (debug) {
-        char **k = (char**) cp_hashtable_get_keys(output_files);
-        int n = cp_hashtable_count(output_files);
-        printf("output_files = { ");
-        for (int j = 0; j < n; j++) {
-            printf("%s, ", k[j]);
-        }
-        printf("}\n");
     }
 
     return data_read_len;
@@ -606,17 +596,17 @@ int free_ws_output(int num_threads) {
 }
 
 static void free_file_key1(char *key) {
-    dprintf("Free file key 1: %s\n", key);
+    LOG_DEBUG_F("Free file key 1: %s\n", key);
     free(key);
 }
 
 static void free_file_descriptor(FILE *fd) {
-    dprintf("Free file descriptor\n");
+    LOG_DEBUG("Free file descriptor\n");
     fclose(fd);
 }
 
 static void free_summary_counter(int *count) {
-    dprintf("Free summary counter %d\n", *count);
+    LOG_DEBUG_F("Free summary counter %d\n", *count);
     free(count);
 }
 

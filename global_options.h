@@ -15,7 +15,7 @@
 
 #include <libconfig.h>
 
-#include "util.h"
+#include <log.h>
 
 /**
  * Number of options applicable to the whole application.
@@ -49,7 +49,7 @@ static struct option global_options[] = {
 typedef struct global_options_data
 {
     char *vcf_filename; /**< VCF filename used as input. */
-    const char *output_directory; /**< Directory where the output files will be stored. */
+    char *output_directory; /**< Directory where the output files will be stored. */
     char *output_filename; /**< Filename template for the main output file. */
 } global_options_data_t;
 

@@ -12,7 +12,6 @@
 
 #include "error.h"
 #include "global_options.h"
-#include "util.h"
 
 
 int call(void);

@@ -11,6 +11,7 @@
 
 #include <libconfig.h>
 
+#include <log.h>
 #include <vcf_filters.h>
 
 #include "error.h"
@@ -59,9 +60,9 @@ typedef struct effect_options_data
     long int batch_size; /**< Maximum size of a VCF records' batch. */
 	long int variants_per_request; /**< Maximum number of variants sent in each web service query. */
 	
-	const char *host_url; /**< URL of the host where the web service runs. */
-	const char *version; /**< Version of the WS to query. */
-	const char *species; /**< Species whose genome is taken as reference. */
+	char *host_url; /**< URL of the host where the web service runs. */
+	char *version; /**< Version of the WS to query. */
+	char *species; /**< Species whose genome is taken as reference. */
 	
     filter_chain *chain; /**< Chain of filters to apply to the VCF records, if that is the case. */
 	char *excludes; /**< Consequence types to exclude from the query. */

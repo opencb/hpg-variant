@@ -2,6 +2,8 @@
 
 int main(int argc, char *argv[])
 {
+	init_log_custom(2, 1, "hpg-variant.log");
+
 	// Get tool
 	char *tool = argv[1];
 	int exit_code = 0;
