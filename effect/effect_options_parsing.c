@@ -6,7 +6,7 @@ int read_effect_configuration(const char *filename, effect_options_data_t *optio
         return -1;
     }
     
-    config_t *config = (config_t*) malloc (sizeof(config_t));
+    config_t *config = (config_t*) calloc (1, sizeof(config_t));
     int ret_code = config_read_file(config, filename);
     if (ret_code == CONFIG_FALSE) {
         fprintf(stderr, "config file error: %s\n", config_error_text(config));

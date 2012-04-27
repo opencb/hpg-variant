@@ -6,6 +6,8 @@ global_options_data_t *init_global_options_data(void)
     
     options_data->output_directory = (char*) calloc (5, sizeof(char));
     strncat(options_data->output_directory, "/tmp", 4);
+    options_data->vcf_filename = NULL;
+    options_data->output_filename = NULL;
     
     return options_data;
 }
@@ -24,7 +26,7 @@ int read_global_configuration(const char *filename, global_options_data_t *optio
         return -1;
     }
     
-    config_t *config = (config_t*) malloc (sizeof(config_t));
+    config_t *config = (config_t*) calloc (1, sizeof(config_t));
     int ret_code = config_read_file(config, filename);
     if (ret_code == CONFIG_FALSE)
     {
