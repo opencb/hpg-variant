@@ -139,11 +139,11 @@ int execute_effect_query(char *url, global_options_data_t *global_options_data, 
                 list_t *input_records = batch;
                 list_t *passed_records = NULL, *failed_records = NULL;
 
-//                 if (i % 50 == 0) {
+                if (i % 20 == 0) {
                     LOG_INFO_F("Batch %d reached by thread %d - %zu/%zu records \n", 
                             i, omp_get_thread_num(),
                             batch->length, batch->max_length);
-//                 }
+                }
 
                 if (filters == NULL) {
                     passed_records = input_records;
@@ -163,13 +163,12 @@ int execute_effect_query(char *url, global_options_data_t *global_options_data, 
                     // OpenMP: Launch a thread for each range
                     #pragma omp parallel for
                     for (int j = 0; j < num_chunks; j++) {
-                        LOG_INFO_F("Thread %d calls WS\n", omp_get_thread_num());
+                        LOG_DEBUG_F("[%d] WS invocation\n", omp_get_thread_num());
                         ret_code = invoke_effect_ws(url, chunk_starts[j], max_chunk_size);
-                        LOG_DEBUG_F("[%d] WS invocation finished\n", omp_get_thread_num());
                     }
                     free(chunk_starts);
                     
-                    LOG_INFO_F("*** %dth loop finished\n", i);
+                    LOG_INFO_F("*** %dth web service invocation finished\n", i);
                     
                     if (ret_code) {
                         LOG_FATAL_F("Effect web service error: %s\n", get_last_http_error(ret_code));
@@ -235,11 +234,23 @@ int execute_effect_query(char *url, global_options_data_t *global_options_data, 
             FILE *fd = NULL;
             while ((item = list_remove_item(output_list)) != NULL) {
                 line = item->data_p;
+                
                 // Write entry in the consequence type file
                 fd = cp_hashtable_get(output_files, &(item->type));
-                fprintf(fd, "%s\n", line);
+                int ret = fprintf(fd, "%s\n", line);
+                if (ret < 0) {
+                    LOG_ERROR_F("Error writing to file: '%s'\n", line);
+                } else {
+                    fflush(fd);
+                }
+                
                 // Write in all_variants
-                fprintf(all_variants_file, "%s\n", line);
+                ret = fprintf(all_variants_file, "%s\n", line);
+                if (ret < 0) {
+                    LOG_ERROR_F("Error writing to all_variants: '%s'\n", line);
+                } else {
+                    fflush(all_variants_file);
+                }
                 
                 free(line);
                 list_item_free(item);
@@ -502,9 +513,7 @@ static size_t write_effect_ws_results(char *contents, size_t size, size_t nmemb,
 #pragma omp critical
             {
                 // TODO move critical one level below?
-                // Increment counter for summary
                 count = (int*) cp_hashtable_get(summary_count, tmp_consequence_type);
-    //             assert(count != NULL);
                 if (count == NULL) {
                     char *consequence_type = (char*) calloc (consequence_type_len+1, sizeof(char));
                     strncat(consequence_type, tmp_consequence_type, consequence_type_len);
@@ -514,8 +523,10 @@ static size_t write_effect_ws_results(char *contents, size_t size, size_t nmemb,
                     cp_hashtable_put(summary_count, consequence_type, count);
                     LOG_DEBUG_F("[%d] Initialized summary count for %s\n", tmp_consequence_type);
                 }
+                // Increment counter for summary
                 (*count)++;
             }
+            
             LOG_DEBUG_F("[%d] before writing %s\n", tid, tmp_consequence_type);
             output_text = (char*) calloc (strlen(output_line[tid]) + 1, sizeof(char));
             strncat(output_text, output_line[tid], strlen(output_line[tid]));
