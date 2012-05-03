@@ -14,6 +14,7 @@ static int *max_line_size;
 
 // Output directory (non-accessible directly from CURL callback function)
 static char *output_directory;
+static size_t output_directory_len;
 
 static int batch_num;
 
@@ -38,6 +39,7 @@ int execute_effect_query(char *url, global_options_data_t *global_options_data, 
         return ret_code;
     }
     output_directory = global_options_data->output_directory;
+    output_directory_len = strlen(output_directory);
     
     // Initialize environment for connecting to the web service
     ret_code = init_http_environment(0);
@@ -227,16 +229,15 @@ int execute_effect_query(char *url, global_options_data_t *global_options_data, 
         
 #pragma omp section
         {
-            // TODO writer thread
+            // Thread which writes the results to all_variants, summary and one file per consequence type
             list_item_t* item = NULL;
             char *line;
             FILE *fd = NULL;
-            // TODO writer thread
             while ((item = list_remove_item(output_list)) != NULL) {
                 line = item->data_p;
-                // TODO write entry in corresponding file
-//                 fd = cp_hashtable_get(output_files, &(item->type));
-//                 fprintf(fd, "%s\n", line);
+                // Write entry in the consequence type file
+                fd = cp_hashtable_get(output_files, &(item->type));
+                fprintf(fd, "%s\n", line);
                 // Write in all_variants
                 fprintf(all_variants_file, "%s\n", line);
                 
@@ -386,7 +387,7 @@ static size_t write_effect_ws_results(char *contents, size_t size, size_t nmemb,
     int i = 0;
     int data_read_len = 0, next_line_len = 0;
     // Whether the SO code field (previous to the consequence type name) has been found
-    int SO_found = 0;
+    int *SO_found = (int*) malloc (sizeof(int));
     // Whether the buffer was consumed with a line read just partially
     int premature_end = 0;
     
@@ -451,59 +452,74 @@ static size_t write_effect_ws_results(char *contents, size_t size, size_t nmemb,
         LOG_DEBUG_F("[%d] copy to buffer (%zu)\n", tid, strlen(line[tid]));
     
         // Find consequence type name (always after SO field)
-        SO_found = 0;
+        *SO_found = 0;
         tmp_consequence_type = strtok_r(line[tid], "\t", &aux_buffer);
         LOG_DEBUG_F("[%d] after strtok #1.1 = %s, %s\n", tid, tmp_consequence_type, aux_buffer);
-        while (!SO_found) {
+        while (!*SO_found) {
             tmp_consequence_type = strtok_r(NULL, "\t", &aux_buffer);
             LOG_DEBUG_F("[%d] after strtok #1.2 = %s, %s\n", tid, tmp_consequence_type, aux_buffer);
             if (starts_with(tmp_consequence_type, "SO:")) {
-//                 SO_found = 1;
-                SO_found = atoi(tmp_consequence_type + 3);
+                *SO_found = atoi(tmp_consequence_type + 3);
                 break;
             }
         }
-        LOG_DEBUG_F("[%d] SO found = %d\n", tid, SO_found);
+        if (!*SO_found) { // SO:000000 is not valid
+            LOG_INFO_F("[%d] Non-valid SO found (0)\n", tid);
+            continue;
+        }   
+
+        LOG_DEBUG_F("[%d] SO found = %d\n", tid, *SO_found);
         tmp_consequence_type = strtok_r(NULL, "\t", &aux_buffer);
+        size_t consequence_type_len = strlen(tmp_consequence_type);
      
         // If file does not exist, create its descriptor and summary counter
-        FILE *aux_file = cp_hashtable_get(output_files, tmp_consequence_type);
+        FILE *aux_file = cp_hashtable_get(output_files, SO_found);
         if (!aux_file) {
-            size_t consequence_type_len = strlen(tmp_consequence_type);
-            char *consequence_type = (char*) calloc (consequence_type_len+1, sizeof(char));
-            strncat(consequence_type, tmp_consequence_type, consequence_type_len);
-            assert(strcmp(consequence_type, tmp_consequence_type) == 0);
-            LOG_DEBUG_F("[%d] consequence type copied\n", tid);
-            
-            char filename[strlen(output_directory) + consequence_type_len + 5];
-            memset(filename, 0, strlen(output_directory) + consequence_type_len + 5);
-            strncat(filename, output_directory, strlen(output_directory));
-            strncat(filename, consequence_type, consequence_type_len);
-            strncat(filename, ".txt", 4);
-            aux_file = fopen(filename, "a");
-            
-            // Add to hashtables (file descriptors and summary counters)
-            count = (int*) malloc (sizeof(int));
-            *count = 0;
-            cp_hashtable_put(output_files, consequence_type, aux_file);
-            cp_hashtable_put(summary_count, consequence_type, count);
+#pragma omp critical
+            {
+                // This construction avoids 2 threads trying to insert the same CT
+                aux_file = cp_hashtable_get(output_files, SO_found);
+                if (!aux_file) {
+                    char filename[output_directory_len + consequence_type_len + 5];
+                    memset(filename, 0, output_directory_len + consequence_type_len + 5);
+                    strncat(filename, output_directory, output_directory_len);
+                    strncat(filename, tmp_consequence_type, consequence_type_len);
+                    strncat(filename, ".txt", 4);
+                    aux_file = fopen(filename, "a");
+                    
+                    // Add to hashtables (file descriptors and summary counters)
+                    int *SO_stored = (int*) malloc (sizeof(int));
+                    *SO_stored = *SO_found;
+                    cp_hashtable_put(output_files, SO_stored, aux_file);
 
-            LOG_DEBUG_F("[%d] new CT = %s\n", tid, consequence_type);
+                    LOG_INFO_F("[%d] new CT = %s\n", tid, tmp_consequence_type);
+                }
+            }
         }
         
         // Write line[tid] to file corresponding to its consequence type
         if (aux_file) { 
-            // Increment counter for summary
-            count = (int*) cp_hashtable_get(summary_count, tmp_consequence_type);
-            assert(count != NULL);
-            LOG_DEBUG_F("[%d] before writing %s\n", tid, tmp_consequence_type);
 #pragma omp critical
             {
+                // TODO move critical one level below?
+                // Increment counter for summary
+                count = (int*) cp_hashtable_get(summary_count, tmp_consequence_type);
+    //             assert(count != NULL);
+                if (count == NULL) {
+                    char *consequence_type = (char*) calloc (consequence_type_len+1, sizeof(char));
+                    strncat(consequence_type, tmp_consequence_type, consequence_type_len);
+                    assert(strcmp(consequence_type, tmp_consequence_type) == 0);
+                    count = (int*) malloc (sizeof(int));
+                    *count = 0;
+                    cp_hashtable_put(summary_count, consequence_type, count);
+                    LOG_DEBUG_F("[%d] Initialized summary count for %s\n", tmp_consequence_type);
+                }
                 (*count)++;
             }
+            LOG_DEBUG_F("[%d] before writing %s\n", tid, tmp_consequence_type);
             output_text = (char*) calloc (strlen(output_line[tid]) + 1, sizeof(char));
             strncat(output_text, output_line[tid], strlen(output_line[tid]));
-            list_item_t *output_item = list_item_new(SO_found, SO_found, output_text);
+            list_item_t *output_item = list_item_new(tid, *SO_found, output_text);
             list_insert_item(output_item, output_list);
             LOG_DEBUG_F("[%d] after writing %s\n", tid, tmp_consequence_type);
         }
@@ -522,6 +538,7 @@ static size_t write_effect_ws_results(char *contents, size_t size, size_t nmemb,
         memset(line[tid], 0, strlen(line[tid]));
         memset(output_line[tid], 0, strlen(line[tid]));
     }
+    free(SO_found);
 
     return data_read_len;
 }
@@ -544,8 +561,8 @@ int initialize_ws_output(int num_threads, char *outdir) {
     // Initialize collections of file descriptors and summary counters
     output_files = cp_hashtable_create_by_option(COLLECTION_MODE_DEEP,
                                                  50,
-                                                 cp_hash_istring,
-                                                 (cp_compare_fn) strcasecmp,
+                                                 cp_hash_int,
+                                                 (cp_compare_fn) int_cmp,
                                                  NULL,
                                                  (cp_destructor_fn) free_file_key1,
                                                  NULL,
@@ -556,7 +573,7 @@ int initialize_ws_output(int num_threads, char *outdir) {
                                                  cp_hash_istring,
                                                  (cp_compare_fn) strcasecmp,
                                                  NULL,
-                                                 NULL,  // Keys already free'd in free_file_key1
+                                                 (cp_destructor_fn) free_file_key2,
                                                  NULL,
                                                  (cp_destructor_fn) free_summary_counter
                                                 );
@@ -619,8 +636,8 @@ int free_ws_output(int num_threads) {
     return 0;
 }
 
-static void free_file_key1(char *key) {
-    LOG_DEBUG_F("Free file key 1: %s\n", key);
+static void free_file_key1(int *key) {
+    LOG_DEBUG_F("Free file key 1: %d\n", *key);
     free(key);
 }
 
@@ -629,8 +646,16 @@ static void free_file_descriptor(FILE *fd) {
     fclose(fd);
 }
 
+static void free_file_key2(char *key) {
+    LOG_DEBUG_F("Free file key 2: %s\n", key);
+    free(key);
+}
+
 static void free_summary_counter(int *count) {
     LOG_DEBUG_F("Free summary counter %d\n", *count);
     free(count);
 }
 
+static int int_cmp(int *a, int *b) {
+    return *a - *b;
+}

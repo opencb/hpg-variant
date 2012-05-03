@@ -134,8 +134,8 @@ int free_ws_output(int num_threads);
  * 
  * Frees the unique identifier for storing a file descriptor in a map.
  */
-// static void free_file_key1(int *key);
-static void free_file_key1(char *key);
+static void free_file_key1(int *key);
+// static void free_file_key1(char *key);
 
 /**
  * @param fd the file descriptor in a pair (id, file descriptor)
@@ -143,6 +143,8 @@ static void free_file_key1(char *key);
  * Frees a file descriptor stored in a map.
  */
 static void free_file_descriptor(FILE *fd);
+
+static void free_file_key2(char *key);
 
 /**
  * @param count the number of entries in a pair (id, file descriptor)
