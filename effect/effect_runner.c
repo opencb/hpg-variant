@@ -17,11 +17,13 @@ static char *output_directory;
 
 static int batch_num;
 
+static list_t *output_list;
 
 int execute_effect_query(char *url, global_options_data_t *global_options_data, effect_options_data_t *options_data) {
     list_t *read_list = (list_t*) malloc(sizeof(list_t));
     list_init("batches", 1, options_data->max_batches, read_list);
-    list_t *output_list = (list_t*) malloc (sizeof(list_t));
+//     list_t *output_list = (list_t*) malloc (sizeof(list_t));
+    output_list = (list_t*) malloc (sizeof(list_t));
     list_init("output", options_data->num_threads, MIN(10, options_data->max_batches) * options_data->batch_size, output_list);
 
     int ret_code = 0;
@@ -222,12 +224,34 @@ int execute_effect_query(char *url, global_options_data_t *global_options_data, 
                 list_decr_writers(output_list);
             }
         }
+        
+#pragma omp section
+        {
+            // TODO writer thread
+            list_item_t* item = NULL;
+            char *line;
+            FILE *fd = NULL;
+            // TODO writer thread
+            while ((item = list_remove_item(output_list)) != NULL) {
+                line = item->data_p;
+                // TODO write entry in corresponding file
+//                 fd = cp_hashtable_get(output_files, &(item->type));
+//                 fprintf(fd, "%s\n", line);
+                // Write in all_variants
+                fprintf(all_variants_file, "%s\n", line);
+                
+                free(line);
+                list_item_free(item);
+            }
+            
+        }
     }
 
     write_summary_file();
 
     ret_code = free_ws_output(options_data->num_threads);
     free(read_list);
+    free(output_list);
     vcf_close(file);
     
     return ret_code;
@@ -373,6 +397,7 @@ static size_t write_effect_ws_results(char *contents, size_t size, size_t nmemb,
     char *data = contents;
     char *tmp_consequence_type;
     char *aux_buffer;
+    char *output_text;
     
     
     LOG_DEBUG_F("Effect WS invoked, response size = %zu bytes\n", realsize);
@@ -441,15 +466,6 @@ static size_t write_effect_ws_results(char *contents, size_t size, size_t nmemb,
         LOG_DEBUG_F("[%d] SO found = %d\n", tid, SO_found);
         tmp_consequence_type = strtok_r(NULL, "\t", &aux_buffer);
      
-        // Write line[tid] to 'all_variants.txt'
-        // TODO ordered by tid
-//         LOG_DEBUG_F("[%d] before writing all_variants\n", tid);
-// #pragma omp critical
-//         {
-//             fprintf(all_variants_file, "%s\n", output_line[tid]);
-//         }
-//         LOG_DEBUG_F("[%d] all_variants written\n", tid);
-        
         // If file does not exist, create its descriptor and summary counter
         FILE *aux_file = cp_hashtable_get(output_files, tmp_consequence_type);
         if (!aux_file) {
@@ -480,16 +496,16 @@ static size_t write_effect_ws_results(char *contents, size_t size, size_t nmemb,
             // Increment counter for summary
             count = (int*) cp_hashtable_get(summary_count, tmp_consequence_type);
             assert(count != NULL);
+            LOG_DEBUG_F("[%d] before writing %s\n", tid, tmp_consequence_type);
 #pragma omp critical
             {
                 (*count)++;
-
-                // Write to the file for this specific consequence type
-                // TODO ordered by tid
-                LOG_DEBUG_F("[%d] before writing %s\n", tid, tmp_consequence_type);
-//                 fprintf(aux_file, "%s\n", output_line[tid]);
-                LOG_DEBUG_F("[%d] after writing %s\n", tid, tmp_consequence_type);
             }
+            output_text = (char*) calloc (strlen(output_line[tid]) + 1, sizeof(char));
+            strncat(output_text, output_line[tid], strlen(output_line[tid]));
+            list_item_t *output_item = list_item_new(SO_found, SO_found, output_text);
+            list_insert_item(output_item, output_list);
+            LOG_DEBUG_F("[%d] after writing %s\n", tid, tmp_consequence_type);
         }
         
         data += next_line_len+1;
