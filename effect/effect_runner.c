@@ -14,6 +14,7 @@ static int *max_line_size;
 
 // Output directory (non-accessible directly from CURL callback function)
 static char *output_directory;
+static size_t output_directory_len;
 
 static int batch_num;
 
@@ -21,6 +22,8 @@ static int batch_num;
 int execute_effect_query(char *url, global_options_data_t *global_options_data, effect_options_data_t *options_data) {
     list_t *read_list = (list_t*) malloc(sizeof(list_t));
     list_init("batches", 1, options_data->max_batches, read_list);
+    list_t *output_list = (list_t*) malloc (sizeof(list_t));
+    list_init("output", options_data->num_threads, MIN(10, options_data->max_batches) * options_data->batch_size, output_list);
 
     int ret_code = 0;
     double start, stop, total;
@@ -34,6 +37,7 @@ int execute_effect_query(char *url, global_options_data_t *global_options_data, 
         return ret_code;
     }
     output_directory = global_options_data->output_directory;
+    output_directory_len = strlen(output_directory);
     
     // Initialize environment for connecting to the web service
     ret_code = init_http_environment(0);
@@ -214,7 +218,32 @@ int execute_effect_query(char *url, global_options_data_t *global_options_data, 
                 filter->free_func(filter);
             }
             free(filters);
+            
+            // Decrease list writers count
+            for (i = 0; i < options_data->num_threads; i++) {
+                list_decr_writers(output_list);
+            }
         }
+        
+// #pragma omp section
+//         {
+//             list_item_t* item = NULL;
+//             char *line;
+//             FILE *fd = NULL;
+//             // TODO writer thread
+//             while ((item = list_remove_item(output_list)) != NULL) {
+//                 line = item->data_p;
+//                 // TODO write entry in corresponding file
+//                 fd = cp_hashtable_get(output_files, &(item->type));
+//                 fprintf(fd, "%s\n", line);
+//                 // TODO write in all_variants
+//                 fprintf(all_variants_file, "%s\n", line);
+//                 
+//                 free(line);
+//                 list_item_free(item);
+//             }
+//         }
+
     }
 
     write_summary_file();
@@ -317,7 +346,7 @@ int invoke_effect_ws(const char *url, list_item_t *first_item, int max_chunk_siz
         alternate_len = strlen(record->alternate);
         new_len_range = current_index + chr_len + reference_len + alternate_len + 32;
         
-        LOG_DEBUG_F("%s:%lu:%s:%s\n", record->chromosome, record->position, record->reference, record->alternate);
+        LOG_INFO_F("%s:%lu:%s:%s\n", record->chromosome, record->position, record->reference, record->alternate);
         
         // Reallocate memory if next record won't fit
         if (variants_len < (current_index + new_len_range)) {
@@ -366,6 +395,7 @@ static size_t write_effect_ws_results(char *contents, size_t size, size_t nmemb,
     char *data = contents;
     char *tmp_consequence_type;
     char *aux_buffer;
+    char *output_text;
     
     
     LOG_DEBUG_F("Effect WS invoked, response size = %zu bytes\n", realsize);
@@ -380,7 +410,7 @@ static size_t write_effect_ws_results(char *contents, size_t size, size_t nmemb,
         
         // If the line[tid] is too long for the current buffers, reallocate a little more than the needed memory
         if (strlen(line[tid]) + next_line_len > max_line_size[tid]) {
-            LOG_DEBUG_F("Line too long (%d elements, but %zu needed) in batch #%d\n", 
+            printf("Line too long (%d elements, but %zu needed) in batch #%d\n", 
                         max_line_size[tid], strlen(line[tid]) + next_line_len, batch_num);
             char *aux_1 = (char*) realloc (line[tid], (max_line_size[tid] + next_line_len + 1) * sizeof(char));
             char *aux_2 = (char*) realloc (output_line[tid], (max_line_size[tid] + next_line_len + 1) * sizeof(char));
@@ -396,9 +426,9 @@ static size_t write_effect_ws_results(char *contents, size_t size, size_t nmemb,
             line[tid] = aux_1;
             output_line[tid] = aux_2;
             max_line_size[tid] += next_line_len + 1;
+            printf("[%d] buffers realloc'd (%d)\n", tid, max_line_size[tid]);
         }
         
-        LOG_DEBUG_F("[%d] buffers realloc'd (%d)\n", tid, max_line_size[tid]);
         LOG_DEBUG_F("[%d] position = %d, read = %d, max_size = %zu\n", 
                     i, next_line_len, data_read_len, realsize);
         
@@ -424,25 +454,72 @@ static size_t write_effect_ws_results(char *contents, size_t size, size_t nmemb,
         LOG_DEBUG_F("[%d] after strtok #1.1 = %s, %s\n", tid, tmp_consequence_type, aux_buffer);
         while (!SO_found) {
             tmp_consequence_type = strtok_r(NULL, "\t", &aux_buffer);
-            LOG_DEBUG_F("[%d] after strtok #1.2 = %s, %s\n", tid, tmp_consequence_type, aux_buffer);
-            if (starts_with(tmp_consequence_type, "SO:")) {
-                SO_found = 1;
+            printf("[%d] after strtok #1.2 = %s, %s\n", tid, tmp_consequence_type, aux_buffer);
+            if (tmp_consequence_type != NULL && starts_with(tmp_consequence_type, "SO:")) {
+//                 SO_found = 1;
+                SO_found = atoi(tmp_consequence_type + 2);
                 break;
             }
         }
-        LOG_DEBUG_F("[%d] SO found\n", tid);
+        if (!SO_found) { continue; }    // SO:000000 is not valid
+        
+//         printf("[%d] SO found\n", tid);
+        printf("[%d] SO found = %d\n", tid, SO_found);
         tmp_consequence_type = strtok_r(NULL, "\t", &aux_buffer);
      
         // Write line[tid] to 'all_variants.txt'
         // TODO ordered by tid
-        LOG_DEBUG_F("[%d] before writing all_variants\n", tid);
+//         printf("[%d] before writing all_variants\n", tid);
 #pragma omp critical
         {
             fprintf(all_variants_file, "%s\n", output_line[tid]);
         }
-        LOG_DEBUG_F("[%d] all_variants written\n", tid);
+//         printf("[%d] all_variants written\n", tid);
         
         // If file does not exist, create its descriptor and summary counter
+//         FILE *aux_file = cp_hashtable_get(output_files, &SO_found);
+//         if (!aux_file) {
+//             size_t consequence_type_len = strlen(tmp_consequence_type);
+// //             char *consequence_type = (char*) calloc (consequence_type_len+1, sizeof(char));
+// //             strncat(consequence_type, tmp_consequence_type, consequence_type_len);
+// //             assert(strcmp(consequence_type, tmp_consequence_type) == 0);
+// //             printf("[%d] consequence type copied\n", tid);
+//             
+//             char filename[output_directory_len + consequence_type_len + 5];
+//             memset(filename, 0, output_directory_len+ consequence_type_len + 5);
+//             strncat(filename, output_directory, output_directory_len);
+//             strncat(filename, tmp_consequence_type, consequence_type_len);
+//             strncat(filename, ".txt", 4);
+//             aux_file = fopen(filename, "a");
+//             
+//             // Add to hashtables (file descriptors and summary counters)
+//             count = (int*) malloc (sizeof(int));
+//             *count = 0;
+//             cp_hashtable_put(output_files, &SO_found, aux_file);
+//             cp_hashtable_put(summary_count, &SO_found, count);
+// 
+//             printf("[%d] new CT = %s\n", tid, tmp_consequence_type);
+//         }
+//         
+//         // Write line[tid] to file corresponding to its consequence type
+//         if (aux_file) { 
+//             // Increment counter for summary
+//             count = (int*) cp_hashtable_get(summary_count, &SO_found);
+//             assert(count != NULL);
+// #pragma omp critical
+//             {
+//                 (*count)++;
+//             }
+//                 // Write to the file for this specific consequence type
+//                 // TODO ordered by tid
+//                 printf("[%d] before adding %s\n", tid, tmp_consequence_type);
+// //                 fprintf(aux_file, "%s\n", output_line[tid]);
+//                 output_text = (char*) malloc (strlen(output_line[tid]) * sizeof(char));
+//                 strncpy(output_text, output_line[tid], strlen(output_line[tid]));
+//                 list_item_new(tid, SO_found, output_text);
+//                 printf("[%d] after adding %s\n", tid, tmp_consequence_type);
+// //             }
+//         }
         FILE *aux_file = cp_hashtable_get(output_files, tmp_consequence_type);
         if (!aux_file) {
             size_t consequence_type_len = strlen(tmp_consequence_type);
@@ -522,6 +599,8 @@ int initialize_ws_output(int num_threads, char *outdir) {
                                                  50,
                                                  cp_hash_istring,
                                                  (cp_compare_fn) strcasecmp,
+//                                                  cp_hash_int,
+//                                                  (cp_compare_fn) int_cmp,
                                                  NULL,
                                                  (cp_destructor_fn) free_file_key1,
                                                  NULL,
@@ -531,6 +610,8 @@ int initialize_ws_output(int num_threads, char *outdir) {
                                                  50,
                                                  cp_hash_istring,
                                                  (cp_compare_fn) strcasecmp,
+//                                                  cp_hash_int,
+//                                                  (cp_compare_fn) int_cmp,
                                                  NULL,
                                                  NULL,  // Keys already free'd in free_file_key1
                                                  NULL,
@@ -570,8 +651,11 @@ int initialize_ws_output(int num_threads, char *outdir) {
     
     for (int i = 0; i < num_threads; i++) {
         max_line_size[i] = 512;
-        line[i] = (char*) calloc (max_line_size[i], sizeof(char));
-        output_line[i] = (char*) calloc (max_line_size[i], sizeof(char));
+        line[i] = (char*) malloc (max_line_size[i] * sizeof(char));
+        output_line[i] = (char*) malloc (max_line_size[i] * sizeof(char));
+        
+        memset(line[i], 0, max_line_size[i] * sizeof(char));
+        memset(output_line[i], 0, max_line_size[i] * sizeof(char));
     }
                     
     return 0;
@@ -595,6 +679,11 @@ int free_ws_output(int num_threads) {
     return 0;
 }
 
+// static void free_file_key1(int *key) {
+//     LOG_DEBUG_F("Free file key 1: %d\n", *key);
+//     free(key);
+// }
+
 static void free_file_key1(char *key) {
     LOG_DEBUG_F("Free file key 1: %s\n", key);
     free(key);
@@ -608,5 +697,9 @@ static void free_file_descriptor(FILE *fd) {
 static void free_summary_counter(int *count) {
     LOG_DEBUG_F("Free summary counter %d\n", *count);
     free(count);
+}
+
+static int int_cmp(int *a, int *b) {
+    return *a - *b;
 }
 

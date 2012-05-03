@@ -33,6 +33,8 @@
 #include "error.h"
 #include "main.h"
 
+#define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
+
 /**
  * @brief Performs the whole process of invocation of the effect web service and parsing of its output.
  * @param url URL of the web service
@@ -132,6 +134,7 @@ int free_ws_output(int num_threads);
  * 
  * Frees the unique identifier for storing a file descriptor in a map.
  */
+// static void free_file_key1(int *key);
 static void free_file_key1(char *key);
 
 /**
@@ -147,5 +150,8 @@ static void free_file_descriptor(FILE *fd);
  * Frees the pointer to the number of entries of a consequence type that have been read.
  */
 static void free_summary_counter(int *count);
+
+
+static int int_cmp(int *a, int *b);
 
 #endif
