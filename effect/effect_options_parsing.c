@@ -120,7 +120,7 @@ void parse_effect_options(int argc, char *argv[], effect_options_data_t *options
             case 'f':
                 tmp_string_field = (char*) malloc((strlen(optarg)+1) * sizeof(char));
                 strcpy(tmp_string_field, optarg);
-                filter = create_region_filter(tmp_string_field, 1);
+                filter = create_region_exact_filter(tmp_string_field, 1);
                 options_data->chain = add_to_filter_chain(filter, options_data->chain);
                 LOG_INFO_F("regions file = %s\n", optarg);
                 break;
@@ -147,11 +147,12 @@ void parse_effect_options(int argc, char *argv[], effect_options_data_t *options
                 LOG_INFO_F("variants-per-request = %ld\n", options_data->variants_per_request);
                 break;
             case 'r':
-                tmp_string_field = (char*) malloc((strlen(optarg)+1) * sizeof(char));
-                strcpy(tmp_string_field, optarg);
-                filter = create_region_filter(tmp_string_field, 0);
+                tmp_string_field = (char*) calloc((strlen(optarg)+1), sizeof(char));
+                strcat(tmp_string_field, optarg);
+                filter = create_region_exact_filter(tmp_string_field, 0);
                 options_data->chain = add_to_filter_chain(filter, options_data->chain);
                 LOG_INFO_F("regions = %s\n", optarg);
+                free(tmp_string_field);
                 break;
             case 's':
                 // options_data->species is const char*, so it must be freed and reassigned

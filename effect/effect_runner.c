@@ -76,7 +76,8 @@ int execute_effect_query(char *url, global_options_data_t *global_options_data, 
             omp_set_nested(1);
             omp_set_num_threads(options_data->num_threads);
             
-            FILE *passed_file, *failed_file;
+            LOG_DEBUG_F("Thread %d processes data\n", omp_get_thread_num());
+            FILE *passed_file = NULL, *failed_file = NULL;
             
             filter_t **filters = NULL;
             int num_filters = 0;
@@ -130,10 +131,10 @@ int execute_effect_query(char *url, global_options_data_t *global_options_data, 
             while ((item = list_remove_item(read_list)) != NULL) {
                 vcf_batch_t *batch = (vcf_batch_t*) item->data_p;
                 list_t *input_records = batch;
-                list_t *passed_records, *failed_records;
+                list_t *passed_records = NULL, *failed_records = NULL;
 
-                if (i % 200 == 0) {
-                    LOG_DEBUG_F("Batch %d reached by thread %d - %zu/%zu records \n", 
+                if (i % 50 == 0) {
+                    LOG_INFO_F("Batch %d reached by thread %d - %zu/%zu records \n", 
                             i, omp_get_thread_num(),
                             batch->length, batch->max_length);
                 }
@@ -148,12 +149,6 @@ int execute_effect_query(char *url, global_options_data_t *global_options_data, 
 
                 // Write records that passed to a separate file, and query the WS with them as args
                 if (passed_records->length > 0) {
-                    LOG_DEBUG_F("[batch %d] %zu passed records\n", i, passed_records->length);
-                    
-                    if (passed_file != NULL) {
-                        write_batch(passed_records, passed_file);
-                    }
-                    
                     // Divide the list of passed records in ranges of size defined in config file
                     int max_chunk_size = options_data->variants_per_request;
                     int num_chunks;
@@ -162,12 +157,13 @@ int execute_effect_query(char *url, global_options_data_t *global_options_data, 
                     // OpenMP: Launch a thread for each range
                     #pragma omp parallel for
                     for (int j = 0; j < num_chunks; j++) {
+                        LOG_INFO_F("Thread %d calls WS\n", omp_get_thread_num());
                         ret_code = invoke_effect_ws(url, chunk_starts[j], max_chunk_size);
                         LOG_DEBUG_F("[%d] WS invocation finished\n", omp_get_thread_num());
                     }
                     free(chunk_starts);
                     
-                    LOG_DEBUG_F("*** %dth loop finished\n", i);
+                    LOG_INFO_F("*** %dth loop finished\n", i);
                     
                     if (ret_code) {
                         LOG_FATAL_F("Effect web service error: %s\n", get_last_http_error(ret_code));
@@ -175,17 +171,23 @@ int execute_effect_query(char *url, global_options_data_t *global_options_data, 
                     }
                 }
                 
-                // Write records that failed to a separate file
-                if (failed_file != NULL && failed_records != NULL && failed_records->length > 0) {
-                    LOG_DEBUG_F("[batch %d] %zu failed records\n", i, failed_records->length);
-                    write_batch(failed_records, failed_file);
+                // Write records that passed and failed to separate files
+                if (passed_file != NULL && failed_file != NULL) {
+                    if (passed_records != NULL && passed_records->length > 0) {
+                        write_batch(passed_records, passed_file);
+                    }
+                    if (failed_records != NULL && failed_records->length > 0) {
+                        write_batch(failed_records, failed_file);
+                    }
                 }
                 
                 // Free items in both lists (not their internal data)
                 if (passed_records != input_records) {
+                    LOG_DEBUG_F("[Batch %d] %zu passed records\n", i, passed_records->length);
                     list_free(passed_records, NULL);
                 }
                 if (failed_records) {
+                    LOG_DEBUG_F("[Batch %d] %zu failed records\n", i, failed_records->length);
                     list_free(failed_records, NULL);
                 }
                 // Free batch and its contents
@@ -476,7 +478,9 @@ static size_t write_effect_ws_results(char *contents, size_t size, size_t nmemb,
 
                 // Write to the file for this specific consequence type
                 // TODO ordered by tid
+                LOG_DEBUG_F("[%d] before writing %s\n", tid, tmp_consequence_type);
                 fprintf(aux_file, "%s\n", output_line[tid]);
+                LOG_DEBUG_F("[%d] after writing %s\n", tid, tmp_consequence_type);
             }
         }
         
@@ -560,18 +564,14 @@ int initialize_ws_output(int num_threads, char *outdir) {
     cp_hashtable_put(output_files, key, summary_file);
     
     // Create a buffer for each thread
-    line = (char**) malloc (num_threads * sizeof(char*));
-    output_line = (char**) malloc (num_threads * sizeof(char*));
-    max_line_size = (int*) malloc (num_threads * sizeof(int));
+    line = (char**) calloc (num_threads, sizeof(char*));
+    output_line = (char**) calloc (num_threads, sizeof(char*));
+    max_line_size = (int*) calloc (num_threads, sizeof(int));
     
     for (int i = 0; i < num_threads; i++) {
         max_line_size[i] = 512;
-        
-        line[i] = (char*) malloc (max_line_size[i] * sizeof(char));
-        output_line[i] = (char*) malloc (max_line_size[i] * sizeof(char));
-        
-        memset(line[i], 0, max_line_size[i] * sizeof(char));
-        memset(output_line[i], 0, max_line_size[i] * sizeof(char));
+        line[i] = (char*) calloc (max_line_size[i], sizeof(char));
+        output_line[i] = (char*) calloc (max_line_size[i], sizeof(char));
     }
                     
     return 0;

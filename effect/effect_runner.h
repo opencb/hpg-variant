@@ -21,6 +21,7 @@
 
 #include <file_utils.h>
 #include <http_utils.h>
+#include <list.h>
 #include <log.h>
 #include <string_utils.h>
 #include <vcf_batch.h>
