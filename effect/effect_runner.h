@@ -49,7 +49,7 @@
  * processed and a file for the entries associated to each consequence type is created. There is 
  * also a summary file which contains the number of entries for each of these consequence types.
  */
-int execute_effect_query(char *url, global_options_data_t *global_options_data, effect_options_data_t *options_data);
+int run_effect(char *url, global_options_data_t *global_options_data, effect_options_data_t *options_data);
 
 
 /* **********************************************

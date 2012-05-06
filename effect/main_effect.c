@@ -45,7 +45,7 @@ int effect(int argc, char *argv[]) {
     char *url = compose_effect_ws_request(options_data);
 
     // Step 5: Execute request and manage its response (as CURL request callback function)
-    int result = execute_effect_query(url, global_options_data, options_data);
+    int result = run_effect(url, global_options_data, options_data);
 
     free(url);
     free_options_data(options_data);

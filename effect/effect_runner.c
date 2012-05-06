@@ -20,7 +20,7 @@ static int batch_num;
 
 static list_t *output_list;
 
-int execute_effect_query(char *url, global_options_data_t *global_options_data, effect_options_data_t *options_data) {
+int run_effect(char *url, global_options_data_t *global_options_data, effect_options_data_t *options_data) {
     list_t *read_list = (list_t*) malloc(sizeof(list_t));
     list_init("batches", 1, options_data->max_batches, read_list);
 //     list_t *output_list = (list_t*) malloc (sizeof(list_t));
@@ -240,17 +240,17 @@ int execute_effect_query(char *url, global_options_data_t *global_options_data, 
                 int ret = fprintf(fd, "%s\n", line);
                 if (ret < 0) {
                     LOG_ERROR_F("Error writing to file: '%s'\n", line);
-                } else {
+                } /*else {
                     fflush(fd);
-                }
+                }*/
                 
                 // Write in all_variants
                 ret = fprintf(all_variants_file, "%s\n", line);
                 if (ret < 0) {
                     LOG_ERROR_F("Error writing to all_variants: '%s'\n", line);
-                } else {
+                } /*else {
                     fflush(all_variants_file);
-                }
+                }*/
                 
                 free(line);
                 list_item_free(item);
@@ -423,9 +423,12 @@ static size_t write_effect_ws_results(char *contents, size_t size, size_t nmemb,
         next_line_len = strcspn(data, "\n");
         
         // If the line[tid] is too long for the current buffers, reallocate a little more than the needed memory
-        if (strlen(line[tid]) + next_line_len > max_line_size[tid]) {
+        if (strlen(line[tid]) + next_line_len + 1 > max_line_size[tid]) {
             LOG_DEBUG_F("Line too long (%d elements, but %zu needed) in batch #%d\n", 
                         max_line_size[tid], strlen(line[tid]) + next_line_len, batch_num);
+//             char *out_buf = (char*) calloc (next_line_len+1, sizeof(char));
+//             snprintf(out_buf, next_line_len, "%s", data);
+//             LOG_INFO_F("[%d] too big data is: '%s'\n", tid, out_buf);
             char *aux_1 = (char*) realloc (line[tid], (max_line_size[tid] + next_line_len + 1) * sizeof(char));
             char *aux_2 = (char*) realloc (output_line[tid], (max_line_size[tid] + next_line_len + 1) * sizeof(char));
             
@@ -440,9 +443,9 @@ static size_t write_effect_ws_results(char *contents, size_t size, size_t nmemb,
             line[tid] = aux_1;
             output_line[tid] = aux_2;
             max_line_size[tid] += next_line_len + 1;
+            LOG_DEBUG_F("[%d] buffers realloc'd (%d)\n", tid, max_line_size[tid]);
         }
         
-        LOG_DEBUG_F("[%d] buffers realloc'd (%d)\n", tid, max_line_size[tid]);
         LOG_DEBUG_F("[%d] position = %d, read = %d, max_size = %zu\n", 
                     i, next_line_len, data_read_len, realsize);
         
