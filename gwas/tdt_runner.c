@@ -1,6 +1,6 @@
 #include "tdt_runner.h"
 
-int verbose_tdt = 1;
+int verbose_tdt = 0;
 int permute = 0;
 
 int run_tdt_test(global_options_data_t* global_options_data, gwas_options_data_t* options_data) {
@@ -14,6 +14,7 @@ int run_tdt_test(global_options_data_t* global_options_data, gwas_options_data_t
     vcf_file_t *file = vcf_open(global_options_data->vcf_filename);
     ped_file_t *ped_file = ped_open(global_options_data->ped_filename);
     
+    LOG_INFO("About to read PED file...\n");
     // Read PED file before doing any proccessing
     ret_code = ped_read(ped_file);
     if (ret_code != 0) {
@@ -30,6 +31,7 @@ int run_tdt_test(global_options_data_t* global_options_data, gwas_options_data_t
 //     char *output_directory = global_options_data->output_directory;
 //     size_t output_directory_len = strlen(output_directory);
     
+    LOG_INFO("About to perform TDT test...\n");
 
 #pragma omp parallel sections private(start, stop, total)
     {
@@ -212,6 +214,8 @@ tdt_test(ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_hasht
     // TODO chunks in the same way as in hpg-variant/effect
     for (int i = 0; i < num_variants && cur_variant != NULL; i++) {
         vcf_record_t *record = (vcf_record_t*) cur_variant->data_p;
+//         LOG_INFO_F("Checking variant %s:%ld\n", record->chromosome, record->position);
+        
     //         // Adaptive permutation, skip this SNP?
     //         if (par::adaptive_perm && (!perm.snp_test[variant])) {
     //             continue;
@@ -236,6 +240,7 @@ tdt_test(ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_hasht
         for (int f = 0; f < num_families; f++) {
             family = cp_hashtable_get(families, keys[f]);
             
+            LOG_INFO_F("Checking suitability of family %s\n", family->id);
 //             if ( !family[f]->TDT ) continue;
 
             int trA = 0;  // transmitted allele from first het parent
@@ -354,7 +359,7 @@ tdt_test(ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_hasht
                 if (trB==2) { t2++; }
                 
                 if (verbose_tdt) {
-                    printf("TDT\t%s %s : %d %d - %d %d - %f %f - %d %d - %d %d - %d %d\n", 
+                    LOG_INFO_F("TDT\t%s %s : %d %d - %d %d - %f %f - %d %d - %d %d - %d %d\n", 
                            record->id, family->id, trA, unA, trB, unB, t1, t2, 
                            father_allele1, father_allele2, mother_allele1, mother_allele2, child_allele1, child_allele2);
                 }
@@ -376,9 +381,9 @@ tdt_test(ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_hasht
             tdt_chisq = ((t1-t2)*(t1-t2))/(t1+t2);
         }
         
-        printf("%s:%ld\t%s-%s\t%f\t%f\t%f\t%f\n",//\t%f\n", 
-               record->chromosome, record->position, record->reference, record->alternate, 
-               t1, t2, (float) t1/t2, tdt_chisq);//p_value);
+//         printf("%s:%ld\t%s-%s\t%f\t%f\t%f\t%f\n",//\t%f\n", 
+//                record->chromosome, record->position, record->reference, record->alternate, 
+//                t1, t2, (float) t1/t2, tdt_chisq);//p_value);
         
         cur_variant = cur_variant->next_p;
     } // next variant
