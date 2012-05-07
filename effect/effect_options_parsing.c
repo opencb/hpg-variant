@@ -195,25 +195,25 @@ int verify_effect_options(global_options_data_t *global_options_data, effect_opt
 {
     // Check whether the input VCF file is defined
     if (global_options_data->vcf_filename == NULL || strlen(global_options_data->vcf_filename) == 0) {
-        LOG_WARN("Please specify the input VCF file.\n");
+        LOG_ERROR("Please specify the input VCF file.\n");
         return VCF_FILE_NOT_SPECIFIED;
     }
     
     // Check whether the host URL is defined
     if (options_data->host_url == NULL || strlen(options_data->host_url) == 0) {
-        LOG_WARN("Please specify the host URL to the web service.\n");
+        LOG_ERROR("Please specify the host URL to the web service.\n");
         return EFFECT_HOST_URL_NOT_SPECIFIED;
     }
 
     // Check whether the version is defined
     if (options_data->version == NULL || strlen(options_data->version) == 0) {
-        LOG_WARN("Please specify the version.\n");
+        LOG_ERROR("Please specify the version.\n");
         return EFFECT_VERSION_NOT_SPECIFIED;
     }
 
     // Check whether the species is defined
     if (options_data->species == NULL || strlen(options_data->species) == 0) {
-        LOG_WARN("Please specify the species to take as reference.\n");
+        LOG_ERROR("Please specify the species to take as reference.\n");
         return EFFECT_SPECIES_NOT_SPECIFIED;
     }
 

@@ -9,7 +9,9 @@
  * functions to read their value from a configuration file or the command line.
  */ 
 
+#include <getopt.h>
 #include <libconfig.h>
+#include <stdlib.h>
 
 #include <log.h>
 #include <vcf_filters.h>
