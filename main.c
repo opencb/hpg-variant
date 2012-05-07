@@ -13,17 +13,21 @@ int main(int argc, char *argv[])
 	if (strcmp(tool, "call") == 0) {
 		fprintf(stderr, "%s tool not yet implemented\n", tool);
 		exit_code = NOT_IMPLEMENTED_TOOL;
+        
 	} else if (strcmp(tool, "effect") == 0) {
 		exit_code = effect(argc - 1, argv + 1);
+        
 	} else if (strcmp(tool, "functional-analysis") == 0) {
 		fprintf(stderr, "%s tool not yet implemented\n", tool);
         exit_code = NOT_IMPLEMENTED_TOOL;
+        
 	} else if (strcmp(tool, "genomic-analysis") == 0) {
-		fprintf(stderr, "%s tool not yet implemented\n", tool);
-        exit_code = NOT_IMPLEMENTED_TOOL;
+        exit_code = genomic_analysis(argc - 1, argv + 1);
+        
 	} else if (strcmp(tool, "pathway-analysis") == 0) {
 		fprintf(stderr, "%s tool not yet implemented\n", tool);
         exit_code = NOT_IMPLEMENTED_TOOL;
+        
 	} else {
 		fprintf(stderr, "The requested tool does not exist! (%s)\n", tool);
         exit_code = NOT_IMPLEMENTED_TOOL;

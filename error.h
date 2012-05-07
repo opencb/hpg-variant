@@ -5,6 +5,7 @@
 #define NOT_IMPLEMENTED_TOOL                    1
 
 #define VCF_FILE_NOT_SPECIFIED                  10
+#define PED_FILE_NOT_SPECIFIED                  11
 
 
 // Effect tool errors

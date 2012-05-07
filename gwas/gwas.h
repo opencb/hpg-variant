@@ -9,7 +9,9 @@
  * functions to read their value from a configuration file or the command line.
  */ 
 
+#include <getopt.h>
 #include <libconfig.h>
+#include <stdlib.h>
 
 #include <log.h>
 #include <vcf_filters.h>
@@ -21,10 +23,16 @@
 /**
  * Number of options applicable to the gwas tool.
  */
-#define NUM_GWAS_OPTIONS  2
+#define NUM_GWAS_OPTIONS  4
 
 static struct option gwas_options[] = {
+    // Task options
+//     { "association",            no_argument, 0, 'a' },
+//     { "copy-number",            no_argument, 0, 'c' },
+//     { "loh",                    no_argument, 0, 'l' },
+    { "tdt",                    no_argument, 0, 't' },
     
+    // Filtering options
     { "region-file",            required_argument, 0, 'f' },
     { "region",                 required_argument, 0, 'r' },
     
@@ -36,6 +44,9 @@ static struct option gwas_options[] = {
     {NULL,                      0, 0, 0}
 };
 
+// enum GWAS_task { ASSOCIATION, COPY_NUMBER, LOH, TDT };
+enum GWAS_task { NONE, TDT };
+
 
 /**
  * @brief Values for the options of the gwas tool.
@@ -46,6 +57,8 @@ static struct option gwas_options[] = {
  */
 typedef struct gwas_options_data
 {
+    enum GWAS_task task; /**< Task to perform */
+    
     /*  uint32_t??? */
     long int num_threads; /**< Number of threads that query the web service simultaneously. */
     long int max_batches; /**< Number of VCF records' batches that can be stored simultaneously. */
