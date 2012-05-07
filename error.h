@@ -15,7 +15,7 @@
 #define EFFECT_REGIONS_NOT_SPECIFIED            103
 
 
-// VCF-tools tool errors
-
+// GWAS tool errors
+#define GWAS_TASK_NOT_SPECIFIED                 200
 
 #endif

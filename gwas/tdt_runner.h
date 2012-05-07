@@ -29,7 +29,7 @@ typedef struct {
 } tdt_result_t;
 
 
-int run_tdt_test(ped_file_t *ped_file, global_options_data_t *global_options_data, gwas_options_data_t *options_data);
+int run_tdt_test(global_options_data_t *global_options_data, gwas_options_data_t *options_data);
 
 // tdt_result_t *
 int
