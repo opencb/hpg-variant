@@ -55,7 +55,6 @@ void parse_gwas_options(int argc, char *argv[], gwas_options_data_t *options_dat
     // Last option read, for when the global options parser is invoked
     int previous_opt_index = optind;
 
-    int debug = 1;
     while ((c = getopt_long (argc, argv, "A:O:f:n:r:t", options, &optind)) != -1)
     {
         LOG_DEBUG_F("<main> c = %c, opt_idx = %d\n", c, optind);
@@ -94,7 +93,7 @@ void parse_gwas_options(int argc, char *argv[], gwas_options_data_t *options_dat
             case 't':
                 if (options_data->task == NONE) {
                     options_data->task = TDT;
-                    LOG_INFO_F("task = %s\n", options_data->task);
+                    LOG_INFO("task = TDT\n");
                 } else {
                     LOG_ERROR("Task already selected\n");
                 }
@@ -126,5 +125,12 @@ int verify_gwas_options(global_options_data_t *global_options_data, gwas_options
         return PED_FILE_NOT_SPECIFIED;
     }
 
+    // Check whether the task to perform is defined
+    if (options_data->task == NONE) {
+        LOG_ERROR("Please specify the task to perform.\n");
+        return GWAS_TASK_NOT_SPECIFIED;
+    }
+
+    
     return 0;
 }

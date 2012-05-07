@@ -20,7 +20,7 @@
 /**
  * Number of options applicable to the whole application.
  */
-#define NUM_GLOBAL_OPTIONS  3
+#define NUM_GLOBAL_OPTIONS  4
     
 static struct option global_options[] = {
     // File formats accepted (range available A-H)

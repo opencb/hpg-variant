@@ -3,7 +3,7 @@
 int verbose_tdt = 1;
 int permute = 0;
 
-int run_tdt_test(ped_file_t *ped_file, global_options_data_t* global_options_data, gwas_options_data_t* options_data) {
+int run_tdt_test(global_options_data_t* global_options_data, gwas_options_data_t* options_data) {
     list_t *read_list = (list_t*) malloc(sizeof(list_t));
     list_init("batches", 1, options_data->max_batches, read_list);
     list_t *output_list = (list_t*) malloc (sizeof(list_t));
@@ -12,6 +12,13 @@ int run_tdt_test(ped_file_t *ped_file, global_options_data_t* global_options_dat
     int ret_code = 0;
     double start, stop, total;
     vcf_file_t *file = vcf_open(global_options_data->vcf_filename);
+    ped_file_t *ped_file = ped_open(global_options_data->ped_filename);
+    
+    // Read PED file before doing any proccessing
+    ret_code = ped_read(ped_file);
+    if (ret_code != 0) {
+        return ret_code;
+    }
     
 //     create_directory(global_options_data->output_directory);
     
