@@ -26,7 +26,7 @@ static struct option global_options[] = {
     // File formats accepted (range available A-H)
     {"vcf-file",        required_argument, 0, 'A' },
 //  {"bam-file",        required_argument, 0, 'B' },
-//    {"bed-file",      required_argument, 0, 'E' },
+    {"ped-file",      required_argument, 0, 'E' },
 //    {"gff-file",      required_argument, 0, 'G' },
     
     // IO options (range available I-O)
@@ -48,7 +48,8 @@ static struct option global_options[] = {
  */
 typedef struct global_options_data
 {
-    char *vcf_filename; /**< VCF filename used as input. */
+    char *ped_filename; /**< PED file used as input. */
+    char *vcf_filename; /**< VCF file used as input. */
     char *output_directory; /**< Directory where the output files will be stored. */
     char *output_filename; /**< Filename template for the main output file. */
 } global_options_data_t;
