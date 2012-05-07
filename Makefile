@@ -10,18 +10,21 @@ BIOINFO_DATA_DIR = $(LIBS_ROOT)/bioformats
 REGION_DIR = $(BIOINFO_DATA_DIR)/features/region
 
 # Include and libs folders
-INCLUDES = -I $(CONTAINERS_DIR) -I $(COMMONS_DIR) -I $(REGION_DIR) -I $(BIOINFO_DATA_DIR)/vcf/ -I $(BIOINFO_DATA_DIR)/gff/ -I . -I ./effect/
+INCLUDES = -I $(CONTAINERS_DIR) -I $(COMMONS_DIR) -I $(REGION_DIR) -I $(BIOINFO_DATA_DIR) -I $(BIOINFO_DATA_DIR)/vcf/ -I $(BIOINFO_DATA_DIR)/gff/ -I $(BIOINFO_DATA_DIR)/ped/ -I . -I ./effect/
+# INCLUDES = -I $(LIBS_ROOT) -I . -I ./effect/ -I ./gwas/
 LIBS = -L/usr/lib/x86_64-linux-gnu -lcurl -Wl,-Bsymbolic-functions -lconfig -lcprops -fopenmp -lm
 
 # Source files dependencies
 VCF_FILES = $(BIOINFO_DATA_DIR)/vcf/vcf_*.o
 GFF_FILES = $(BIOINFO_DATA_DIR)/gff/gff_*.o
+PED_FILES = $(BIOINFO_DATA_DIR)/ped/ped_*.o $(BIOINFO_DATA_DIR)/family.o
 REGION_TABLE_FILES = $(REGION_DIR)/region.o $(CONTAINERS_DIR)/region_table.o $(CONTAINERS_DIR)/region_table_utils.o
 MISC_FILES = $(COMMONS_DIR)/file_utils.o $(COMMONS_DIR)/string_utils.o $(COMMONS_DIR)/http_utils.o $(COMMONS_DIR)/log.o $(CONTAINERS_DIR)/list.o
 
 # Project source files
 EFFECT_FILES = effect/main_effect.c effect/effect_options_parsing.c effect/effect_runner.c
-HPG_VARIANT_FILES = main.c global_options.c $(EFFECT_FILES) $(VCF_FILES) $(GFF_FILES) $(REGION_TABLE_FILES) $(MISC_FILES)
+GWAS_FILES = gwas/tdt_runner.c
+HPG_VARIANT_FILES = main.c global_options.c hpg_variant_utils.c $(EFFECT_FILES) $(GWAS_FILES) $(VCF_FILES) $(GFF_FILES) $(PED_FILES) $(REGION_TABLE_FILES) $(MISC_FILES)
 
 # Targets
 all: compile-dependencies hpg-variant
@@ -33,17 +36,17 @@ hpg-variant: compile-dependencies $(HPG_VARIANT_FILES)
 #	$(CC) $(CFLAGS_DEBUG) -D_XOPEN_SOURCE=600 -o $@ $(HPG_VARIANT_FILES) $(INCLUDES) $(LIBS)
 
 compile-dependencies:
+	make family.o && \
 	cd $(COMMONS_DIR) && make file_utils.o http_utils.o string_utils.o log.o &&  \
-        cd $(REGION_DIR) && make region.o &&  \
-        cd $(CONTAINERS_DIR) && make list.o region_table.o region_table_utils.o &&  \
-        cd $(BIOINFO_DATA_DIR)/gff && make compile &&  \
-        cd $(BIOINFO_DATA_DIR)/vcf && make compile
-
-gff-reader:
-	cd $(BIOINFO_DATA_DIR)/gff && make compile
-
-vcf-reader: gff-reader
+	cd $(REGION_DIR) && make region.o &&  \
+	cd $(CONTAINERS_DIR) && make list.o region_table.o region_table_utils.o &&  \
+	cd $(BIOINFO_DATA_DIR)/gff && make compile &&  \
+	cd $(BIOINFO_DATA_DIR)/ped && make compile &&  \
 	cd $(BIOINFO_DATA_DIR)/vcf && make compile
+
+family.o:
+	cd $(BIOINFO_DATA_DIR) && \
+	$(CC) $(CFLAGS) -D_XOPEN_SOURCE=600 -c -o $(BIOINFO_DATA_DIR)/$@ $(BIOINFO_DATA_DIR)/family.c $(INCLUDES) $(LIBS)
 
 file_utils.o:
 	cd $(COMMONS_DIR) && make file_utils.o
