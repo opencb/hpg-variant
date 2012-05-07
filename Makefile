@@ -23,7 +23,7 @@ MISC_FILES = $(COMMONS_DIR)/file_utils.o $(COMMONS_DIR)/string_utils.o $(COMMONS
 
 # Project source files
 EFFECT_FILES = effect/main_effect.c effect/effect_options_parsing.c effect/effect_runner.c
-GWAS_FILES = gwas/tdt_runner.c
+GWAS_FILES = gwas/main_gwas.c gwas/gwas_options_parsing.c gwas/tdt_runner.c
 HPG_VARIANT_FILES = main.c global_options.c hpg_variant_utils.c $(EFFECT_FILES) $(GWAS_FILES) $(VCF_FILES) $(GFF_FILES) $(PED_FILES) $(REGION_TABLE_FILES) $(MISC_FILES)
 
 # Targets

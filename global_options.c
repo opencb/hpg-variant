@@ -6,6 +6,7 @@ global_options_data_t *init_global_options_data(void)
     
     options_data->output_directory = (char*) calloc (5, sizeof(char));
     strncat(options_data->output_directory, "/tmp", 4);
+    options_data->ped_filename = NULL;
     options_data->vcf_filename = NULL;
     options_data->output_filename = NULL;
     
@@ -14,6 +15,7 @@ global_options_data_t *init_global_options_data(void)
 
 void free_global_options_data(global_options_data_t *options_data)
 {
+    if (options_data->ped_filename)     { free((void*) options_data->ped_filename); }
     if (options_data->vcf_filename)     { free((void*) options_data->vcf_filename); }
     if (options_data->output_directory) { free((void*) options_data->output_directory); }
     if (options_data->output_filename)  { free((void*) options_data->output_filename); }
@@ -62,25 +64,31 @@ int parse_global_options(int argc, char *argv[], global_options_data_t *options_
     int last_opt_index = optind = start_index;
     
     LOG_DEBUG("Parsing global options...\n");
-    while (!finished && (c = getopt_long (argc, argv, ":A:O:", global_options, &optind)) != 1)
+    while (!finished && (c = getopt_long (argc, argv, "A:E:N:O:", global_options, &optind)) != 1)
     {
         switch (c)
         {
             case 'A':
-                options_data->vcf_filename = (char*) malloc((strlen(optarg)+1) * sizeof(char));
-                strcpy(options_data->vcf_filename, optarg);
+                options_data->vcf_filename = (char*) calloc(strlen(optarg)+1, sizeof(char));
+                strncat(options_data->vcf_filename, optarg, strlen(optarg));
                 last_opt_index = optind;
                 LOG_INFO_F("input vcf filename = %s\n", options_data->vcf_filename);
                 break;
+            case 'E':
+                options_data->ped_filename = (char*) calloc(strlen(optarg)+1, sizeof(char));
+                strncat(options_data->ped_filename, optarg, strlen(optarg));
+                last_opt_index = optind;
+                LOG_INFO_F("input ped filename = %s\n", options_data->ped_filename);
+                break;
             case 'N':
-                options_data->output_directory = (char*) malloc((strlen(optarg)+1) * sizeof(char));
-                strcpy(options_data->output_directory, optarg);
+                options_data->output_directory = (char*) calloc(strlen(optarg)+1, sizeof(char));
+                strncat(options_data->output_directory, optarg, strlen(optarg));
                 last_opt_index = optind;
                 LOG_INFO_F("output directory = %s\n", options_data->output_directory);
                 break;
             case 'O':
-                options_data->output_filename = (char*) malloc((strlen(optarg)+1) * sizeof(char));
-                strcpy(options_data->output_filename, optarg);
+                options_data->output_filename = (char*) calloc(strlen(optarg)+1, sizeof(char));
+                strncat(options_data->output_filename, optarg, strlen(optarg));
                 last_opt_index = optind;
                 LOG_INFO_F("output filename template = %s\n", options_data->output_filename);
                 break;

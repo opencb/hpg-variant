@@ -22,7 +22,7 @@ int effect(int argc, char *argv[]);
 
 int functional_analysis(void);
 
-int genomic_analysis(void);
+int genomic_analysis(int argc, char *argv[]);
 
 int pathway_analysis(void);
 
