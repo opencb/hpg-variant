@@ -41,12 +41,14 @@ int genomic_analysis(int argc, char *argv[]) {
         return check_gwas_opts;
     }
 
-    // TODO Step 4: Perform the operations related to the selected GWAS sub-tool
-    switch (options_data->task) {
-        case TDT:
-//             run_tdt_test()
-            break;
+    // Step 4: Perform the operations related to the selected GWAS sub-tool
+//     switch (options_data->task) {
+//         case TDT:
+    if (options_data->task == TDT) {
+            run_tdt_test(global_options_data, options_data);
     }
+//             break;
+//     }
     
     free_options_data(options_data);
     free_global_options_data(global_options_data);
