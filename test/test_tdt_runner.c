@@ -23,11 +23,14 @@ static vcf_record_t *record;
 static cp_hashtable *sample_ids;
 static list_t *output_list;
 
-static family_t *family;
+static family_t *family, *familyB;
 static individual_t *father, *mother, *child;
+static individual_t *fatherB, *motherB, *childB;
 static char *father_sample, *mother_sample, *child_sample;
+static char *father_sampleB, *mother_sampleB, *child_sampleB;
 
 static int *pos0, *pos1, *pos2;
+static int *pos3, *pos4, *pos5;
 
 
 /* ******************************
@@ -38,12 +41,18 @@ void setup_positions(void) {
     pos0 = (int*) malloc (sizeof(int)); *pos0 = 0;
     pos1 = (int*) malloc (sizeof(int)); *pos1 = 1;
     pos2 = (int*) malloc (sizeof(int)); *pos2 = 2;
+    pos3 = (int*) malloc (sizeof(int)); *pos3 = 3;
+    pos4 = (int*) malloc (sizeof(int)); *pos4 = 4;
+    pos5 = (int*) malloc (sizeof(int)); *pos5 = 5;
 }
 
 void teardown_positions(void) {
     free(pos0);
     free(pos1);
     free(pos2);
+    free(pos3);
+    free(pos4);
+    free(pos5);
 }
 
 /* ******************************
@@ -350,9 +359,69 @@ START_TEST (family_11_01_01) {
 END_TEST
 
 
-
 START_TEST (combined_families) {
     // TODO combine various situations from the previous test case
+    
+    // Create family #1
+    father = individual_new("FAT01", 2.0, MALE, NULL, NULL, family);
+    mother = individual_new("MOT01", 2.0, FEMALE, NULL, NULL, family);
+    child = individual_new("CHILD00", 2.0, MALE, father, mother, family);
+    family_set_parent(father, family);
+    family_set_parent(mother, family);
+    family_add_child(child, family);
+    // Create family #2
+    familyB = family_new("TESTFAM-B");
+    add_family(familyB, ped);
+    fatherB = individual_new("FAT01B", 2.0, MALE, NULL, NULL, familyB);
+    motherB = individual_new("MOT00B", 2.0, FEMALE, NULL, NULL, familyB);
+    childB = individual_new("CHILD00B", 2.0, MALE, fatherB, motherB, familyB);
+    family_set_parent(fatherB, familyB);
+    family_set_parent(motherB, familyB);
+    family_add_child(childB, familyB);
+    
+    
+    // Create VCF record to insert into variants
+    strcat(father_sample, "0/1");
+    strcat(mother_sample, "0/1");
+    strcat(child_sample, "0/0");
+    
+    father_sampleB = (char*) calloc (3, sizeof(char));
+    mother_sampleB = (char*) calloc (3, sizeof(char));
+    child_sampleB = (char*) calloc (3, sizeof(char));
+    strcat(father_sampleB, "0/1");
+    strcat(mother_sampleB, "0/0");
+    strcat(child_sampleB, "0/0");
+    
+    list_item_t *item = list_item_new(1, 0, father_sample);
+    list_insert_item(item, record->samples);
+    item = list_item_new(2, 0, mother_sample);
+    list_insert_item(item, record->samples);
+    item = list_item_new(3, 0, child_sample);
+    list_insert_item(item, record->samples);
+    
+    item = list_item_new(4, 0, father_sampleB);
+    list_insert_item(item, record->samples);
+    item = list_item_new(5, 0, mother_sampleB);
+    list_insert_item(item, record->samples);
+    item = list_item_new(6, 0, child_sampleB);
+    list_insert_item(item, record->samples);
+    
+    // Create ordering structure
+    sample_ids = cp_hashtable_create(12, cp_hash_string, (cp_compare_fn) strcasecmp);
+    cp_hashtable_put(sample_ids, "FAT01", pos0);
+    cp_hashtable_put(sample_ids, "MOT01", pos1);
+    cp_hashtable_put(sample_ids, "CHILD00", pos2);
+    cp_hashtable_put(sample_ids, "FAT01B", pos3);
+    cp_hashtable_put(sample_ids, "MOT00B", pos4);
+    cp_hashtable_put(sample_ids, "CHILD00B", pos5);
+    
+    // Launch and verify execution
+    fail_unless(tdt_test(ped, variant, 1, sample_ids, output_list) == 0, "TDT test terminated with errors");
+    fail_if(output_list->length == 0, "There must be one result inserted");
+    
+    tdt_result_t *result = output_list->first_p->data_p;
+    fail_unless(result->t1 == 3, "In 01-01->00, b=3");
+    fail_unless(result->t2 == 0, "In 01-01->00, c=0");
 }
 END_TEST
 
@@ -363,6 +432,8 @@ START_TEST (whole_test) {
 }
 END_TEST
 
+
+
 /* ******************************
  *      Main entry point        *
  * ******************************/
@@ -370,7 +441,7 @@ END_TEST
 int main (int argc, char *argv) {
     Suite *fs = create_test_suite();
     SRunner *fs_runner = srunner_create(fs);
-    srunner_run_all(fs_runner, CK_VERBOSE);
+    srunner_run_all(fs_runner, CK_NORMAL);
     int number_failed = srunner_ntests_failed (fs_runner);
     srunner_free (fs_runner);
     
