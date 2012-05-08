@@ -28,9 +28,7 @@ HPG_VARIANT_FILES = main.c global_options.c hpg_variant_utils.c $(EFFECT_FILES) 
 
 # Targets
 all: compile-dependencies hpg-variant
-#all: list.o log.o file_utils.o http_utils.o string_utils.o region.o region_table.o region_table_utils.o gff-reader vcf-reader hpg-variant
 
-#hpg-variant: $(HPG_VARIANT_FILES) gff-reader vcf-reader
 hpg-variant: compile-dependencies $(HPG_VARIANT_FILES)
 	$(CC) $(CFLAGS) -D_XOPEN_SOURCE=600 -o $@ $(HPG_VARIANT_FILES) $(INCLUDES) $(LIBS)
 #	$(CC) $(CFLAGS_DEBUG) -D_XOPEN_SOURCE=600 -o $@ $(HPG_VARIANT_FILES) $(INCLUDES) $(LIBS)
@@ -76,6 +74,9 @@ clean:
 	rm -f *.o
 	rm -f $(CONTAINERS_DIR)/*.o
 	rm -f $(COMMONS_DIR)/*.o
+	rm -f $(BIOINFO_DATA_DIR)/vcf/*.o
+	rm -f $(BIOINFO_DATA_DIR)/gff/*.o
+	rm -f $(BIOINFO_DATA_DIR)/ped/*.o
 	rm -f $(REGION_DIR)/*.o
 	rm hpg-variant
 

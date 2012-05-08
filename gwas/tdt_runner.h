@@ -35,4 +35,6 @@ int run_tdt_test(global_options_data_t *global_options_data, gwas_options_data_t
 int
 tdt_test(ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_hashtable *sample_ids);
 
+static cp_hashtable *associate_samples_and_positions(vcf_file_t *file);
+    
 #endif
