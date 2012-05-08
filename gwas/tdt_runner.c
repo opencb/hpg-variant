@@ -1,6 +1,5 @@
 #include "tdt_runner.h"
 
-int verbose_tdt = 0;
 int permute = 0;
 
 int run_tdt_test(global_options_data_t* global_options_data, gwas_options_data_t* options_data) {
@@ -41,7 +40,7 @@ int run_tdt_test(global_options_data_t* global_options_data, gwas_options_data_t
             // Reading
             start = omp_get_wtime();
 
-            ret_code = vcf_read_batches(read_list, options_data->batch_size, file, 0);
+            ret_code = vcf_read_batches(read_list, options_data->batch_size, file, 1);
 
             stop = omp_get_wtime();
             total = stop - start;
@@ -64,6 +63,7 @@ int run_tdt_test(global_options_data_t* global_options_data, gwas_options_data_t
             
             LOG_DEBUG_F("Thread %d processes data\n", omp_get_thread_num());
             FILE *passed_file = NULL, *failed_file = NULL;
+            cp_hashtable *sample_ids = NULL;
             
             // Create chain of filters for the VCF file
             filter_t **filters = NULL;
@@ -72,26 +72,17 @@ int run_tdt_test(global_options_data_t* global_options_data, gwas_options_data_t
                 filters = sort_filter_chain(options_data->chain, &num_filters);
             }
     
-            // TODO Create map to relate the position of individuals in the list of samples defined in the VCF file
-            list_t *sample_names = file->samples_names;
-            cp_hashtable *sample_ids = cp_hashtable_create(sample_names->length * 2,
-                                                            cp_hash_string,
-                                                            (cp_compare_fn) strcasecmp);
-            list_item_t *item = sample_names->first_p;
-            int *index;
-            for (int i = 0; i < sample_names->length && item != NULL; i++) {
-                index = (int*) malloc (sizeof(int));
-                *index = i;
-                cp_hashtable_put(sample_ids, ((individual_t*) item->data_p)->id, index);
-                
-                item = item->next_p;
-            }
-            item = NULL;
             
             start = omp_get_wtime();
 
             int i = 0;
+            list_item_t *item = NULL;
             while ((item = list_remove_item(read_list)) != NULL) {
+                // In the first iteration, create map to associate the position of individuals in the list of samples defined in the VCF file
+                if (i == 0) {
+                    sample_ids = associate_samples_and_positions(file);
+                }
+                
                 vcf_batch_t *batch = (vcf_batch_t*) item->data_p;
                 list_t *input_records = batch;
                 list_t *passed_records = NULL, *failed_records = NULL;
@@ -169,6 +160,7 @@ int run_tdt_test(global_options_data_t* global_options_data, gwas_options_data_t
             // Free resources
             if (passed_file) { fclose(passed_file); }
             if (failed_file) { fclose(failed_file); }
+            if (sample_ids) { cp_hashtable_destroy(sample_ids); }
             
             // Free filters
             for (i = 0; i < num_filters; i++) {
@@ -188,6 +180,12 @@ int run_tdt_test(global_options_data_t* global_options_data, gwas_options_data_t
             // TODO write each line of the result to the output file
         }
     }
+    
+    free(read_list);
+    free(output_list);
+    vcf_close(file);
+    // TODO delete conflicts among frees
+    ped_close(ped_file, 0);
         
     return ret_code;
 }
@@ -201,7 +199,7 @@ tdt_test(ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_hasht
     cp_hashtable *families = ped_file->families;
     int num_families = get_num_families(ped_file);
     int num_samples = cp_hashtable_count(sample_ids);
-    char *sample_data[num_samples];
+    char **sample_data = (char**) calloc (num_samples, sizeof(char*));
     
     int father_allele1, father_allele2;
     int mother_allele1, mother_allele2;
@@ -214,7 +212,7 @@ tdt_test(ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_hasht
     // TODO chunks in the same way as in hpg-variant/effect
     for (int i = 0; i < num_variants && cur_variant != NULL; i++) {
         vcf_record_t *record = (vcf_record_t*) cur_variant->data_p;
-//         LOG_INFO_F("Checking variant %s:%ld\n", record->chromosome, record->position);
+        LOG_INFO_F("[%d] Checking variant %s:%ld\n", omp_get_thread_num(), record->chromosome, record->position);
         
     //         // Adaptive permutation, skip this SNP?
     //         if (par::adaptive_perm && (!perm.snp_test[variant])) {
@@ -230,38 +228,54 @@ tdt_test(ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_hasht
         }
     
         // Transmission counts
-        
         double t1 = 0;
         double t2 = 0;
+        
         
         // Count over families
         char **keys = (char**) cp_hashtable_get_keys(families);
         family_t *family;
         for (int f = 0; f < num_families; f++) {
             family = cp_hashtable_get(families, keys[f]);
-            
-            LOG_INFO_F("Checking suitability of family %s\n", family->id);
-//             if ( !family[f]->TDT ) continue;
-
-            int trA = 0;  // transmitted allele from first het parent
-            int unA = 0;  // untransmitted allele from first het parent
-            
-            int trB = 0;  // transmitted allele from second het parent
-            int unB = 0;  // untransmitted allele from second het parent
-            
             individual_t *father = family->father;
             individual_t *mother = family->mother;
             cp_list *children = family->children;
 
-            char *father_sample = sample_data[*((int*) cp_hashtable_get(sample_ids, father->id))];
-            char *mother_sample = sample_data[*((int*) cp_hashtable_get(sample_ids, mother->id))];
+//             LOG_INFO_F("[%d] Checking suitability of family %s\n", omp_get_thread_num(), family->id);
+            LOG_DEBUG_F("[%d] Checking suitability of family %s\n", omp_get_thread_num(), family->id);
             
+            if (father == NULL || mother == NULL) {
+                continue;
+            }
+//             if ( !family[f]->TDT ) continue;
+
+            int *father_pos = cp_hashtable_get(sample_ids, father->id);
+            if (father_pos != NULL) {
+                LOG_DEBUG_F("[%d] Father %s is in position %d\n", omp_get_thread_num(), father->id, *father_pos);
+            } else {
+                LOG_DEBUG_F("[%d] Father %s is not positioned\n", omp_get_thread_num(), father->id);
+                continue;
+            }
+            
+            int *mother_pos = cp_hashtable_get(sample_ids, mother->id);
+            if (mother_pos != NULL) {
+                LOG_DEBUG_F("[%d] Mother %s is in position %d\n", omp_get_thread_num(), mother->id, *mother_pos);
+            } else {
+                LOG_DEBUG_F("[%d] Mother %s is not positioned\n", omp_get_thread_num(), mother->id);
+                continue;
+            }
+            
+            char *father_sample = sample_data[*father_pos];
+            char *mother_sample = sample_data[*mother_pos];
+            
+            LOG_DEBUG_F("[%d] Samples: Father = %s\tMother = %s\n", omp_get_thread_num(), father_sample, mother_sample);
             // If any parent's alleles can't be read or is missing, go to next family
             if (get_alleles(father_sample, &father_allele1, &father_allele2) ||
                 get_alleles(mother_sample, &mother_allele1, &mother_allele2)) {
                     continue;
             }
             
+            LOG_DEBUG_F("[%d] Alleles: Father = %d/%d\tMother = %d/%d\n", omp_get_thread_num(), father_allele1, father_allele2, mother_allele1, mother_allele2);
             // We need two genotyped parents, with at least one het
             if (father_allele1 == father_allele2 && mother_allele1 == mother_allele2) {
                 continue;
@@ -271,16 +285,37 @@ tdt_test(ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_hasht
                 continue;
             }
 
+            LOG_DEBUG_F("[%d] Proceeding to analyse family %s...\n", omp_get_thread_num(), family->id);
+//             LOG_INFO_F("[%d] Proceeding to analyse family %s...\n", omp_get_thread_num(), family->id);
 
+            
+            int trA = 0;  // transmitted allele from first het parent
+            int unA = 0;  // untransmitted allele from first het parent
+            
+            int trB = 0;  // transmitted allele from second het parent
+            int unB = 0;  // untransmitted allele from second het parent
+            
             // Consider all offspring in nuclear family
             cp_list_iterator *children_iterator = cp_list_create_iterator(family->children, COLLECTION_LOCK_READ);
             individual_t *child = NULL;
             while ((child = cp_list_iterator_next(children_iterator)) != NULL) {
                 // Only consider affected children
                 // TODO Accept non-default specification using 0 as unaffected and 1 as affected
+//                 printf("[%d] Child phenotype = %f\n", child->phenotype);
                 if (child->phenotype != 2.0f) { continue; }
                 
-                char *child_sample = sample_data[*((int*) cp_hashtable_get(sample_ids, child->id))];
+                int *child_pos = cp_hashtable_get(sample_ids, child->id);
+                if (child_pos != NULL) {
+                    LOG_DEBUG_F("[%d] Child %s is in position %d\n", omp_get_thread_num(), child->id, *child_pos);
+                } else {
+                    LOG_DEBUG_F("[%d] Child %s is not positioned\n", omp_get_thread_num(), child->id);
+                    continue;
+                }
+                
+                char *child_sample = sample_data[*child_pos];
+                LOG_DEBUG_F("[%d] Samples: Child = %s\n", omp_get_thread_num(), child_sample);
+                
+//                 char *child_sample = sample_data[*((int*) cp_hashtable_get(sample_ids, child->id))];
                 if (get_alleles(child_sample, &child_allele1, &child_allele2)) {
                     continue;
                 }
@@ -358,11 +393,9 @@ tdt_test(ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_hasht
                 if (trA==2) { t2++; }
                 if (trB==2) { t2++; }
                 
-                if (verbose_tdt) {
-                    LOG_INFO_F("TDT\t%s %s : %d %d - %d %d - %f %f - %d %d - %d %d - %d %d\n", 
-                           record->id, family->id, trA, unA, trB, unB, t1, t2, 
-                           father_allele1, father_allele2, mother_allele1, mother_allele2, child_allele1, child_allele2);
-                }
+                LOG_DEBUG_F("TDT\t%s %s : %d %d - %d %d - %f %f - F %d/%d - M %d/%d - C %d/%d\n", 
+                        record->id, family->id, trA, unA, trB, unB, t1, t2, 
+                        father_allele1, father_allele2, mother_allele1, mother_allele2, child_allele1, child_allele2);
             } // next offspring in family
             cp_list_iterator_destroy(children_iterator);
         
@@ -372,22 +405,60 @@ tdt_test(ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_hasht
         // Finished counting: now compute
         // the statistics
         
+        double o_range = (t2 == 0.0) ? NAN : ((double) t1/t2);
+        
         double tdt_chisq, par_chisq, com_chisq;
         tdt_chisq = par_chisq = com_chisq = -1;
         
         // Basic TDT test
-        
         if (t1+t2 > 0) {
-            tdt_chisq = ((t1-t2)*(t1-t2))/(t1+t2);
+            tdt_chisq = ((t1-t2) * (t1-t2)) / (t1+t2);
         }
         
-//         printf("%s:%ld\t%s-%s\t%f\t%f\t%f\t%f\n",//\t%f\n", 
-//                record->chromosome, record->position, record->reference, record->alternate, 
-//                t1, t2, (float) t1/t2, tdt_chisq);//p_value);
+        
+        printf("%s\t%ld\t%s\t%s\t%f\t%f\t%f\t%f\n",//\t%f\n", 
+               record->chromosome, record->position, record->reference, record->alternate, 
+               t1, t2, o_range, tdt_chisq);//p_value);
         
         cur_variant = cur_variant->next_p;
     } // next variant
 
 //     return result;
+    free(sample_data);
+    
     return ret_code;
+}
+
+
+cp_hashtable* associate_samples_and_positions(vcf_file_t* file) {
+    printf("** %zu sample names read\n", file->samples_names->length);
+    list_t *sample_names = file->samples_names;
+    cp_hashtable *sample_ids = cp_hashtable_create_by_option(COLLECTION_MODE_DEEP,
+                                                             sample_names->length * 2,
+                                                             cp_hash_string,
+                                                             (cp_compare_fn) strcasecmp,
+                                                             NULL,
+                                                             NULL,
+                                                             NULL,
+                                                             (cp_destructor_fn) free
+                                                            );
+    
+    list_item_t *sample_item = sample_names->first_p;
+    int *index;
+    char *name;
+    for (int i = 0; i < sample_names->length && sample_item != NULL; i++) {
+        name = sample_item->data_p;
+        index = (int*) malloc (sizeof(int)); *index = i;
+        cp_hashtable_put(sample_ids, (char*) sample_item->data_p, index);
+        
+        sample_item = sample_item->next_p;
+    }
+    
+//     char **keys = (char**) cp_hashtable_get_keys(sample_names);
+//     int num_keys = cp_hashtable_count(sample_names);
+//     for (int i = 0; i < num_keys; i++) {
+//         printf("%s\t%d\n", keys[i], *((int*) cp_hashtable_get(sample_ids, keys[i])));
+//     }
+    
+    return sample_ids;
 }

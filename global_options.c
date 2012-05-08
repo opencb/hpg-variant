@@ -15,7 +15,7 @@ global_options_data_t *init_global_options_data(void)
 
 void free_global_options_data(global_options_data_t *options_data)
 {
-    if (options_data->ped_filename)     { free((void*) options_data->ped_filename); }
+//     if (options_data->ped_filename)     { free((void*) options_data->ped_filename); }
     if (options_data->vcf_filename)     { free((void*) options_data->vcf_filename); }
     if (options_data->output_directory) { free((void*) options_data->output_directory); }
     if (options_data->output_filename)  { free((void*) options_data->output_filename); }
