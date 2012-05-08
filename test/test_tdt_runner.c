@@ -128,22 +128,224 @@ START_TEST (family_01_01_00) {
 END_TEST
 
 START_TEST (family_01_00_00) {
+    // Create family
+    father = individual_new("FAT01", 2.0, MALE, NULL, NULL, family);
+    mother = individual_new("MOT00", 2.0, FEMALE, NULL, NULL, family);
+    child = individual_new("CHILD00", 2.0, MALE, father, mother, family);
+    family_set_parent(father, family);
+    family_set_parent(mother, family);
+    family_add_child(child, family);
+    
+    // Create VCF record to insert into variants
+    strcat(father_sample, "0/1");
+    strcat(mother_sample, "0/0");
+    strcat(child_sample, "0/0");
+    
+    list_item_t *item = list_item_new(1, 0, father_sample);
+    list_insert_item(item, record->samples);
+    item = list_item_new(2, 0, mother_sample);
+    list_insert_item(item, record->samples);
+    item = list_item_new(3, 0, child_sample);
+    list_insert_item(item, record->samples);
+    
+    // Create ordering structure
+    sample_ids = cp_hashtable_create(6, cp_hash_string, (cp_compare_fn) strcasecmp);
+    cp_hashtable_put(sample_ids, "FAT01", pos0);
+    cp_hashtable_put(sample_ids, "MOT00", pos1);
+    cp_hashtable_put(sample_ids, "CHILD00", pos2);
+    
+    // Launch and verify execution
+    fail_unless(tdt_test(ped, variant, 1, sample_ids, output_list) == 0, "TDT test terminated with errors");
+    fail_if(output_list->length == 0, "There must be one result inserted");
+    
+    tdt_result_t *result = output_list->first_p->data_p;
+    fail_unless(result->t1 == 1, "In 01-00->00, b=1");
+    fail_unless(result->t2 == 0, "In 01-00->00, c=0");
 }
 END_TEST
 
 START_TEST (family_01_01_01) {
+    // Create family
+    father = individual_new("FAT01", 2.0, MALE, NULL, NULL, family);
+    mother = individual_new("MOT01", 2.0, FEMALE, NULL, NULL, family);
+    child = individual_new("CHILD01", 2.0, MALE, father, mother, family);
+    family_set_parent(father, family);
+    family_set_parent(mother, family);
+    family_add_child(child, family);
+    
+    // Create VCF record to insert into variants
+    strcat(father_sample, "0/1");
+    strcat(mother_sample, "0/1");
+    strcat(child_sample, "0/1");
+    
+    list_item_t *item = list_item_new(1, 0, father_sample);
+    list_insert_item(item, record->samples);
+    item = list_item_new(2, 0, mother_sample);
+    list_insert_item(item, record->samples);
+    item = list_item_new(3, 0, child_sample);
+    list_insert_item(item, record->samples);
+    
+    // Create ordering structure
+    sample_ids = cp_hashtable_create(6, cp_hash_string, (cp_compare_fn) strcasecmp);
+    cp_hashtable_put(sample_ids, "FAT01", pos0);
+    cp_hashtable_put(sample_ids, "MOT01", pos1);
+    cp_hashtable_put(sample_ids, "CHILD01", pos2);
+    
+    // Launch and verify execution
+    fail_unless(tdt_test(ped, variant, 1, sample_ids, output_list) == 0, "TDT test terminated with errors");
+    fail_if(output_list->length == 0, "There must be one result inserted");
+    
+    tdt_result_t *result = output_list->first_p->data_p;
+    fail_unless(result->t1 == 1, "In 01-01->01, b=1");
+    fail_unless(result->t2 == 1, "In 01-01->01, c=1");
+}
+END_TEST
+
+START_TEST (family_01_00_01) {
+    // Create family
+    father = individual_new("FAT01", 2.0, MALE, NULL, NULL, family);
+    mother = individual_new("MOT00", 2.0, FEMALE, NULL, NULL, family);
+    child = individual_new("CHILD01", 2.0, MALE, father, mother, family);
+    family_set_parent(father, family);
+    family_set_parent(mother, family);
+    family_add_child(child, family);
+    
+    // Create VCF record to insert into variants
+    strcat(father_sample, "0/1");
+    strcat(mother_sample, "0/0");
+    strcat(child_sample, "0/1");
+    
+    list_item_t *item = list_item_new(1, 0, father_sample);
+    list_insert_item(item, record->samples);
+    item = list_item_new(2, 0, mother_sample);
+    list_insert_item(item, record->samples);
+    item = list_item_new(3, 0, child_sample);
+    list_insert_item(item, record->samples);
+    
+    // Create ordering structure
+    sample_ids = cp_hashtable_create(6, cp_hash_string, (cp_compare_fn) strcasecmp);
+    cp_hashtable_put(sample_ids, "FAT01", pos0);
+    cp_hashtable_put(sample_ids, "MOT00", pos1);
+    cp_hashtable_put(sample_ids, "CHILD01", pos2);
+    
+    // Launch and verify execution
+    fail_unless(tdt_test(ped, variant, 1, sample_ids, output_list) == 0, "TDT test terminated with errors");
+    fail_if(output_list->length == 0, "There must be one result inserted");
+    
+    tdt_result_t *result = output_list->first_p->data_p;
+    fail_unless(result->t1 == 0, "In 01-00->01, b=0");
+    fail_unless(result->t2 == 1, "In 01-00->01, c=1");
 }
 END_TEST
 
 START_TEST (family_01_11_01) {
+    // Create family
+    father = individual_new("FAT01", 2.0, MALE, NULL, NULL, family);
+    mother = individual_new("MOT11", 2.0, FEMALE, NULL, NULL, family);
+    child = individual_new("CHILD01", 2.0, MALE, father, mother, family);
+    family_set_parent(father, family);
+    family_set_parent(mother, family);
+    family_add_child(child, family);
+    
+    // Create VCF record to insert into variants
+    strcat(father_sample, "0/1");
+    strcat(mother_sample, "1/1");
+    strcat(child_sample, "0/1");
+    
+    list_item_t *item = list_item_new(1, 0, father_sample);
+    list_insert_item(item, record->samples);
+    item = list_item_new(2, 0, mother_sample);
+    list_insert_item(item, record->samples);
+    item = list_item_new(3, 0, child_sample);
+    list_insert_item(item, record->samples);
+    
+    // Create ordering structure
+    sample_ids = cp_hashtable_create(6, cp_hash_string, (cp_compare_fn) strcasecmp);
+    cp_hashtable_put(sample_ids, "FAT01", pos0);
+    cp_hashtable_put(sample_ids, "MOT11", pos1);
+    cp_hashtable_put(sample_ids, "CHILD01", pos2);
+    
+    // Launch and verify execution
+    fail_unless(tdt_test(ped, variant, 1, sample_ids, output_list) == 0, "TDT test terminated with errors");
+    fail_if(output_list->length == 0, "There must be one result inserted");
+    
+    tdt_result_t *result = output_list->first_p->data_p;
+    fail_unless(result->t1 == 1, "In 01-11->01, b=1");
+    fail_unless(result->t2 == 0, "In 01-11->01, c=0");
 }
 END_TEST
 
 START_TEST (family_00_01_01) {
+    // Create family
+    father = individual_new("FAT00", 2.0, MALE, NULL, NULL, family);
+    mother = individual_new("MOT01", 2.0, FEMALE, NULL, NULL, family);
+    child = individual_new("CHILD01", 2.0, MALE, father, mother, family);
+    family_set_parent(father, family);
+    family_set_parent(mother, family);
+    family_add_child(child, family);
+    
+    // Create VCF record to insert into variants
+    strcat(father_sample, "0/0");
+    strcat(mother_sample, "0/1");
+    strcat(child_sample, "0/1");
+    
+    list_item_t *item = list_item_new(1, 0, father_sample);
+    list_insert_item(item, record->samples);
+    item = list_item_new(2, 0, mother_sample);
+    list_insert_item(item, record->samples);
+    item = list_item_new(3, 0, child_sample);
+    list_insert_item(item, record->samples);
+    
+    // Create ordering structure
+    sample_ids = cp_hashtable_create(6, cp_hash_string, (cp_compare_fn) strcasecmp);
+    cp_hashtable_put(sample_ids, "FAT00", pos0);
+    cp_hashtable_put(sample_ids, "MOT01", pos1);
+    cp_hashtable_put(sample_ids, "CHILD01", pos2);
+    
+    // Launch and verify execution
+    fail_unless(tdt_test(ped, variant, 1, sample_ids, output_list) == 0, "TDT test terminated with errors");
+    fail_if(output_list->length == 0, "There must be one result inserted");
+    
+    tdt_result_t *result = output_list->first_p->data_p;
+    fail_unless(result->t1 == 0, "In 00-01->01, b=0");
+    fail_unless(result->t2 == 1, "In 00-01->01, c=1");
 }
 END_TEST
 
 START_TEST (family_11_01_01) {
+    // Create family
+    father = individual_new("FAT11", 2.0, MALE, NULL, NULL, family);
+    mother = individual_new("MOT01", 2.0, FEMALE, NULL, NULL, family);
+    child = individual_new("CHILD01", 2.0, MALE, father, mother, family);
+    family_set_parent(father, family);
+    family_set_parent(mother, family);
+    family_add_child(child, family);
+    
+    // Create VCF record to insert into variants
+    strcat(father_sample, "1/1");
+    strcat(mother_sample, "0/1");
+    strcat(child_sample, "0/1");
+    
+    list_item_t *item = list_item_new(1, 0, father_sample);
+    list_insert_item(item, record->samples);
+    item = list_item_new(2, 0, mother_sample);
+    list_insert_item(item, record->samples);
+    item = list_item_new(3, 0, child_sample);
+    list_insert_item(item, record->samples);
+    
+    // Create ordering structure
+    sample_ids = cp_hashtable_create(6, cp_hash_string, (cp_compare_fn) strcasecmp);
+    cp_hashtable_put(sample_ids, "FAT11", pos0);
+    cp_hashtable_put(sample_ids, "MOT01", pos1);
+    cp_hashtable_put(sample_ids, "CHILD01", pos2);
+    
+    // Launch and verify execution
+    fail_unless(tdt_test(ped, variant, 1, sample_ids, output_list) == 0, "TDT test terminated with errors");
+    fail_if(output_list->length == 0, "There must be one result inserted");
+    
+    tdt_result_t *result = output_list->first_p->data_p;
+    fail_unless(result->t1 == 1, "In 11-01->01, b=1");
+    fail_unless(result->t2 == 0, "In 11-01->01, c=0");
 }
 END_TEST
 
@@ -181,9 +383,10 @@ Suite *create_test_suite(void)
     TCase *tc_tdt_test_function = tcase_create("TDT test function");
     tcase_add_unchecked_fixture(tc_tdt_test_function, setup_positions, teardown_positions);
     tcase_add_checked_fixture(tc_tdt_test_function, setup_tdt_function, teardown_tdt_function);
-    tcase_add_test(tc_tdt_test_function, family_01_01_00);
     tcase_add_test(tc_tdt_test_function, family_00_01_01);
     tcase_add_test(tc_tdt_test_function, family_01_00_00);
+    tcase_add_test(tc_tdt_test_function, family_01_00_01);
+    tcase_add_test(tc_tdt_test_function, family_01_01_00);
     tcase_add_test(tc_tdt_test_function, family_01_01_01);
     tcase_add_test(tc_tdt_test_function, family_01_11_01);
     tcase_add_test(tc_tdt_test_function, family_11_01_01);
