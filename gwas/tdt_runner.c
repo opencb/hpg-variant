@@ -12,23 +12,20 @@ int run_tdt_test(global_options_data_t* global_options_data, gwas_options_data_t
     double start, stop, total;
     vcf_file_t *file = vcf_open(global_options_data->vcf_filename);
     ped_file_t *ped_file = ped_open(global_options_data->ped_filename);
+    size_t output_directory_len = strlen(global_options_data->output_directory);
     
     LOG_INFO("About to read PED file...\n");
     // Read PED file before doing any proccessing
     ret_code = ped_read(ped_file);
     if (ret_code != 0) {
-        return ret_code;
+        LOG_FATAL_F("Can't read PED file: %s\n", ped_file->filename);
     }
     
-//     create_directory(global_options_data->output_directory);
-    
-//     // Remove all .txt files in folder
-//     ret_code = delete_files_by_extension(global_options_data->output_directory, "txt");
-//     if (ret_code != 0) {
-//         return ret_code;
-//     }
-//     char *output_directory = global_options_data->output_directory;
-//     size_t output_directory_len = strlen(output_directory);
+    // Try to create the directory where the output files will be stored
+    ret_code = create_directory(global_options_data->output_directory);
+    if (ret_code != 0 && errno != EEXIST) {
+        LOG_FATAL_F("Can't create output directory: %s\n", global_options_data->output_directory);
+    }
     
     LOG_INFO("About to perform TDT test...\n");
 
@@ -62,7 +59,7 @@ int run_tdt_test(global_options_data_t* global_options_data, gwas_options_data_t
             omp_set_num_threads(options_data->num_threads);
             
             LOG_DEBUG_F("Thread %d processes data\n", omp_get_thread_num());
-            FILE *passed_file = NULL, *failed_file = NULL;
+            
             cp_hashtable *sample_ids = NULL;
             
             // Create chain of filters for the VCF file
@@ -101,7 +98,7 @@ int run_tdt_test(global_options_data_t* global_options_data, gwas_options_data_t
                     passed_records = run_filter_chain(input_records, failed_records, filters, num_filters);
                 }
 
-                // Write records that passed to a separate file, and query the WS with them as args
+                // Launch TDT test over records that passed the filters
                 if (passed_records->length > 0) {
                     // Divide the list of passed records in ranges of size defined in config file
                     int max_chunk_size = 1000;  // TODO define dynamically
@@ -121,16 +118,6 @@ int run_tdt_test(global_options_data_t* global_options_data, gwas_options_data_t
                     if (ret_code) {
 //                         LOG_FATAL_F("TDT error: %s\n", get_last_http_error(ret_code));
                         break;
-                    }
-                }
-                
-                // Write records that passed and failed to separate files
-                if (passed_file != NULL && failed_file != NULL) {
-                    if (passed_records != NULL && passed_records->length > 0) {
-                        write_batch(passed_records, passed_file);
-                    }
-                    if (failed_records != NULL && failed_records->length > 0) {
-                        write_batch(failed_records, failed_file);
                     }
                 }
                 
@@ -158,8 +145,6 @@ int run_tdt_test(global_options_data_t* global_options_data, gwas_options_data_t
             LOG_INFO_F("[%d] Time elapsed = %e ms\n", omp_get_thread_num(), total*1000);
 
             // Free resources
-            if (passed_file) { fclose(passed_file); }
-            if (failed_file) { fclose(failed_file); }
             if (sample_ids) { cp_hashtable_destroy(sample_ids); }
             
             // Free filters
@@ -178,9 +163,32 @@ int run_tdt_test(global_options_data_t* global_options_data, gwas_options_data_t
 #pragma omp section
         {
             // Thread which writes the results to the output file
+            FILE *fd = NULL;    // TODO check if output file is defined
+            char *path = NULL, *filename = NULL;
+            size_t filename_len = 0;
+            
+            // Set whole path to the output file
+            if (global_options_data->output_filename != NULL && 
+                strlen(global_options_data->output_filename) > 0) {
+                filename_len = strlen(global_options_data->output_filename);
+                filename = global_options_data->output_filename;
+            } else {
+                filename_len = strlen("hpg-variant.tdt");
+                filename = (char*) calloc (filename_len+1, sizeof(char));
+                strncpy(filename, "hpg-variant.tdt", filename_len);
+            }
+            path = (char*) calloc ((output_directory_len + filename_len + 1), sizeof(char));
+            strncat(path, global_options_data->output_directory, output_directory_len);
+            strncat(path, filename, filename_len);
+            fd = fopen(path, "w");
+            
+            LOG_INFO_F("TDT output filename = %s\n", path);
+            free(filename);
+            free(path);
+            
+            // Write data: header + one line per variant
             list_item_t* item = NULL;
             tdt_result_t *result;
-            FILE *fd = fopen("hpg-variant.tdt", "w");    // TODO check if output file is defined
             fprintf(fd, " CHR          BP       A1      A2       T       U          OR            CHISQ            P\n");
             while ((item = list_remove_item(output_list)) != NULL) {
                 result = item->data_p;
@@ -192,6 +200,8 @@ int run_tdt_test(global_options_data_t* global_options_data, gwas_options_data_t
                 tdt_result_free(result);
                 list_item_free(item);
             }
+            
+            fclose(fd);
         }
     }
     
@@ -401,9 +411,9 @@ int tdt_test(ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_h
                 if (trA==2) { t2++; }
                 if (trB==2) { t2++; }
                 
-                printf("TDT\t%s %s : %d %d - %d %d - %d %d - F %d/%d - M %d/%d - C %d/%d\n", 
-                        record->id, family->id, trA, unA, trB, unB, t1, t2, 
-                        father_allele1, father_allele2, mother_allele1, mother_allele2, child_allele1, child_allele2);
+                LOG_DEBUG_F("TDT\t%s %s : %d %d - %d %d - %d %d - F %d/%d - M %d/%d - C %d/%d\n", 
+                            record->id, family->id, trA, unA, trB, unB, t1, t2, 
+                            father_allele1, father_allele2, mother_allele1, mother_allele2, child_allele1, child_allele2);
             } // next offspring in family
             cp_list_iterator_destroy(children_iterator);
         
