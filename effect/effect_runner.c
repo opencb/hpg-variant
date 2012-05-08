@@ -189,11 +189,11 @@ int run_effect(char *url, global_options_data_t *global_options_data, effect_opt
                 // Free items in both lists (not their internal data)
                 if (passed_records != input_records) {
                     LOG_DEBUG_F("[Batch %d] %zu passed records\n", i, passed_records->length);
-                    list_free(passed_records, NULL);
+                    list_free_deep(passed_records, NULL);
                 }
                 if (failed_records) {
                     LOG_DEBUG_F("[Batch %d] %zu failed records\n", i, failed_records->length);
-                    list_free(failed_records, NULL);
+                    list_free_deep(failed_records, NULL);
                 }
                 // Free batch and its contents
                 vcf_batch_free(item->data_p);
