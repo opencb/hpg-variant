@@ -13,6 +13,7 @@ REGION_DIR = $(BIOINFO_DATA_DIR)/features/region
 INCLUDES = -I $(CONTAINERS_DIR) -I $(COMMONS_DIR) -I $(REGION_DIR) -I $(BIOINFO_DATA_DIR) -I $(BIOINFO_DATA_DIR)/vcf/ -I $(BIOINFO_DATA_DIR)/gff/ -I $(BIOINFO_DATA_DIR)/ped/ -I . -I ./effect/
 # INCLUDES = -I $(LIBS_ROOT) -I . -I ./effect/ -I ./gwas/
 LIBS = -L/usr/lib/x86_64-linux-gnu -lcurl -Wl,-Bsymbolic-functions -lconfig -lcprops -fopenmp -lm
+LIBS_TEST = -lcheck
 
 # Source files dependencies
 VCF_FILES = $(BIOINFO_DATA_DIR)/vcf/vcf_*.o
@@ -24,14 +25,17 @@ MISC_FILES = $(COMMONS_DIR)/file_utils.o $(COMMONS_DIR)/string_utils.o $(COMMONS
 # Project source files
 EFFECT_FILES = effect/main_effect.c effect/effect_options_parsing.c effect/effect_runner.c
 GWAS_FILES = gwas/main_gwas.c gwas/gwas_options_parsing.c gwas/tdt_runner.c
-HPG_VARIANT_FILES = main.c global_options.c hpg_variant_utils.c $(EFFECT_FILES) $(GWAS_FILES) $(VCF_FILES) $(GFF_FILES) $(PED_FILES) $(REGION_TABLE_FILES) $(MISC_FILES)
+HPG_VARIANT_FILES = global_options.c hpg_variant_utils.c $(EFFECT_FILES) $(GWAS_FILES) $(VCF_FILES) $(GFF_FILES) $(PED_FILES) $(REGION_TABLE_FILES) $(MISC_FILES)
 
 # Targets
 all: compile-dependencies hpg-variant
 
 hpg-variant: compile-dependencies $(HPG_VARIANT_FILES)
-	$(CC) $(CFLAGS) -D_XOPEN_SOURCE=600 -o $@ $(HPG_VARIANT_FILES) $(INCLUDES) $(LIBS)
+	$(CC) $(CFLAGS) -D_XOPEN_SOURCE=600 -o $@ main.c $(HPG_VARIANT_FILES) $(INCLUDES) $(LIBS)
 #	$(CC) $(CFLAGS_DEBUG) -D_XOPEN_SOURCE=600 -o $@ $(HPG_VARIANT_FILES) $(INCLUDES) $(LIBS)
+
+testing:
+	$(CC) $(CFLAGS) -D_XOPEN_SOURCE=600 -o test/effect.test test/test_effect_runner.c $(HPG_VARIANT_FILES) $(INCLUDES) $(LIBS) $(LIBS_TEST)
 
 compile-dependencies:
 	make family.o && \
