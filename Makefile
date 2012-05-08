@@ -34,8 +34,9 @@ hpg-variant: compile-dependencies $(HPG_VARIANT_FILES)
 	$(CC) $(CFLAGS) -D_XOPEN_SOURCE=600 -o $@ main.c $(HPG_VARIANT_FILES) $(INCLUDES) $(LIBS)
 #	$(CC) $(CFLAGS_DEBUG) -D_XOPEN_SOURCE=600 -o $@ $(HPG_VARIANT_FILES) $(INCLUDES) $(LIBS)
 
-testing:
+testing: test/test_effect_runner.c test/test_tdt_runner.c $(HPG_VARIANT_FILES)
 	$(CC) $(CFLAGS) -D_XOPEN_SOURCE=600 -o test/effect.test test/test_effect_runner.c $(HPG_VARIANT_FILES) $(INCLUDES) $(LIBS) $(LIBS_TEST)
+	$(CC) $(CFLAGS_DEBUG) -D_XOPEN_SOURCE=600 -o test/tdt.test test/test_tdt_runner.c $(HPG_VARIANT_FILES) $(INCLUDES) $(LIBS) $(LIBS_TEST)
 
 compile-dependencies:
 	make family.o && \
