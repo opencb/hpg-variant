@@ -112,7 +112,7 @@ int run_tdt_test(global_options_data_t* global_options_data, gwas_options_data_t
                     #pragma omp parallel for
                     for (int j = 0; j < num_chunks; j++) {
                         LOG_DEBUG_F("[%d] Test execution\n", omp_get_thread_num());
-                        ret_code = tdt_test(ped_file, chunk_starts[j], max_chunk_size, sample_ids);
+                        ret_code = tdt_test(ped_file, chunk_starts[j], max_chunk_size, sample_ids, output_list);
                     }
                     free(chunk_starts);
                     
@@ -177,7 +177,21 @@ int run_tdt_test(global_options_data_t* global_options_data, gwas_options_data_t
 
 #pragma omp section
         {
-            // TODO write each line of the result to the output file
+            // Thread which writes the results to the output file
+            list_item_t* item = NULL;
+            tdt_result_t *result;
+            FILE *fd = fopen("hpg-variant.tdt", "w");    // TODO check if output file is defined
+            fprintf(fd, " CHR          BP       A1      A2       T       U          OR            CHISQ            P\n");
+            while ((item = list_remove_item(output_list)) != NULL) {
+                result = item->data_p;
+                
+                fprintf(fd, "%s\t%12ld\t%s\t%s\t%d\t%d\t%8f\t%6f\n",//\t%f\n", 
+                       result->chromosome, result->position, result->reference, result->alternate, 
+                       result->t1, result->t2, result->o_range, result->chi_square);//p_value);
+                
+                tdt_result_free(result);
+                list_item_free(item);
+            }
         }
     }
     
@@ -191,15 +205,17 @@ int run_tdt_test(global_options_data_t* global_options_data, gwas_options_data_t
 }
 
 
-// tdt_result_t *
-int
-tdt_test(ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_hashtable *sample_ids) {
+int tdt_test(ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_hashtable *sample_ids, list_t *output_list) {
     int ret_code = 0;
-//     tdt_result_t *result = (tdt_result_t*) calloc (1, sizeof(tdt_result_t));
+    int tid = omp_get_thread_num();
     cp_hashtable *families = ped_file->families;
     int num_families = get_num_families(ped_file);
     int num_samples = cp_hashtable_count(sample_ids);
-    char **sample_data = (char**) calloc (num_samples, sizeof(char*));
+    
+    tdt_result_t *result;
+//     tdt_result_t *result = (tdt_result_t*) calloc (1, sizeof(tdt_result_t));
+    char **sample_data;// = (char**) calloc (num_samples, sizeof(char*));
+    
     
     int father_allele1, father_allele2;
     int mother_allele1, mother_allele2;
@@ -212,24 +228,19 @@ tdt_test(ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_hasht
     // TODO chunks in the same way as in hpg-variant/effect
     for (int i = 0; i < num_variants && cur_variant != NULL; i++) {
         vcf_record_t *record = (vcf_record_t*) cur_variant->data_p;
-        LOG_INFO_F("[%d] Checking variant %s:%ld\n", omp_get_thread_num(), record->chromosome, record->position);
+        LOG_INFO_F("[%d] Checking variant %s:%ld\n", tid, record->chromosome, record->position);
         
     //         // Adaptive permutation, skip this SNP?
     //         if (par::adaptive_perm && (!perm.snp_test[variant])) {
     //             continue;
     //         }
 
-        list_t *item_samples = record->samples;
-        list_item_t *sample = item_samples->first_p;
         // TODO implement arraylist in order to avoid this conversion
-        for (int j = 0; j < num_samples && sample != NULL; j++) {
-            sample_data[j] = sample->data_p;
-            sample = sample->next_p;
-        }
+        sample_data = (char**) list_to_array(record->samples);
     
         // Transmission counts
-        double t1 = 0;
-        double t2 = 0;
+        int t1 = 0;
+        int t2 = 0;
         
         
         // Count over families
@@ -241,8 +252,7 @@ tdt_test(ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_hasht
             individual_t *mother = family->mother;
             cp_list *children = family->children;
 
-//             LOG_INFO_F("[%d] Checking suitability of family %s\n", omp_get_thread_num(), family->id);
-            LOG_DEBUG_F("[%d] Checking suitability of family %s\n", omp_get_thread_num(), family->id);
+            LOG_DEBUG_F("[%d] Checking suitability of family %s\n", tid, family->id);
             
             if (father == NULL || mother == NULL) {
                 continue;
@@ -251,31 +261,31 @@ tdt_test(ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_hasht
 
             int *father_pos = cp_hashtable_get(sample_ids, father->id);
             if (father_pos != NULL) {
-                LOG_DEBUG_F("[%d] Father %s is in position %d\n", omp_get_thread_num(), father->id, *father_pos);
+                LOG_DEBUG_F("[%d] Father %s is in position %d\n", tid, father->id, *father_pos);
             } else {
-                LOG_DEBUG_F("[%d] Father %s is not positioned\n", omp_get_thread_num(), father->id);
+                LOG_DEBUG_F("[%d] Father %s is not positioned\n", tid, father->id);
                 continue;
             }
             
             int *mother_pos = cp_hashtable_get(sample_ids, mother->id);
             if (mother_pos != NULL) {
-                LOG_DEBUG_F("[%d] Mother %s is in position %d\n", omp_get_thread_num(), mother->id, *mother_pos);
+                LOG_DEBUG_F("[%d] Mother %s is in position %d\n", tid, mother->id, *mother_pos);
             } else {
-                LOG_DEBUG_F("[%d] Mother %s is not positioned\n", omp_get_thread_num(), mother->id);
+                LOG_DEBUG_F("[%d] Mother %s is not positioned\n", tid, mother->id);
                 continue;
             }
             
             char *father_sample = sample_data[*father_pos];
             char *mother_sample = sample_data[*mother_pos];
             
-            LOG_DEBUG_F("[%d] Samples: Father = %s\tMother = %s\n", omp_get_thread_num(), father_sample, mother_sample);
+            LOG_DEBUG_F("[%d] Samples: Father = %s\tMother = %s\n", tid, father_sample, mother_sample);
             // If any parent's alleles can't be read or is missing, go to next family
             if (get_alleles(father_sample, &father_allele1, &father_allele2) ||
                 get_alleles(mother_sample, &mother_allele1, &mother_allele2)) {
                     continue;
             }
             
-            LOG_DEBUG_F("[%d] Alleles: Father = %d/%d\tMother = %d/%d\n", omp_get_thread_num(), father_allele1, father_allele2, mother_allele1, mother_allele2);
+            LOG_DEBUG_F("[%d] Alleles: Father = %d/%d\tMother = %d/%d\n", tid, father_allele1, father_allele2, mother_allele1, mother_allele2);
             // We need two genotyped parents, with at least one het
             if (father_allele1 == father_allele2 && mother_allele1 == mother_allele2) {
                 continue;
@@ -285,8 +295,7 @@ tdt_test(ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_hasht
                 continue;
             }
 
-            LOG_DEBUG_F("[%d] Proceeding to analyse family %s...\n", omp_get_thread_num(), family->id);
-//             LOG_INFO_F("[%d] Proceeding to analyse family %s...\n", omp_get_thread_num(), family->id);
+            LOG_DEBUG_F("[%d] Proceeding to analyse family %s...\n", tid, family->id);
 
             
             int trA = 0;  // transmitted allele from first het parent
@@ -306,16 +315,15 @@ tdt_test(ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_hasht
                 
                 int *child_pos = cp_hashtable_get(sample_ids, child->id);
                 if (child_pos != NULL) {
-                    LOG_DEBUG_F("[%d] Child %s is in position %d\n", omp_get_thread_num(), child->id, *child_pos);
+                    LOG_DEBUG_F("[%d] Child %s is in position %d\n", tid, child->id, *child_pos);
                 } else {
-                    LOG_DEBUG_F("[%d] Child %s is not positioned\n", omp_get_thread_num(), child->id);
+                    LOG_DEBUG_F("[%d] Child %s is not positioned\n", tid, child->id);
                     continue;
                 }
                 
                 char *child_sample = sample_data[*child_pos];
-                LOG_DEBUG_F("[%d] Samples: Child = %s\n", omp_get_thread_num(), child_sample);
+                LOG_DEBUG_F("[%d] Samples: Child = %s\n", tid, child_sample);
                 
-//                 char *child_sample = sample_data[*((int*) cp_hashtable_get(sample_ids, child->id))];
                 if (get_alleles(child_sample, &child_allele1, &child_allele2)) {
                     continue;
                 }
@@ -393,7 +401,7 @@ tdt_test(ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_hasht
                 if (trA==2) { t2++; }
                 if (trB==2) { t2++; }
                 
-                LOG_DEBUG_F("TDT\t%s %s : %d %d - %d %d - %f %f - F %d/%d - M %d/%d - C %d/%d\n", 
+                printf("TDT\t%s %s : %d %d - %d %d - %d %d - F %d/%d - M %d/%d - C %d/%d\n", 
                         record->id, family->id, trA, unA, trB, unB, t1, t2, 
                         father_allele1, father_allele2, mother_allele1, mother_allele2, child_allele1, child_allele2);
             } // next offspring in family
@@ -405,28 +413,51 @@ tdt_test(ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_hasht
         // Finished counting: now compute
         // the statistics
         
-        double o_range = (t2 == 0.0) ? NAN : ((double) t1/t2);
-        
         double tdt_chisq, par_chisq, com_chisq;
         tdt_chisq = par_chisq = com_chisq = -1;
         
         // Basic TDT test
         if (t1+t2 > 0) {
-            tdt_chisq = ((t1-t2) * (t1-t2)) / (t1+t2);
+            tdt_chisq = ((double) ((t1-t2) * (t1-t2))) / (t1+t2);
         }
         
-        
-        printf("%s\t%ld\t%s\t%s\t%f\t%f\t%f\t%f\n",//\t%f\n", 
-               record->chromosome, record->position, record->reference, record->alternate, 
-               t1, t2, o_range, tdt_chisq);//p_value);
+        LOG_DEBUG_F("[%d] before adding %s:%ld\n", tid, record->chromosome, record->position);
+        result = tdt_result_new(record->chromosome, record->position, record->reference, record->alternate, t1, t2, tdt_chisq);
+        list_item_t *output_item = list_item_new(tid, 0, result);
+        list_insert_item(output_item, output_list);
+        LOG_DEBUG_F("[%d] after adding %s:%ld\n", tid, record->chromosome, record->position);
         
         cur_variant = cur_variant->next_p;
     } // next variant
 
-//     return result;
     free(sample_data);
     
     return ret_code;
+}
+
+
+tdt_result_t* tdt_result_new(char *chromosome, unsigned long int position, char *reference, char *alternate, double t1, double t2, double chi_square) {
+    tdt_result_t *result = (tdt_result_t*) malloc (sizeof(tdt_result_t));
+    
+    result->chromosome = (char*) calloc (strlen(chromosome)+1, sizeof(char));
+    strncat(result->chromosome, chromosome, strlen(chromosome));
+    result->position = position;
+    result->reference = (char*) calloc (strlen(reference)+1, sizeof(char));
+    strncat(result->reference, reference, strlen(reference));
+    result->alternate = (char*) calloc (strlen(alternate)+1, sizeof(char));
+    strncat(result->alternate, alternate, strlen(alternate));
+    result->t1 = t1;
+    result->t2 = t2;
+    result->o_range = (t2 == 0.0) ? NAN : ((double) t1/t2);
+    result->chi_square = chi_square;
+    
+    return result;
+}
+
+void tdt_result_free(tdt_result_t* result) {
+    free(result->chromosome);
+    free(result->reference);
+    free(result->alternate);
 }
 
 
