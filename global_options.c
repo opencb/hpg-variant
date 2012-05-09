@@ -4,8 +4,8 @@ global_options_data_t *init_global_options_data(void)
 {
     global_options_data_t *options_data = (global_options_data_t*) malloc (sizeof(global_options_data_t));
     
-    options_data->output_directory = (char*) calloc (5, sizeof(char));
-    strncat(options_data->output_directory, "/tmp", 4);
+    options_data->output_directory = (char*) calloc (6, sizeof(char));
+    strncat(options_data->output_directory, "/tmp/", 5);
     options_data->ped_filename = NULL;
     options_data->vcf_filename = NULL;
     options_data->output_filename = NULL;
@@ -33,7 +33,7 @@ int read_global_configuration(const char *filename, global_options_data_t *optio
     if (ret_code == CONFIG_FALSE)
     {
         fprintf(stderr, "config file error: %s\n", config_error_text(config));
-        return ret_code;
+        return CANT_READ_CONFIG_FILE;
     }
     
     // Read output directory
@@ -42,7 +42,7 @@ int read_global_configuration(const char *filename, global_options_data_t *optio
     if (ret_code == CONFIG_FALSE)
     {
         fprintf(stderr, "output directory config error: %s\n", config_error_text(config));
-        return ret_code;
+        return CANT_READ_CONFIG_FILE;
     } else {
         free(options_data->output_directory);
         options_data->output_directory = (char*) calloc (strlen(tmp_string)+1, sizeof(char));
@@ -54,7 +54,7 @@ int read_global_configuration(const char *filename, global_options_data_t *optio
     config_destroy(config);
     free(config);
     
-    return ret_code;
+    return 0;
 }
 
 int parse_global_options(int argc, char *argv[], global_options_data_t *options_data, int start_index)
