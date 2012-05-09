@@ -31,6 +31,7 @@
 
 #include "effect.h"
 #include "error.h"
+#include "hpg_variant_utils.h"
 #include "main.h"
 
 #define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
@@ -64,18 +65,6 @@ int run_effect(char *url, global_options_data_t *global_options_data, effect_opt
  * Given a list of arguments, compounds a URL to invoke a web service.
  */
 char *compose_effect_ws_request(effect_options_data_t *options_data);
-
-/**
- * @brief Given a list of records, defines the chunks to be send to the web service
- * @param records list of records to separate in chunks
- * @param max_chunk_size maximum size of a chunk
- * @param[out] num_chunks number of chunks created
- * @return The list of chunks
- * 
- * Given a list of records, defines another list of chunks whose elements point to records separated 
- * by a maximum distance of max_chunk_size. These records will mark the beginning of each chunk.
- */
-list_item_t **create_chunks(list_t *records, int max_chunk_size, int *num_chunks);
 
 /**
  * @brief Invokes the effect web service for a list of regions.

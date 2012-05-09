@@ -189,11 +189,11 @@ int run_effect(char *url, global_options_data_t *global_options_data, effect_opt
                 // Free items in both lists (not their internal data)
                 if (passed_records != input_records) {
                     LOG_DEBUG_F("[Batch %d] %zu passed records\n", i, passed_records->length);
-                    list_free(passed_records, NULL);
+                    list_free_deep(passed_records, NULL);
                 }
                 if (failed_records) {
                     LOG_DEBUG_F("[Batch %d] %zu failed records\n", i, failed_records->length);
-                    list_free(failed_records, NULL);
+                    list_free_deep(failed_records, NULL);
                 }
                 // Free batch and its contents
                 vcf_batch_free(item->data_p);
@@ -315,22 +315,6 @@ char *compose_effect_ws_request(effect_options_data_t *options_data) {
     strncat(result_url, ws_name_url, ws_name_len);
     
     return result_url;
-}
-
-list_item_t** create_chunks(list_t* records, int max_chunk_size, int *num_chunks) {
-    *num_chunks = (int) ceil((float) records->length / max_chunk_size);
-    LOG_DEBUG_F("%d chunks of %d elements top\n", *num_chunks, max_chunk_size);
-    
-    list_item_t **chunk_starts = (list_item_t**) malloc ((*num_chunks) * sizeof(list_item_t*));
-    list_item_t *current = records->first_p;
-    for (int j = 0; j < *num_chunks; j++) {
-        chunk_starts[j] = current;
-        for (int k = 0; k < max_chunk_size && current->next_p != NULL; k++) {
-            current = current->next_p;
-        }
-    }
-
-    return chunk_starts;
 }
 
 int invoke_effect_ws(const char *url, list_item_t *first_item, int max_chunk_size) {

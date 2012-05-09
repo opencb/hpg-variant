@@ -19,7 +19,7 @@ effect_options_data_t opts_data;
  * ******************************/
 
 void setup_effect_ws(void) {
-    initialize_ws_output(4);
+    initialize_ws_output(4, "./");
 }
 
 void teardown_effect_ws(void) {
