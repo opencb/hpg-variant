@@ -33,7 +33,7 @@ typedef struct {
     
     int t1;
     int t2;
-    double o_range;
+    double odds_ratio;
     double chi_square;
 } tdt_result_t;
 

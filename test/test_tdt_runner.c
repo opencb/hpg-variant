@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -5,6 +6,7 @@
 #include <check.h>
 
 #include <family.h>
+#include <string_utils.h>
 #include <vcf_batch.h>
 #include <vcf_file_structure.h>
 #include <vcf_read.h>
@@ -87,13 +89,6 @@ void teardown_tdt_function(void) {
     free(child_sample);
 }
 
-void setup_pipeline(void) {
-    
-}
-
-void teardown_pipeline(void) {
-    
-}
 
 /* ******************************
  *          Unit tests          *
@@ -427,8 +422,60 @@ END_TEST
 
 
 START_TEST (whole_test) {
-    // TODO invoke run_tdt_test and check results in base to output file: 
-    // get each line, grep plink.tdt and compare fields
+    // Invoke hpg-variant/genome-analysis --tdt
+    
+    int tdt_ret = system("../hpg-variant genomic-analysis --tdt --vcf-file tdt_files/job.vcf --ped-file tdt_files/job.ped");
+    fail_unless(tdt_ret == 0, "hpg-variant exited with errors");
+    
+    // TODO check results in base to output file: get each line, grep plink.tdt and compare fields
+    FILE *cut_proc = popen("cut -f2,5,6 /tmp/hpg-variant.tdt", "r");
+    FILE *grep_proc;
+    int line_len = 256;
+    char line[line_len];
+    char grepcmd[line_len];
+    char grep_line[line_len];
+    char *aux;
+    int t1, t2;
+    int t1_plink, t2_plink;
+    
+    fail_if(fgets(&line, line_len, cut_proc) == -1, "The TDT results file cannot be read");
+    
+    int i = 0;
+    int entries_tested = 2000;
+    
+    while (fgets(&line, line_len, cut_proc) && i < entries_tested) {
+        if (i % 50 == 0) {
+            printf("checked record #%d\n", i);
+        }
+        
+//         printf("Line: '%s'\n", line);
+        aux = trim(strtok(line, "\t"));
+        t1 = atoi(strtok(NULL, "\t"));
+        t2 = atoi(strtok(NULL, "\t"));
+//         printf("t1 = %d\tt2 = %d\n", t1, t2);
+        
+        memset(grepcmd, 0, line_len * sizeof(char));
+        strncat(grepcmd, "grep -w ", 8);
+        strncat(grepcmd, aux, strlen(aux));
+        strncat(grepcmd, " tdt_files/plink_dirty.tdt", 26);
+        strncat(grepcmd, " | awk '{print $6 \" \" $7}'", 28);
+        
+//         printf("grepcmd = %s", grepcmd);
+        
+        grep_proc = popen(grepcmd, "r");
+        fgets(&grep_line, line_len, grep_proc);
+        
+        t1_plink = atoi(strtok(grep_line, " "));
+        t2_plink = atoi(strtok(NULL, " "));
+        
+        fail_if(t1 != t1_plink, "t1 must be the same in both files");
+        fail_if(t2 != t2_plink, "t2 must be the same in both files");
+        
+        pclose(grep_proc);
+        i++;
+    }
+    
+    pclose(cut_proc);
 }
 END_TEST
 
@@ -463,14 +510,14 @@ Suite *create_test_suite(void)
     tcase_add_test(tc_tdt_test_function, family_11_01_01);
     tcase_add_test(tc_tdt_test_function, combined_families);
     
-//     TCase *tc_pipeline = tcase_create("Pipeline integration");
-//     tcase_add_checked_fixture(tc_pipeline, setup_pipeline, teardown_pipeline);
-//     tcase_add_test(tc_pipeline, whole_test);
+    TCase *tc_pipeline = tcase_create("Pipeline integration");
+    tcase_add_test(tc_pipeline, whole_test);
+    tcase_set_timeout(tc_pipeline, 0);
     
     // Add test cases to a test suite
     Suite *fs = suite_create("TDT test");
     suite_add_tcase(fs, tc_tdt_test_function);
-//     suite_add_tcase(fs, tc_pipeline);
+    suite_add_tcase(fs, tc_pipeline);
     
     return fs;
 }

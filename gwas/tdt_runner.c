@@ -195,7 +195,7 @@ int run_tdt_test(global_options_data_t* global_options_data, gwas_options_data_t
                 
                 fprintf(fd, "%s\t%12ld\t%s\t%s\t%d\t%d\t%8f\t%6f\n",//\t%f\n", 
                        result->chromosome, result->position, result->reference, result->alternate, 
-                       result->t1, result->t2, result->o_range, result->chi_square);//p_value);
+                       result->t1, result->t2, result->odds_ratio, result->chi_square);//p_value);
                 
                 tdt_result_free(result);
                 list_item_free(item);
@@ -238,7 +238,7 @@ int tdt_test(ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_h
     // TODO chunks in the same way as in hpg-variant/effect
     for (int i = 0; i < num_variants && cur_variant != NULL; i++) {
         vcf_record_t *record = (vcf_record_t*) cur_variant->data_p;
-        LOG_INFO_F("[%d] Checking variant %s:%ld\n", tid, record->chromosome, record->position);
+        LOG_DEBUG_F("[%d] Checking variant %s:%ld\n", tid, record->chromosome, record->position);
         
     //         // Adaptive permutation, skip this SNP?
     //         if (par::adaptive_perm && (!perm.snp_test[variant])) {
@@ -458,7 +458,7 @@ tdt_result_t* tdt_result_new(char *chromosome, unsigned long int position, char 
     strncat(result->alternate, alternate, strlen(alternate));
     result->t1 = t1;
     result->t2 = t2;
-    result->o_range = (t2 == 0.0) ? NAN : ((double) t1/t2);
+    result->odds_ratio = (t2 == 0.0) ? NAN : ((double) t1/t2);
     result->chi_square = chi_square;
     
     return result;
