@@ -1,6 +1,6 @@
 #include "tdt_runner.h"
 
-int permute = 0;
+// int permute = 0;
 
 int run_tdt_test(global_options_data_t* global_options_data, gwas_options_data_t* options_data) {
     list_t *read_list = (list_t*) malloc(sizeof(list_t));
@@ -321,7 +321,7 @@ int tdt_test(ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_h
                 // Only consider affected children
                 // TODO Accept non-default specification using 0 as unaffected and 1 as affected
 //                 printf("[%d] Child phenotype = %f\n", child->phenotype);
-                if (child->phenotype != 2.0f) { continue; }
+                if (child->condition != AFFECTED) { continue; }
                 
                 int *child_pos = cp_hashtable_get(sample_ids, child->id);
                 if (child_pos != NULL) {
@@ -392,18 +392,18 @@ int tdt_test(ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_h
                 ////////////////////////////////////////
                 // Permutation? 50:50 flip (precomputed)
                 
-                if (permute) {
+//                 if (permute) {
 //                     if (flipA[f])
 //                     {
-                    int t = trA;
-                    trA = unA;
-                    unA = t;
-                    
-                    t = trB;
-                    trB = unB;
-                    unB = t;
+//                     int t = trA;
+//                     trA = unA;
+//                     unA = t;
+//                     
+//                     t = trB;
+//                     trB = unB;
+//                     unB = t;
 //                     }
-                }
+//                 }
                 
                 // Increment transmission counts
                 if (trA==1) { t1++; }
