@@ -17,10 +17,14 @@ int genomic_analysis(int argc, char *argv[]) {
      * ******************************/
 
     // Step 1: read options from configuration file
-    int config_read = read_global_configuration("hpg-variant.cfg", global_options_data);
-    config_read &= read_gwas_configuration("hpg-variant.cfg", options_data);
-    LOG_INFO_F("Config read successfully = %d\n", config_read);
-
+    int config_errors = read_global_configuration("hpg-variant.cfg", global_options_data);
+    config_errors &= read_gwas_configuration("hpg-variant.cfg", options_data);
+    LOG_INFO_F("Config read with errors = %d\n", config_errors);
+    
+    if (config_errors) {
+        return CANT_READ_CONFIG_FILE;
+    }
+    
     // Step 2: parse command-line options
     parse_gwas_options(argc, argv, options_data, global_options_data);
 
