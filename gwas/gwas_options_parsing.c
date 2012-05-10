@@ -10,14 +10,14 @@ int read_gwas_configuration(const char *filename, gwas_options_data_t *options_d
     int ret_code = config_read_file(config, filename);
     if (ret_code == CONFIG_FALSE) {
         fprintf(stderr, "config file error: %s\n", config_error_text(config));
-        return ret_code;
+        return CANT_READ_CONFIG_FILE;
     }
 
     // Read number of threads that will make request to the web service
     ret_code = config_lookup_int(config, "gwas.num-threads", &(options_data->num_threads));
     if (ret_code == CONFIG_FALSE) {
         LOG_ERROR_F("num-threads config error: %s\n", config_error_text(config));
-        return ret_code;
+        return CANT_READ_CONFIG_FILE;
     }
     LOG_INFO_F("num-threads = %ld\n", options_data->num_threads);
 
@@ -25,7 +25,7 @@ int read_gwas_configuration(const char *filename, gwas_options_data_t *options_d
     ret_code = config_lookup_int(config, "gwas.max-batches", &(options_data->max_batches));
     if (ret_code == CONFIG_FALSE) {
         LOG_ERROR_F("max-batches config error: %s\n", config_error_text(config));
-        return ret_code;
+        return CANT_READ_CONFIG_FILE;
     }
     LOG_INFO_F("max-batches = %ld\n", options_data->max_batches);
     
@@ -33,14 +33,14 @@ int read_gwas_configuration(const char *filename, gwas_options_data_t *options_d
     ret_code = config_lookup_int(config, "gwas.batch-size", &(options_data->batch_size));
     if (ret_code == CONFIG_FALSE) {
         LOG_ERROR_F("batch-size config error: %s\n", config_error_text(config));
-        return ret_code;
+        return CANT_READ_CONFIG_FILE;
     }
     LOG_INFO_F("batch-size = %ld\n", options_data->batch_size);
     
     config_destroy(config);
     free(config);
 
-    return ret_code;
+    return 0;
 }
 
 
