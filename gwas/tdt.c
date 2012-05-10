@@ -52,7 +52,6 @@ int tdt_test(ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_h
             if (father == NULL || mother == NULL) {
                 continue;
             }
-//             if ( !family[f]->TDT ) continue;
 
             int *father_pos = cp_hashtable_get(sample_ids, father->id);
             if (father_pos != NULL) {
@@ -104,8 +103,6 @@ int tdt_test(ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_h
             individual_t *child = NULL;
             while ((child = cp_list_iterator_next(children_iterator)) != NULL) {
                 // Only consider affected children
-                // TODO Accept non-default specification using 0 as unaffected and 1 as affected
-//                 printf("[%d] Child phenotype = %f\n", child->phenotype);
                 if (child->condition != AFFECTED) { continue; }
                 
                 int *child_pos = cp_hashtable_get(sample_ids, child->id);
@@ -119,12 +116,17 @@ int tdt_test(ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_h
                 char *child_sample = sample_data[*child_pos];
                 LOG_DEBUG_F("[%d] Samples: Child = %s\n", tid, child_sample);
                 
+                // Skip if offspring has missing genotype
                 if (get_alleles(child_sample, &child_allele1, &child_allele2)) {
                     continue;
                 }
                 
-                // Skip if offspring has missing genotype
-                if (child_allele1 && !child_allele2) { continue; }
+                // Exclude mendelian errors
+                if (check_mendel(record->chromosome, father_allele1, father_allele2, mother_allele1, mother_allele2, 
+                    child_allele1, child_allele2, child->sex)) {
+                    continue;
+                }
+                
                 
                 // We've now established: no missing genotypes
                 // and at least one heterozygous parent

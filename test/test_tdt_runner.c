@@ -461,11 +461,11 @@ END_TEST
 START_TEST (whole_test) {
     // Invoke hpg-variant/genome-analysis --tdt
     
-    int tdt_ret = system("../hpg-variant genomic-analysis --tdt --vcf-file tdt_files/job.vcf --ped-file tdt_files/job.ped");
+    int tdt_ret = system("../hpg-variant genomic-analysis --tdt --vcf-file tdt_files/job.vcf --ped-file tdt_files/job.ped --outdir ./ ");
     fail_unless(tdt_ret == 0, "hpg-variant exited with errors");
     
-    // TODO check results in base to output file: get each line, grep plink.tdt and compare fields
-    FILE *cut_proc = popen("cut -f2,5,6 /tmp/hpg-variant.tdt", "r");
+    // Check results in base to output file: get each line, grep plink.tdt and compare fields
+    FILE *cut_proc = popen("cut -f2,5,6 ./hpg-variant.tdt", "r");
     FILE *grep_proc;
     int line_len = 256;
     char line[line_len];
@@ -494,7 +494,8 @@ START_TEST (whole_test) {
         memset(grepcmd, 0, line_len * sizeof(char));
         strncat(grepcmd, "grep -w ", 8);
         strncat(grepcmd, aux, strlen(aux));
-        strncat(grepcmd, " tdt_files/plink_dirty.tdt", 26);
+//         strncat(grepcmd, " tdt_files/plink_dirty.tdt", 26);
+        strncat(grepcmd, " tdt_files/plink.tdt", 20);
         strncat(grepcmd, " | awk '{print $6 \" \" $7}'", 28);
         
 //         printf("grepcmd = %s", grepcmd);
@@ -504,6 +505,10 @@ START_TEST (whole_test) {
         
         t1_plink = atoi(strtok(grep_line, " "));
         t2_plink = atoi(strtok(NULL, " "));
+        
+        if (t1 != t1_plink) { 
+            printf("[%d, %s] t1 = %d\tt1_plink = %d\n", i, aux, t1, t1_plink);
+        }
         
         fail_if(t1 != t1_plink, "t1 must be the same in both files");
         fail_if(t2 != t2_plink, "t2 must be the same in both files");

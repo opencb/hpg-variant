@@ -16,6 +16,7 @@
 #include <vcf_file_structure.h>
 #include <vcf_util.h>
 
+#include "checks_family.h"
 
 typedef struct {
     char *chromosome;
