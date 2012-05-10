@@ -417,9 +417,9 @@ START_TEST (combined_families) {
     strcat(mother_sample, "0/1");
     strcat(child_sample, "0/0");
     
-    father_sampleB = (char*) calloc (3, sizeof(char));
-    mother_sampleB = (char*) calloc (3, sizeof(char));
-    child_sampleB = (char*) calloc (3, sizeof(char));
+    father_sampleB = (char*) calloc (4, sizeof(char));
+    mother_sampleB = (char*) calloc (4, sizeof(char));
+    child_sampleB = (char*) calloc (4, sizeof(char));
     strcat(father_sampleB, "0/1");
     strcat(mother_sampleB, "0/0");
     strcat(child_sampleB, "0/0");
