@@ -24,7 +24,7 @@ MISC_FILES = $(COMMONS_DIR)/file_utils.o $(COMMONS_DIR)/string_utils.o $(COMMONS
 
 # Project source files
 EFFECT_FILES = effect/main_effect.c effect/effect_options_parsing.c effect/effect_runner.c
-GWAS_FILES = gwas/main_gwas.c gwas/gwas_options_parsing.c gwas/tdt_runner.c
+GWAS_FILES = gwas/main_gwas.c gwas/gwas_options_parsing.c gwas/tdt.c gwas/tdt_runner.c gwas/checks_family.c
 HPG_VARIANT_FILES = global_options.c hpg_variant_utils.c $(EFFECT_FILES) $(GWAS_FILES) $(VCF_FILES) $(GFF_FILES) $(PED_FILES) $(REGION_TABLE_FILES) $(MISC_FILES)
 
 # Targets
@@ -36,7 +36,8 @@ hpg-variant: compile-dependencies $(HPG_VARIANT_FILES)
 
 testing: test/test_effect_runner.c test/test_tdt_runner.c $(HPG_VARIANT_FILES)
 	$(CC) $(CFLAGS) -D_XOPEN_SOURCE=600 -o test/effect.test test/test_effect_runner.c $(HPG_VARIANT_FILES) $(INCLUDES) $(LIBS) $(LIBS_TEST)
-	$(CC) $(CFLAGS_DEBUG) -D_XOPEN_SOURCE=600 -o test/tdt.test test/test_tdt_runner.c $(HPG_VARIANT_FILES) $(INCLUDES) $(LIBS) $(LIBS_TEST)
+	$(CC) $(CFLAGS) -D_XOPEN_SOURCE=600 -o test/tdt.test test/test_tdt_runner.c $(HPG_VARIANT_FILES) $(INCLUDES) $(LIBS) $(LIBS_TEST)
+	$(CC) $(CFLAGS) -D_XOPEN_SOURCE=600 -o test/checks_family.test test/test_checks_family.c $(HPG_VARIANT_FILES) $(INCLUDES) $(LIBS) $(LIBS_TEST)
 
 compile-dependencies:
 	make family.o && \
@@ -50,30 +51,6 @@ compile-dependencies:
 family.o:
 	cd $(BIOINFO_DATA_DIR) && \
 	$(CC) $(CFLAGS) -D_XOPEN_SOURCE=600 -c -o $(BIOINFO_DATA_DIR)/$@ $(BIOINFO_DATA_DIR)/family.c $(INCLUDES) $(LIBS)
-
-file_utils.o:
-	cd $(COMMONS_DIR) && make file_utils.o
-
-http_utils.o:
-	cd $(COMMONS_DIR) && make http_utils.o
-
-string_utils.o:
-	cd $(COMMONS_DIR) && make string_utils.o
-
-list.o:
-	cd $(CONTAINERS_DIR) && make list.o
-
-log.o:
-	cd $(COMMONS_DIR) && make log.o
-
-region.o:
-	cd $(REGION_DIR) && make region.o
-
-region_table.o:
-	cd $(CONTAINERS_DIR) && make region_table.o
-
-region_table_utils.o:
-	cd $(CONTAINERS_DIR) && make region_table_utils.o
 
 clean:
 	rm -f *.o
