@@ -95,57 +95,6 @@ START_TEST (effect_ws_response) {
     int i = 0;
     FILE *p;
     
-    // Check all variants
-    p = popen("/usr/bin/wc -l all_variants.txt","r");
-    if (p) {
-        while (!feof(p) && (i < 99) ) {
-            fread(&buf[i],1,1,p);
-            i++;
-        }
-        buf[i] = 0;
-        fail_unless(atoi(strtok(buf, "\t")) == 13, "There must be 13 entries in all_variants.txt");
-        pclose(p);
-    }
-    
-    // Check 5KB downstream
-    p = popen("/usr/bin/wc -l 5KB_downstream_variant.txt","r");
-    if (p) {
-        i = 0;
-        while (!feof(p) && (i < 99) ) {
-            fread(&buf[i],1,1,p);
-            i++;
-        }
-        buf[i] = 0;
-        fail_unless(atoi(strtok(buf, "\t")) == 3, "There must be 3 entries in 5KB_downstream_variant.txt");
-        pclose(p);
-    }
-    
-    // Check intron
-    p = popen("/usr/bin/wc -l intron_variant.txt","r");
-    if (p) {
-        i = 0;
-        while (!feof(p) && (i < 99) ) {
-            fread(&buf[i],1,1,p);
-            i++;
-        }
-        buf[i] = 0;
-        fail_unless(atoi(strtok(buf, "\t")) == 5, "There must be 5 entries in intron_variant.txt");
-        pclose(p);
-    }
-    
-    // Check regulatory region
-    p = popen("/usr/bin/wc -l regulatory_region_variant.txt","r");
-    if (p) {
-        i = 0;
-        while (!feof(p) && (i < 99) ) {
-            fread(&buf[i],1,1,p);
-            i++;
-        }
-        buf[i] = 0;
-        fail_unless(atoi(strtok(buf, "\t")) == 5, "There must be 5 entries in regulatory_region_variant.txt");
-        pclose(p);
-    }
-    
     // Check summary
     p = popen("/usr/bin/wc -l summary.txt","r");
     if (p) {
@@ -158,6 +107,83 @@ START_TEST (effect_ws_response) {
         fail_unless(atoi(strtok(buf, "\t")) == 3, "There must be 3 entries in summary.txt");
         pclose(p);
     }
+}
+END_TEST
+
+
+START_TEST (whole_test) {
+    char buf[100];
+    int i = 0;
+    FILE *p;
+    
+    // Invoke hpg-variant/effect
+    int tdt_ret = system("../hpg-variant effect --vcf-file effect_files/variants_marta_head_3K.vcf --outdir ./ --region 1:10000-400000");
+    fail_unless(tdt_ret == 0, "hpg-variant exited with errors");
+    
+    // Check all variants
+    p = popen("/usr/bin/wc -l all_variants.txt","r");
+    if (p) {
+        while (!feof(p) && (i < 99) ) {
+            fread(&buf[i],1,1,p);
+            i++;
+        }
+        buf[i] = 0;
+        fail_unless(atoi(strtok(buf, "\t")) == 499, "There must be 499 entries in all_variants.txt");
+        pclose(p);
+    }
+    
+    // Check 5KB downstream
+    p = popen("/usr/bin/wc -l 5KB_downstream_variant.txt","r");
+    if (p) {
+        i = 0;
+        while (!feof(p) && (i < 99) ) {
+            fread(&buf[i],1,1,p);
+            i++;
+        }
+        buf[i] = 0;
+        fail_unless(atoi(strtok(buf, "\t")) == 34, "There must be 34 entries in 5KB_downstream_variant.txt");
+        pclose(p);
+    }
+    
+    // Check intron
+    p = popen("/usr/bin/wc -l intron_variant.txt","r");
+    if (p) {
+        i = 0;
+        while (!feof(p) && (i < 99) ) {
+            fread(&buf[i],1,1,p);
+            i++;
+        }
+        buf[i] = 0;
+        fail_unless(atoi(strtok(buf, "\t")) == 47, "There must be 47 entries in intron_variant.txt");
+        pclose(p);
+    }
+    
+    // Check regulatory region
+    p = popen("/usr/bin/wc -l regulatory_region_variant.txt","r");
+    if (p) {
+        i = 0;
+        while (!feof(p) && (i < 99) ) {
+            fread(&buf[i],1,1,p);
+            i++;
+        }
+        buf[i] = 0;
+        fail_unless(atoi(strtok(buf, "\t")) == 256, "There must be 256 entries in regulatory_region_variant.txt");
+        pclose(p);
+    }
+    
+    // Check summary
+    p = popen("/usr/bin/wc -l summary.txt","r");
+    if (p) {
+        i = 0;
+        while (!feof(p) && (i < 99) ) {
+            fread(&buf[i],1,1,p);
+            i++;
+        }
+        buf[i] = 0;
+        fail_unless(atoi(strtok(buf, "\t")) == 13, "There must be 13 entries in summary.txt");
+        pclose(p);
+    }
+    
 }
 END_TEST
 
@@ -187,10 +213,15 @@ Suite *create_test_suite(void)
     tcase_add_test(tc_web_service, effect_ws_request);
     tcase_add_test(tc_web_service, effect_ws_response);
     
+    TCase *tc_system = tcase_create("System test");
+    tcase_add_test(tc_system, whole_test);
+    tcase_set_timeout(tc_system, 0);
+    
     // Add test cases to a test suite
-    Suite *fs = suite_create("Effect (consequence type) web service invocation");
+    Suite *fs = suite_create("Effect (consequence type) web service");
     suite_add_tcase(fs, tc_composition);
     suite_add_tcase(fs, tc_web_service);
+    suite_add_tcase(fs, tc_system);
     
     return fs;
 }

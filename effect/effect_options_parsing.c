@@ -103,7 +103,7 @@ void parse_effect_options(int argc, char *argv[], effect_options_data_t *options
     int previous_opt_index = optind;
 
     int debug = 1;
-    while ((c = getopt_long (argc, argv, ":A:O:e:n:s:u:", options, &optind)) != -1)
+    while ((c = getopt_long (argc, argv, "A:O:e:f:n:p:r:s:u:v:", options, &optind)) != -1)
     {
         LOG_DEBUG_F("<main> c = %c, opt_idx = %d\n", c, optind);
         switch (c)
