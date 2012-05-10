@@ -10,7 +10,7 @@ int read_effect_configuration(const char *filename, effect_options_data_t *optio
     int ret_code = config_read_file(config, filename);
     if (ret_code == CONFIG_FALSE) {
         fprintf(stderr, "config file error: %s\n", config_error_text(config));
-        return ret_code;
+        return CANT_READ_CONFIG_FILE;
     }
 
     const char *tmp_url, *tmp_version, *tmp_species;
@@ -19,7 +19,7 @@ int read_effect_configuration(const char *filename, effect_options_data_t *optio
     ret_code = config_lookup_string(config, "effect.url", &tmp_url);
     if (ret_code == CONFIG_FALSE) {
         LOG_ERROR_F("url config error: %s\n", config_error_text(config));
-        return ret_code;
+        return CANT_READ_CONFIG_FILE;
     } else {
         free(options_data->host_url);
         options_data->host_url = (char*) calloc (strlen(tmp_url)+1, sizeof(char));
@@ -31,7 +31,7 @@ int read_effect_configuration(const char *filename, effect_options_data_t *optio
     ret_code = config_lookup_string(config, "effect.version", &tmp_version);
     if (ret_code == CONFIG_FALSE) {
         LOG_ERROR_F("version config error: %s\n", config_error_text(config));
-        return ret_code;
+        return CANT_READ_CONFIG_FILE;
     } else {
         free(options_data->version);
         options_data->version = (char*) calloc (strlen(tmp_version)+1, sizeof(char));
@@ -43,7 +43,7 @@ int read_effect_configuration(const char *filename, effect_options_data_t *optio
     ret_code = config_lookup_string(config, "effect.species", &tmp_species);
     if (ret_code == CONFIG_FALSE) {
         LOG_ERROR_F("species config error: %s\n", config_error_text(config));
-        return ret_code;
+        return CANT_READ_CONFIG_FILE;
     } else {
         free(options_data->species);
         options_data->species = (char*) calloc (strlen(tmp_species)+1, sizeof(char));
@@ -55,7 +55,7 @@ int read_effect_configuration(const char *filename, effect_options_data_t *optio
     ret_code = config_lookup_int(config, "effect.num-threads", &(options_data->num_threads));
     if (ret_code == CONFIG_FALSE) {
         LOG_ERROR_F("num-threads config error: %s\n", config_error_text(config));
-        return ret_code;
+        return CANT_READ_CONFIG_FILE;
     }
     LOG_INFO_F("num-threads = %ld\n", options_data->num_threads);
 
@@ -63,7 +63,7 @@ int read_effect_configuration(const char *filename, effect_options_data_t *optio
     ret_code = config_lookup_int(config, "effect.max-batches", &(options_data->max_batches));
     if (ret_code == CONFIG_FALSE) {
         LOG_ERROR_F("max-batches config error: %s\n", config_error_text(config));
-        return ret_code;
+        return CANT_READ_CONFIG_FILE;
     }
     LOG_INFO_F("max-batches = %ld\n", options_data->max_batches);
     
@@ -71,7 +71,7 @@ int read_effect_configuration(const char *filename, effect_options_data_t *optio
     ret_code = config_lookup_int(config, "effect.batch-size", &(options_data->batch_size));
     if (ret_code == CONFIG_FALSE) {
         LOG_ERROR_F("batch-size config error: %s\n", config_error_text(config));
-        return ret_code;
+        return CANT_READ_CONFIG_FILE;
     }
     LOG_INFO_F("batch-size = %ld\n", options_data->batch_size);
     
@@ -80,14 +80,14 @@ int read_effect_configuration(const char *filename, effect_options_data_t *optio
     if (ret_code == CONFIG_FALSE)
     {
         LOG_ERROR_F("variants-per-request config error: %s\n", config_error_text(config));
-        return ret_code;
+        return CANT_READ_CONFIG_FILE;
     }
     LOG_INFO_F("variants-per-request = %ld\n", options_data->variants_per_request);
 
     config_destroy(config);
     free(config);
 
-    return ret_code;
+    return 0;
 }
 
 
@@ -195,25 +195,25 @@ int verify_effect_options(global_options_data_t *global_options_data, effect_opt
 {
     // Check whether the input VCF file is defined
     if (global_options_data->vcf_filename == NULL || strlen(global_options_data->vcf_filename) == 0) {
-        LOG_WARN("Please specify the input VCF file.\n");
+        LOG_ERROR("Please specify the input VCF file.\n");
         return VCF_FILE_NOT_SPECIFIED;
     }
     
     // Check whether the host URL is defined
     if (options_data->host_url == NULL || strlen(options_data->host_url) == 0) {
-        LOG_WARN("Please specify the host URL to the web service.\n");
+        LOG_ERROR("Please specify the host URL to the web service.\n");
         return EFFECT_HOST_URL_NOT_SPECIFIED;
     }
 
     // Check whether the version is defined
     if (options_data->version == NULL || strlen(options_data->version) == 0) {
-        LOG_WARN("Please specify the version.\n");
+        LOG_ERROR("Please specify the version.\n");
         return EFFECT_VERSION_NOT_SPECIFIED;
     }
 
     // Check whether the species is defined
     if (options_data->species == NULL || strlen(options_data->species) == 0) {
-        LOG_WARN("Please specify the species to take as reference.\n");
+        LOG_ERROR("Please specify the species to take as reference.\n");
         return EFFECT_SPECIES_NOT_SPECIFIED;
     }
 
