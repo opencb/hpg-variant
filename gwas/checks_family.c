@@ -2,13 +2,13 @@
 
 int check_mendel(char *chromosome, int father_allele1, int father_allele2, int mother_allele1, int mother_allele2, 
                  int child_allele1, int child_allele2, enum Sex child_sex) {
-    // Ignore haploid chromosomes
-    if (!strcasecmp(chromosome, "Y") || !strcasecmp(chromosome, "MT")) {
+    // Ignore if any allele is missing
+    if (father_allele1 < 0 || father_allele2 < 0 || mother_allele1 < 0 || mother_allele2 < 0 || child_allele1 < 0 || child_allele2 < 0) {
         return -1;
     }
     
-    // Ignore if any allele is missing
-    if (father_allele1 < 0 || father_allele2 < 0 || mother_allele1 < 0 || mother_allele2 < 0 || child_allele1 < 0 || child_allele2 < 0) {
+    // Ignore haploid chromosomes
+    if (!strcasecmp(chromosome, "Y") || !strcasecmp(chromosome, "MT")) {
         return -2;
     }
     
