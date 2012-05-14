@@ -41,6 +41,7 @@ int run_filter(global_options_data_t *global_options_data, filter_options_data_t
         
 #pragma omp section
         {
+            char *passed_filename, *failed_filename;
             FILE *passed_file, *failed_file;
             
             filter_t **filters = NULL;
@@ -54,43 +55,53 @@ int run_filter(global_options_data_t *global_options_data, filter_options_data_t
             int i = 0;
             list_item_t* item = NULL;
             
-            if (global_options_data->output_filename != NULL && 
-                strlen(global_options_data->output_filename) > 0) {
+            
+            if (global_options_data->output_filename == NULL || 
+                strlen(global_options_data->output_filename) == 0) {
+                int dirname_len = strlen(global_options_data->output_directory);
+                int filename_len = strlen("filter-tool-output.vcf");
+                passed_filename = (char*) calloc ((dirname_len + filename_len + 1), sizeof(char));
+                strncat(passed_filename, global_options_data->output_directory, dirname_len);
+                strncat(passed_filename, "filter-tool-output.vcf", filename_len);
+            
+                failed_filename = (char*) calloc ((dirname_len + filename_len + 10), sizeof(char));
+                strncat(failed_filename, global_options_data->output_directory, dirname_len);
+                strncat(failed_filename, "filter-tool-output.vcf", filename_len);
+                strncat(failed_filename, ".filtered", 9);
+                
+            } else {
                 int dirname_len = strlen(global_options_data->output_directory);
                 int filename_len = strlen(global_options_data->output_filename);
             
-                char *passed_filename = (char*) calloc ((dirname_len + filename_len + 1), sizeof(char));
+                passed_filename = (char*) calloc ((dirname_len + filename_len + 1), sizeof(char));
                 strncat(passed_filename, global_options_data->output_directory, dirname_len);
                 strncat(passed_filename, global_options_data->output_filename, filename_len);
-                passed_file = fopen(passed_filename, "w");
             
-                char *failed_filename = (char*) calloc ((dirname_len + filename_len + 10), sizeof(char));
+                failed_filename = (char*) calloc ((dirname_len + filename_len + 10), sizeof(char));
                 strncat(failed_filename, global_options_data->output_directory, dirname_len);
                 strncat(failed_filename, global_options_data->output_filename, filename_len);
                 strncat(failed_filename, ".filtered", 9);
-                failed_file = fopen(failed_filename, "w");
-                LOG_DEBUG_F("passed filename = %s\nfailed filename = %s\n", passed_filename, failed_filename);
-                
-                free(passed_filename);
-                free(failed_filename);
             }
             
-//             if (!passed_file) {
-//                 passed_file = stdout;
-//             }
-//             if (!failed_file) {
-//                 failed_file = stderr;
-//             }
-            int debug = 1;
+            LOG_DEBUG_F("passed filename = %s\nfailed filename = %s\n", passed_filename, failed_filename);
+            passed_file = fopen(passed_filename, "w");
+            failed_file = fopen(failed_filename, "w");
+            
+            free(passed_filename);
+            free(failed_filename);
+            
             LOG_DEBUG("File streams created\n");
             
-            // Write file format, header entries and delimiter
-            vcf_write_to_file(file, passed_file);
-            vcf_write_to_file(file, failed_file);
-
-            LOG_DEBUG("VCF header written created\n");
             
             while ((item = list_remove_item(read_list)) != NULL) {
+                if (i == 0) {
+                    // Write file format, header entries and delimiter
+                    vcf_write_to_file(file, passed_file);
+                    vcf_write_to_file(file, failed_file);
+
+                    LOG_DEBUG("VCF header written created\n");
+                }
+                
                 vcf_batch_t *batch = (vcf_batch_t*) item->data_p;
                 list_t *input_records = batch;
                 list_t *passed_records, *failed_records;
@@ -108,24 +119,6 @@ int run_filter(global_options_data_t *global_options_data, filter_options_data_t
                 } else {
                     passed_records = input_records;
                 }
-
-//                 // TODO add more tools
-//                 switch (options_data->tool) {
-//                     case MERGE:
-//                         LOG_FATAL("Merging tool not yet implemented\n");
-//                         break;
-//                     case SORT:
-//                         LOG_FATAL("Sorting tool not yet implemented\n");
-//                         break;
-//                     case SPLIT:
-//                         LOG_FATAL("Splitting tool not yet implemented\n");
-//                         break;
-//                     case STATS:
-//                         LOG_FATAL("Stats calculation tool not yet implemented\n");
-//                         break;
-//                     default:
-//                         break;
-//                 }
 
                 // Write records that passed and failed to 2 new separated files
                 if (passed_records != NULL && passed_records->length > 0) {
