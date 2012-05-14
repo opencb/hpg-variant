@@ -31,8 +31,8 @@ HPG_VARIANT_FILES = global_options.c hpg_variant_utils.c $(EFFECT_FILES) $(GWAS_
 all: compile-dependencies hpg-variant
 
 hpg-variant: compile-dependencies $(HPG_VARIANT_FILES)
-	$(CC) $(CFLAGS) -D_XOPEN_SOURCE=600 -o $@ main.c $(HPG_VARIANT_FILES) $(INCLUDES) $(LIBS)
-#	$(CC) $(CFLAGS_DEBUG) -D_XOPEN_SOURCE=600 -o $@ $(HPG_VARIANT_FILES) $(INCLUDES) $(LIBS)
+#	$(CC) $(CFLAGS) -D_XOPEN_SOURCE=600 -o $@ main.c $(HPG_VARIANT_FILES) $(INCLUDES) $(LIBS)
+	$(CC) $(CFLAGS_DEBUG) -D_XOPEN_SOURCE=600 -o $@ main.c $(HPG_VARIANT_FILES) $(INCLUDES) $(LIBS)
 
 testing: test/test_effect_runner.c test/test_tdt_runner.c $(HPG_VARIANT_FILES)
 	$(CC) $(CFLAGS) -D_XOPEN_SOURCE=600 -o test/effect.test test/test_effect_runner.c $(HPG_VARIANT_FILES) $(INCLUDES) $(LIBS) $(LIBS_TEST)

@@ -31,6 +31,10 @@ int run_effect(char *url, global_options_data_t *global_options_data, effect_opt
     double start, stop, total;
     vcf_file_t *file = vcf_open(global_options_data->vcf_filename);
     
+    if (!file) {
+        LOG_FATAL("VCF file does not exist!\n");
+    }
+    
     create_directory(global_options_data->output_directory);
     
     // Remove all .txt files in folder
@@ -67,7 +71,7 @@ int run_effect(char *url, global_options_data_t *global_options_data, effect_opt
             total = stop - start;
 
             if (ret_code) {
-                LOG_FATAL_F("Error %d while reading the file %s\n", ret_code, file->filename);
+                LOG_ERROR_F("Error %d while reading the file %s\n", ret_code, file->filename);
             }
 
             LOG_INFO_F("[%dR] Time elapsed = %f s\n", omp_get_thread_num(), total);
