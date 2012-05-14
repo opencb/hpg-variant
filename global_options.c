@@ -24,13 +24,15 @@ int read_global_configuration(const char *filename, global_options_data_t *optio
         return -1;
     }
     
-    config_t *config = (config_t*) malloc (sizeof(config_t));
+    config_t *config = (config_t*) calloc (1, sizeof(config_t));
     int ret_code = config_read_file(config, filename);
     if (ret_code == CONFIG_FALSE)
     {
         LOG_ERROR_F("config file error: %s\n", config_error_text(config));
-        return ret_code;
+        return CANT_READ_CONFIG_FILE;
     }
+    
+    LOG_DEBUG("Configuration file read\n");
     
     // Read output directory
     const char *tmp_string;
@@ -38,7 +40,7 @@ int read_global_configuration(const char *filename, global_options_data_t *optio
     if (ret_code == CONFIG_FALSE)
     {
         LOG_ERROR_F("output directory config error: %s\n", config_error_text(config));
-        return ret_code;
+        return CANT_READ_CONFIG_FILE;
     } else {
         free(options_data->output_directory);
         options_data->output_directory = (char*) calloc (strlen(tmp_string)+1, sizeof(char));
@@ -50,7 +52,7 @@ int read_global_configuration(const char *filename, global_options_data_t *optio
     config_destroy(config);
     free(config);
     
-    return ret_code;
+    return 0;
 }
 
 int parse_global_options(int argc, char *argv[], global_options_data_t *options_data, int start_index)

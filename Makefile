@@ -10,8 +10,8 @@ BIOINFO_DATA_DIR = $(LIBS_ROOT)/bioformats
 REGION_DIR = $(BIOINFO_DATA_DIR)/features/region
 
 # Include and libs folders
-INCLUDES = -I $(CONTAINERS_DIR) -I $(COMMONS_DIR) -I $(REGION_DIR) -I $(BIOINFO_DATA_DIR)/vcf/ -I $(BIOINFO_DATA_DIR)/gff/  
-LIBS = -L/usr/lib/x86_64-linux-gnu -lcurl -Wl,-Bsymbolic-functions -lconfig -lcprops -fopenmp -lm
+INCLUDES = -I . -I filter -I $(CONTAINERS_DIR) -I $(COMMONS_DIR) -I $(REGION_DIR) -I $(BIOINFO_DATA_DIR)/vcf/ -I $(BIOINFO_DATA_DIR)/gff/  
+LIBS = -L/usr/lib/x86_64-linux-gnu -lconfig -lcprops -fopenmp -lm
 
 # Source files dependencies
 #VCF_FILES = $(BIOINFO_DATA_DIR)/vcf/vcf_file.c $(BIOINFO_DATA_DIR)/vcf/vcf_reader.c $(BIOINFO_DATA_DIR)/vcf/vcf_batch.c \
@@ -24,7 +24,8 @@ MISC_FILES = $(COMMONS_DIR)/file_utils.o $(COMMONS_DIR)/log.c $(COMMONS_DIR)/str
 
 # Project source files
 #VCF_TOOLS_FILES = main.c global_options.c vcf_tools_options_parsing.c vcf_tools_runner.c $(MISC_FILES)
-VCF_TOOLS_FILES = main.c global_options.c vcf_tools_options_parsing.c vcf_tools_runner.c $(VCF_FILES) $(GFF_FILES) $(MISC_FILES) $(REGION_TABLE_FILES)
+FILTER_FILES = filter/main_filter.c filter/filter_runner.c filter/filter_options_parsing.c
+VCF_TOOLS_FILES = main.c global_options.c $(FILTER_FILES) $(VCF_FILES) $(GFF_FILES) $(MISC_FILES) $(REGION_TABLE_FILES)
 
 
 # Targets

@@ -17,6 +17,8 @@
 
 #include <log.h>
 
+#include "error.h"
+
 /**
  * Number of options applicable to the whole application.
  */

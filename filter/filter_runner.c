@@ -1,6 +1,6 @@
-#include "vcf_tools_runner.h"
+#include "filter.h"
 
-int execute_vcf_tools(global_options_data_t *global_options_data, vcf_tools_options_data_t *options_data) {
+int run_filter(global_options_data_t *global_options_data, filter_options_data_t *options_data) {
     
     list_t *read_list = (list_t*) malloc(sizeof(list_t));
     list_init("batches", 1, options_data->max_batches, read_list);
@@ -9,7 +9,14 @@ int execute_vcf_tools(global_options_data_t *global_options_data, vcf_tools_opti
     double start, stop, total;
     vcf_file_t *file = vcf_open(global_options_data->vcf_filename);
     
-    create_directory(global_options_data->output_directory);
+    if (!file) {
+        LOG_FATAL("VCF file does not exist!\n");
+    }
+    
+    ret_code = create_directory(global_options_data->output_directory);
+    if (ret_code != 0 && errno != EEXIST) {
+        LOG_FATAL_F("Can't create output directory: %s\n", global_options_data->output_directory);
+    }
     
 #pragma omp parallel sections private(start, stop, total)
     {
@@ -68,12 +75,12 @@ int execute_vcf_tools(global_options_data_t *global_options_data, vcf_tools_opti
                 free(failed_filename);
             }
             
-            if (!passed_file) {
-                passed_file = stdout;
-            }
-            if (!failed_file) {
-                failed_file = stderr;
-            }
+//             if (!passed_file) {
+//                 passed_file = stdout;
+//             }
+//             if (!failed_file) {
+//                 failed_file = stderr;
+//             }
             int debug = 1;
             LOG_DEBUG("File streams created\n");
             
@@ -89,7 +96,7 @@ int execute_vcf_tools(global_options_data_t *global_options_data, vcf_tools_opti
                 list_t *passed_records, *failed_records;
 
                 if (i % 200 == 0) {
-                    LOG_DEBUG_F("Batch %d reached by thread %d - %zu/%zu records \n", 
+                    LOG_INFO_F("Batch %d reached by thread %d - %zu/%zu records \n", 
                                 i, omp_get_thread_num(),
                                 batch->length, batch->max_length);
                 }
@@ -98,9 +105,27 @@ int execute_vcf_tools(global_options_data_t *global_options_data, vcf_tools_opti
                     failed_records = (list_t*) malloc(sizeof(list_t));
                     list_init("failed_records", 1, INT_MAX, failed_records);
                     passed_records = run_filter_chain(input_records, failed_records, filters, num_filters);
+                } else {
+                    passed_records = input_records;
                 }
 
-                // TODO add more tools
+//                 // TODO add more tools
+//                 switch (options_data->tool) {
+//                     case MERGE:
+//                         LOG_FATAL("Merging tool not yet implemented\n");
+//                         break;
+//                     case SORT:
+//                         LOG_FATAL("Sorting tool not yet implemented\n");
+//                         break;
+//                     case SPLIT:
+//                         LOG_FATAL("Splitting tool not yet implemented\n");
+//                         break;
+//                     case STATS:
+//                         LOG_FATAL("Stats calculation tool not yet implemented\n");
+//                         break;
+//                     default:
+//                         break;
+//                 }
 
                 // Write records that passed and failed to 2 new separated files
                 if (passed_records != NULL && passed_records->length > 0) {
@@ -116,7 +141,7 @@ int execute_vcf_tools(global_options_data_t *global_options_data, vcf_tools_opti
                 vcf_batch_free(item->data_p);
                 list_item_free(item);
                 
-                if (passed_records) { free(passed_records); }
+                if (passed_records && passed_records != input_records) { free(passed_records); }
                 if (failed_records) { free(failed_records); }
                 
                 i++;

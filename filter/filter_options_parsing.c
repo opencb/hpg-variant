@@ -1,61 +1,60 @@
-#include "vcf_tools.h"
+#include "filter.h"
 
 
-int read_vcf_tools_configuration(const char *filename, vcf_tools_options_data_t *options_data) {
+int read_filter_configuration(const char *filename, filter_options_data_t *options_data) {
     config_t *config = (config_t*) malloc (sizeof(config_t));
     
     int ret_code = config_read_file(config, filename);
     if (ret_code == CONFIG_FALSE)
     {
-        fprintf(stderr, "config file error: %s\n", config_error_text(config));
+        LOG_ERROR_F("config file error: %s\n", config_error_text(config));
         return ret_code;
     }
     
     // Read number of threads to perform the operations
-    ret_code = config_lookup_int(config, "vcf-tools.num-threads", &(options_data->num_threads));
+    ret_code = config_lookup_int(config, "filter.num-threads", &(options_data->num_threads));
     if (ret_code == CONFIG_FALSE)
     {
-        fprintf(stderr, "num-threads config error: %s\n", config_error_text(config));
-        return ret_code;
+        LOG_ERROR_F("num-threads config error: %s\n", config_error_text(config));
+        return CANT_READ_CONFIG_FILE;
     }
     LOG_INFO_F("num-threads = %ld\n", options_data->num_threads);
     
     // Read number of threads to perform the operations
-    ret_code = config_lookup_int(config, "vcf-tools.max-batches", &(options_data->max_batches));
+    ret_code = config_lookup_int(config, "filter.max-batches", &(options_data->max_batches));
     if (ret_code == CONFIG_FALSE)
     {
-        fprintf(stderr, "max-batches config error: %s\n", config_error_text(config));
-        return ret_code;
+        LOG_ERROR_F("max-batches config error: %s\n", config_error_text(config));
+        return CANT_READ_CONFIG_FILE;
     }
     LOG_INFO_F("max-batches = %ld\n", options_data->max_batches);
     
     // Read number of threads to perform the operations
-    ret_code = config_lookup_int(config, "vcf-tools.batch-size", &(options_data->batch_size));
+    ret_code = config_lookup_int(config, "filter.batch-size", &(options_data->batch_size));
     if (ret_code == CONFIG_FALSE)
     {
-        fprintf(stderr, "batch-size config error: %s\n", config_error_text(config));
-        return ret_code;
+        LOG_ERROR_F("batch-size config error: %s\n", config_error_text(config));
+        return CANT_READ_CONFIG_FILE;
     }
     LOG_INFO_F("batch-size = %ld\n", options_data->batch_size);
     
-    return ret_code;
+    return 0;
 }
 
 
-void parse_vcf_tools_options(int argc, char *argv[], vcf_tools_options_data_t *options_data, global_options_data_t *global_options_data) {
-	const struct option *options = merge_options(vcf_tools_options, NUM_VCF_TOOLS_OPTIONS);
+void parse_filter_options(int argc, char *argv[], filter_options_data_t *options_data, global_options_data_t *global_options_data) {
+	const struct option *options = merge_options(filter_options, NUM_FILTER_OPTIONS);
 
 	char *tmp_string_field;
 	int tmp_int_field;
     filter_t *filter;
-//     char filter_input[];
     
 	int c;
 	// Last option read, for when the global options parser is invoked
 	int previous_opt_index = optind;
 	
 	int debug = 1;
-	while ((c = getopt_long (argc, argv, ":A:O:f:r:s:", options, &optind)) != -1) {
+	while ((c = getopt_long (argc, argv, "A:O:f:r:s:", options, &optind)) != -1) {
 		LOG_DEBUG_F("<main> c = %c, opt_idx = %d\n", c, optind);
 		switch (c) {
 			case 'A':
@@ -91,12 +90,18 @@ void parse_vcf_tools_options(int argc, char *argv[], vcf_tools_options_data_t *o
 }
 
 
-int verify_vcf_tools_options(global_options_data_t *global_options_data, vcf_tools_options_data_t *options_data)
+int verify_filter_options(global_options_data_t *global_options_data, filter_options_data_t *options_data)
 {
     // Check whether the input VCF file is defined
     if (global_options_data->vcf_filename == NULL || strlen(global_options_data->vcf_filename) == 0) {
-        fprintf(stderr, "Please specify the input VCF file.\n");
+        LOG_ERROR("Please specify the input VCF file.\n");
         return VCF_FILE_NOT_SPECIFIED;
+    }
+    
+    // Check whether a filter or more has been specified
+    if (cp_heap_count(options_data->chain) == 0) {
+        LOG_ERROR("Please specify at least one filter\n");
+        return EMPTY_LIST_OF_FILTERS;
     }
 	
 	return 0;
