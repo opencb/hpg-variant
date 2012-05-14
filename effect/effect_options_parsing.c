@@ -114,12 +114,12 @@ void parse_effect_options(int argc, char *argv[], effect_options_data_t *options
                 break;
             case 'e':
                 options_data->excludes = (char*) malloc((strlen(optarg)+1) * sizeof(char));
-                strcpy(options_data->excludes, optarg);
+                strcat(options_data->excludes, optarg);
                 LOG_INFO_F("exclude = %s\n", options_data->excludes);
                 break;
             case 'f':
                 tmp_string_field = (char*) malloc((strlen(optarg)+1) * sizeof(char));
-                strcpy(tmp_string_field, optarg);
+                strcat(tmp_string_field, optarg);
                 filter = create_region_exact_filter(tmp_string_field, 1);
                 options_data->chain = add_to_filter_chain(filter, options_data->chain);
                 LOG_INFO_F("regions file = %s\n", optarg);
@@ -157,7 +157,7 @@ void parse_effect_options(int argc, char *argv[], effect_options_data_t *options
             case 's':
                 // options_data->species is const char*, so it must be freed and reassigned
                 tmp_string_field = (char*) malloc((strlen(optarg)+1) * sizeof(char));
-                strcpy(tmp_string_field, optarg);
+                strcat(tmp_string_field, optarg);
                 free((void*) options_data->species);
                 options_data->species = tmp_string_field;
                 LOG_INFO_F("species = %s\n", options_data->species);
@@ -165,7 +165,7 @@ void parse_effect_options(int argc, char *argv[], effect_options_data_t *options
             case 'u':
                 // options_data->url is const char*, so it must be freed and reassigned
                 tmp_string_field = (char*) malloc((strlen(optarg)+1) * sizeof(char));
-                strcpy(tmp_string_field, optarg);
+                strcat(tmp_string_field, optarg);
                 free((void*) options_data->host_url);
                 options_data->host_url = tmp_string_field;
                 LOG_INFO_F("host url = %s\n", options_data->host_url);
@@ -173,7 +173,7 @@ void parse_effect_options(int argc, char *argv[], effect_options_data_t *options
             case 'v':
                 // options_data->version is const char*, so it must be freed and reassigned
                 tmp_string_field = (char*) malloc((strlen(optarg)+1) * sizeof(char));
-                strcpy(tmp_string_field, optarg);
+                strcat(tmp_string_field, optarg);
                 free((void*) options_data->version);
                 options_data->version = tmp_string_field;
                 LOG_INFO_F("version = %s\n", options_data->version);
