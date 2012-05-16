@@ -23,7 +23,7 @@ MISC_FILES = $(COMMONS_DIR)/file_utils.o $(COMMONS_DIR)/log.c $(COMMONS_DIR)/str
 # Project source files
 FILTER_FILES = filter/main_filter.c filter/filter_runner.c filter/filter_options_parsing.c
 STATS_FILES = stats/main_stats.c stats/stats.c stats/stats_runner.c stats/stats_options_parsing.c
-VCF_TOOLS_FILES = global_options.c $(FILTER_FILES) $(STATS_FILES) $(VCF_FILES) $(GFF_FILES) $(MISC_FILES) $(REGION_TABLE_FILES)
+VCF_TOOLS_FILES = global_options.c hpg_vcf_tools_utils.c $(FILTER_FILES) $(STATS_FILES) $(VCF_FILES) $(GFF_FILES) $(MISC_FILES) $(REGION_TABLE_FILES)
 
 
 # Targets

@@ -1,9 +1,10 @@
 #include "stats.h"
 
 int run_stats(global_options_data_t *global_options_data, stats_options_data_t *options_data) {
-    
     list_t *read_list = (list_t*) malloc(sizeof(list_t));
     list_init("batches", 1, options_data->max_batches, read_list);
+    list_t *output_list = (list_t*) malloc (sizeof(list_t));
+    list_init("output", options_data->num_threads, MIN(10, options_data->max_batches) * options_data->batch_size, output_list);
 
     int ret_code;
     double start, stop, total;
@@ -41,6 +42,54 @@ int run_stats(global_options_data_t *global_options_data, stats_options_data_t *
         
 #pragma omp section
         {
+            // Enable nested parallelism and set the number of threads the user has chosen
+            omp_set_nested(1);
+            omp_set_num_threads(options_data->num_threads);
+            
+            start = omp_get_wtime();
+            
+            int i = 0;
+            list_item_t* item = NULL;
+            while ((item = list_remove_item(read_list)) != NULL) {
+                vcf_batch_t *batch = (vcf_batch_t*) item->data_p;
+                list_t *input_records = batch;
+
+                if (i % 200 == 0) {
+                    LOG_INFO_F("Batch %d reached by thread %d - %zu/%zu records \n", 
+                                i, omp_get_thread_num(),
+                                batch->length, batch->max_length);
+                }
+
+                // Divide the list of passed records in ranges of size defined in config file
+                int max_chunk_size = options_data->variants_per_thread;
+                int num_chunks;
+                list_item_t **chunk_starts = create_chunks(input_records, max_chunk_size, &num_chunks);
+                
+                // OpenMP: Launch a thread for each range
+                #pragma omp parallel for
+                for (int j = 0; j < num_chunks; j++) {
+                    LOG_DEBUG_F("[%d] Stats invocation\n", omp_get_thread_num());
+                    ret_code = get_variants_stats(chunk_starts[j], max_chunk_size, output_list);
+                }
+                LOG_INFO_F("*** %dth stats invocation finished\n", i);
+                
+                free(chunk_starts);
+                vcf_batch_free(item->data_p);
+                list_item_free(item);
+                
+                i++;
+            }
+
+            stop = omp_get_wtime();
+
+            total = stop - start;
+
+            LOG_INFO_F("[%d] Time elapsed = %f s\n", omp_get_thread_num(), total);
+            LOG_INFO_F("[%d] Time elapsed = %e ms\n", omp_get_thread_num(), total*1000);
+        }
+        
+#pragma omp section
+        {
             char *stats_filename;
             FILE *stats_file;
     
@@ -66,48 +115,87 @@ int run_stats(global_options_data_t *global_options_data, stats_options_data_t *
             free(stats_filename);
             LOG_DEBUG("File streams created\n");
             
-            start = omp_get_wtime();
-            
-            int i = 0;
+            // Thread which writes the results to all_variants, summary and one file per consequence type
             list_item_t* item = NULL;
-            while ((item = list_remove_item(read_list)) != NULL) {
-                vcf_batch_t *batch = (vcf_batch_t*) item->data_p;
-                list_t *input_records = batch;
-
-                if (i % 200 == 0) {
-                    LOG_INFO_F("Batch %d reached by thread %d - %zu/%zu records \n", 
-                                i, omp_get_thread_num(),
-                                batch->length, batch->max_length);
+            variant_stats_t *stats;
+            int num_alleles;
+            char line[256];
+            FILE *fd = NULL;
+            while ((item = list_remove_item(output_list)) != NULL) {
+                stats = item->data_p;
+                num_alleles = stats->num_alleles;
+                
+                // Generate a new line with the format (block of blanks = tab):
+                // chromosome   position   [<allele>   <count>   <freq>]+   [<genotype>   <count>   <freq>]+   miss_all   miss_gt
+                memset(line, 0, 256);
+                
+                // Chromosome and position
+                sprintf(line, "%s\t%ld\t",
+                        stats->chromosome, 
+                        stats->position);
+                
+                // Reference allele
+                sprintf(line, "%s\t%d\t%.4f\t",
+                        stats->ref_allele,
+                        stats->alleles_count[0],
+                        0.1f
+                       );
+                
+                // TODO freq of reference allele
+                
+                // Alternate alleles
+                for (int i = 1; i < num_alleles; i++) {
+                    sprintf(line, "%s\t%d\t%.4f\t",
+                            stats->alternates[i-1],
+                            stats->alleles_count[i],
+                            0.1f
+                           );
+                    
+                    // TODO freq of alternate allele
                 }
-
                 
-//                 // Write records that passed and failed to 2 new separated files
-//                 if (passed_records != NULL && passed_records->length > 0) {
-//                     LOG_DEBUG_F("[batch %d] %zu passed records\n", i, passed_records->length);
-//                     write_batch(passed_records, stats_file);
-//                 }
-//                 
-//                 if (failed_records != NULL && failed_records->length > 0) {
-//                     LOG_DEBUG_F("[batch %d] %zu failed records\n", i, failed_records->length);
-//                     write_batch(failed_records, failed_file);
-//                 }
+                // Genotypes
+                int gt_count = 0;
+                for (int i = 0; i < num_alleles; i++) {
+                    for (int j = i; j < num_alleles; j++) {
+                        int idx1 = i * num_alleles + j;
+                        if (i == j) {
+                            gt_count = stats->genotypes_count[idx1];
+                        } else {
+                            int idx2 = idx1 + (num_alleles - 1) * 2;
+                            gt_count = stats->genotypes_count[idx1] + stats->genotypes_count[idx2];
+                        }
+                        
+                        sprintf(line, "%d|%d\t%d\t%.4f\t",
+                                i, j, 
+                                gt_count, 
+                                0.1f);
+                    }
+                }
                 
-                vcf_batch_free(item->data_p);
+                // Missing data
+                sprintf(line, "%d\t%d",
+                        stats->missing_alleles,
+                        stats->missing_genotypes
+                       );
+                
+                printf("Line = '%s'\n", line);
+                
+                // Write in stats file
+                if (fprintf(stats_file, "%s\n", line) < 0) {
+                    LOG_ERROR_F("Error writing to stats file: '%s'\n", line);
+                } /*else {
+                    fflush(all_variants_file);
+                }*/
+                
+                free_variant_stats(stats);
                 list_item_free(item);
-                
-                i++;
             }
-
-            stop = omp_get_wtime();
-
-            total = stop - start;
-
-            LOG_INFO_F("[%d] Time elapsed = %f s\n", omp_get_thread_num(), total);
-            LOG_INFO_F("[%d] Time elapsed = %e ms\n", omp_get_thread_num(), total*1000);
-
+            
             // Free resources
             if (stats_file != NULL) { fclose(stats_file); }
         }
+        
     }
     
     vcf_close(file);
