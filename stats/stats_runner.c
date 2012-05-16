@@ -69,6 +69,9 @@ int run_stats(global_options_data_t *global_options_data, stats_options_data_t *
                 #pragma omp parallel for
                 for (int j = 0; j < num_chunks; j++) {
                     LOG_DEBUG_F("[%d] Stats invocation\n", omp_get_thread_num());
+                    printf("[%d] start in (%s, %ld)\n", j,
+                           ((vcf_record_t*) chunk_starts[j]->data_p)->chromosome, 
+                           ((vcf_record_t*) chunk_starts[j]->data_p)->position);
                     ret_code = get_variants_stats(chunk_starts[j], max_chunk_size, output_list);
                 }
                 LOG_INFO_F("*** %dth stats invocation finished\n", i);
@@ -79,13 +82,17 @@ int run_stats(global_options_data_t *global_options_data, stats_options_data_t *
                 
                 i++;
             }
-
+            
             stop = omp_get_wtime();
-
             total = stop - start;
 
             LOG_INFO_F("[%d] Time elapsed = %f s\n", omp_get_thread_num(), total);
             LOG_INFO_F("[%d] Time elapsed = %e ms\n", omp_get_thread_num(), total*1000);
+            
+            // Decrease list writers count
+            for (i = 0; i < options_data->num_threads; i++) {
+                list_decr_writers(output_list);
+            }
         }
         
 #pragma omp section
@@ -118,40 +125,44 @@ int run_stats(global_options_data_t *global_options_data, stats_options_data_t *
             // Thread which writes the results to all_variants, summary and one file per consequence type
             list_item_t* item = NULL;
             variant_stats_t *stats;
-            int num_alleles;
-            char line[256];
+            int num_alleles, count_alleles_total, genotypes_count_total;
             FILE *fd = NULL;
+            
+            // For each variant, generate a new line with the format (block of blanks = tab):
+            // chromosome   position   [<allele>   <count>   <freq>]+   [<genotype>   <count>   <freq>]+   miss_all   miss_gt
             while ((item = list_remove_item(output_list)) != NULL) {
                 stats = item->data_p;
                 num_alleles = stats->num_alleles;
                 
-                // Generate a new line with the format (block of blanks = tab):
-                // chromosome   position   [<allele>   <count>   <freq>]+   [<genotype>   <count>   <freq>]+   miss_all   miss_gt
-                memset(line, 0, 256);
+                // Generate global counters for alleles and genotypes (used for calculating frequencies)
+                count_alleles_total = 0;
+                genotypes_count_total = 0;
+                for (int i = 0; i < num_alleles; i++) {
+                    count_alleles_total += stats->alleles_count[i];
+                }
+                for (int i = 0; i < num_alleles * num_alleles; i++) {
+                    genotypes_count_total += stats->genotypes_count[i];
+                }
                 
                 // Chromosome and position
-                sprintf(line, "%s\t%ld\t",
+                fprintf(stats_file, "%s\t%ld\t",
                         stats->chromosome, 
                         stats->position);
                 
                 // Reference allele
-                sprintf(line, "%s\t%d\t%.4f\t",
+                fprintf(stats_file, "%s\t%d\t%.4f\t",
                         stats->ref_allele,
                         stats->alleles_count[0],
-                        0.1f
+                        (float) stats->alleles_count[0] / count_alleles_total
                        );
-                
-                // TODO freq of reference allele
                 
                 // Alternate alleles
                 for (int i = 1; i < num_alleles; i++) {
-                    sprintf(line, "%s\t%d\t%.4f\t",
+                    fprintf(stats_file, "%s\t%d\t%.4f\t",
                             stats->alternates[i-1],
                             stats->alleles_count[i],
-                            0.1f
+                            (float) stats->alleles_count[i] / count_alleles_total
                            );
-                    
-                    // TODO freq of alternate allele
                 }
                 
                 // Genotypes
@@ -162,37 +173,30 @@ int run_stats(global_options_data_t *global_options_data, stats_options_data_t *
                         if (i == j) {
                             gt_count = stats->genotypes_count[idx1];
                         } else {
-                            int idx2 = idx1 + (num_alleles - 1) * 2;
+                            int idx2 = j * num_alleles + i;
                             gt_count = stats->genotypes_count[idx1] + stats->genotypes_count[idx2];
                         }
                         
-                        sprintf(line, "%d|%d\t%d\t%.4f\t",
-                                i, j, 
-                                gt_count, 
-                                0.1f);
+                    fprintf(stats_file, "%d|%d\t%d\t%.4f\t",
+                            i, j, 
+                            gt_count, 
+                            (float) gt_count / genotypes_count_total
+                           );
                     }
                 }
                 
                 // Missing data
-                sprintf(line, "%d\t%d",
+                fprintf(stats_file, "%d\t%d\n",
                         stats->missing_alleles,
                         stats->missing_genotypes
                        );
                 
-                printf("Line = '%s'\n", line);
-                
-                // Write in stats file
-                if (fprintf(stats_file, "%s\n", line) < 0) {
-                    LOG_ERROR_F("Error writing to stats file: '%s'\n", line);
-                } /*else {
-                    fflush(all_variants_file);
-                }*/
-                
+                // Free resources
                 free_variant_stats(stats);
                 list_item_free(item);
             }
             
-            // Free resources
+            // Close file
             if (stats_file != NULL) { fclose(stats_file); }
         }
         

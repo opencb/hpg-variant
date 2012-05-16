@@ -41,8 +41,9 @@ int get_variants_stats(list_item_t* variants, int num_variants, list_t* output_l
     variant_stats_t *stats;
     list_item_t *cur_variant = variants;
     
-    for (int i = 0; i < num_variants && cur_variant != NULL; i++) {
+    for (int i = 0; i < num_variants && cur_variant != NULL; i++, cur_variant = cur_variant->next_p) {
         record = (vcf_record_t*) cur_variant->data_p;
+        
         copy_buf = (char*) calloc (strlen(record->chromosome)+1, sizeof(char));
         strncat(copy_buf, record->chromosome, strlen(record->chromosome));
         copy_buf2 = (char*) calloc (strlen(record->reference)+1, sizeof(char));
@@ -53,12 +54,13 @@ int get_variants_stats(list_item_t* variants, int num_variants, list_t* output_l
         copy_buf = (char*) calloc (strlen(record->alternate)+1, sizeof(char));
         strcat(copy_buf, record->alternate);
         stats->alternates = split(copy_buf, ",", &num_alternates);
-        if (!strcmp(stats->alternates[0], ".")) {
+        
+        if (!strncmp(stats->alternates[0], ".", 1)) {
             stats->num_alleles = 1;
         } else {
             stats->num_alleles = num_alternates + 1;
         }
-        LOG_INFO_F("num alternates = %d\tnum_alleles = %d\n", num_alternates, stats->num_alleles);
+        LOG_DEBUG_F("num alternates = %d\tnum_alleles = %d\n", num_alternates, stats->num_alleles);
         
         // Create lists of allele and genotypes counters
         stats->alleles_count = (int*) calloc (stats->num_alleles, sizeof(int));
@@ -68,7 +70,7 @@ int get_variants_stats(list_item_t* variants, int num_variants, list_t* output_l
         copy_buf = (char*) calloc (strlen(record->format)+1, sizeof(char));
         strcat(copy_buf, record->format);
         gt_pos = get_genotype_position_in_format(copy_buf);
-        LOG_INFO_F("Genotype position = %d\n", gt_pos);
+        LOG_DEBUG_F("Genotype position = %d\n", gt_pos);
         if (gt_pos < 0) { continue; }   // This variant has no GT field
         
         // Traverse samples and find the present and missing alleles
@@ -107,6 +109,7 @@ int get_variants_stats(list_item_t* variants, int num_variants, list_t* output_l
         // Insert results in output list
         list_item_t *variant_result = list_item_new(i, 0, stats);
         list_insert_item(variant_result, output_list);
+//         printf("inserting (%s, %ld)\n",  stats->chromosome,  stats->position);
     }
     
     return 0;
