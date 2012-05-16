@@ -47,7 +47,11 @@ int get_variants_stats(list_item_t* variants, int num_variants, list_t* output_l
         copy_buf = (char*) calloc (strlen(record->alternate)+1, sizeof(char));
         strcat(copy_buf, record->alternate);
         stats->alternates = split(copy_buf, ",", &num_alternates);
-        stats->num_alleles = num_alternates + 1;
+        if (!strcmp(stats->alternates[0], ".")) {
+            stats->num_alleles = 1;
+        } else {
+            stats->num_alleles = num_alternates + 1;
+        }
         LOG_INFO_F("num alternates = %d\tnum_alleles = %d\n", num_alternates, stats->num_alleles);
         
         // Create lists of allele and genotypes counters
@@ -69,6 +73,7 @@ int get_variants_stats(list_item_t* variants, int num_variants, list_t* output_l
             copy_buf = (char*) calloc (strlen(sample)+1, sizeof(char));
             strcat(copy_buf, sample);
             alleles_code = get_alleles(copy_buf, gt_pos, &allele1, &allele2);
+            LOG_DEBUG_F("sample = %s, alleles = %d/%d\n", sample, allele1, allele2);
             
             if (allele1 < 0 || allele2 < 0) {
                 // Missing genotype (one or both alleles missing)

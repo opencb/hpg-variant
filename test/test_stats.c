@@ -81,20 +81,7 @@ START_TEST (biallelic) {
     add_record_sample(sample, record, &sample_idx);
     
     get_variants_stats(record_item, 1, output_list);
-    fail_if(output_list->length == 0, "There must be an element processed");
-    
-    /*
-     * typedef struct {
-    char *ref_allele;
-    char **alternates;
-    
-    int num_alleles;
-    int *alleles_count;
-    int *genotypes_count;
-    
-    int missing_alleles;
-    int missing_genotypes;
-} variant_stats_t;*/
+    fail_if(output_list->length == 0, "There must be one element processed");
     
     variant_stats_t *result = (variant_stats_t*) output_list->first_p->data_p;
     
@@ -103,6 +90,12 @@ START_TEST (biallelic) {
     fail_unless(strcmp(result->alternates[0], "T") == 0, "The alternate allele should be T");
     fail_unless(result->alleles_count[0] == 6, "There should be 6 reference alleles read");
     fail_unless(result->alleles_count[1] == 5, "There should be 5 alternate alleles read");
+    
+    fail_unless(result->genotypes_count[0] == 2, "There should be 2 0/0 alleles read");
+    fail_unless(result->genotypes_count[1] == 1, "There should be 1 0/1 alleles read");
+    fail_unless(result->genotypes_count[2] == 1, "There should be 1 1/0 alleles read");
+    fail_unless(result->genotypes_count[3] == 1, "There should be 1 1/1 alleles read");
+    
     fail_unless(result->missing_alleles == 1, "There should be 1 missing allele");
     fail_unless(result->missing_genotypes == 1, "There should be 1 missing genotype");
 }
@@ -113,6 +106,65 @@ START_TEST (multiallelic) {
     strcat(record->alternate, "T,GT");
     record->format = (char*) calloc (6, sizeof(char));
     strcat(record->format, "GT:GC");
+    
+    size_t sample_idx = 0;
+    char *sample = (char*) calloc (6, sizeof(char*));
+    strcat(sample, "0/0:1");
+    add_record_sample(sample, record, &sample_idx);
+    sample = (char*) calloc (6, sizeof(char*));
+    strcat(sample, "1/0:2");
+    add_record_sample(sample, record, &sample_idx);
+    sample = (char*) calloc (6, sizeof(char*));
+    strcat(sample, "0/1:1");
+    add_record_sample(sample, record, &sample_idx);
+    sample = (char*) calloc (6, sizeof(char*));
+    strcat(sample, "1/2:3");
+    add_record_sample(sample, record, &sample_idx);
+    sample = (char*) calloc (6, sizeof(char*));
+    strcat(sample, "1/1:1");
+    add_record_sample(sample, record, &sample_idx);
+    sample = (char*) calloc (6, sizeof(char*));
+    strcat(sample, "1/.:1");
+    add_record_sample(sample, record, &sample_idx);
+    sample = (char*) calloc (6, sizeof(char*));
+    strcat(sample, "./.:1");
+    add_record_sample(sample, record, &sample_idx);
+    sample = (char*) calloc (6, sizeof(char*));
+    strcat(sample, "0/2:1");
+    add_record_sample(sample, record, &sample_idx);
+    sample = (char*) calloc (6, sizeof(char*));
+    strcat(sample, "2/1:1");
+    add_record_sample(sample, record, &sample_idx);
+    sample = (char*) calloc (6, sizeof(char*));
+    strcat(sample, "0/1:1");
+    add_record_sample(sample, record, &sample_idx);
+    
+    get_variants_stats(record_item, 1, output_list);
+    fail_if(output_list->length == 0, "There must be one element processed");
+    
+    variant_stats_t *result = (variant_stats_t*) output_list->first_p->data_p;
+    
+    fail_unless(strcmp(result->ref_allele, "G") == 0, "The reference allele should be G");
+    fail_unless(result->num_alleles == 3, "There should be 3 alleles");
+    fail_unless(strcmp(result->alternates[0], "T") == 0, "The #1 alternate allele should be T");
+    fail_unless(strcmp(result->alternates[1], "GT") == 0, "The #2 alternate allele should be GT");
+    
+    fail_unless(result->alleles_count[0] == 6, "There should be 6 reference alleles read");
+    fail_unless(result->alleles_count[1] == 8, "There should be 8 alternate (#1) alleles read");
+    fail_unless(result->alleles_count[2] == 3, "There should be 3 alternate (#2) alleles read");
+    
+    fail_unless(result->genotypes_count[0] == 1, "There should be 1 0/0 alleles read");
+    fail_unless(result->genotypes_count[1] == 2, "There should be 1 0/1 alleles read");
+    fail_unless(result->genotypes_count[2] == 1, "There should be 1 0/2 alleles read");
+    fail_unless(result->genotypes_count[3] == 1, "There should be 1 1/0 alleles read");
+    fail_unless(result->genotypes_count[4] == 1, "There should be 1 1/1 alleles read");
+    fail_unless(result->genotypes_count[5] == 1, "There should be 1 1/2 alleles read");
+    fail_unless(result->genotypes_count[6] == 0, "There should be 1 2/0 alleles read");
+    fail_unless(result->genotypes_count[7] == 1, "There should be 1 2/1 alleles read");
+    fail_unless(result->genotypes_count[8] == 0, "There should be 0 2/2 alleles read");
+    
+    fail_unless(result->missing_alleles == 3, "There should be 1 missing allele");
+    fail_unless(result->missing_genotypes == 2, "There should be 1 missing genotype");
 }
 END_TEST
 
@@ -121,6 +173,41 @@ START_TEST (homozygous) {
     strcat(record->alternate, ".");
     record->format = (char*) calloc (12, sizeof(char));
     strcat(record->format, "GT:GQ:DP:HQ");
+    
+    size_t sample_idx = 0;
+    char *sample = (char*) calloc (6, sizeof(char*));
+    strcat(sample, "0/0:1");
+    add_record_sample(sample, record, &sample_idx);
+    sample = (char*) calloc (6, sizeof(char*));
+    strcat(sample, "0/0:2");
+    add_record_sample(sample, record, &sample_idx);
+    sample = (char*) calloc (6, sizeof(char*));
+    strcat(sample, "0/.:1");
+    add_record_sample(sample, record, &sample_idx);
+    sample = (char*) calloc (6, sizeof(char*));
+    strcat(sample, "./0:3");
+    add_record_sample(sample, record, &sample_idx);
+    sample = (char*) calloc (6, sizeof(char*));
+    strcat(sample, "0/0:1");
+    add_record_sample(sample, record, &sample_idx);
+    sample = (char*) calloc (6, sizeof(char*));
+    strcat(sample, "./.:1");
+    add_record_sample(sample, record, &sample_idx);
+    
+    get_variants_stats(record_item, 1, output_list);
+    fail_if(output_list->length == 0, "There must be one element processed");
+    
+    variant_stats_t *result = (variant_stats_t*) output_list->first_p->data_p;
+    
+    fail_unless(strcmp(result->ref_allele, "G") == 0, "The reference allele should be G");
+    fail_unless(result->num_alleles == 1, "There should be 1 allele");
+    fail_unless(strcmp(result->alternates[0], ".") == 0, "The alternate allele should be .");
+    fail_unless(result->alleles_count[0] == 8, "There should be 8 reference alleles read");
+    
+    fail_unless(result->genotypes_count[0] == 3, "There should be 3 0/0 alleles read");
+    
+    fail_unless(result->missing_alleles == 4, "There should be 4 missing allele");
+    fail_unless(result->missing_genotypes == 3, "There should be 3 missing genotype");
 }
 END_TEST
 
