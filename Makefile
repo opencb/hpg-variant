@@ -1,6 +1,6 @@
 CC = gcc
 CFLAGS = -std=c99 -O3
-CFLAGS_DEBUG = -std=c99 -pg
+CFLAGS_DEBUG = -std=c99 -g
 
 # Source code folders
 LIBS_ROOT = $(PWD)/libs
@@ -31,7 +31,7 @@ all: compile-dependencies hpg-vcf-tools
 
 hpg-vcf-tools: compile-dependencies $(VCF_TOOLS_FILES) 
 	$(CC) $(CFLAGS) -D_XOPEN_SOURCE=600 -o $@ main.c $(VCF_TOOLS_FILES) $(INCLUDES) $(LIBS)
-# 	$(CC) $(CFLAGS_DEBUG) -D_XOPEN_SOURCE=600 -o $@ main.c $(VCF_TOOLS_FILES) $(INCLUDES) $(LIBS)
+#	$(CC) $(CFLAGS_DEBUG) -D_XOPEN_SOURCE=600 -o $@ main.c $(VCF_TOOLS_FILES) $(INCLUDES) $(LIBS)
 
 testing: test/test_stats.c $(VCF_TOOLS_FILES)
 	$(CC) $(CFLAGS) -D_XOPEN_SOURCE=600 -o test/stats.test test/test_stats.c $(VCF_TOOLS_FILES) $(INCLUDES) $(LIBS) $(LIBS_TEST)

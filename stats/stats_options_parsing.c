@@ -47,6 +47,9 @@ int read_stats_configuration(const char *filename, stats_options_data_t *options
     }
     LOG_INFO_F("variants-per-threads = %ld\n", options_data->variants_per_thread);
     
+    config_destroy(config);
+    free(config);
+
     return 0;
 }
 
