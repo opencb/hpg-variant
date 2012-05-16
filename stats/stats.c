@@ -1,8 +1,10 @@
 #include "stats.h"
 
-variant_stats_t* init_variant_stats(char *ref_allele) {
+variant_stats_t* new_variant_stats(char *chromosome, unsigned long position, char *ref_allele) {
     variant_stats_t *stats = (variant_stats_t*) malloc (sizeof(variant_stats_t));
     
+    stats->chromosome = chromosome;
+    stats->position = position;
     stats->ref_allele = ref_allele;
     stats->alternates = NULL;
     stats->num_alleles = 1;
@@ -29,7 +31,7 @@ void free_variant_stats(variant_stats_t* stats) {
 }
 
 int get_variants_stats(list_item_t* variants, int num_variants, list_t* output_list) {
-    char *copy_buf, *token, *sample;
+    char *copy_buf, *copy_buf2, *token, *sample;
     char *save_strtok;
     
     int num_alternates, gt_pos, cur_pos;
@@ -41,7 +43,11 @@ int get_variants_stats(list_item_t* variants, int num_variants, list_t* output_l
     
     for (int i = 0; i < num_variants && cur_variant != NULL; i++) {
         record = (vcf_record_t*) cur_variant->data_p;
-        stats = init_variant_stats(record->reference);
+        copy_buf = (char*) calloc (strlen(record->chromosome)+1, sizeof(char));
+        strncat(copy_buf, record->chromosome, strlen(record->chromosome));
+        copy_buf2 = (char*) calloc (strlen(record->reference)+1, sizeof(char));
+        strncat(copy_buf2, record->reference, strlen(record->reference));
+        stats = new_variant_stats(copy_buf, record->position, copy_buf2);
         
         // Create list of alternates
         copy_buf = (char*) calloc (strlen(record->alternate)+1, sizeof(char));

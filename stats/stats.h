@@ -16,8 +16,10 @@
 
 #include "error.h"
 #include "global_options.h"
+#include "hpg_vcf_tools_utils.h"
 
 #define NUM_STATS_OPTIONS  0
+#define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
 
 
 static struct option stats_options[] = {
@@ -30,13 +32,17 @@ static struct option stats_options[] = {
  * 
  */
 typedef struct stats_options_data {
-    long int num_threads;   /**< Number of threads that to run simultaneously. */
     long int max_batches;   /**< Number of VCF records' batches that can be stored simultaneously. */
     long int batch_size;   /**< Maximum size of a VCF records' batch. */
+    long int num_threads;   /**< Number of threads that to run simultaneously. */
+    long int variants_per_thread;   /**< Number of variants each thread will analyze. */
 } stats_options_data_t;
 
 
 typedef struct {
+    char *chromosome;
+    unsigned long position;
+    
     char *ref_allele;
     char **alternates;
     
@@ -62,7 +68,7 @@ static void free_stats_options_data(stats_options_data_t *options_data);
 /**
  * Initialize a variant_stats_t structure mandatory fields.
  */
-variant_stats_t *new_variant_stats(char *ref_allele);
+variant_stats_t *new_variant_stats(char *chromosome, unsigned long position, char *ref_allele);
 
 /**
  * Free memory associated to a variant_stats_t structure.
