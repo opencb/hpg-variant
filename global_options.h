@@ -62,7 +62,7 @@ typedef struct global_options_data
  * 
  * Initializes the only mandatory member of a global_options_data_t, which is the output directory.
  */
-global_options_data_t *init_global_options_data(void);
+global_options_data_t *new_global_options_data(void);
 
 /**
  * @brief Free memory associated to a global_options_data_t structure.

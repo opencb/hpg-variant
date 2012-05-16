@@ -1,6 +1,6 @@
 #include "global_options.h"
 
-global_options_data_t *init_global_options_data(void)
+global_options_data_t *new_global_options_data(void)
 {
     global_options_data_t *options_data = (global_options_data_t*) malloc (sizeof(global_options_data_t));
     
@@ -62,7 +62,7 @@ int parse_global_options(int argc, char *argv[], global_options_data_t *options_
     int last_opt_index = optind = start_index;
     
     LOG_DEBUG("Parsing global options...\n");
-    while (!finished && (c = getopt_long (argc, argv, ":A:O:", global_options, &optind)) != 1)
+    while (!finished && (c = getopt_long (argc, argv, "A:N:O:", global_options, &optind)) != 1)
     {
         switch (c)
         {

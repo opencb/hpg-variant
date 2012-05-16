@@ -52,12 +52,12 @@ typedef struct filter_options_data
 /**
  * Initialize a filter_options_data_t structure mandatory fields.
  */
-static filter_options_data_t *init_options_data();
+static filter_options_data_t *new_filter_options_data();
 
 /**
  * Free memory associated to a filter_options_data_t structure.
  */
-static void free_options_data(filter_options_data_t *options_data);
+static void free_filter_options_data(filter_options_data_t *options_data);
 
 
 /* ******************************

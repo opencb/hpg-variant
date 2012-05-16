@@ -50,12 +50,6 @@ int run_filter(global_options_data_t *global_options_data, filter_options_data_t
                 filters = sort_filter_chain(options_data->chain, &num_filters);
             }
     
-            start = omp_get_wtime();
-
-            int i = 0;
-            list_item_t* item = NULL;
-            
-            
             if (global_options_data->output_filename == NULL || 
                 strlen(global_options_data->output_filename) == 0) {
                 int dirname_len = strlen(global_options_data->output_directory);
@@ -86,13 +80,14 @@ int run_filter(global_options_data_t *global_options_data, filter_options_data_t
             LOG_DEBUG_F("passed filename = %s\nfailed filename = %s\n", passed_filename, failed_filename);
             passed_file = fopen(passed_filename, "w");
             failed_file = fopen(failed_filename, "w");
-            
             free(passed_filename);
             free(failed_filename);
-            
             LOG_DEBUG("File streams created\n");
             
-            
+            start = omp_get_wtime();
+
+            int i = 0;
+            list_item_t* item = NULL;
             while ((item = list_remove_item(read_list)) != NULL) {
                 if (i == 0) {
                     // Write file format, header entries and delimiter
@@ -148,8 +143,8 @@ int run_filter(global_options_data_t *global_options_data, filter_options_data_t
             LOG_INFO_F("[%d] Time elapsed = %e ms\n", omp_get_thread_num(), total*1000);
 
             // Free resources
-            if (passed_file != NULL && passed_file != stdout) { fclose(passed_file); }
-            if (failed_file != NULL && failed_file != stderr) { fclose(failed_file); }
+            if (passed_file) { fclose(passed_file); }
+            if (failed_file) { fclose(failed_file); }
             
             free(filters);
         }

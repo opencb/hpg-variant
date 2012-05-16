@@ -1,6 +1,6 @@
 CC = gcc
 CFLAGS = -std=c99 -O3
-CFLAGS_DEBUG = -std=c99 -g
+CFLAGS_DEBUG = -std=c99 -pg
 
 # Source code folders
 LIBS_ROOT = $(PWD)/libs
@@ -10,30 +10,32 @@ BIOINFO_DATA_DIR = $(LIBS_ROOT)/bioformats
 REGION_DIR = $(BIOINFO_DATA_DIR)/features/region
 
 # Include and libs folders
-INCLUDES = -I . -I filter -I $(CONTAINERS_DIR) -I $(COMMONS_DIR) -I $(REGION_DIR) -I $(BIOINFO_DATA_DIR)/vcf/ -I $(BIOINFO_DATA_DIR)/gff/  
+INCLUDES = -I . -I $(CONTAINERS_DIR) -I $(COMMONS_DIR) -I $(REGION_DIR) -I $(BIOINFO_DATA_DIR)/vcf/ -I $(BIOINFO_DATA_DIR)/gff/  
 LIBS = -L/usr/lib/x86_64-linux-gnu -lconfig -lcprops -fopenmp -lm
+LIBS_TEST = -lcheck
 
 # Source files dependencies
-#VCF_FILES = $(BIOINFO_DATA_DIR)/vcf/vcf_file.c $(BIOINFO_DATA_DIR)/vcf/vcf_reader.c $(BIOINFO_DATA_DIR)/vcf/vcf_batch.c \
-	$(BIOINFO_DATA_DIR)/vcf/vcf_read.c $(BIOINFO_DATA_DIR)/vcf/vcf_write.c \
-	$(BIOINFO_DATA_DIR)/vcf/util.c $(BIOINFO_DATA_DIR)/vcf/vcf_filters.c
 VCF_FILES = $(BIOINFO_DATA_DIR)/vcf/*.o
 GFF_FILES = $(BIOINFO_DATA_DIR)/gff/*.o
 REGION_TABLE_FILES = $(REGION_DIR)/region.o $(CONTAINERS_DIR)/region_table.o $(CONTAINERS_DIR)/region_table_utils.o
 MISC_FILES = $(COMMONS_DIR)/file_utils.o $(COMMONS_DIR)/log.c $(COMMONS_DIR)/string_utils.o $(CONTAINERS_DIR)/list.o
 
 # Project source files
-#VCF_TOOLS_FILES = main.c global_options.c vcf_tools_options_parsing.c vcf_tools_runner.c $(MISC_FILES)
 FILTER_FILES = filter/main_filter.c filter/filter_runner.c filter/filter_options_parsing.c
-VCF_TOOLS_FILES = main.c global_options.c $(FILTER_FILES) $(VCF_FILES) $(GFF_FILES) $(MISC_FILES) $(REGION_TABLE_FILES)
+STATS_FILES = stats/main_stats.c stats/stats.c stats/stats_runner.c stats/stats_options_parsing.c
+VCF_TOOLS_FILES = global_options.c $(FILTER_FILES) $(STATS_FILES) $(VCF_FILES) $(GFF_FILES) $(MISC_FILES) $(REGION_TABLE_FILES)
 
 
 # Targets
 all: compile-dependencies hpg-vcf-tools
 
 hpg-vcf-tools: compile-dependencies $(VCF_TOOLS_FILES) 
-	$(CC) $(CFLAGS) -D_XOPEN_SOURCE=600 -o $@ $(VCF_TOOLS_FILES) $(INCLUDES) $(LIBS)
-#	$(CC) $(CFLAGS_DEBUG) -D_XOPEN_SOURCE=600 -o $@ $(VCF_TOOLS_FILES) $(INCLUDES) $(LIBS)
+	$(CC) $(CFLAGS) -D_XOPEN_SOURCE=600 -o $@ main.c $(VCF_TOOLS_FILES) $(INCLUDES) $(LIBS)
+# 	$(CC) $(CFLAGS_DEBUG) -D_XOPEN_SOURCE=600 -o $@ main.c $(VCF_TOOLS_FILES) $(INCLUDES) $(LIBS)
+
+testing: test/test_stats.c $(VCF_TOOLS_FILES)
+	$(CC) $(CFLAGS) -D_XOPEN_SOURCE=600 -o test/stats.test test/test_stats.c $(VCF_TOOLS_FILES) $(INCLUDES) $(LIBS) $(LIBS_TEST)
+# 	$(CC) $(CFLAGS_DEBUG) -D_XOPEN_SOURCE=600 -o test/stats.test test/test_stats.c $(VCF_TOOLS_FILES) $(INCLUDES) $(LIBS) $(LIBS_TEST)
 
 compile-dependencies:
 	cd $(COMMONS_DIR) && make file_utils.o string_utils.o log.o &&  \

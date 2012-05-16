@@ -1,13 +1,14 @@
-#include "filter.h"
+#include "stats.h"
 
-int vcf_tool_filter(int argc, char *argv[]) {
+
+int vcf_tool_stats(int argc, char *argv[]) {
 
     /* ******************************
      *       Modifiable options     *
      * ******************************/
 
     global_options_data_t *global_options_data = new_global_options_data();
-    filter_options_data_t *options_data = new_filter_options_data();
+    stats_options_data_t *options_data = new_stats_options_data();
 
 
     /* ******************************
@@ -16,7 +17,7 @@ int vcf_tool_filter(int argc, char *argv[]) {
 
     // Step 1: read options from configuration file
     int config_errors = read_global_configuration("hpg-vcf-tools.cfg", global_options_data);
-    config_errors &= read_filter_configuration("hpg-vcf-tools.cfg", options_data);
+    config_errors &= read_stats_configuration("hpg-vcf-tools.cfg", options_data);
     LOG_INFO_F("Config read with errors = %d\n", config_errors);
 
     if (config_errors) {
@@ -24,7 +25,7 @@ int vcf_tool_filter(int argc, char *argv[]) {
     }
 
     // Step 2: parse command-line options
-    parse_filter_options(argc, argv, options_data, global_options_data);
+    parse_stats_options(argc, argv, options_data, global_options_data);
 
     // Step 3: check that all options are set with valid values
     // Mandatory that couldn't be read from the config file must be set via command-line
@@ -37,25 +38,25 @@ int vcf_tool_filter(int argc, char *argv[]) {
         return check_global_opts;
     }
 
-    check_vcf_tools_opts = verify_filter_options(global_options_data, options_data);
+    check_vcf_tools_opts = verify_stats_options(global_options_data, options_data);
     if (check_vcf_tools_opts > 0)
     {
         return check_vcf_tools_opts;
     }
 
     // Step 4: Perform the requested task
-    int result = run_filter(global_options_data, options_data);
+    int result = run_stats(global_options_data, options_data);
 
-    free_filter_options_data(options_data);
+    free_stats_options_data(options_data);
     free_global_options_data(global_options_data);
 
     return 0;
 }
 
 
-filter_options_data_t *new_filter_options_data()
+stats_options_data_t *new_stats_options_data()
 {
-    filter_options_data_t *options_data = (filter_options_data_t*) malloc (sizeof(filter_options_data_t));
+    stats_options_data_t *options_data = (stats_options_data_t*) malloc (sizeof(stats_options_data_t));
 
     options_data->num_threads = 1;
     options_data->max_batches = 10;
@@ -64,7 +65,7 @@ filter_options_data_t *new_filter_options_data()
     return options_data;
 }
 
-void free_filter_options_data(filter_options_data_t *options_data)
+void free_stats_options_data(stats_options_data_t *options_data)
 {
     free(options_data);
 }
