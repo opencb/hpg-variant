@@ -8,7 +8,7 @@ int effect(int argc, char *argv[]) {
         * 	    Modifiable options	    *
         * ******************************/
 
-    global_options_data_t *global_options_data = init_global_options_data();
+    global_options_data_t *global_options_data = new_global_options_data();
     effect_options_data_t *options_data = init_options_data();
 
 

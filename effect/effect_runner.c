@@ -23,7 +23,6 @@ static list_t *output_list;
 int run_effect(char *url, global_options_data_t *global_options_data, effect_options_data_t *options_data) {
     list_t *read_list = (list_t*) malloc(sizeof(list_t));
     list_init("batches", 1, options_data->max_batches, read_list);
-//     list_t *output_list = (list_t*) malloc (sizeof(list_t));
     output_list = (list_t*) malloc (sizeof(list_t));
     list_init("output", options_data->num_threads, MIN(10, options_data->max_batches) * options_data->batch_size, output_list);
 
@@ -35,7 +34,10 @@ int run_effect(char *url, global_options_data_t *global_options_data, effect_opt
         LOG_FATAL("VCF file does not exist!\n");
     }
     
-    create_directory(global_options_data->output_directory);
+    ret_code = create_directory(global_options_data->output_directory);
+    if (ret_code != 0 && errno != EEXIST) {
+        LOG_FATAL_F("Can't create output directory: %s\n", global_options_data->output_directory);
+    }
     
     // Remove all .txt files in folder
     ret_code = delete_files_by_extension(global_options_data->output_directory, "txt");
