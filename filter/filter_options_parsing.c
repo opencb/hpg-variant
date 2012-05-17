@@ -43,25 +43,25 @@ int read_filter_configuration(const char *filename, filter_options_data_t *optio
 
 
 void parse_filter_options(int argc, char *argv[], filter_options_data_t *options_data, global_options_data_t *global_options_data) {
-	const struct option *options = merge_options(filter_options, NUM_FILTER_OPTIONS);
+    const struct option *options = merge_options(filter_options, NUM_FILTER_OPTIONS);
 
-	char *tmp_string_field;
-	int tmp_int_field;
+    char *tmp_string_field;
+    int tmp_int_field;
     filter_t *filter;
-    
-	int c;
-	// Last option read, for when the global options parser is invoked
-	int previous_opt_index = optind;
-	
-	int debug = 1;
-	while ((c = getopt_long (argc, argv, "A:N:O:f:r:s:", options, &optind)) != -1) {
-		LOG_DEBUG_F("<main> c = %c, opt_idx = %d\n", c, optind);
-		switch (c) {
-			case 'A':
+
+    int c;
+    // Last option read, for when the global options parser is invoked
+    int previous_opt_index = optind;
+
+    int debug = 1;
+    while ((c = getopt_long (argc, argv, "A:N:O:f:q:r:s:", options, &optind)) != -1) {
+        LOG_DEBUG_F("<main> c = %c, opt_idx = %d\n", c, optind);
+        switch (c) {
+            case 'A':
             case 'N':
-			case 'O':
-				optind = parse_global_options(argc, argv, global_options_data, previous_opt_index);
-				break;
+            case 'O':
+                optind = parse_global_options(argc, argv, global_options_data, previous_opt_index);
+                break;
             case 'f':
                 tmp_string_field = (char*) calloc(strlen(optarg)+1, sizeof(char));
                 strncat(tmp_string_field, optarg, strlen(optarg));
@@ -69,25 +69,30 @@ void parse_filter_options(int argc, char *argv[], filter_options_data_t *options
                 options_data->chain = add_to_filter_chain(filter, options_data->chain);
                 LOG_INFO_F("regions file = %s\n", optarg);
                 break;
-			case 'r':
+            case 'q':
+                filter = create_quality_filter(atoi(optarg));
+                options_data->chain = add_to_filter_chain(filter, options_data->chain);
+                LOG_INFO_F("quality filter for a minimum of %d\n", atoi(optarg));
+                break;
+            case 'r':
                 tmp_string_field = (char*) malloc((strlen(optarg)+1) * sizeof(char));
                 strcpy(tmp_string_field, optarg);
                 filter = create_region_filter(tmp_string_field, 0);
                 options_data->chain = add_to_filter_chain(filter, options_data->chain);
                 LOG_INFO_F("regions = %s\n", optarg);
-			case 's':
+            case 's':
                 filter = create_snp_filter(optarg);
                 options_data->chain = add_to_filter_chain(filter, options_data->chain);
-				LOG_INFO_F("snp filter to %s SNPs\n", (optarg == NULL)? "include" : optarg);
-				break;
-			case '?':
-			default:
-				LOG_WARN("Option unknown\n");
-				break;
-		}
-		
-		previous_opt_index = optind;
-	}
+                LOG_INFO_F("snp filter to %s SNPs\n", (optarg == NULL)? "include" : optarg);
+                break;
+            case '?':
+            default:
+                LOG_WARN("Option unknown\n");
+                break;
+        }
+        
+        previous_opt_index = optind;
+    }
 }
 
 
@@ -104,7 +109,7 @@ int verify_filter_options(global_options_data_t *global_options_data, filter_opt
         LOG_ERROR("Please specify at least one filter\n");
         return EMPTY_LIST_OF_FILTERS;
     }
-	
-	return 0;
+
+    return 0;
 }
 

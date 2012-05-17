@@ -20,19 +20,19 @@
 #include "error.h"
 #include "global_options.h"
 
-#define NUM_FILTER_OPTIONS	3
+#define NUM_FILTER_OPTIONS  4
 
 
 static struct option filter_options[] = {
-	// Filters applied to data
-// 	  {"filter-quality",	required_argument, 0, 'q' },
+    // Filters applied to data
+    {"quality",     required_argument, 0, 'q' },
 
-	{"region-file", required_argument, 0, 'f' },
-	{"region",      required_argument, 0, 'r' },
-    
-	{"snp",         required_argument, 0, 's' },
-	
-	{NULL,          0, 0, 0}
+    {"region-file", required_argument, 0, 'f' },
+    {"region",      required_argument, 0, 'r' },
+
+    {"snp",         required_argument, 0, 's' },
+
+    {NULL,          0, 0, 0}
 };
 
 /**
@@ -43,9 +43,9 @@ typedef struct filter_options_data
 {
 	long int num_threads;   /**< Number of threads that to run simultaneously. */
     long int max_batches;   /**< Number of VCF records' batches that can be stored simultaneously. */
-    long int batch_size;   /**< Maximum size of a VCF records' batch. */
+    long int batch_size;    /**< Maximum size of a VCF records' batch. */
 
-    filter_chain *chain; /**< Chain of filters to apply to the VCF records. */
+    filter_chain *chain;    /**< Chain of filters to apply to the VCF records. */
 } filter_options_data_t;
 
 
@@ -67,9 +67,9 @@ static void free_filter_options_data(filter_options_data_t *options_data);
 int run_filter(global_options_data_t *global_options_data, filter_options_data_t *options_data);
 
 
-/* **********************************************
- * 		Options parsing			*
- * **********************************************/
+/* ******************************
+ *       Options parsing        *
+ * ******************************/
 
 /**
  * Read the basic configuration parameters of the tool. If the configuration
