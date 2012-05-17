@@ -8,7 +8,6 @@ int tdt_test(ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_h
     int num_samples = cp_hashtable_count(sample_ids);
     
     tdt_result_t *result;
-//     tdt_result_t *result = (tdt_result_t*) calloc (1, sizeof(tdt_result_t));
     char **sample_data;// = (char**) calloc (num_samples, sizeof(char*));
     
     
@@ -20,7 +19,6 @@ int tdt_test(ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_h
     // Perform analysis for each variant
 
     list_item_t *cur_variant = variants;
-    // TODO chunks in the same way as in hpg-variant/effect
     for (int i = 0; i < num_variants && cur_variant != NULL; i++) {
         vcf_record_t *record = (vcf_record_t*) cur_variant->data_p;
         LOG_DEBUG_F("[%d] Checking variant %s:%ld\n", tid, record->chromosome, record->position);

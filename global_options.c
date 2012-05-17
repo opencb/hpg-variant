@@ -1,6 +1,6 @@
 #include "global_options.h"
 
-global_options_data_t *init_global_options_data(void)
+global_options_data_t *new_global_options_data(void)
 {
     global_options_data_t *options_data = (global_options_data_t*) malloc (sizeof(global_options_data_t));
     
@@ -32,7 +32,7 @@ int read_global_configuration(const char *filename, global_options_data_t *optio
     int ret_code = config_read_file(config, filename);
     if (ret_code == CONFIG_FALSE)
     {
-        fprintf(stderr, "config file error: %s\n", config_error_text(config));
+        LOG_ERROR_F("config file error: %s\n", config_error_text(config));
         return CANT_READ_CONFIG_FILE;
     }
     
@@ -41,7 +41,7 @@ int read_global_configuration(const char *filename, global_options_data_t *optio
     ret_code = config_lookup_string(config, "global.outdir", &tmp_string);
     if (ret_code == CONFIG_FALSE)
     {
-        fprintf(stderr, "output directory config error: %s\n", config_error_text(config));
+        LOG_ERROR_F("output directory config error: %s\n", config_error_text(config));
         return CANT_READ_CONFIG_FILE;
     } else {
         free(options_data->output_directory);
@@ -54,7 +54,7 @@ int read_global_configuration(const char *filename, global_options_data_t *optio
     config_destroy(config);
     free(config);
     
-    return 0;
+    return ret_code;
 }
 
 int parse_global_options(int argc, char *argv[], global_options_data_t *options_data, int start_index)
