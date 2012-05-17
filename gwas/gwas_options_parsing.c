@@ -55,12 +55,13 @@ void parse_gwas_options(int argc, char *argv[], gwas_options_data_t *options_dat
     // Last option read, for when the global options parser is invoked
     int previous_opt_index = optind;
 
-    while ((c = getopt_long (argc, argv, "A:O:f:n:r:t", options, &optind)) != -1)
+    while ((c = getopt_long (argc, argv, "A:N:O:f:n:r:t", options, &optind)) != -1)
     {
         LOG_DEBUG_F("<main> c = %c, opt_idx = %d\n", c, optind);
         switch (c)
         {
             case 'A':
+            case 'N':
             case 'O':
                 optind = parse_global_options(argc, argv, global_options_data, previous_opt_index);
                 break;
