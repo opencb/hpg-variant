@@ -460,7 +460,7 @@ END_TEST
 
 START_TEST (whole_test) {
     // Invoke hpg-variant/genome-analysis --tdt
-    int tdt_ret = system("../hpg-variant genomic-analysis --tdt --vcf-file tdt_files/job.vcf --ped-file tdt_files/job.ped --outdir ./ ");
+    int tdt_ret = system("../hpg-variant gwas --tdt --vcf-file tdt_files/500K_variants_147_samples.vcf --ped-file tdt_files/500K_variants_147_samples.ped --outdir ./ ");
     fail_unless(tdt_ret == 0, "hpg-variant exited with errors");
     
     // Check results in base to output file: get each line, grep plink.tdt and compare fields
