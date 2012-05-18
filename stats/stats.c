@@ -13,13 +13,17 @@ void free_file_stats(file_stats_t* file_stats) {
     free(file_stats);
 }
 
-void update_file_stats(int samples_count, int snps_count, int transitions_count, int transversions_count, int indels_count, int multiallelics_count, file_stats_t* stats) {
+void update_file_stats(int variants_count, int samples_count, int snps_count, int transitions_count, int transversions_count, 
+                       int indels_count, int biallelics_count, int multiallelics_count, float accum_quality, file_stats_t *stats) {
     stats->samples_count = samples_count;
+    stats->variants_count += variants_count;
     stats->snps_count += snps_count;
     stats->transitions_count += transitions_count;
     stats->transversions_count += transversions_count;
     stats->indels_count += indels_count;
+    stats->biallelics_count += biallelics_count;
     stats->multiallelics_count += multiallelics_count;
+    stats->accum_quality = accum_quality;
 }
 
 
@@ -66,7 +70,9 @@ int get_variants_stats(list_item_t* variants, int num_variants, list_t* output_l
     int allele1, allele2, alleles_code;
     
     // Temporary variables for file stats updating
-    int samples_count = 0, snps_count = 0, transitions_count = 0, transversions_count = 0, indels_count = 0, multiallelics_count = 0;
+    int variants_count = 0, samples_count = 0, snps_count = 0, indels_count = 0;
+    int transitions_count = 0, transversions_count = 0, biallelics_count = 0, multiallelics_count = 0;
+    float accum_quality = 0;
     
     // Variant stats management
     vcf_record_t *record;
@@ -139,9 +145,15 @@ int get_variants_stats(list_item_t* variants, int num_variants, list_t* output_l
         }
         
         // Update variables finally used to update file_stats_t structure
+        variants_count++;
         if (i == 0) { samples_count = record->samples->length; }  // Just once per batch
         if (strcmp(record->id, ".")) { snps_count++; }
-        if (num_alternates > 1) { multiallelics_count++; }
+        if (record->quality >= 0) { accum_quality += record->quality; } // -1 = N/A
+        if (stats->num_alleles > 2) {
+            multiallelics_count++; 
+        } else if (stats->num_alleles > 1) {
+            biallelics_count++;
+        }
         
         int ref_len = strlen(stats->ref_allele);
         int alt_len;
@@ -193,7 +205,8 @@ int get_variants_stats(list_item_t* variants, int num_variants, list_t* output_l
     // Update file_stats_t structure
 #pragma omp critical 
     {
-        update_file_stats(samples_count, snps_count, transitions_count, transversions_count, indels_count, multiallelics_count, file_stats);
+        update_file_stats(variants_count, samples_count, snps_count, transitions_count, transversions_count, 
+                          indels_count, biallelics_count, multiallelics_count, accum_quality, file_stats);
     }
     
     return 0;

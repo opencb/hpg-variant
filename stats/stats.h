@@ -41,12 +41,19 @@ typedef struct stats_options_data {
 
 
 typedef struct {
+    int variants_count;
     int samples_count;
+    
     int snps_count;
+    int indels_count;
+    
     int transitions_count;
     int transversions_count;
-    int indels_count;
+    
+    int biallelics_count;
     int multiallelics_count;
+    
+    float accum_quality;
 } file_stats_t;
 
 
@@ -111,8 +118,8 @@ int get_variants_stats(list_item_t *variants, int num_variants, list_t *output_l
  * Given a file_stats_t with some values, perform their sum with the arguments.
  * 
  */
-void update_file_stats(int samples_count, int snps_count, int transitions_count, int transversions_count, 
-                       int indels_count, int multiallelics_count, file_stats_t *stats);
+void update_file_stats(int variants_count, int samples_count, int snps_count, int transitions_count, int transversions_count, 
+                       int indels_count, int biallelics_count, int multiallelics_count, float accum_quality, file_stats_t *stats);
 
 /* ******************************
  *      Options parsing         *
