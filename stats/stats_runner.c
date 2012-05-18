@@ -207,20 +207,21 @@ int run_stats(global_options_data_t *global_options_data, stats_options_data_t *
             
             // Write whole file stats
             fprintf(summary_fd, 
-                    "Number of variants = %d\nNumber of samples = %d\nNumber of SNP = %d\nNumber of indels = %d\n",
-                    file_stats->variants_count, file_stats->samples_count, file_stats->snps_count, file_stats->indels_count
+                    "Number of variants = %d\nNumber of samples = %d\nNumber of biallelic variants = %d\nNumber of multiallelic variants = %d\n\n",
+                    file_stats->variants_count, file_stats->samples_count, file_stats->biallelics_count, file_stats->multiallelics_count
                    );
             
             fprintf(summary_fd, 
-                    "Number of biallelic variants = %d\nNumber of multiallelic variants = %d\n",
-                    file_stats->biallelics_count, file_stats->multiallelics_count
+                    "Number of SNP = %d\nNumber of indels = %d\n\n",
+                    file_stats->snps_count, file_stats->indels_count
                    );
             
             fprintf(summary_fd, 
-                    "Number of transitions = %d\nNumber of transversions = %d\nAverage quality = %.4f\nTi/TV ratio = %.4f\n",
+                    "Number of transitions = %d\nNumber of transversions = %d\nTi/TV ratio = %.4f\n\nPercentage of PASS = %.2f%%\nAverage quality = %.2f\n",
                     file_stats->transitions_count, file_stats->transversions_count,
-                    file_stats->accum_quality / file_stats->variants_count,
-                    (float) file_stats->transitions_count / file_stats->transversions_count
+                    (float) file_stats->transitions_count / file_stats->transversions_count,
+                    ((float) file_stats->pass_count / file_stats->variants_count) * 100.0,
+                    file_stats->accum_quality / file_stats->variants_count
                    );
                    
             
