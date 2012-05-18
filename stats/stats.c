@@ -1,5 +1,32 @@
 #include "stats.h"
 
+
+/* ******************************
+ *      Whole file statistics   *
+ * ******************************/
+ 
+file_stats_t* new_file_stats() {
+    return calloc (1, sizeof(file_stats_t));
+}
+
+void free_file_stats(file_stats_t* file_stats) {
+    free(file_stats);
+}
+
+void update_file_stats(int samples_count, int snps_count, int transitions_count, int transversions_count, int indels_count, int multiallelics_count, file_stats_t* stats) {
+    stats->samples_count = samples_count;
+    stats->snps_count += snps_count;
+    stats->transitions_count += transitions_count;
+    stats->transversions_count += transversions_count;
+    stats->indels_count += indels_count;
+    stats->multiallelics_count += multiallelics_count;
+}
+
+
+/* ******************************
+ *     Per variant statistics   *
+ * ******************************/
+ 
 variant_stats_t* new_variant_stats(char *chromosome, unsigned long position, char *ref_allele) {
     variant_stats_t *stats = (variant_stats_t*) malloc (sizeof(variant_stats_t));
     
@@ -18,11 +45,12 @@ variant_stats_t* new_variant_stats(char *chromosome, unsigned long position, cha
 }
 
 void free_variant_stats(variant_stats_t* stats) {
+    if (stats->chromosome) { free(stats->chromosome); }
     if (stats->ref_allele) { free(stats->ref_allele); }
     if (stats->alternates) {
-        for (int i = 0; i < stats->num_alleles; i++) {
-            free(stats->alternates[i]);
-        }
+//         for (int i = 0; i < stats->num_alleles; i++) {
+//             free(stats->alternates[i]);
+//         }
         free(stats->alternates);
     }
     if (stats->alleles_count) { free(stats->alleles_count); }
@@ -30,13 +58,17 @@ void free_variant_stats(variant_stats_t* stats) {
     free(stats);
 }
 
-int get_variants_stats(list_item_t* variants, int num_variants, list_t* output_list) {
+int get_variants_stats(list_item_t* variants, int num_variants, list_t* output_list, file_stats_t *file_stats) {
     char *copy_buf, *copy_buf2, *token, *sample;
     char *save_strtok;
     
     int num_alternates, gt_pos, cur_pos;
     int allele1, allele2, alleles_code;
     
+    // Temporary variables for file stats updating
+    int samples_count = 0, snps_count = 0, transitions_count = 0, transversions_count = 0, indels_count = 0, multiallelics_count = 0;
+    
+    // Variant stats management
     vcf_record_t *record;
     variant_stats_t *stats;
     list_item_t *cur_variant = variants;
@@ -106,10 +138,62 @@ int get_variants_stats(list_item_t* variants, int num_variants, list_t* output_l
             }
         }
         
+        // Update variables finally used to update file_stats_t structure
+        if (i == 0) { samples_count = record->samples->length; }  // Just once per batch
+        if (strcmp(record->id, ".")) { snps_count++; }
+        if (num_alternates > 1) { multiallelics_count++; }
+        
+        int ref_len = strlen(stats->ref_allele);
+        int alt_len;
+        for (int j = 0; j < num_alternates; j++) {
+            alt_len = strlen(stats->alternates[j]);
+            
+            if (ref_len != alt_len) {
+                indels_count++;
+            } else if (ref_len == 1 && alt_len == 1) {
+                switch (stats->ref_allele[0]) {
+                    case 'C':
+                        if (stats->alternates[j][0] == 'T') {
+                            transitions_count++;
+                        } else {
+                            transversions_count++;
+                        }
+                        break;
+                    case 'T':
+                        if (stats->alternates[j][0] == 'C') {
+                            transitions_count++;
+                        } else {
+                            transversions_count++;
+                        }
+                        break;
+                    case 'A':
+                        if (stats->alternates[j][0] == 'G') {
+                            transitions_count++;
+                        } else {
+                            transversions_count++;
+                        }
+                        break;
+                    case 'G':
+                        if (stats->alternates[j][0] == 'A') {
+                            transitions_count++;
+                        } else {
+                            transversions_count++;
+                        }
+                        break;
+                }
+            }
+        }
+        
         // Insert results in output list
         list_item_t *variant_result = list_item_new(i, 0, stats);
         list_insert_item(variant_result, output_list);
-//         printf("inserting (%s, %ld)\n",  stats->chromosome,  stats->position);
+
+    }
+    
+    // Update file_stats_t structure
+#pragma omp critical 
+    {
+        update_file_stats(samples_count, snps_count, transitions_count, transversions_count, indels_count, multiallelics_count, file_stats);
     }
     
     return 0;

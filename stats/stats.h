@@ -7,6 +7,7 @@
 
 #include <cprops/linked_list.h>
 #include <libconfig.h>
+#include <omp.h>
 
 #include <file_utils.h>
 #include <log.h>
@@ -40,6 +41,16 @@ typedef struct stats_options_data {
 
 
 typedef struct {
+    int samples_count;
+    int snps_count;
+    int transitions_count;
+    int transversions_count;
+    int indels_count;
+    int multiallelics_count;
+} file_stats_t;
+
+
+typedef struct {
     char *chromosome;
     unsigned long position;
     
@@ -64,6 +75,16 @@ static stats_options_data_t *new_stats_options_data();
  */
 static void free_stats_options_data(stats_options_data_t *options_data);
 
+/**
+ * Initialize a global_stats_t structure mandatory fields.
+ */
+file_stats_t *new_file_stats();
+
+/**
+ * Free memory associated to a global_stats_t structure.
+ */
+void free_file_stats(file_stats_t *file_stats);
+
 
 /**
  * Initialize a variant_stats_t structure mandatory fields.
@@ -84,8 +105,14 @@ void free_variant_stats(variant_stats_t *variant_stats);
 
 int run_stats(global_options_data_t *global_options_data, stats_options_data_t *options_data);
 
-int get_variants_stats(list_item_t *variants, int num_variants, list_t *output_list);
+int get_variants_stats(list_item_t *variants, int num_variants, list_t *output_list, file_stats_t *file_stats);
 
+/**
+ * Given a file_stats_t with some values, perform their sum with the arguments.
+ * 
+ */
+void update_file_stats(int samples_count, int snps_count, int transitions_count, int transversions_count, 
+                       int indels_count, int multiallelics_count, file_stats_t *stats);
 
 /* ******************************
  *      Options parsing         *
