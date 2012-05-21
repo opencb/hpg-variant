@@ -266,6 +266,7 @@ int run_effect(char *url, global_options_data_t *global_options_data, effect_opt
     }
 
     write_summary_file();
+    write_result_file(global_options_data, options_data);
 
     ret_code = free_ws_output(options_data->num_threads);
     free(read_list);
@@ -284,6 +285,7 @@ char *compose_effect_ws_request(effect_options_data_t *options_data) {
     // URL Constants
     const char *ws_root_url = "cellbase/rest/";
     const char *ws_name_url = "genomic/variant/consequence_type";
+    const char *ws_extra_params = "?header=false";
     
     // Length of URL parts
     const int host_url_len = strlen(options_data->host_url);
@@ -291,10 +293,10 @@ char *compose_effect_ws_request(effect_options_data_t *options_data) {
     const int version_len = strlen(options_data->version);
     const int species_len = strlen(options_data->species);
     const int ws_name_len = strlen(ws_name_url);
-    const int result_len = host_url_len + ws_root_len + version_len + species_len + ws_name_len + 4;
+    const int ws_extra_len = strlen(ws_extra_params);
+    const int result_len = host_url_len + ws_root_len + version_len + species_len + ws_name_len + ws_extra_len + 4;
     
-    char *result_url = (char*) malloc (result_len * sizeof(char));
-    memset(result_url, 0, result_len * sizeof(char));
+    char *result_url = (char*) calloc (result_len, sizeof(char));
     
     // Host URL
     strncat(result_url, options_data->host_url, host_url_len);
@@ -319,6 +321,9 @@ char *compose_effect_ws_request(effect_options_data_t *options_data) {
     
     // Name of the web service
     strncat(result_url, ws_name_url, ws_name_len);
+    
+    // Extra arguments of the web service
+    strncat(result_url, ws_extra_params, ws_extra_len);
     
     return result_url;
 }
@@ -560,6 +565,104 @@ void write_summary_file(void) {
      }
      free(keys);
 }
+
+void write_result_file(global_options_data_t *global_options_data, effect_options_data_t *options_data) {
+    char *aux_buffer;
+    result_file_t *result_file = NULL;
+    
+    // Create result file
+    aux_buffer = (char*) calloc (output_directory_len + strlen("result.xml") + 1, sizeof(char));
+    strncat(aux_buffer, global_options_data->output_directory, output_directory_len);
+    strncat(aux_buffer, "result.xml", strlen("result.xml"));
+    result_file = result_file_new("v0.7", aux_buffer);
+    
+    // Add meta data
+    time_t now;
+    char day_buffer[10];
+    time(&now);
+    strftime(day_buffer, 15, "%Y-%m-%d", localtime(&now));
+    
+    result_item_t *meta_item_version = result_item_new("version", result_file->version, "SDK version", "MESSAGE", "", "", "");
+    result_item_t *meta_item_date = result_item_new("date", day_buffer, "Job date", "MESSAGE", "", "", "");
+    result_item_t *meta_item_tool = result_item_new("tool", "consequence-type", "Tool executed", "MESSAGE", "", "", "");
+    
+    result_add_meta_item(meta_item_version, result_file);
+    result_add_meta_item(meta_item_date, result_file);
+    result_add_meta_item(meta_item_tool, result_file);
+    
+    // TODO Add input data
+    /* 
+     * <input>
+<item name="log-file" title="name of the log file, default: result.log" type="MESSAGE" tags="" style="" group="" context="">
+/httpd/bioinfo/wum_sessions_v0.7/1104990/jobs/111421/job.log
+</item>
+<item name="no-disease" title="Excludes: Mutations, miRNA diseases" type="MESSAGE" tags="" style="" group="" context=""/>
+<item name="home" title="Variant home path" type="MESSAGE" tags="" style="" group="" context="">/httpd/bioinfo/variant1.0</item>
+    */
+    result_item_t *input_item_tool = result_item_new("tool", "consequence-type", "tool name", "MESSAGE", "", "", "");
+    result_item_t *input_item_outdir = result_item_new("outdir", global_options_data->output_directory, "outdir to save the results", "MESSAGE", "", "", "");
+    // TODO log-file
+    result_item_t *input_item_vcf_file = result_item_new("vcf-file", global_options_data->vcf_filename, "The VCF variant file", "MESSAGE", "", "", "");
+    // TODO excludes
+    result_item_t *input_item_species = result_item_new("species", options_data->species, "The species of the ids", "MESSAGE", "", "", "");
+    // TODO home
+    aux_buffer = (char*) calloc (8, sizeof(char));
+    sprintf(aux_buffer, "%ld", options_data->num_threads);
+    result_item_t *input_item_numthreads = result_item_new("number-threads", aux_buffer, "Number of connections to the web-service", "MESSAGE", "", "", "");
+    aux_buffer = (char*) calloc (strlen(global_options_data->vcf_filename), sizeof(char));
+    get_filename_from_path(global_options_data->vcf_filename, aux_buffer);
+    result_item_t *input_item_vcf_input = result_item_new(aux_buffer, aux_buffer, "VCF input file", "DATA", "", "Input", "");
+    
+    result_add_input_item(input_item_tool, result_file);
+    result_add_input_item(input_item_outdir, result_file);
+    result_add_input_item(input_item_vcf_file, result_file);
+    result_add_input_item(input_item_species, result_file);
+    result_add_input_item(input_item_vcf_input, result_file);
+    
+    
+    // Add output data
+    char *consequence_type, *consequence_type_filename;
+    int *count, total_count;
+    result_item_t *output_item;
+    
+    char **keys = (char**) cp_hashtable_get_keys(summary_count);
+    int num_keys = cp_hashtable_count(summary_count);
+    for (int i = 0; i < num_keys; i++) {
+        consequence_type = keys[i];
+        count = (int*) cp_hashtable_get(summary_count, consequence_type);
+        total_count += *count;
+        
+        if (strcmp(consequence_type, "all_variants") && strcmp(consequence_type, "summary")) {
+            consequence_type_filename = (char*) calloc (strlen(consequence_type) + 5, sizeof(char));
+            strncat(consequence_type_filename, consequence_type, strlen(consequence_type));
+            strncat(consequence_type_filename, ".txt", 4);
+            
+            aux_buffer = (char*) calloc (strlen(consequence_type) + 32, sizeof(char));
+            sprintf(aux_buffer, "%s (%d)", consequence_type, *count);
+            
+            output_item = result_item_new(consequence_type_filename, consequence_type_filename, aux_buffer, 
+                                          "FILE", "CONSEQUENCE_TYPE_VARIANTS", "Variants by Consequence Type", "");
+            result_add_output_item(output_item, result_file);
+        }
+        
+    }
+    free(keys);
+    
+    // Add output data for all_variants and summary
+    aux_buffer = (char*) calloc (32, sizeof(char));
+    sprintf(aux_buffer, "All (%d)", total_count);
+    output_item = result_item_new("all_variants.txt", "all_variants.txt", aux_buffer, 
+                                        "FILE", "CONSEQUENCE_TYPE_VARIANTS", "Variants by Consequence Type", "");
+    result_add_output_item(output_item, result_file);
+    output_item = result_item_new("summary", "summary.txt", "Consequence types histogram:", 
+                                        "FILE", "HISTOGRAM", "Summary", "");
+    result_add_output_item(output_item, result_file);
+    
+    // Write and free file
+    result_file_write(result_file->filename, result_file);
+    result_file_free(result_file);
+}
+
 
 int initialize_ws_output(int num_threads, char *outdir) {
     // Initialize collections of file descriptors and summary counters
