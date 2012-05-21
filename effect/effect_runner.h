@@ -14,6 +14,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 
 #include <cprops/hashtable.h>
 #include <curl/curl.h>
@@ -23,6 +24,7 @@
 #include <http_utils.h>
 #include <list.h>
 #include <log.h>
+#include <result.h>
 #include <string_utils.h>
 #include <vcf_batch.h>
 #include <vcf_file.h>
@@ -100,6 +102,8 @@ static size_t write_effect_ws_results(char *contents, size_t size, size_t nmemb,
  * Writes a summary file containing the number of entries for each of the consequence types processed.
  */
 void write_summary_file(void);
+
+void write_result_file(global_options_data_t *global_options_data, effect_options_data_t *options_data);
 
 /**
  * @param num_threads the number of threads that parse the response

@@ -10,9 +10,9 @@ BIOINFO_DATA_DIR = $(LIBS_ROOT)/bioformats
 REGION_DIR = $(BIOINFO_DATA_DIR)/features/region
 
 # Include and libs folders
-INCLUDES = -I $(CONTAINERS_DIR) -I $(COMMONS_DIR) -I $(REGION_DIR) -I $(BIOINFO_DATA_DIR) -I $(BIOINFO_DATA_DIR)/vcf/ -I $(BIOINFO_DATA_DIR)/gff/ -I $(BIOINFO_DATA_DIR)/ped/ -I . -I ./effect/
+INCLUDES = -I $(CONTAINERS_DIR) -I $(COMMONS_DIR) -I $(REGION_DIR) -I $(BIOINFO_DATA_DIR) -I $(BIOINFO_DATA_DIR)/vcf/ -I $(BIOINFO_DATA_DIR)/gff/ -I $(BIOINFO_DATA_DIR)/ped/ -I . -I ./effect/ -I ./gwas -I /usr/include/libxml2
 # INCLUDES = -I $(LIBS_ROOT) -I . -I ./effect/ -I ./gwas/
-LIBS = -L/usr/lib/x86_64-linux-gnu -lcurl -Wl,-Bsymbolic-functions -lconfig -lcprops -fopenmp -lm
+LIBS = -L/usr/lib/x86_64-linux-gnu -lcurl -Wl,-Bsymbolic-functions -lconfig -lcprops -fopenmp -lm -lxml2
 LIBS_TEST = -lcheck
 
 # Source files dependencies
@@ -20,7 +20,7 @@ VCF_FILES = $(BIOINFO_DATA_DIR)/vcf/vcf_*.o
 GFF_FILES = $(BIOINFO_DATA_DIR)/gff/gff_*.o
 PED_FILES = $(BIOINFO_DATA_DIR)/ped/ped_*.o $(BIOINFO_DATA_DIR)/family.o
 REGION_TABLE_FILES = $(REGION_DIR)/region.o $(CONTAINERS_DIR)/region_table.o $(CONTAINERS_DIR)/region_table_utils.o
-MISC_FILES = $(COMMONS_DIR)/file_utils.o $(COMMONS_DIR)/string_utils.o $(COMMONS_DIR)/http_utils.o $(COMMONS_DIR)/log.o $(CONTAINERS_DIR)/list.o
+MISC_FILES = $(COMMONS_DIR)/file_utils.o $(COMMONS_DIR)/string_utils.o $(COMMONS_DIR)/http_utils.o $(COMMONS_DIR)/log.o $(COMMONS_DIR)/result.o $(CONTAINERS_DIR)/list.o
 
 # Project source files
 EFFECT_FILES = effect/main_effect.c effect/effect_options_parsing.c effect/effect_runner.c
@@ -41,7 +41,7 @@ testing: test/test_effect_runner.c test/test_tdt_runner.c $(HPG_VARIANT_FILES)
 
 compile-dependencies:
 	make family.o && \
-	cd $(COMMONS_DIR) && make file_utils.o http_utils.o string_utils.o log.o &&  \
+	cd $(COMMONS_DIR) && make file_utils.o http_utils.o string_utils.o log.o result.o &&  \
 	cd $(REGION_DIR) && make region.o &&  \
 	cd $(CONTAINERS_DIR) && make list.o region_table.o region_table_utils.o &&  \
 	cd $(BIOINFO_DATA_DIR)/gff && make compile &&  \
