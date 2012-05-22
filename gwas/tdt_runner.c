@@ -189,11 +189,11 @@ int run_tdt_test(global_options_data_t* global_options_data, gwas_options_data_t
             // Write data: header + one line per variant
             list_item_t* item = NULL;
             tdt_result_t *result;
-            fprintf(fd, " CHR          BP       A1      A2       T       U          OR            CHISQ            P\n");
+            fprintf(fd, "CHR        BP          A1      A2        T       U          OR            CHISQ            P\n");
             while ((item = list_remove_item(output_list)) != NULL) {
                 result = item->data_p;
                 
-                fprintf(fd, "%s\t%12ld\t%s\t%s\t%d\t%d\t%8f\t%6f\n",//\t%f\n", 
+                fprintf(fd, "%s\t%8ld\t%s\t%s\t%3d\t%3d\t%6f\t%6f\n",//\t%f\n", 
                        result->chromosome, result->position, result->reference, result->alternate, 
                        result->t1, result->t2, result->odds_ratio, result->chi_square);//p_value);
                 

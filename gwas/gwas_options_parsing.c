@@ -84,7 +84,7 @@ void parse_gwas_options(int argc, char *argv[], gwas_options_data_t *options_dat
                 LOG_INFO_F("num-threads = %ld\n", options_data->num_threads);
                 break;
             case 'r':
-                tmp_string_field = (char*) calloc((strlen(optarg)+1), sizeof(char));
+                tmp_string_field = (char*) calloc(strlen(optarg)+1, sizeof(char));
                 strcat(tmp_string_field, optarg);
                 filter = create_region_exact_filter(tmp_string_field, 0);
                 options_data->chain = add_to_filter_chain(filter, options_data->chain);
