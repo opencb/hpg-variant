@@ -355,7 +355,7 @@ int invoke_effect_ws(const char *url, list_item_t *first_item, int max_chunk_siz
         alternate_len = strlen(record->alternate);
         new_len_range = current_index + chr_len + reference_len + alternate_len + 32;
         
-        LOG_DEBUG_F("%s:%lu:%s:%s\n", record->chromosome, record->position, record->reference, record->alternate);
+        LOG_INFO_F("%s:%lu:%s:%s\n", record->chromosome, record->position, record->reference, record->alternate);
         
         // Reallocate memory if next record won't fit
         if (variants_len < (current_index + new_len_range)) {
