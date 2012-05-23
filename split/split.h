@@ -1,0 +1,108 @@
+#ifndef VCF_TOOLS_SPLIT_H
+#define VCF_TOOLS_SPLIT_H
+
+#include <getopt.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include <cprops/hashtable.h>
+#include <cprops/linked_list.h>
+#include <libconfig.h>
+#include <omp.h>
+
+#include <file_utils.h>
+#include <log.h>
+#include <vcf_batch.h>
+#include <vcf_filters.h>
+#include <vcf_file.h>
+
+#include "error.h"
+#include "global_options.h"
+#include "hpg_vcf_tools_utils.h"
+
+#define NUM_SPLIT_OPTIONS  1
+#define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
+
+enum Split_criterion { NONE, CHROMOSOME, GENE  };
+
+static struct option split_options[] = {
+    {"criteria",    required_argument, 0, 'c' },
+    
+    {NULL,          0, 0, 0}
+};
+
+/**
+ * @struct split_options_data
+ * 
+ */
+typedef struct split_options_data {
+    enum Split_criterion criterion;   /**< Criterion for splitting the file */
+
+    long int max_batches;   /**< Number of VCF records' batches that can be stored simultaneously. */
+    long int batch_size;   /**< Maximum size of a VCF records' batch. */
+    long int num_threads;   /**< Number of threads that to run simultaneously. */
+    long int variants_per_thread;   /**< Number of variants each thread will analyze. */
+} split_options_data_t;
+
+
+/**
+ * Initialize a split_options_data_t structure mandatory fields.
+ */
+static split_options_data_t *new_split_options_data();
+
+/**
+ * Free memory associated to a split_options_data_t structure.
+ */
+static void free_split_options_data(split_options_data_t *options_data);
+
+
+/* ******************************
+ *       Tool execution         *
+ * ******************************/
+
+
+int run_split(global_options_data_t *global_options_data, split_options_data_t *options_data);
+
+static int initialize_output(cp_hashtable **output_files);
+
+static void free_output(cp_hashtable *output_files);
+
+static void free_file_key(char *key);
+
+static void free_file_descriptor(FILE *fd);
+
+
+/* ******************************
+ *      Options parsing         *
+ * ******************************/
+
+/**
+ * Read the basic configuration parameters of the tool. If the configuration
+ * file can't be read, these parameters should be provided via the command-line
+ * interface.
+ * 
+ * @param filename File the options data are read from
+ * @param options_data Local options values (filtering, sorting...) 
+ * 
+ * @return If the configuration has been successfully read
+ */
+int read_split_configuration(const char *filename, split_options_data_t *options_data);
+
+/**
+ * 
+ * @param argc
+ * @param argv
+ * @param options_data
+ * @param global_options_data
+ */
+void parse_split_options(int argc, char *argv[], split_options_data_t *options_data, global_options_data_t *global_options_data);
+
+/**
+ * 
+ * @param options_data
+ */
+int verify_split_options(global_options_data_t *global_options_data, split_options_data_t *options_data);
+
+
+
+#endif

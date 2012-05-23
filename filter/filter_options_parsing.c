@@ -89,8 +89,8 @@ void parse_filter_options(int argc, char *argv[], filter_options_data_t *options
                 }
                 break;
             case 'r':
-                tmp_string_field = (char*) malloc((strlen(optarg)+1) * sizeof(char));
-                strcpy(tmp_string_field, optarg);
+                tmp_string_field = (char*) calloc(strlen(optarg)+1, sizeof(char));
+                strncat(tmp_string_field, optarg, strlen(optarg));
                 filter = create_region_filter(tmp_string_field, 0);
                 options_data->chain = add_to_filter_chain(filter, options_data->chain);
                 LOG_INFO_F("regions = %s\n", optarg);
@@ -110,8 +110,7 @@ void parse_filter_options(int argc, char *argv[], filter_options_data_t *options
 }
 
 
-int verify_filter_options(global_options_data_t *global_options_data, filter_options_data_t *options_data)
-{
+int verify_filter_options(global_options_data_t *global_options_data, filter_options_data_t *options_data) {
     // Check whether the input VCF file is defined
     if (global_options_data->vcf_filename == NULL || strlen(global_options_data->vcf_filename) == 0) {
         LOG_ERROR("Please specify the input VCF file.\n");
