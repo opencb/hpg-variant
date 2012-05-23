@@ -12,5 +12,10 @@
 // Filter tool errors
 #define EMPTY_LIST_OF_FILTERS                   100
 
+// Stats tool errors
+
+// Split tool errors
+#define NONE_CRITERION_SPECIFIED                300
+
 
 #endif

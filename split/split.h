@@ -23,10 +23,10 @@
 #define NUM_SPLIT_OPTIONS  1
 #define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
 
-enum Split_criterion { NONE, CHROMOSOME, GENE  };
+enum Split_criterion { NONE, CHROMOSOME, GENE };
 
 static struct option split_options[] = {
-    {"criteria",    required_argument, 0, 'c' },
+    {"criterion",    required_argument, 0, 'c' },
     
     {NULL,          0, 0, 0}
 };
@@ -45,6 +45,12 @@ typedef struct split_options_data {
 } split_options_data_t;
 
 
+typedef struct {
+    vcf_record_t *record;
+    char *split_name;
+} variant_split_result_t;
+
+
 /**
  * Initialize a split_options_data_t structure mandatory fields.
  */
@@ -55,22 +61,22 @@ static split_options_data_t *new_split_options_data();
  */
 static void free_split_options_data(split_options_data_t *options_data);
 
+/**
+ * Initialize a variant_split_result_t structure mandatory fields.
+ */
+variant_split_result_t *new_variant_split_result(vcf_record_t *record, char *split_name);
+
+/**
+ * Free memory associated to a variant_split_result_t structure.
+ */
+void free_variant_split_result(variant_split_result_t* split_result);
+
 
 /* ******************************
  *       Tool execution         *
  * ******************************/
 
-
-int run_split(global_options_data_t *global_options_data, split_options_data_t *options_data);
-
-static int initialize_output(cp_hashtable **output_files);
-
-static void free_output(cp_hashtable *output_files);
-
-static void free_file_key(char *key);
-
-static void free_file_descriptor(FILE *fd);
-
+int split_by_chromosome(list_item_t* variants, int num_variants, list_t* output_list);
 
 /* ******************************
  *      Options parsing         *

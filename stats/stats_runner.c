@@ -47,6 +47,8 @@ int run_stats(global_options_data_t *global_options_data, stats_options_data_t *
             omp_set_nested(1);
             omp_set_num_threads(options_data->num_threads);
             
+            LOG_DEBUG_F("Thread %d processes data\n", omp_get_thread_num());
+            
             start = omp_get_wtime();
             
             int i = 0;
@@ -70,9 +72,6 @@ int run_stats(global_options_data_t *global_options_data, stats_options_data_t *
                 #pragma omp parallel for
                 for (int j = 0; j < num_chunks; j++) {
                     LOG_DEBUG_F("[%d] Stats invocation\n", omp_get_thread_num());
-//                     printf("[%d] start in (%s, %ld)\n", j,
-//                            ((vcf_record_t*) chunk_starts[j]->data_p)->chromosome, 
-//                            ((vcf_record_t*) chunk_starts[j]->data_p)->position);
                     ret_code = get_variants_stats(chunk_starts[j], max_chunk_size, output_list, file_stats);
                 }
                 if (i % 25 == 0) { LOG_INFO_F("*** %dth stats invocation finished\n", i); }
@@ -98,6 +97,8 @@ int run_stats(global_options_data_t *global_options_data, stats_options_data_t *
         
 #pragma omp section
         {
+            LOG_DEBUG_F("Thread %d writes the output\n", omp_get_thread_num());
+            
             char *stats_filename, *summary_filename;
             FILE *stats_fd, *summary_fd;
     

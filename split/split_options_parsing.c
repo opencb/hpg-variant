@@ -101,6 +101,11 @@ int verify_split_options(global_options_data_t *global_options_data, split_optio
         return VCF_FILE_NOT_SPECIFIED;
     }
     
+    if (options_data->criterion = NONE) {
+        LOG_ERROR("Please specify a splittering criterion.\n");
+        return NONE_CRITERION_SPECIFIED;
+    }
+    
     return 0;
 }
 
