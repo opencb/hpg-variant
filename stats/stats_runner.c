@@ -154,7 +154,6 @@ int run_stats(global_options_data_t *global_options_data, stats_options_data_t *
                     genotypes_count_total += stats->genotypes_count[i];
                 }
                 
-          
                 fprintf(stats_fd, "%s\t%ld\t",
                         stats->chromosome, 
                         stats->position);
@@ -187,8 +186,9 @@ int run_stats(global_options_data_t *global_options_data, stats_options_data_t *
                             gt_count = stats->genotypes_count[idx1] + stats->genotypes_count[idx2];
                         }
                         
-                    fprintf(stats_fd, "%d|%d\t%d\t%.4f\t",
-                            i, j, 
+                    fprintf(stats_fd, "%s|%s\t%d\t%.4f\t",
+                            i == 0 ? stats->ref_allele : stats->alternates[i-1],
+                            j == 0 ? stats->ref_allele : stats->alternates[j-1],
                             gt_count, 
                             (float) gt_count / genotypes_count_total
                            );
