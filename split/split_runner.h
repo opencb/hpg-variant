@@ -1,7 +1,22 @@
 #ifndef SPLIT_RUNNER_H
 #define SPLIT_RUNNER_H
 
+#include <stdlib.h>
+
+#include <cprops/hashtable.h>
+#include <omp.h>
+
+#include <file_utils.h>
+#include <list.h>
+#include <log.h>
+#include <vcf_batch.h>
+#include <vcf_filters.h>
+#include <vcf_file.h>
+
+#include "hpg_vcf_tools_utils.h"
 #include "split.h"
+
+#define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
 
 int run_split(global_options_data_t *global_options_data, split_options_data_t *options_data);
 

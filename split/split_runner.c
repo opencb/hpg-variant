@@ -6,8 +6,17 @@ int run_split(global_options_data_t *global_options_data, split_options_data_t *
     list_init("batches", 1, options_data->max_batches, read_list);
     list_t *output_list = (list_t*) malloc (sizeof(list_t));
     list_init("output", options_data->num_threads, MIN(10, options_data->max_batches) * options_data->batch_size, output_list);
-    cp_hashtable **output_files = (cp_hashtable**) malloc (sizeof(cp_hashtable*));
-    initialize_output(output_files);
+//     cp_hashtable **output_files = (cp_hashtable**) malloc (sizeof(cp_hashtable*));
+//     initialize_output(output_files);
+    cp_hashtable *output_files = cp_hashtable_create_by_option(COLLECTION_MODE_DEEP,
+                                                 50,
+                                                 cp_hash_istring,
+                                                 (cp_compare_fn) strcasecmp,
+                                                 NULL,
+                                                 (cp_destructor_fn) free_file_key,
+                                                 NULL,
+                                                 (cp_destructor_fn) free_file_descriptor
+                                                );
     
     int ret_code = 0;
     double start, stop, total;
@@ -30,7 +39,7 @@ int run_split(global_options_data_t *global_options_data, split_options_data_t *
             // Reading
             start = omp_get_wtime();
 
-            ret_code = vcf_read_batches(read_list, options_data->batch_size, file, 0);
+            ret_code = vcf_read_batches(read_list, options_data->batch_size, file, 1);
 
             stop = omp_get_wtime();
             total = stop - start;
@@ -61,7 +70,7 @@ int run_split(global_options_data_t *global_options_data, split_options_data_t *
                 vcf_batch_t *batch = (vcf_batch_t*) item->data_p;
                 list_t *input_records = batch;
 
-                if (i % 50 == 0) {
+                if (i % 100 == 0) {
                     LOG_INFO_F("Batch %d reached by thread %d - %zu/%zu records \n", 
                                 i, omp_get_thread_num(),
                                 batch->length, batch->max_length);
@@ -78,14 +87,16 @@ int run_split(global_options_data_t *global_options_data, split_options_data_t *
                     LOG_DEBUG_F("[%d] Split invocation\n", omp_get_thread_num());
                     if (options_data->criterion == CHROMOSOME) {
                         ret_code = split_by_chromosome(chunk_starts[j], max_chunk_size, output_list);
+//                         ret_code = split_by_chromosome(input_records->first_p, input_records->length, output_list);
                     } else if (options_data->criterion == GENE) {
                         ret_code = 0;
                     }
                 }
-                if (i % 25 == 0) { LOG_INFO_F("*** %dth split invocation finished\n", i); }
+//                 if (i % 50 == 0) { LOG_INFO_F("*** %dth split invocation finished\n", i); }
                 
                 free(chunk_starts);
-                vcf_batch_free(item->data_p);
+//                 vcf_batch_free(item->data_p);
+                free(item->data_p);
                 list_item_free(item);
                 
                 i++;
@@ -107,51 +118,52 @@ int run_split(global_options_data_t *global_options_data, split_options_data_t *
 #pragma omp section
         {
             LOG_DEBUG_F("Thread %d writes the output\n", omp_get_thread_num());
-            
-            char *split_filename;
-            FILE *split_fd;
     
-            // Create file streams for results)
+            start = omp_get_wtime();
+
+            // Create file streams for results
             int dirname_len = strlen(global_options_data->output_directory);
-            int filename_len;
-            if (global_options_data->output_filename == NULL || strlen(global_options_data->output_filename) == 0) {
-                filename_len = strlen("split-tool-output");
-            
-                split_filename = (char*) calloc ((dirname_len + filename_len + 1), sizeof(char));
-                strncat(split_filename, global_options_data->output_directory, dirname_len);
-                strncat(split_filename, "split-tool-output", filename_len);
-            } else {
-                filename_len = strlen(global_options_data->output_filename);
-            
-                split_filename = (char*) calloc ((dirname_len + filename_len + 1), sizeof(char));
-                strncat(split_filename, global_options_data->output_directory, dirname_len);
-                strncat(split_filename, global_options_data->output_filename, filename_len);
-            }
-            
-            LOG_DEBUG_F("split output filename = %s\n", split_filename);
-            split_fd = fopen(split_filename, "w");
-            free(split_filename);
-            LOG_DEBUG("File streams created\n");
             
             list_item_t* item = NULL;
-            FILE *fd = NULL;
+            split_result_t *split;
+            FILE *split_fd = NULL;
+            char split_filename[1024];
+            char input_filename[256];
+            get_filename_from_path(global_options_data->vcf_filename, input_filename);
+            
             while ((item = list_remove_item(output_list)) != NULL) {
                 split = item->data_p;
                 
-                // TODO If its the first line to write into the file, include the header
+                memset(split_filename, 0, 1024 * sizeof(char));
+                sprintf(split_filename, "%s/%s_%s", global_options_data->output_directory, split->split_name, input_filename);
+//                 sprintf(split_filename, "%s/%s.vcf", global_options_data->output_directory, split->split_name, global_options_data->vcf_filename);
+                
+//                 printf("Split filename = '%s'\n", split_filename);
+                
+                split_fd = cp_hashtable_get(output_files, split->split_name);
+                if (!split_fd) {
+                    // TODO If its the first line to write into the file, create file and include the header
+                    split_fd = fopen(split_filename, "w");
+                    cp_hashtable_put(output_files, split->split_name, split_fd);
+                    
+                    vcf_write_to_file(file, split_fd);
+                }
                 
                 // TODO write line into the file
+                write_record(split->record, split_fd);
+                vcf_record_free(split->record);
             }
             
-            // Close file
-            if (split_fd != NULL) { fclose(split_fd); }
+            stop = omp_get_wtime();
+
+            total = stop - start;
+
+            LOG_INFO_F("[%dW] Time elapsed = %f s\n", omp_get_thread_num(), total);
+            LOG_INFO_F("[%dW] Time elapsed = %e ms\n", omp_get_thread_num(), total*1000);
         }
     }
 
-//     write_summary_file();
-//     write_result_file(global_options_data, options_data);
-
-    ret_code = free_output(*output_files);
+    free_output(output_files);
     free(read_list);
     free(output_list);
     vcf_close(file);

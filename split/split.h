@@ -5,23 +5,17 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <cprops/hashtable.h>
 #include <cprops/linked_list.h>
 #include <libconfig.h>
-#include <omp.h>
 
-#include <file_utils.h>
+#include <list.h>
 #include <log.h>
-#include <vcf_batch.h>
-#include <vcf_filters.h>
-#include <vcf_file.h>
+#include <vcf_file_structure.h>
 
 #include "error.h"
 #include "global_options.h"
-#include "hpg_vcf_tools_utils.h"
 
 #define NUM_SPLIT_OPTIONS  1
-#define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
 
 enum Split_criterion { NONE, CHROMOSOME, GENE };
 
@@ -48,7 +42,7 @@ typedef struct split_options_data {
 typedef struct {
     vcf_record_t *record;
     char *split_name;
-} variant_split_result_t;
+} split_result_t;
 
 
 /**
@@ -64,12 +58,12 @@ static void free_split_options_data(split_options_data_t *options_data);
 /**
  * Initialize a variant_split_result_t structure mandatory fields.
  */
-variant_split_result_t *new_variant_split_result(vcf_record_t *record, char *split_name);
+split_result_t *new_split_result(vcf_record_t *record, char *split_name);
 
 /**
  * Free memory associated to a variant_split_result_t structure.
  */
-void free_variant_split_result(variant_split_result_t* split_result);
+void free_split_result(split_result_t* split_result);
 
 
 /* ******************************

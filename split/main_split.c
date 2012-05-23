@@ -1,4 +1,5 @@
 #include "split.h"
+#include "split_runner.h"
 
 
 int vcf_tool_split(int argc, char *argv[]) {
@@ -26,7 +27,7 @@ int vcf_tool_split(int argc, char *argv[]) {
 
     // Step 2: parse command-line options
     parse_split_options(argc, argv, options_data, global_options_data);
-
+    
     // Step 3: check that all options are set with valid values
     // Mandatory that couldn't be read from the config file must be set via command-line
     // If not, return error code!

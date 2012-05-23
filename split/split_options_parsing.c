@@ -75,9 +75,9 @@ void parse_split_options(int argc, char *argv[], split_options_data_t *options_d
             case 'c':
                 tmp_string_field = (char*) calloc(strlen(optarg)+1, sizeof(char));
                 strcpy(tmp_string_field, optarg);
-                if (!strcmp("chromosome", tmp_string_field)) {
+                if (!strcasecmp("chromosome", tmp_string_field)) {
                     options_data->criterion = CHROMOSOME;
-                } else if (!strcmp("gene", tmp_string_field)) {
+                } else if (!strcasecmp("gene", tmp_string_field)) {
                     options_data->criterion = GENE;
                     LOG_FATAL("Gene criterion not implemented yet!");
                 }
@@ -101,7 +101,7 @@ int verify_split_options(global_options_data_t *global_options_data, split_optio
         return VCF_FILE_NOT_SPECIFIED;
     }
     
-    if (options_data->criterion = NONE) {
+    if (options_data->criterion == NONE) {
         LOG_ERROR("Please specify a splittering criterion.\n");
         return NONE_CRITERION_SPECIFIED;
     }
