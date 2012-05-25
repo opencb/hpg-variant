@@ -53,7 +53,7 @@ void parse_filter_options(int argc, char *argv[], filter_options_data_t *options
     // Last option read, for when the global options parser is invoked
     int previous_opt_index = optind;
 
-    while ((c = getopt_long (argc, argv, "A:N:O:c:f:q:r:s:", options, &optind)) != -1) {
+    while ((c = getopt_long (argc, argv, "A:N:O:a:c:f:q:r:s:", options, &optind)) != -1) {
         LOG_DEBUG_F("<main> c = %c, opt_idx = %d\n", c, optind);
         switch (c) {
             case 'A':
@@ -61,9 +61,19 @@ void parse_filter_options(int argc, char *argv[], filter_options_data_t *options
             case 'O':
                 optind = parse_global_options(argc, argv, global_options_data, previous_opt_index);
                 break;
+            case 'a':
+                if (!is_numeric(optarg)) {
+                    LOG_WARN("The argument of the filter by number of alleles must be a numeric value");
+                } else {
+                    tmp_int_field = atoi(optarg);
+                    filter = create_num_alleles_filter(tmp_int_field);
+                    options_data->chain = add_to_filter_chain(filter, options_data->chain);
+                    LOG_INFO_F("number of alleles filter = %d\n", tmp_int_field);
+                }
+                break;
             case 'c':
                 if (!is_numeric(optarg)) {
-                    LOG_WARN("Coverage filter argument must be a numeric value");
+                    LOG_WARN("The argument of the coverage filter must be a numeric value");
                 } else {
                     tmp_int_field = atoi(optarg);
                     filter = create_coverage_filter(tmp_int_field);
@@ -80,7 +90,7 @@ void parse_filter_options(int argc, char *argv[], filter_options_data_t *options
                 break;
             case 'q':
                 if (!is_numeric(optarg)) {
-                    LOG_WARN("Quality filter argument must be a numeric value");
+                    LOG_WARN("The argument of the quality filter must be a numeric value");
                 } else {
                     tmp_int_field = atoi(optarg);
                     filter = create_quality_filter(tmp_int_field);

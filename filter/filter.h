@@ -20,11 +20,13 @@
 #include "error.h"
 #include "global_options.h"
 
-#define NUM_FILTER_OPTIONS  5
+#define NUM_FILTER_OPTIONS  6
 
 
 static struct option filter_options[] = {
     // Filters applied to data
+    {"alleles",     required_argument, 0, 'a' },
+    
     {"coverage",    required_argument, 0, 'c' },
     
     {"quality",     required_argument, 0, 'q' },

@@ -28,9 +28,9 @@ VCF_TOOLS_FILES = global_options.c hpg_vcf_tools_utils.c $(FILTER_FILES) $(SPLIT
 
 
 # Targets
-all: compile-dependencies hpg-vcf-tools
+all: compile-dependencies hpg-vcf
 
-hpg-vcf-tools: compile-dependencies $(VCF_TOOLS_FILES) 
+hpg-vcf: compile-dependencies $(VCF_TOOLS_FILES) 
 	$(CC) $(CFLAGS) -D_XOPEN_SOURCE=600 -o $@ main.c $(VCF_TOOLS_FILES) $(INCLUDES) $(LIBS)
 #	$(CC) $(CFLAGS_DEBUG) -D_XOPEN_SOURCE=600 -o $@ main.c $(VCF_TOOLS_FILES) $(INCLUDES) $(LIBS)
 
@@ -46,5 +46,5 @@ clean:
 	rm -f $(CONTAINERS_DIR)/*.o
 	rm -f $(COMMONS_DIR)/*.o
 	rm -f $(REGION_DIR)/*.o
-	rm hpg-vcf-tools 
+	rm hpg-vcf
 

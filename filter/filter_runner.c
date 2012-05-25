@@ -101,7 +101,7 @@ int run_filter(global_options_data_t *global_options_data, filter_options_data_t
                 list_t *input_records = batch;
                 list_t *passed_records, *failed_records;
 
-                if (i % 200 == 0) {
+                if (i % 100 == 0) {
                     LOG_INFO_F("Batch %d reached by thread %d - %zu/%zu records \n", 
                                 i, omp_get_thread_num(),
                                 batch->length, batch->max_length);
