@@ -66,11 +66,11 @@ void parse_gwas_options(int argc, char *argv[], gwas_options_data_t *options_dat
                 optind = parse_global_options(argc, argv, global_options_data, previous_opt_index);
                 break;
             case 'f':
-                tmp_string_field = (char*) malloc((strlen(optarg)+1) * sizeof(char));
-                strcpy(tmp_string_field, optarg);
+                tmp_string_field = strdup(optarg);
                 filter = create_region_exact_filter(tmp_string_field, 1);
                 options_data->chain = add_to_filter_chain(filter, options_data->chain);
                 LOG_INFO_F("regions file = %s\n", optarg);
+                free(tmp_string_field);
                 break;
             case 'n':
                 tmp_int_field = atoi(optarg);
@@ -84,8 +84,7 @@ void parse_gwas_options(int argc, char *argv[], gwas_options_data_t *options_dat
                 LOG_INFO_F("num-threads = %ld\n", options_data->num_threads);
                 break;
             case 'r':
-                tmp_string_field = (char*) calloc(strlen(optarg)+1, sizeof(char));
-                strcat(tmp_string_field, optarg);
+                tmp_string_field = strdup(optarg);
                 filter = create_region_exact_filter(tmp_string_field, 0);
                 options_data->chain = add_to_filter_chain(filter, options_data->chain);
                 LOG_INFO_F("regions = %s\n", optarg);
