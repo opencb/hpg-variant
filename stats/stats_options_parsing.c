@@ -13,39 +13,35 @@ int read_stats_configuration(const char *filename, stats_options_data_t *options
     
     // Read number of threads to perform the operations
     ret_code = config_lookup_int(config, "stats.max-batches", &(options_data->max_batches));
-    if (ret_code == CONFIG_FALSE)
-    {
-        LOG_ERROR_F("max-batches config error: %s\n", config_error_text(config));
-        return CANT_READ_CONFIG_FILE;
+    if (ret_code == CONFIG_FALSE) {
+        LOG_WARN("Maximum number of batches not found in config file, must be set via command-line");
+    } else {
+        LOG_INFO_F("max-batches = %ld\n", options_data->max_batches);
     }
-    LOG_INFO_F("max-batches = %ld\n", options_data->max_batches);
     
     // Read number of threads to perform the operations
     ret_code = config_lookup_int(config, "stats.batch-size", &(options_data->batch_size));
-    if (ret_code == CONFIG_FALSE)
-    {
-        LOG_ERROR_F("batch-size config error: %s\n", config_error_text(config));
-        return CANT_READ_CONFIG_FILE;
+    if (ret_code == CONFIG_FALSE) {
+        LOG_WARN("Batch size not found in config file, must be set via command-line");
+    } else {
+        LOG_INFO_F("batch-size = %ld\n", options_data->batch_size);
     }
-    LOG_INFO_F("batch-size = %ld\n", options_data->batch_size);
     
     // Read number of threads to perform the operations
     ret_code = config_lookup_int(config, "stats.num-threads", &(options_data->num_threads));
-    if (ret_code == CONFIG_FALSE)
-    {
-        LOG_ERROR_F("num-threads config error: %s\n", config_error_text(config));
-        return CANT_READ_CONFIG_FILE;
+    if (ret_code == CONFIG_FALSE) {
+        LOG_WARN("Number of threads not found in config file, must be set via command-line");
+    } else {
+        LOG_INFO_F("num-threads = %ld\n", options_data->num_threads);
     }
-    LOG_INFO_F("num-threads = %ld\n", options_data->num_threads);
     
     // Read number of variants each thread will handle
     ret_code = config_lookup_int(config, "stats.variants-per-threads", &(options_data->variants_per_thread));
-    if (ret_code == CONFIG_FALSE)
-    {
-        LOG_ERROR_F("variants-per-threads config error: %s\n", config_error_text(config));
-        return CANT_READ_CONFIG_FILE;
+    if (ret_code == CONFIG_FALSE) {
+        LOG_WARN("Number of variants per thread not found in config file, must be set via command-line");
+    } else {
+        LOG_INFO_F("variants-per-threads = %ld\n", options_data->variants_per_thread);
     }
-    LOG_INFO_F("variants-per-threads = %ld\n", options_data->variants_per_thread);
     
     config_destroy(config);
     free(config);

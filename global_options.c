@@ -39,12 +39,10 @@ int read_global_configuration(const char *filename, global_options_data_t *optio
     ret_code = config_lookup_string(config, "global.outdir", &tmp_string);
     if (ret_code == CONFIG_FALSE)
     {
-        LOG_ERROR_F("output directory config error: %s\n", config_error_text(config));
-        return CANT_READ_CONFIG_FILE;
+        LOG_WARN("Output directory not found in config file, must be set via command-line");
     } else {
         free(options_data->output_directory);
-        options_data->output_directory = (char*) calloc (strlen(tmp_string)+1, sizeof(char));
-        strncat(options_data->output_directory, tmp_string, strlen(tmp_string));
+        options_data->output_directory = strdup(tmp_string);
         LOG_DEBUG_F("output directory = %s (%zu chars)\n", options_data->output_directory, 
                 strlen(options_data->output_directory));
     }
