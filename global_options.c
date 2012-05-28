@@ -1,11 +1,12 @@
 #include "global_options.h"
 
-global_options_data_t *init_global_options_data(void)
+global_options_data_t *new_global_options_data(void)
 {
     global_options_data_t *options_data = (global_options_data_t*) malloc (sizeof(global_options_data_t));
     
-    options_data->output_directory = (char*) calloc (5, sizeof(char));
-    strncat(options_data->output_directory, "/tmp", 4);
+    options_data->output_directory = (char*) calloc (6, sizeof(char));
+    strncat(options_data->output_directory, "/tmp/", 5);
+    options_data->ped_filename = NULL;
     options_data->vcf_filename = NULL;
     options_data->output_filename = NULL;
     
@@ -14,6 +15,7 @@ global_options_data_t *init_global_options_data(void)
 
 void free_global_options_data(global_options_data_t *options_data)
 {
+//     if (options_data->ped_filename)     { free((void*) options_data->ped_filename); }
     if (options_data->vcf_filename)     { free((void*) options_data->vcf_filename); }
     if (options_data->output_directory) { free((void*) options_data->output_directory); }
     if (options_data->output_filename)  { free((void*) options_data->output_filename); }
@@ -30,8 +32,8 @@ int read_global_configuration(const char *filename, global_options_data_t *optio
     int ret_code = config_read_file(config, filename);
     if (ret_code == CONFIG_FALSE)
     {
-        fprintf(stderr, "config file error: %s\n", config_error_text(config));
-        return ret_code;
+        LOG_ERROR_F("config file error: %s\n", config_error_text(config));
+        return CANT_READ_CONFIG_FILE;
     }
     
     // Read output directory
@@ -39,8 +41,8 @@ int read_global_configuration(const char *filename, global_options_data_t *optio
     ret_code = config_lookup_string(config, "global.outdir", &tmp_string);
     if (ret_code == CONFIG_FALSE)
     {
-        fprintf(stderr, "output directory config error: %s\n", config_error_text(config));
-        return ret_code;
+        LOG_ERROR_F("output directory config error: %s\n", config_error_text(config));
+        return CANT_READ_CONFIG_FILE;
     } else {
         free(options_data->output_directory);
         options_data->output_directory = (char*) calloc (strlen(tmp_string)+1, sizeof(char));
@@ -62,25 +64,31 @@ int parse_global_options(int argc, char *argv[], global_options_data_t *options_
     int last_opt_index = optind = start_index;
     
     LOG_DEBUG("Parsing global options...\n");
-    while (!finished && (c = getopt_long (argc, argv, ":A:O:", global_options, &optind)) != 1)
+    while (!finished && (c = getopt_long (argc, argv, "A:E:N:O:", global_options, &optind)) != 1)
     {
         switch (c)
         {
             case 'A':
-                options_data->vcf_filename = (char*) malloc((strlen(optarg)+1) * sizeof(char));
-                strcpy(options_data->vcf_filename, optarg);
+                options_data->vcf_filename = (char*) calloc(strlen(optarg)+1, sizeof(char));
+                strncat(options_data->vcf_filename, optarg, strlen(optarg));
                 last_opt_index = optind;
                 LOG_INFO_F("input vcf filename = %s\n", options_data->vcf_filename);
                 break;
+            case 'E':
+                options_data->ped_filename = (char*) calloc(strlen(optarg)+1, sizeof(char));
+                strncat(options_data->ped_filename, optarg, strlen(optarg));
+                last_opt_index = optind;
+                LOG_INFO_F("input ped filename = %s\n", options_data->ped_filename);
+                break;
             case 'N':
-                options_data->output_directory = (char*) malloc((strlen(optarg)+1) * sizeof(char));
-                strcpy(options_data->output_directory, optarg);
+                options_data->output_directory = (char*) calloc(strlen(optarg)+1, sizeof(char));
+                strncat(options_data->output_directory, optarg, strlen(optarg));
                 last_opt_index = optind;
                 LOG_INFO_F("output directory = %s\n", options_data->output_directory);
                 break;
             case 'O':
-                options_data->output_filename = (char*) malloc((strlen(optarg)+1) * sizeof(char));
-                strcpy(options_data->output_filename, optarg);
+                options_data->output_filename = (char*) calloc(strlen(optarg)+1, sizeof(char));
+                strncat(options_data->output_filename, optarg, strlen(optarg));
                 last_opt_index = optind;
                 LOG_INFO_F("output filename template = %s\n", options_data->output_filename);
                 break;
