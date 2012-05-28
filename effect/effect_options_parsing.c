@@ -102,12 +102,9 @@ void parse_effect_options(int argc, char *argv[], effect_options_data_t *options
     // Last option read, for when the global options parser is invoked
     int previous_opt_index = optind;
 
-    int debug = 1;
-    while ((c = getopt_long (argc, argv, "A:N:O:e:f:n:p:r:s:u:v:", options, &optind)) != -1)
-    {
+    while ((c = getopt_long (argc, argv, "A:N:O:e:f:n:p:r:s:u:v:", options, &optind)) != -1) {
         LOG_DEBUG_F("<main> c = %c, opt_idx = %d\n", c, optind);
-        switch (c)
-        {
+        switch (c) {
             case 'A':
             case 'N':
             case 'O':
@@ -192,8 +189,7 @@ void parse_effect_options(int argc, char *argv[], effect_options_data_t *options
 }
 
 
-int verify_effect_options(global_options_data_t *global_options_data, effect_options_data_t *options_data)
-{
+int verify_effect_options(global_options_data_t *global_options_data, effect_options_data_t *options_data) {
     // Check whether the input VCF file is defined
     if (global_options_data->vcf_filename == NULL || strlen(global_options_data->vcf_filename) == 0) {
         LOG_ERROR("Please specify the input VCF file.\n");
