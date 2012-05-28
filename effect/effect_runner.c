@@ -4,13 +4,20 @@
 static cp_hashtable *output_files = NULL;
 static FILE *all_variants_file = NULL;
 static FILE *summary_file = NULL;
-// Consequence type counters (for summary, must be kept between function calls)
+
+// Lines of the output data in the main .txt files
+static list_t *output_list;
+// Consequence type counters (for summary, must be kept between web service calls)
 static cp_hashtable *summary_count = NULL;
+// Gene list (for genes-with-variants, must be kept between web service calls)
+static cp_list *gene_list = NULL;
 
 // Line buffers and their maximum size (one per thread)
 static char **line;
 static char **output_line;
 static int *max_line_size;
+
+static int *gene_columns;
 
 // Output directory (non-accessible directly from CURL callback function)
 static char *output_directory;
@@ -18,13 +25,10 @@ static size_t output_directory_len;
 
 static int batch_num;
 
-static list_t *output_list;
 
 int run_effect(char *url, global_options_data_t *global_options_data, effect_options_data_t *options_data) {
     list_t *read_list = (list_t*) malloc(sizeof(list_t));
     list_init("batches", 1, options_data->max_batches, read_list);
-    output_list = (list_t*) malloc (sizeof(list_t));
-    list_init("output", options_data->num_threads, MIN(10, options_data->max_batches) * options_data->batch_size, output_list);
 
     int ret_code = 0;
     double start, stop, total;
@@ -54,7 +58,8 @@ int run_effect(char *url, global_options_data_t *global_options_data, effect_opt
     }
     
     // Initialize collections of file descriptors and summary counters
-    ret_code = initialize_ws_output(options_data->num_threads, global_options_data->output_directory);
+//     ret_code = initialize_ws_output(options_data->num_threads, global_options_data->output_directory);
+    ret_code = initialize_ws_output(global_options_data, options_data);
     if (ret_code != 0) {
         return ret_code;
     }
@@ -266,6 +271,7 @@ int run_effect(char *url, global_options_data_t *global_options_data, effect_opt
     }
 
     write_summary_file();
+    write_genes_with_variants_file();
     write_result_file(global_options_data, options_data);
 
     ret_code = free_ws_output(options_data->num_threads);
@@ -355,7 +361,7 @@ int invoke_effect_ws(const char *url, list_item_t *first_item, int max_chunk_siz
         alternate_len = strlen(record->alternate);
         new_len_range = current_index + chr_len + reference_len + alternate_len + 32;
         
-        LOG_INFO_F("%s:%lu:%s:%s\n", record->chromosome, record->position, record->reference, record->alternate);
+        LOG_DEBUG_F("%s:%lu:%s:%s\n", record->chromosome, record->position, record->reference, record->alternate);
         
         // Reallocate memory if next record won't fit
         if (variants_len < (current_index + new_len_range)) {
@@ -460,25 +466,33 @@ static size_t write_effect_ws_results(char *contents, size_t size, size_t nmemb,
      
         LOG_DEBUG_F("[%d] copy to buffer (%zu)\n", tid, strlen(line[tid]));
     
+        int num_substrings;
+        char **split_result = split(strdup(line[tid]), "\t", &num_substrings);
+        
         // Find consequence type name (always after SO field)
         *SO_found = 0;
-        tmp_consequence_type = strtok_r(line[tid], "\t", &aux_buffer);
-        LOG_DEBUG_F("[%d] after strtok #1.1 = %s, %s\n", tid, tmp_consequence_type, aux_buffer);
-        while (!*SO_found) {
-            tmp_consequence_type = strtok_r(NULL, "\t", &aux_buffer);
-            LOG_DEBUG_F("[%d] after strtok #1.2 = %s, %s\n", tid, tmp_consequence_type, aux_buffer);
-            if (starts_with(tmp_consequence_type, "SO:")) {
-                *SO_found = atoi(tmp_consequence_type + 3);
-                break;
-            }
-        }
-        if (!*SO_found) { // SO:000000 is not valid
-            LOG_INFO_F("[%d] Non-valid SO found (0)\n", tid);
+        if (num_substrings == 25) {
+            LOG_DEBUG_F("gene = %s\tSO = %d\tCT = %s\n", split_result[17], atoi(split_result[18] + 3), split_result[19]);
+            cp_list_insert(gene_list, strdup(split_result[17]));
+            *SO_found = atoi(split_result[18] + 3);
+            tmp_consequence_type = split_result[19];
+        } else {
+            LOG_INFO_F("[%d] Non-valid line found\n", tid);
+            memset(line[tid], 0, strlen(line[tid]));
+            memset(output_line[tid], 0, strlen(output_line[tid]));
             continue;
-        }   
+        }
+        
+        free(split_result);
+        
+        if (!*SO_found) { // SO:000000 is not valid
+            LOG_DEBUG_F("[%d] Non-valid SO found (0)\n", tid);
+            memset(line[tid], 0, strlen(line[tid]));
+            memset(output_line[tid], 0, strlen(output_line[tid]));
+            continue;
+        }
 
         LOG_DEBUG_F("[%d] SO found = %d\n", tid, *SO_found);
-        tmp_consequence_type = strtok_r(NULL, "\t", &aux_buffer);
         size_t consequence_type_len = strlen(tmp_consequence_type);
      
         // If file does not exist, create its descriptor and summary counter
@@ -513,8 +527,9 @@ static size_t write_effect_ws_results(char *contents, size_t size, size_t nmemb,
                 // TODO move critical one level below?
                 count = (int*) cp_hashtable_get(summary_count, tmp_consequence_type);
                 if (count == NULL) {
-                    char *consequence_type = (char*) calloc (consequence_type_len+1, sizeof(char));
-                    strncat(consequence_type, tmp_consequence_type, consequence_type_len);
+                    char *consequence_type = strdup(tmp_consequence_type);
+//                     char *consequence_type = (char*) calloc (consequence_type_len+1, sizeof(char));
+//                     strncat(consequence_type, tmp_consequence_type, consequence_type_len);
                     assert(strcmp(consequence_type, tmp_consequence_type) == 0);
                     count = (int*) malloc (sizeof(int));
                     *count = 0;
@@ -526,8 +541,7 @@ static size_t write_effect_ws_results(char *contents, size_t size, size_t nmemb,
             }
             
             LOG_DEBUG_F("[%d] before writing %s\n", tid, tmp_consequence_type);
-            output_text = (char*) calloc (strlen(output_line[tid]) + 1, sizeof(char));
-            strncat(output_text, output_line[tid], strlen(output_line[tid]));
+            output_text = strdup(output_line[tid]);
             list_item_t *output_item = list_item_new(tid, *SO_found, output_text);
             list_insert_item(output_item, output_list);
             LOG_DEBUG_F("[%d] after writing %s\n", tid, tmp_consequence_type);
@@ -566,13 +580,36 @@ void write_summary_file(void) {
      free(keys);
 }
 
+void write_genes_with_variants_file() {
+    char filename[] = "genes_with_variants.txt";
+    FILE *file = NULL;
+    char *aux_buffer;
+    
+    // Create genes file
+    aux_buffer = (char*) calloc (output_directory_len + strlen(filename) + 1, sizeof(char));
+    strncat(aux_buffer, output_directory, output_directory_len);
+    strncat(aux_buffer, filename, strlen(filename));
+    file = fopen(aux_buffer, "w");
+    free(aux_buffer);
+    
+    cp_list_iterator *genes_iterator = cp_list_create_iterator(gene_list, COLLECTION_LOCK_READ);
+    
+    while ((aux_buffer = cp_list_iterator_next(genes_iterator)) != NULL) {
+        fprintf(file, "%s\n", aux_buffer);
+    }
+    
+    fclose(file);
+    cp_list_iterator_destroy(genes_iterator);
+}
+
+
 void write_result_file(global_options_data_t *global_options_data, effect_options_data_t *options_data) {
     char *aux_buffer;
     result_file_t *result_file = NULL;
     
     // Create result file
     aux_buffer = (char*) calloc (output_directory_len + strlen("result.xml") + 1, sizeof(char));
-    strncat(aux_buffer, global_options_data->output_directory, output_directory_len);
+    strncat(aux_buffer, output_directory, output_directory_len);
     strncat(aux_buffer, "result.xml", strlen("result.xml"));
     result_file = result_file_new("v0.7", aux_buffer);
     
@@ -664,8 +701,15 @@ void write_result_file(global_options_data_t *global_options_data, effect_option
 }
 
 
-int initialize_ws_output(int num_threads, char *outdir) {
-    // Initialize collections of file descriptors and summary counters
+int initialize_ws_output(global_options_data_t *global_options_data, effect_options_data_t *options_data){//, int num_threads, char *outdir) {
+    int num_threads = options_data->num_threads;
+    char *outdir = global_options_data->output_directory;
+    
+    // Initialize output text list
+    output_list = (list_t*) malloc (sizeof(list_t));
+    list_init("output", options_data->num_threads, options_data->max_batches * options_data->batch_size, output_list);
+    
+    // Initialize collections of file descriptors
     output_files = cp_hashtable_create_by_option(COLLECTION_MODE_DEEP,
                                                  50,
                                                  cp_hash_int,
@@ -674,15 +718,6 @@ int initialize_ws_output(int num_threads, char *outdir) {
                                                  (cp_destructor_fn) free_file_key1,
                                                  NULL,
                                                  (cp_destructor_fn) free_file_descriptor
-                                                );
-    summary_count = cp_hashtable_create_by_option(COLLECTION_MODE_DEEP,
-                                                 50,
-                                                 cp_hash_istring,
-                                                 (cp_compare_fn) strcasecmp,
-                                                 NULL,
-                                                 (cp_destructor_fn) free_file_key2,
-                                                 NULL,
-                                                 (cp_destructor_fn) free_summary_counter
                                                 );
     
     char *all_variants_filename = (char*) calloc ((strlen(outdir) + 17), sizeof(char));
@@ -711,24 +746,41 @@ int initialize_ws_output(int num_threads, char *outdir) {
     strncat(key, "summary", 7);
     cp_hashtable_put(output_files, key, summary_file);
     
+    // Initialize summary counters and genes list
+    summary_count = cp_hashtable_create_by_option(COLLECTION_MODE_DEEP,
+                                                 50,
+                                                 cp_hash_istring,
+                                                 (cp_compare_fn) strcasecmp,
+                                                 NULL,
+                                                 (cp_destructor_fn) free_file_key2,
+                                                 NULL,
+                                                 (cp_destructor_fn) free_summary_counter
+                                                );
+    gene_list = cp_list_create_list(0, 
+                                    (cp_compare_fn) strcasecmp, 
+                                    NULL, NULL
+                                   );
+    
     // Create a buffer for each thread
     line = (char**) calloc (num_threads, sizeof(char*));
     output_line = (char**) calloc (num_threads, sizeof(char*));
     max_line_size = (int*) calloc (num_threads, sizeof(int));
+    gene_columns = (int*) calloc (num_threads, sizeof(int));
     
     for (int i = 0; i < num_threads; i++) {
         max_line_size[i] = 512;
         line[i] = (char*) calloc (max_line_size[i], sizeof(char));
         output_line[i] = (char*) calloc (max_line_size[i], sizeof(char));
     }
-                    
+         
     return 0;
 }
 
 int free_ws_output(int num_threads) {
-    // Free file descriptors and summary counters
+    // Free file descriptors, summary counters and gene list
     cp_hashtable_destroy(output_files);
     cp_hashtable_destroy(summary_count);
+    cp_list_destroy(gene_list);
     
     // Free line buffers
     for (int i = 0; i < num_threads; i++) {
