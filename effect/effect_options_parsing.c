@@ -9,7 +9,7 @@ int read_effect_configuration(const char *filename, effect_options_data_t *optio
     config_t *config = (config_t*) calloc (1, sizeof(config_t));
     int ret_code = config_read_file(config, filename);
     if (ret_code == CONFIG_FALSE) {
-        fprintf(stderr, "config file error: %s\n", config_error_text(config));
+        LOG_ERROR_F("Configuration file error: %s\n", config_error_text(config));
         return CANT_READ_CONFIG_FILE;
     }
 
@@ -18,74 +18,64 @@ int read_effect_configuration(const char *filename, effect_options_data_t *optio
     // Read URL
     ret_code = config_lookup_string(config, "effect.url", &tmp_url);
     if (ret_code == CONFIG_FALSE) {
-        LOG_ERROR_F("url config error: %s\n", config_error_text(config));
-        return CANT_READ_CONFIG_FILE;
+        LOG_WARN("URL not found in config file, must be set via command-line");
     } else {
         free(options_data->host_url);
         options_data->host_url = strdup(tmp_url);
-//         options_data->host_url = (char*) calloc (strlen(tmp_url)+1, sizeof(char));
-//         strncat(options_data->host_url, tmp_url, strlen(tmp_url));
         LOG_INFO_F("URL = %s (%zu chars)\n", options_data->host_url, strlen(options_data->host_url));
     }
 
     // Read version
     ret_code = config_lookup_string(config, "effect.version", &tmp_version);
     if (ret_code == CONFIG_FALSE) {
-        LOG_ERROR_F("version config error: %s\n", config_error_text(config));
-        return CANT_READ_CONFIG_FILE;
+        LOG_WARN("Version not found in config file, must be set via command-line");
     } else {
         free(options_data->version);
         options_data->version = strdup(tmp_version);
-//         options_data->version = (char*) calloc (strlen(tmp_version)+1, sizeof(char));
-//         strncat(options_data->version, tmp_version, strlen(tmp_version));
         LOG_INFO_F("version = %s (%zu chars)\n", options_data->version, strlen(options_data->version));
     }
 
     // Read species
     ret_code = config_lookup_string(config, "effect.species", &tmp_species);
     if (ret_code == CONFIG_FALSE) {
-        LOG_ERROR_F("species config error: %s\n", config_error_text(config));
-        return CANT_READ_CONFIG_FILE;
+        LOG_WARN("Species not found in config file, must be set via command-line");
     } else {
         free(options_data->species);
         options_data->species = strdup(tmp_species);
-//         options_data->species = (char*) calloc (strlen(tmp_species)+1, sizeof(char));
-//         strncat(options_data->species, tmp_species, strlen(tmp_species));
         LOG_INFO_F("species = %s (%zu chars)\n", options_data->species, strlen(options_data->species));
     }
 
     // Read number of threads that will make request to the web service
     ret_code = config_lookup_int(config, "effect.num-threads", &(options_data->num_threads));
     if (ret_code == CONFIG_FALSE) {
-        LOG_ERROR_F("num-threads config error: %s\n", config_error_text(config));
-        return CANT_READ_CONFIG_FILE;
+        LOG_WARN("Number of threads not found in config file, must be set via command-line");
+    } else {
+        LOG_INFO_F("num-threads = %ld\n", options_data->num_threads);
     }
-    LOG_INFO_F("num-threads = %ld\n", options_data->num_threads);
 
     // Read maximum number of batches that can be stored at certain moment
     ret_code = config_lookup_int(config, "effect.max-batches", &(options_data->max_batches));
     if (ret_code == CONFIG_FALSE) {
-        LOG_ERROR_F("max-batches config error: %s\n", config_error_text(config));
-        return CANT_READ_CONFIG_FILE;
+        LOG_WARN("Maximum number of batches not found in config file, must be set via command-line");
+    } else {
+        LOG_INFO_F("max-batches = %ld\n", options_data->max_batches);
     }
-    LOG_INFO_F("max-batches = %ld\n", options_data->max_batches);
     
     // Read size of every batch read
     ret_code = config_lookup_int(config, "effect.batch-size", &(options_data->batch_size));
     if (ret_code == CONFIG_FALSE) {
-        LOG_ERROR_F("batch-size config error: %s\n", config_error_text(config));
-        return CANT_READ_CONFIG_FILE;
+        LOG_WARN("Batch size not found in config file, must be set via command-line");
+    } else {
+        LOG_INFO_F("batch-size = %ld\n", options_data->batch_size);
     }
-    LOG_INFO_F("batch-size = %ld\n", options_data->batch_size);
     
     // Read number of variants per request to the web service
     ret_code = config_lookup_int(config, "effect.variants-per-request", &(options_data->variants_per_request));
-    if (ret_code == CONFIG_FALSE)
-    {
-        LOG_ERROR_F("variants-per-request config error: %s\n", config_error_text(config));
-        return CANT_READ_CONFIG_FILE;
+    if (ret_code == CONFIG_FALSE) {
+        LOG_WARN("Variants per request not found in config file, must be set via command-line");
+    } else {
+        LOG_INFO_F("variants-per-request = %ld\n", options_data->variants_per_request);
     }
-    LOG_INFO_F("variants-per-request = %ld\n", options_data->variants_per_request);
 
     config_destroy(config);
     free(config);
@@ -127,22 +117,18 @@ void parse_effect_options(int argc, char *argv[], effect_options_data_t *options
                 break;
             case 'n':
                 tmp_int_field = atoi(optarg);
-                if (!tmp_int_field)
-                {
+                if (!tmp_int_field) {
                     LOG_WARN_F("The requested number of threads is not valid (%s)\n", optarg);
-                } else
-                {
+                } else {
                     options_data->num_threads = tmp_int_field;
                 }
                 LOG_INFO_F("num-threads = %ld\n", options_data->num_threads);
                 break;
             case 'p':
                 tmp_int_field = atoi(optarg);
-                if (!tmp_int_field)
-                {
+                if (!tmp_int_field) {
                     LOG_WARN_F("The requested number of variants per request is not valid (%s)\n", optarg);
-                } else
-                {
+                } else {
                     options_data->variants_per_request = tmp_int_field;
                 }
                 LOG_INFO_F("variants-per-request = %ld\n", options_data->variants_per_request);
