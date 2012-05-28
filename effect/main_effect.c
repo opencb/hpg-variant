@@ -8,7 +8,7 @@ int effect(int argc, char *argv[]) {
         * 	    Modifiable options	    *
         * ******************************/
 
-    global_options_data_t *global_options_data = init_global_options_data();
+    global_options_data_t *global_options_data = new_global_options_data();
     effect_options_data_t *options_data = init_options_data();
 
 
@@ -17,9 +17,13 @@ int effect(int argc, char *argv[]) {
         * ******************************/
 
     // Step 1: read options from configuration file
-    int config_read = read_global_configuration("hpg-variant.cfg", global_options_data);
-    config_read &= read_effect_configuration("hpg-variant.cfg", options_data);
-    LOG_INFO_F("Config read successfully = %d\n", config_read);
+    int config_errors = read_global_configuration("hpg-variant.cfg", global_options_data);
+    config_errors &= read_effect_configuration("hpg-variant.cfg", options_data);
+    LOG_INFO_F("Config read with errors = %d\n", config_errors);
+    
+    if (config_errors) {
+        return CANT_READ_CONFIG_FILE;
+    }
 
     // Step 2: parse command-line options
     parse_effect_options(argc, argv, options_data, global_options_data);
@@ -45,7 +49,7 @@ int effect(int argc, char *argv[]) {
     char *url = compose_effect_ws_request(options_data);
 
     // Step 5: Execute request and manage its response (as CURL request callback function)
-    int result = execute_effect_query(url, global_options_data, options_data);
+    int result = run_effect(url, global_options_data, options_data);
 
     free(url);
     free_options_data(options_data);

@@ -14,6 +14,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 
 #include <cprops/hashtable.h>
 #include <curl/curl.h>
@@ -23,6 +24,7 @@
 #include <http_utils.h>
 #include <list.h>
 #include <log.h>
+#include <result.h>
 #include <string_utils.h>
 #include <vcf_batch.h>
 #include <vcf_file.h>
@@ -31,6 +33,7 @@
 
 #include "effect.h"
 #include "error.h"
+#include "hpg_variant_utils.h"
 #include "main.h"
 
 #define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
@@ -49,7 +52,7 @@
  * processed and a file for the entries associated to each consequence type is created. There is 
  * also a summary file which contains the number of entries for each of these consequence types.
  */
-int execute_effect_query(char *url, global_options_data_t *global_options_data, effect_options_data_t *options_data);
+int run_effect(char *url, global_options_data_t *global_options_data, effect_options_data_t *options_data);
 
 
 /* **********************************************
@@ -64,18 +67,6 @@ int execute_effect_query(char *url, global_options_data_t *global_options_data, 
  * Given a list of arguments, compounds a URL to invoke a web service.
  */
 char *compose_effect_ws_request(effect_options_data_t *options_data);
-
-/**
- * @brief Given a list of records, defines the chunks to be send to the web service
- * @param records list of records to separate in chunks
- * @param max_chunk_size maximum size of a chunk
- * @param[out] num_chunks number of chunks created
- * @return The list of chunks
- * 
- * Given a list of records, defines another list of chunks whose elements point to records separated 
- * by a maximum distance of max_chunk_size. These records will mark the beginning of each chunk.
- */
-list_item_t **create_chunks(list_t *records, int max_chunk_size, int *num_chunks);
 
 /**
  * @brief Invokes the effect web service for a list of regions.
@@ -111,6 +102,8 @@ static size_t write_effect_ws_results(char *contents, size_t size, size_t nmemb,
  * Writes a summary file containing the number of entries for each of the consequence types processed.
  */
 void write_summary_file(void);
+
+void write_result_file(global_options_data_t *global_options_data, effect_options_data_t *options_data);
 
 /**
  * @param num_threads the number of threads that parse the response
