@@ -17,6 +17,7 @@
 #include <time.h>
 
 #include <cprops/hashtable.h>
+#include <cprops/linked_list.h>
 #include <curl/curl.h>
 #include <omp.h>
 
@@ -103,6 +104,15 @@ static size_t write_effect_ws_results(char *contents, size_t size, size_t nmemb,
  */
 void write_summary_file(void);
 
+/**
+ * Writes a file containing the list of genes with any variant taking place in them.
+ */
+void write_genes_with_variants_file();
+
+/**
+ * Writes an XML file containing the process input and output files, as well as some metadata about the 
+ * process.
+ */
 void write_result_file(global_options_data_t *global_options_data, effect_options_data_t *options_data);
 
 /**
@@ -112,7 +122,8 @@ void write_result_file(global_options_data_t *global_options_data, effect_option
  * 
  * Initialize the structures for storing the web service response and writing it to the output files.
  */
-int initialize_ws_output(int num_threads, char *output_directory);
+int initialize_ws_output(global_options_data_t *global_options_data, effect_options_data_t *options_data);
+// int initialize_ws_output(int num_threads, char *output_directory);
 
 /**
  * @param num_threads the number of threads that parsed the response

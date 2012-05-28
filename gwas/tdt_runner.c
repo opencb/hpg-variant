@@ -6,7 +6,7 @@ int run_tdt_test(global_options_data_t* global_options_data, gwas_options_data_t
     list_t *read_list = (list_t*) malloc(sizeof(list_t));
     list_init("batches", 1, options_data->max_batches, read_list);
     list_t *output_list = (list_t*) malloc (sizeof(list_t));
-    list_init("output", options_data->num_threads, MIN(10, options_data->max_batches) * options_data->batch_size, output_list);
+    list_init("output", options_data->num_threads, options_data->max_batches * options_data->batch_size, output_list);
 
     int ret_code = 0;
     double start, stop, total;
