@@ -9,33 +9,33 @@ int read_gwas_configuration(const char *filename, gwas_options_data_t *options_d
     config_t *config = (config_t*) calloc (1, sizeof(config_t));
     int ret_code = config_read_file(config, filename);
     if (ret_code == CONFIG_FALSE) {
-        fprintf(stderr, "config file error: %s\n", config_error_text(config));
+        LOG_ERROR_F("Configuration file error: %s\n", config_error_text(config));
         return CANT_READ_CONFIG_FILE;
     }
 
     // Read number of threads that will make request to the web service
     ret_code = config_lookup_int(config, "gwas.num-threads", &(options_data->num_threads));
     if (ret_code == CONFIG_FALSE) {
-        LOG_ERROR_F("num-threads config error: %s\n", config_error_text(config));
-        return CANT_READ_CONFIG_FILE;
+        LOG_WARN("Number of threads not found in config file, must be set via command-line");
+    } else {
+        LOG_INFO_F("num-threads = %ld\n", options_data->num_threads);
     }
-    LOG_INFO_F("num-threads = %ld\n", options_data->num_threads);
 
     // Read maximum number of batches that can be stored at certain moment
     ret_code = config_lookup_int(config, "gwas.max-batches", &(options_data->max_batches));
     if (ret_code == CONFIG_FALSE) {
-        LOG_ERROR_F("max-batches config error: %s\n", config_error_text(config));
-        return CANT_READ_CONFIG_FILE;
+        LOG_WARN("Maximum number of batches not found in config file, must be set via command-line");
+    } else {
+        LOG_INFO_F("max-batches = %ld\n", options_data->max_batches);
     }
-    LOG_INFO_F("max-batches = %ld\n", options_data->max_batches);
     
     // Read size of every batch read
     ret_code = config_lookup_int(config, "gwas.batch-size", &(options_data->batch_size));
     if (ret_code == CONFIG_FALSE) {
-        LOG_ERROR_F("batch-size config error: %s\n", config_error_text(config));
-        return CANT_READ_CONFIG_FILE;
+        LOG_WARN("Batch size not found in config file, must be set via command-line");
+    } else {
+        LOG_INFO_F("batch-size = %ld\n", options_data->batch_size);
     }
-    LOG_INFO_F("batch-size = %ld\n", options_data->batch_size);
     
     config_destroy(config);
     free(config);
