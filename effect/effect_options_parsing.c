@@ -10,7 +10,7 @@ int read_effect_configuration(const char *filename, effect_options_data_t *optio
     int ret_code = config_read_file(config, filename);
     if (ret_code == CONFIG_FALSE) {
         fprintf(stderr, "config file error: %s\n", config_error_text(config));
-        return ret_code;
+        return CANT_READ_CONFIG_FILE;
     }
 
     const char *tmp_url, *tmp_version, *tmp_species;
@@ -19,7 +19,7 @@ int read_effect_configuration(const char *filename, effect_options_data_t *optio
     ret_code = config_lookup_string(config, "effect.url", &tmp_url);
     if (ret_code == CONFIG_FALSE) {
         LOG_ERROR_F("url config error: %s\n", config_error_text(config));
-        return ret_code;
+        return CANT_READ_CONFIG_FILE;
     } else {
         free(options_data->host_url);
         options_data->host_url = (char*) calloc (strlen(tmp_url)+1, sizeof(char));
@@ -31,7 +31,7 @@ int read_effect_configuration(const char *filename, effect_options_data_t *optio
     ret_code = config_lookup_string(config, "effect.version", &tmp_version);
     if (ret_code == CONFIG_FALSE) {
         LOG_ERROR_F("version config error: %s\n", config_error_text(config));
-        return ret_code;
+        return CANT_READ_CONFIG_FILE;
     } else {
         free(options_data->version);
         options_data->version = (char*) calloc (strlen(tmp_version)+1, sizeof(char));
@@ -43,7 +43,7 @@ int read_effect_configuration(const char *filename, effect_options_data_t *optio
     ret_code = config_lookup_string(config, "effect.species", &tmp_species);
     if (ret_code == CONFIG_FALSE) {
         LOG_ERROR_F("species config error: %s\n", config_error_text(config));
-        return ret_code;
+        return CANT_READ_CONFIG_FILE;
     } else {
         free(options_data->species);
         options_data->species = (char*) calloc (strlen(tmp_species)+1, sizeof(char));
@@ -55,7 +55,7 @@ int read_effect_configuration(const char *filename, effect_options_data_t *optio
     ret_code = config_lookup_int(config, "effect.num-threads", &(options_data->num_threads));
     if (ret_code == CONFIG_FALSE) {
         LOG_ERROR_F("num-threads config error: %s\n", config_error_text(config));
-        return ret_code;
+        return CANT_READ_CONFIG_FILE;
     }
     LOG_INFO_F("num-threads = %ld\n", options_data->num_threads);
 
@@ -63,7 +63,7 @@ int read_effect_configuration(const char *filename, effect_options_data_t *optio
     ret_code = config_lookup_int(config, "effect.max-batches", &(options_data->max_batches));
     if (ret_code == CONFIG_FALSE) {
         LOG_ERROR_F("max-batches config error: %s\n", config_error_text(config));
-        return ret_code;
+        return CANT_READ_CONFIG_FILE;
     }
     LOG_INFO_F("max-batches = %ld\n", options_data->max_batches);
     
@@ -71,7 +71,7 @@ int read_effect_configuration(const char *filename, effect_options_data_t *optio
     ret_code = config_lookup_int(config, "effect.batch-size", &(options_data->batch_size));
     if (ret_code == CONFIG_FALSE) {
         LOG_ERROR_F("batch-size config error: %s\n", config_error_text(config));
-        return ret_code;
+        return CANT_READ_CONFIG_FILE;
     }
     LOG_INFO_F("batch-size = %ld\n", options_data->batch_size);
     
@@ -80,14 +80,14 @@ int read_effect_configuration(const char *filename, effect_options_data_t *optio
     if (ret_code == CONFIG_FALSE)
     {
         LOG_ERROR_F("variants-per-request config error: %s\n", config_error_text(config));
-        return ret_code;
+        return CANT_READ_CONFIG_FILE;
     }
     LOG_INFO_F("variants-per-request = %ld\n", options_data->variants_per_request);
 
     config_destroy(config);
     free(config);
 
-    return ret_code;
+    return 0;
 }
 
 
@@ -103,23 +103,24 @@ void parse_effect_options(int argc, char *argv[], effect_options_data_t *options
     int previous_opt_index = optind;
 
     int debug = 1;
-    while ((c = getopt_long (argc, argv, ":A:O:e:n:s:u:", options, &optind)) != -1)
+    while ((c = getopt_long (argc, argv, "A:N:O:e:f:n:p:r:s:u:v:", options, &optind)) != -1)
     {
         LOG_DEBUG_F("<main> c = %c, opt_idx = %d\n", c, optind);
         switch (c)
         {
             case 'A':
+            case 'N':
             case 'O':
                 optind = parse_global_options(argc, argv, global_options_data, previous_opt_index);
                 break;
             case 'e':
-                options_data->excludes = (char*) malloc((strlen(optarg)+1) * sizeof(char));
-                strcpy(options_data->excludes, optarg);
+                options_data->excludes = (char*) calloc(strlen(optarg)+1, sizeof(char));
+                strcat(options_data->excludes, optarg);
                 LOG_INFO_F("exclude = %s\n", options_data->excludes);
                 break;
             case 'f':
-                tmp_string_field = (char*) malloc((strlen(optarg)+1) * sizeof(char));
-                strcpy(tmp_string_field, optarg);
+                tmp_string_field = (char*) calloc(strlen(optarg)+1, sizeof(char));
+                strcat(tmp_string_field, optarg);
                 filter = create_region_exact_filter(tmp_string_field, 1);
                 options_data->chain = add_to_filter_chain(filter, options_data->chain);
                 LOG_INFO_F("regions file = %s\n", optarg);
@@ -147,7 +148,7 @@ void parse_effect_options(int argc, char *argv[], effect_options_data_t *options
                 LOG_INFO_F("variants-per-request = %ld\n", options_data->variants_per_request);
                 break;
             case 'r':
-                tmp_string_field = (char*) calloc((strlen(optarg)+1), sizeof(char));
+                tmp_string_field = (char*) calloc(strlen(optarg)+1, sizeof(char));
                 strcat(tmp_string_field, optarg);
                 filter = create_region_exact_filter(tmp_string_field, 0);
                 options_data->chain = add_to_filter_chain(filter, options_data->chain);
@@ -156,24 +157,24 @@ void parse_effect_options(int argc, char *argv[], effect_options_data_t *options
                 break;
             case 's':
                 // options_data->species is const char*, so it must be freed and reassigned
-                tmp_string_field = (char*) malloc((strlen(optarg)+1) * sizeof(char));
-                strcpy(tmp_string_field, optarg);
+                tmp_string_field = (char*) calloc(strlen(optarg)+1, sizeof(char));
+                strcat(tmp_string_field, optarg);
                 free((void*) options_data->species);
                 options_data->species = tmp_string_field;
                 LOG_INFO_F("species = %s\n", options_data->species);
                 break;
             case 'u':
                 // options_data->url is const char*, so it must be freed and reassigned
-                tmp_string_field = (char*) malloc((strlen(optarg)+1) * sizeof(char));
-                strcpy(tmp_string_field, optarg);
+                tmp_string_field = (char*) calloc(strlen(optarg)+1, sizeof(char));
+                strcat(tmp_string_field, optarg);
                 free((void*) options_data->host_url);
                 options_data->host_url = tmp_string_field;
                 LOG_INFO_F("host url = %s\n", options_data->host_url);
                 break;
             case 'v':
                 // options_data->version is const char*, so it must be freed and reassigned
-                tmp_string_field = (char*) malloc((strlen(optarg)+1) * sizeof(char));
-                strcpy(tmp_string_field, optarg);
+                tmp_string_field = (char*) calloc(strlen(optarg)+1, sizeof(char));
+                strcat(tmp_string_field, optarg);
                 free((void*) options_data->version);
                 options_data->version = tmp_string_field;
                 LOG_INFO_F("version = %s\n", options_data->version);
@@ -195,25 +196,25 @@ int verify_effect_options(global_options_data_t *global_options_data, effect_opt
 {
     // Check whether the input VCF file is defined
     if (global_options_data->vcf_filename == NULL || strlen(global_options_data->vcf_filename) == 0) {
-        LOG_WARN("Please specify the input VCF file.\n");
+        LOG_ERROR("Please specify the input VCF file.\n");
         return VCF_FILE_NOT_SPECIFIED;
     }
     
     // Check whether the host URL is defined
     if (options_data->host_url == NULL || strlen(options_data->host_url) == 0) {
-        LOG_WARN("Please specify the host URL to the web service.\n");
+        LOG_ERROR("Please specify the host URL to the web service.\n");
         return EFFECT_HOST_URL_NOT_SPECIFIED;
     }
 
     // Check whether the version is defined
     if (options_data->version == NULL || strlen(options_data->version) == 0) {
-        LOG_WARN("Please specify the version.\n");
+        LOG_ERROR("Please specify the version.\n");
         return EFFECT_VERSION_NOT_SPECIFIED;
     }
 
     // Check whether the species is defined
     if (options_data->species == NULL || strlen(options_data->species) == 0) {
-        LOG_WARN("Please specify the species to take as reference.\n");
+        LOG_ERROR("Please specify the species to take as reference.\n");
         return EFFECT_SPECIES_NOT_SPECIFIED;
     }
 
