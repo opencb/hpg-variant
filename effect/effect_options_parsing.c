@@ -22,8 +22,9 @@ int read_effect_configuration(const char *filename, effect_options_data_t *optio
         return CANT_READ_CONFIG_FILE;
     } else {
         free(options_data->host_url);
-        options_data->host_url = (char*) calloc (strlen(tmp_url)+1, sizeof(char));
-        strncat(options_data->host_url, tmp_url, strlen(tmp_url));
+        options_data->host_url = strdup(tmp_url);
+//         options_data->host_url = (char*) calloc (strlen(tmp_url)+1, sizeof(char));
+//         strncat(options_data->host_url, tmp_url, strlen(tmp_url));
         LOG_INFO_F("URL = %s (%zu chars)\n", options_data->host_url, strlen(options_data->host_url));
     }
 
@@ -34,8 +35,9 @@ int read_effect_configuration(const char *filename, effect_options_data_t *optio
         return CANT_READ_CONFIG_FILE;
     } else {
         free(options_data->version);
-        options_data->version = (char*) calloc (strlen(tmp_version)+1, sizeof(char));
-        strncat(options_data->version, tmp_version, strlen(tmp_version));
+        options_data->version = strdup(tmp_version);
+//         options_data->version = (char*) calloc (strlen(tmp_version)+1, sizeof(char));
+//         strncat(options_data->version, tmp_version, strlen(tmp_version));
         LOG_INFO_F("version = %s (%zu chars)\n", options_data->version, strlen(options_data->version));
     }
 
@@ -46,8 +48,9 @@ int read_effect_configuration(const char *filename, effect_options_data_t *optio
         return CANT_READ_CONFIG_FILE;
     } else {
         free(options_data->species);
-        options_data->species = (char*) calloc (strlen(tmp_species)+1, sizeof(char));
-        strncat(options_data->species, tmp_species, strlen(tmp_species));
+        options_data->species = strdup(tmp_species);
+//         options_data->species = (char*) calloc (strlen(tmp_species)+1, sizeof(char));
+//         strncat(options_data->species, tmp_species, strlen(tmp_species));
         LOG_INFO_F("species = %s (%zu chars)\n", options_data->species, strlen(options_data->species));
     }
 
@@ -116,11 +119,11 @@ void parse_effect_options(int argc, char *argv[], effect_options_data_t *options
                 LOG_INFO_F("exclude = %s\n", options_data->excludes);
                 break;
             case 'f':
-                tmp_string_field = (char*) calloc(strlen(optarg)+1, sizeof(char));
-                strcat(tmp_string_field, optarg);
+                tmp_string_field = strdup(optarg);
                 filter = create_region_exact_filter(tmp_string_field, 1);
                 options_data->chain = add_to_filter_chain(filter, options_data->chain);
                 LOG_INFO_F("regions file = %s\n", optarg);
+                free(tmp_string_field);
                 break;
             case 'n':
                 tmp_int_field = atoi(optarg);
@@ -145,8 +148,7 @@ void parse_effect_options(int argc, char *argv[], effect_options_data_t *options
                 LOG_INFO_F("variants-per-request = %ld\n", options_data->variants_per_request);
                 break;
             case 'r':
-                tmp_string_field = (char*) calloc(strlen(optarg)+1, sizeof(char));
-                strcat(tmp_string_field, optarg);
+                tmp_string_field = strdup(optarg);
                 filter = create_region_exact_filter(tmp_string_field, 0);
                 options_data->chain = add_to_filter_chain(filter, options_data->chain);
                 LOG_INFO_F("regions = %s\n", optarg);
@@ -154,26 +156,20 @@ void parse_effect_options(int argc, char *argv[], effect_options_data_t *options
                 break;
             case 's':
                 // options_data->species is const char*, so it must be freed and reassigned
-                tmp_string_field = (char*) calloc(strlen(optarg)+1, sizeof(char));
-                strcat(tmp_string_field, optarg);
                 free((void*) options_data->species);
-                options_data->species = tmp_string_field;
+                options_data->species = strdup(optarg);
                 LOG_INFO_F("species = %s\n", options_data->species);
                 break;
             case 'u':
                 // options_data->url is const char*, so it must be freed and reassigned
-                tmp_string_field = (char*) calloc(strlen(optarg)+1, sizeof(char));
-                strcat(tmp_string_field, optarg);
                 free((void*) options_data->host_url);
-                options_data->host_url = tmp_string_field;
+                options_data->host_url = strdup(optarg);
                 LOG_INFO_F("host url = %s\n", options_data->host_url);
                 break;
             case 'v':
                 // options_data->version is const char*, so it must be freed and reassigned
-                tmp_string_field = (char*) calloc(strlen(optarg)+1, sizeof(char));
-                strcat(tmp_string_field, optarg);
                 free((void*) options_data->version);
-                options_data->version = tmp_string_field;
+                options_data->version = strdup(optarg);
                 LOG_INFO_F("version = %s\n", options_data->version);
                 break;
             case '?':
