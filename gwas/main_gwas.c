@@ -1,7 +1,7 @@
 #include "gwas.h"
 #include "tdt_runner.h"
 
-int genomic_analysis(int argc, char *argv[]) {
+int genomic_analysis(int argc, char *argv[], const char *configuration_file) {
     LOG_DEBUG_F("gwas called with %d args\n", argc);
 
     /* ******************************
@@ -17,8 +17,8 @@ int genomic_analysis(int argc, char *argv[]) {
      * ******************************/
 
     // Step 1: read options from configuration file
-    int config_errors = read_global_configuration("hpg-variant.cfg", global_options_data);
-    config_errors &= read_gwas_configuration("hpg-variant.cfg", options_data);
+    int config_errors = read_global_configuration(configuration_file, global_options_data);
+    config_errors &= read_gwas_configuration(configuration_file, options_data);
     LOG_INFO_F("Config read with errors = %d\n", config_errors);
     
     if (config_errors) {
