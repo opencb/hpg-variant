@@ -467,7 +467,9 @@ static size_t write_effect_ws_results(char *contents, size_t size, size_t nmemb,
         LOG_DEBUG_F("[%d] copy to buffer (%zu)\n", tid, strlen(line[tid]));
     
         int num_substrings;
-        char **split_result = split(strdup(line[tid]), "\t", &num_substrings);
+        char *copy_buf = strdup(line[tid]);
+        char **split_result = split(copy_buf, "\t", &num_substrings);
+        free(copy_buf);
         
         // Find consequence type name (always after SO field)
         *SO_found = 0;
@@ -475,7 +477,7 @@ static size_t write_effect_ws_results(char *contents, size_t size, size_t nmemb,
             LOG_DEBUG_F("gene = %s\tSO = %d\tCT = %s\n", split_result[17], atoi(split_result[18] + 3), split_result[19]);
             cp_list_insert(gene_list, strdup(split_result[17]));
             *SO_found = atoi(split_result[18] + 3);
-            tmp_consequence_type = split_result[19];
+            tmp_consequence_type = strdup(split_result[19]);
         } else {
             LOG_INFO_F("[%d] Non-valid line found\n", tid);
             memset(line[tid], 0, strlen(line[tid]));
@@ -483,6 +485,9 @@ static size_t write_effect_ws_results(char *contents, size_t size, size_t nmemb,
             continue;
         }
         
+        for (int s = 0; s < num_substrings; s++) {
+            free(split_result[s]);
+        }
         free(split_result);
         
         if (!*SO_found) { // SO:000000 is not valid
@@ -528,9 +533,6 @@ static size_t write_effect_ws_results(char *contents, size_t size, size_t nmemb,
                 count = (int*) cp_hashtable_get(summary_count, tmp_consequence_type);
                 if (count == NULL) {
                     char *consequence_type = strdup(tmp_consequence_type);
-//                     char *consequence_type = (char*) calloc (consequence_type_len+1, sizeof(char));
-//                     strncat(consequence_type, tmp_consequence_type, consequence_type_len);
-                    assert(strcmp(consequence_type, tmp_consequence_type) == 0);
                     count = (int*) malloc (sizeof(int));
                     *count = 0;
                     cp_hashtable_put(summary_count, consequence_type, count);
@@ -552,6 +554,9 @@ static size_t write_effect_ws_results(char *contents, size_t size, size_t nmemb,
         
         memset(line[tid], 0, strlen(line[tid]));
         memset(output_line[tid], 0, strlen(output_line[tid]));
+        if (tmp_consequence_type) { 
+            free(tmp_consequence_type);
+        }
         
         i++;
     }
