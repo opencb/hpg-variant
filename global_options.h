@@ -22,7 +22,7 @@
 /**
  * Number of options applicable to the whole application.
  */
-#define NUM_GLOBAL_OPTIONS  7
+#define NUM_GLOBAL_OPTIONS  8
     
 static struct option global_options[] = {
     // File formats accepted (range available A-H)
@@ -39,6 +39,8 @@ static struct option global_options[] = {
     { "species",        required_argument, 0, 'S' },
     { "version",        required_argument, 0, 'V' },
     { "url",            required_argument, 0, 'U' },
+    
+    { "config",         required_argument, 0, 'Z' },
     
     {NULL,          0, 0, 0}
 };
