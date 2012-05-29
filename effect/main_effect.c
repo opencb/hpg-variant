@@ -1,7 +1,7 @@
 #include "effect.h"
 #include "effect_runner.h"
 
-int effect(int argc, char *argv[]) {
+int effect(int argc, char *argv[], const char *configuration_file) {
     LOG_DEBUG_F("effect called with %d args\n", argc);
 
     /* ******************************
@@ -17,8 +17,8 @@ int effect(int argc, char *argv[]) {
      * ******************************/
 
     // Step 1: read options from configuration file
-    int config_errors = read_global_configuration("hpg-variant.cfg", global_options_data);
-    config_errors &= read_effect_configuration("hpg-variant.cfg", options_data);
+    int config_errors = read_global_configuration(configuration_file, global_options_data);
+    config_errors &= read_effect_configuration(configuration_file, options_data);
     LOG_INFO_F("Config read with errors = %d\n", config_errors);
     
     if (config_errors) {
@@ -61,9 +61,6 @@ int effect(int argc, char *argv[]) {
 effect_options_data_t *init_options_data(void) {
     effect_options_data_t *options_data = (effect_options_data_t*) malloc (sizeof(effect_options_data_t));
     
-//     options_data->host_url = NULL;
-//     options_data->version = NULL;
-//     options_data->species = NULL;
     options_data->chain = NULL;
     options_data->excludes = NULL;
     options_data->max_batches = 10;
@@ -75,9 +72,6 @@ effect_options_data_t *init_options_data(void) {
 }
 
 void free_options_data(effect_options_data_t *options_data) {
-//     if (options_data->host_url) { free((void*) options_data->host_url); }
-//     if (options_data->version)  { free((void*) options_data->version); }
-//     if (options_data->species)  { free((void*) options_data->species); }
     if (options_data->chain)    { cp_heap_destroy(options_data->chain); }
     if (options_data->excludes) { free((void*) options_data->excludes); }
     free(options_data);

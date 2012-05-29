@@ -13,38 +13,6 @@ int read_effect_configuration(const char *filename, effect_options_data_t *optio
         return CANT_READ_CONFIG_FILE;
     }
 
-//     const char *tmp_url, *tmp_version, *tmp_species;
-//     
-//     // Read URL
-//     ret_code = config_lookup_string(config, "effect.url", &tmp_url);
-//     if (ret_code == CONFIG_FALSE) {
-//         LOG_WARN("URL not found in config file, must be set via command-line");
-//     } else {
-//         free(options_data->host_url);
-//         options_data->host_url = strdup(tmp_url);
-//         LOG_INFO_F("URL = %s (%zu chars)\n", options_data->host_url, strlen(options_data->host_url));
-//     }
-// 
-//     // Read version
-//     ret_code = config_lookup_string(config, "effect.version", &tmp_version);
-//     if (ret_code == CONFIG_FALSE) {
-//         LOG_WARN("Version not found in config file, must be set via command-line");
-//     } else {
-//         free(options_data->version);
-//         options_data->version = strdup(tmp_version);
-//         LOG_INFO_F("version = %s (%zu chars)\n", options_data->version, strlen(options_data->version));
-//     }
-// 
-//     // Read species
-//     ret_code = config_lookup_string(config, "effect.species", &tmp_species);
-//     if (ret_code == CONFIG_FALSE) {
-//         LOG_WARN("Species not found in config file, must be set via command-line");
-//     } else {
-//         free(options_data->species);
-//         options_data->species = strdup(tmp_species);
-//         LOG_INFO_F("species = %s (%zu chars)\n", options_data->species, strlen(options_data->species));
-//     }
-
     // Read number of threads that will make request to the web service
     ret_code = config_lookup_int(config, "effect.num-threads", &(options_data->num_threads));
     if (ret_code == CONFIG_FALSE) {
@@ -95,7 +63,7 @@ void parse_effect_options(int argc, char *argv[], effect_options_data_t *options
     // Last option read, for when the global options parser is invoked
     int previous_opt_index = optind;
 
-    while ((c = getopt_long (argc, argv, "A:N:O:S:U:V:e:f:n:p:r:", options, &optind)) != -1) {
+    while ((c = getopt_long (argc, argv, "A:N:O:S:U:V:Z:e:f:n:p:r:", options, &optind)) != -1) {
         LOG_DEBUG_F("<main> c = %c, opt_idx = %d\n", c, optind);
         switch (c) {
             case 'A':
@@ -104,6 +72,7 @@ void parse_effect_options(int argc, char *argv[], effect_options_data_t *options
             case 'S':
             case 'V':
             case 'U':
+            case 'Z':   // config, not processed
                 optind = parse_global_options(argc, argv, global_options_data, previous_opt_index);
                 break;
             case 'e':
@@ -143,24 +112,6 @@ void parse_effect_options(int argc, char *argv[], effect_options_data_t *options
                 LOG_INFO_F("regions = %s\n", optarg);
                 free(tmp_string_field);
                 break;
-//             case 's':
-//                 // options_data->species is const char*, so it must be freed and reassigned
-//                 free((void*) options_data->species);
-//                 options_data->species = strdup(optarg);
-//                 LOG_INFO_F("species = %s\n", options_data->species);
-//                 break;
-//             case 'u':
-//                 // options_data->url is const char*, so it must be freed and reassigned
-//                 free((void*) options_data->host_url);
-//                 options_data->host_url = strdup(optarg);
-//                 LOG_INFO_F("host url = %s\n", options_data->host_url);
-//                 break;
-//             case 'v':
-//                 // options_data->version is const char*, so it must be freed and reassigned
-//                 free((void*) options_data->version);
-//                 options_data->version = strdup(optarg);
-//                 LOG_INFO_F("version = %s\n", options_data->version);
-//                 break;
             case '?':
             default:
                 LOG_WARN("Option unknown\n");
