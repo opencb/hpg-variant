@@ -55,7 +55,7 @@ void parse_gwas_options(int argc, char *argv[], gwas_options_data_t *options_dat
     // Last option read, for when the global options parser is invoked
     int previous_opt_index = optind;
 
-    while ((c = getopt_long (argc, argv, "A:N:O:f:n:r:t", options, &optind)) != -1)
+    while ((c = getopt_long (argc, argv, "A:N:O:S:U:V:f:n:r:t", options, &optind)) != -1)
     {
         LOG_DEBUG_F("<main> c = %c, opt_idx = %d\n", c, optind);
         switch (c)
@@ -63,11 +63,14 @@ void parse_gwas_options(int argc, char *argv[], gwas_options_data_t *options_dat
             case 'A':
             case 'N':
             case 'O':
+            case 'S':
+            case 'V':
+            case 'U':
                 optind = parse_global_options(argc, argv, global_options_data, previous_opt_index);
                 break;
             case 'f':
                 tmp_string_field = strdup(optarg);
-                filter = create_region_exact_filter(tmp_string_field, 1);
+                filter = create_region_exact_filter(tmp_string_field, 1, global_options_data->host_url, global_options_data->species, global_options_data->version);
                 options_data->chain = add_to_filter_chain(filter, options_data->chain);
                 LOG_INFO_F("regions file = %s\n", optarg);
                 free(tmp_string_field);
@@ -85,7 +88,7 @@ void parse_gwas_options(int argc, char *argv[], gwas_options_data_t *options_dat
                 break;
             case 'r':
                 tmp_string_field = strdup(optarg);
-                filter = create_region_exact_filter(tmp_string_field, 0);
+                filter = create_region_exact_filter(tmp_string_field, 0, global_options_data->host_url, global_options_data->species, global_options_data->version);
                 options_data->chain = add_to_filter_chain(filter, options_data->chain);
                 LOG_INFO_F("regions = %s\n", optarg);
                 free(tmp_string_field);

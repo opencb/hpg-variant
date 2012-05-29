@@ -46,7 +46,7 @@ int effect(int argc, char *argv[]) {
     }
 
     // Step 4: Create the web service request with all the parameters
-    char *url = compose_effect_ws_request(options_data);
+    char *url = compose_effect_ws_request(global_options_data);
 
     // Step 5: Execute request and manage its response (as CURL request callback function)
     int result = run_effect(url, global_options_data, options_data);
@@ -61,9 +61,9 @@ int effect(int argc, char *argv[]) {
 effect_options_data_t *init_options_data(void) {
     effect_options_data_t *options_data = (effect_options_data_t*) malloc (sizeof(effect_options_data_t));
     
-    options_data->host_url = NULL;
-    options_data->version = NULL;
-    options_data->species = NULL;
+//     options_data->host_url = NULL;
+//     options_data->version = NULL;
+//     options_data->species = NULL;
     options_data->chain = NULL;
     options_data->excludes = NULL;
     options_data->max_batches = 10;
@@ -75,9 +75,9 @@ effect_options_data_t *init_options_data(void) {
 }
 
 void free_options_data(effect_options_data_t *options_data) {
-    if (options_data->host_url) { free((void*) options_data->host_url); }
-    if (options_data->version)  { free((void*) options_data->version); }
-    if (options_data->species)  { free((void*) options_data->species); }
+//     if (options_data->host_url) { free((void*) options_data->host_url); }
+//     if (options_data->version)  { free((void*) options_data->version); }
+//     if (options_data->species)  { free((void*) options_data->species); }
     if (options_data->chain)    { cp_heap_destroy(options_data->chain); }
     if (options_data->excludes) { free((void*) options_data->excludes); }
     free(options_data);
