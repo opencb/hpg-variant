@@ -283,7 +283,7 @@ int run_effect(char *url, global_options_data_t *global_options_data, effect_opt
 }
 
 
-char *compose_effect_ws_request(effect_options_data_t *options_data) {
+char *compose_effect_ws_request(global_options_data_t *options_data) {
     if (options_data->host_url == NULL || options_data->version == NULL || options_data->species == NULL) {
         return NULL;
     }
@@ -641,7 +641,7 @@ void write_result_file(global_options_data_t *global_options_data, effect_option
     // TODO log-file
     result_item_t *input_item_vcf_file = result_item_new("vcf-file", global_options_data->vcf_filename, "The VCF variant file", "MESSAGE", "", "", "");
     // TODO excludes
-    result_item_t *input_item_species = result_item_new("species", options_data->species, "The species of the ids", "MESSAGE", "", "", "");
+    result_item_t *input_item_species = result_item_new("species", global_options_data->species, "The species of the ids", "MESSAGE", "", "", "");
     // TODO home
     aux_buffer = (char*) calloc (8, sizeof(char));
     sprintf(aux_buffer, "%ld", options_data->num_threads);

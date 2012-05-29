@@ -23,13 +23,13 @@
 /**
  * Number of options applicable to the effect tool.
  */
-#define NUM_EFFECT_OPTIONS	8
+#define NUM_EFFECT_OPTIONS	5
 
 static struct option effect_options[] = {
 	// URL construction options
-	{ "url",                    required_argument, 0, 'u' },
-	{ "version",                required_argument, 0, 'v' },
-	{ "species",                required_argument, 0, 's' },
+// 	{ "url",                    required_argument, 0, 'u' },
+// 	{ "version",                required_argument, 0, 'v' },
+// 	{ "species",                required_argument, 0, 's' },
 	
 	{ "region-file",            required_argument, 0, 'f' },
 	{ "region",                 required_argument, 0, 'r' },
@@ -62,9 +62,9 @@ typedef struct effect_options_data
     long int batch_size; /**< Maximum size of a VCF records' batch. */
 	long int variants_per_request; /**< Maximum number of variants sent in each web service query. */
 	
-	char *host_url; /**< URL of the host where the web service runs. */
-	char *version; /**< Version of the WS to query. */
-	char *species; /**< Species whose genome is taken as reference. */
+// 	char *host_url; /**< URL of the host where the web service runs. */
+// 	char *version; /**< Version of the WS to query. */
+// 	char *species; /**< Species whose genome is taken as reference. */
 	
     filter_chain *chain; /**< Chain of filters to apply to the VCF records, if that is the case. */
 	char *excludes; /**< Consequence types to exclude from the query. */
