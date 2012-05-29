@@ -5,16 +5,16 @@ int effect(int argc, char *argv[]) {
     LOG_DEBUG_F("effect called with %d args\n", argc);
 
     /* ******************************
-        * 	    Modifiable options	    *
-        * ******************************/
+     * 	    Modifiable options	    *
+     * ******************************/
 
     global_options_data_t *global_options_data = new_global_options_data();
     effect_options_data_t *options_data = init_options_data();
 
 
     /* ******************************
-        * 	    Execution steps	        *
-        * ******************************/
+     * 	    Execution steps	        *
+     * ******************************/
 
     // Step 1: read options from configuration file
     int config_errors = read_global_configuration("hpg-variant.cfg", global_options_data);
