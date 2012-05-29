@@ -11,14 +11,14 @@ REGION_DIR = $(BIOINFO_DATA_DIR)/features/region
 
 # Include and libs folders
 INCLUDES = -I . -I $(CONTAINERS_DIR) -I $(COMMONS_DIR) -I $(REGION_DIR) -I $(BIOINFO_DATA_DIR)/vcf/ -I $(BIOINFO_DATA_DIR)/gff/  
-LIBS = -L/usr/lib/x86_64-linux-gnu -lconfig -lcprops -fopenmp -lm
+LIBS = -L/usr/lib/x86_64-linux-gnu -lconfig -lcprops -fopenmp -lm -lcurl -Wl,-Bsymbolic-functions
 LIBS_TEST = -lcheck
 
 # Source files dependencies
 VCF_FILES = $(BIOINFO_DATA_DIR)/vcf/*.o
 GFF_FILES = $(BIOINFO_DATA_DIR)/gff/*.o
 REGION_TABLE_FILES = $(REGION_DIR)/region.o $(CONTAINERS_DIR)/region_table.o $(CONTAINERS_DIR)/region_table_utils.o
-MISC_FILES = $(COMMONS_DIR)/file_utils.o $(COMMONS_DIR)/log.c $(COMMONS_DIR)/string_utils.o $(CONTAINERS_DIR)/list.o
+MISC_FILES = $(COMMONS_DIR)/file_utils.o $(COMMONS_DIR)/http_utils.o $(COMMONS_DIR)/log.o $(COMMONS_DIR)/string_utils.o $(CONTAINERS_DIR)/list.o
 
 # Project source files
 FILTER_FILES = filter/main_filter.c filter/filter_runner.c filter/filter_options_parsing.c

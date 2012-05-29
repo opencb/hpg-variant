@@ -22,13 +22,13 @@
 /**
  * Number of options applicable to the whole application.
  */
-#define NUM_GLOBAL_OPTIONS  3
+#define NUM_GLOBAL_OPTIONS  7
     
 static struct option global_options[] = {
     // File formats accepted (range available A-H)
     {"vcf-file",        required_argument, 0, 'A' },
 //  {"bam-file",        required_argument, 0, 'B' },
-//    {"bed-file",      required_argument, 0, 'E' },
+    {"ped-file",        required_argument, 0, 'E' },
 //    {"gff-file",      required_argument, 0, 'G' },
     
     // IO options (range available I-O)
@@ -36,6 +36,9 @@ static struct option global_options[] = {
     {"out",             required_argument, 0, 'O' },
     
     // Other options (range available P-Z)
+    { "species",        required_argument, 0, 'S' },
+    { "version",        required_argument, 0, 'V' },
+    { "url",            required_argument, 0, 'U' },
     
     {NULL,          0, 0, 0}
 };
@@ -50,9 +53,14 @@ static struct option global_options[] = {
  */
 typedef struct global_options_data
 {
-    char *vcf_filename; /**< VCF filename used as input. */
+    char *ped_filename; /**< PED file used as input. */
+    char *vcf_filename; /**< VCF file used as input. */
     char *output_directory; /**< Directory where the output files will be stored. */
     char *output_filename; /**< Filename template for the main output file. */
+    
+    char *host_url;
+    char *version;
+    char *species;
 } global_options_data_t;
 
 
