@@ -112,15 +112,17 @@ int run_effect(char *url, global_options_data_t *global_options_data, effect_opt
                 int dirname_len = strlen(global_options_data->output_directory);
                 int filename_len = strlen(global_options_data->output_filename);
             
-                char *passed_filename = (char*) calloc ((dirname_len + filename_len + 1), sizeof(char));
-                strncat(passed_filename, global_options_data->output_directory, dirname_len);
-                strncat(passed_filename, global_options_data->output_filename, filename_len);
+                char *passed_filename = (char*) calloc ((dirname_len + filename_len + 2), sizeof(char));
+                sprintf(passed_filename, "%s/%s", global_options_data->output_directory, global_options_data->output_filename);
+//                 strncat(passed_filename, global_options_data->output_directory, dirname_len);
+//                 strncat(passed_filename, global_options_data->output_filename, filename_len);
                 passed_file = fopen(passed_filename, "w");
             
-                char *failed_filename = (char*) calloc ((dirname_len + filename_len + 10), sizeof(char));
-                strncat(failed_filename, global_options_data->output_directory, dirname_len);
-                strncat(failed_filename, global_options_data->output_filename, filename_len);
-                strncat(failed_filename, ".filtered", 9);
+                char *failed_filename = (char*) calloc ((dirname_len + filename_len + 11), sizeof(char));
+                sprintf(failed_filename, "%s/%s.filtered", global_options_data->output_directory, global_options_data->output_filename);
+//                 strncat(failed_filename, global_options_data->output_directory, dirname_len);
+//                 strncat(failed_filename, global_options_data->output_filename, filename_len);
+//                 strncat(failed_filename, ".filtered", 9);
                 failed_file = fopen(failed_filename, "w");
                 
                 LOG_DEBUG_F("passed filename = %s\nfailed filename = %s\n", passed_filename, failed_filename);
@@ -508,11 +510,8 @@ static size_t write_effect_ws_results(char *contents, size_t size, size_t nmemb,
                 // This construction avoids 2 threads trying to insert the same CT
                 aux_file = cp_hashtable_get(output_files, SO_found);
                 if (!aux_file) {
-                    char filename[output_directory_len + consequence_type_len + 5];
-                    memset(filename, 0, output_directory_len + consequence_type_len + 5);
-                    strncat(filename, output_directory, output_directory_len);
-                    strncat(filename, tmp_consequence_type, consequence_type_len);
-                    strncat(filename, ".txt", 4);
+                    char filename[output_directory_len + consequence_type_len + 6];
+                    sprintf(filename, "%s/%s.txt", output_directory, tmp_consequence_type);
                     aux_file = fopen(filename, "a");
                     
                     // Add to hashtables (file descriptors and summary counters)
@@ -591,9 +590,8 @@ void write_genes_with_variants_file() {
     char *aux_buffer;
     
     // Create genes file
-    aux_buffer = (char*) calloc (output_directory_len + strlen(filename) + 1, sizeof(char));
-    strncat(aux_buffer, output_directory, output_directory_len);
-    strncat(aux_buffer, filename, strlen(filename));
+    aux_buffer = (char*) calloc (output_directory_len + strlen(filename) + 2, sizeof(char));
+    sprintf(aux_buffer, "%s/%s", output_directory, filename);
     file = fopen(aux_buffer, "w");
     free(aux_buffer);
     
@@ -613,9 +611,8 @@ void write_result_file(global_options_data_t *global_options_data, effect_option
     result_file_t *result_file = NULL;
     
     // Create result file
-    aux_buffer = (char*) calloc (output_directory_len + strlen("result.xml") + 1, sizeof(char));
-    strncat(aux_buffer, output_directory, output_directory_len);
-    strncat(aux_buffer, "result.xml", strlen("result.xml"));
+    aux_buffer = (char*) calloc (output_directory_len + strlen("result.xml") + 2, sizeof(char));
+    sprintf(aux_buffer, "%s/result.xml", output_directory);
     result_file = result_file_new("v0.7", aux_buffer);
     
     // Add meta data
@@ -664,7 +661,7 @@ void write_result_file(global_options_data_t *global_options_data, effect_option
     
     // Add output data
     char *consequence_type, *consequence_type_filename;
-    int *count, total_count;
+    int *count, total_count = 0;
     result_item_t *output_item;
     
     char **keys = (char**) cp_hashtable_get_keys(summary_count);
@@ -725,12 +722,10 @@ int initialize_ws_output(global_options_data_t *global_options_data, effect_opti
                                                  (cp_destructor_fn) free_file_descriptor
                                                 );
     
-    char *all_variants_filename = (char*) calloc ((strlen(outdir) + 17), sizeof(char));
-    strncat(all_variants_filename, outdir, strlen(outdir));
-    strncat(all_variants_filename, "all_variants.txt", 16);
+    char all_variants_filename[strlen(outdir) + 18];
+    sprintf(all_variants_filename, "%s/all_variants.txt", outdir);
     
     all_variants_file = fopen(all_variants_filename, "a");
-    free(all_variants_filename);
     if (!all_variants_file) {   // Can't store results
         return 1;
     }
@@ -738,12 +733,10 @@ int initialize_ws_output(global_options_data_t *global_options_data, effect_opti
     strncat(key, "all_variants", 12);
     cp_hashtable_put(output_files, key, all_variants_file);
     
-    char *summary_filename = (char*) calloc ((strlen(outdir) + 17), sizeof(char));
-    strncat(summary_filename, outdir, strlen(outdir));
-    strncat(summary_filename, "summary.txt", 11);
+    char summary_filename[strlen(outdir) + 13];
+    sprintf(summary_filename, "%s/summary.txt", outdir);
     
     summary_file = fopen(summary_filename, "a");
-    free(summary_filename);
     if (!summary_file) {   // Can't store results
         return 2;
     }
