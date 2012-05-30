@@ -117,11 +117,16 @@ void write_result_file(global_options_data_t *global_options_data, effect_option
     }
     free(keys);
     
-    // Add output data for all_variants and summary
+    // Add output data for all_variants
     aux_buffer = (char*) calloc (32, sizeof(char));
     sprintf(aux_buffer, "All (%d)", total_count);
     output_item = result_item_new("all_variants.txt", "all_variants.txt", aux_buffer, 
                                         "FILE", "CONSEQUENCE_TYPE_VARIANTS", "Variants by Consequence Type", "");
+    result_add_output_item(output_item, result_file);
+    
+    // Add output data for summaries
+    output_item = result_item_new("genes_with_variants.txt", "genes_with_variants.txt", "Genes with Variants", 
+                                        "FILE", "", "Summary", "");
     result_add_output_item(output_item, result_file);
     output_item = result_item_new("summary", "summary.txt", "Consequence types histogram:", 
                                         "FILE", "HISTOGRAM", "Summary", "");
