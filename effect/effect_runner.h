@@ -95,25 +95,25 @@ int invoke_effect_ws(const char *url, list_item_t *first_item, int num_regions);
  * @param userdata[out] where to write the response to (non-used)
  * @return The number of bytes processed
  * 
- * Reads the contents of the response from the effect web service, 
+ * Reads the contents of the response from the effect web service
  */
 static size_t write_effect_ws_results(char *contents, size_t size, size_t nmemb, void *userdata);
 
 /**
  * Writes a summary file containing the number of entries for each of the consequence types processed.
  */
-void write_summary_file(void);
+void write_summary_file(cp_hashtable *summary_count, FILE *summary_file);
 
 /**
  * Writes a file containing the list of genes with any variant taking place in them.
  */
-void write_genes_with_variants_file();
+void write_genes_with_variants_file(cp_list *gene_list, char *output_directory);
 
 /**
  * Writes an XML file containing the process input and output files, as well as some metadata about the 
  * process.
  */
-void write_result_file(global_options_data_t *global_options_data, effect_options_data_t *options_data);
+void write_result_file(global_options_data_t *global_options_data, effect_options_data_t *options_data, cp_hashtable *summary_count, char *output_directory);
 
 /**
  * @param num_threads the number of threads that parse the response
@@ -123,7 +123,6 @@ void write_result_file(global_options_data_t *global_options_data, effect_option
  * Initialize the structures for storing the web service response and writing it to the output files.
  */
 int initialize_ws_output(global_options_data_t *global_options_data, effect_options_data_t *options_data);
-// int initialize_ws_output(int num_threads, char *output_directory);
 
 /**
  * @param num_threads the number of threads that parsed the response
