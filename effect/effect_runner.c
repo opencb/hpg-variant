@@ -61,6 +61,17 @@ int run_effect(char *url, global_options_data_t *global_options_data, effect_opt
     if (ret_code != 0) {
         return ret_code;
     }
+    
+    // Create job.status file
+    char job_status_filename[output_directory_len + 10];
+    sprintf(job_status_filename, "%s/job.status", output_directory);
+    FILE *job_status = new_job_status_file(job_status_filename);
+    if (!job_status) {
+        LOG_FATAL("Can't create job status file");
+    } else {
+        update_job_status_file(0, job_status);
+    }
+    
  
 #pragma omp parallel sections private(start, stop, total)
     {
@@ -278,6 +289,9 @@ int run_effect(char *url, global_options_data_t *global_options_data, effect_opt
     free(read_list);
     free(output_list);
     vcf_close(file);
+    
+    update_job_status_file(100, job_status);
+    close_job_status_file(job_status);
     
     return ret_code;
 }
