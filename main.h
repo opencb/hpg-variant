@@ -14,13 +14,8 @@
 
 #include "error.h"
 #include "global_options.h"
+#include "hpg_variant_utils.h"
 
-
-/* ***********************
- *     Initialization    *
- * ***********************/
-
-char *find_configuration_file(int argc, char *argv[]);
 
 
 /* ***********************

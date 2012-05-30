@@ -41,26 +41,3 @@ int main(int argc, char *argv[])
 	}
 	return exit_code;
 }
-
-char *find_configuration_file(int argc, char *argv[]) {
-    FILE *config_file = NULL;
-    char *config_filepath = NULL;
-    for (int i = 0; i < argc-1; i++) {
-        if (!strcmp("--config", argv[i])) {
-            config_filepath = argv[i+1];
-        }
-    }
-    if (!config_filepath) {
-        config_filepath = "hpg-variant.cfg";
-    }
-    
-    config_file = fopen(config_filepath, "r");
-    if (!config_file) {
-        LOG_FATAL("Configuration file can't be loaded!");
-    } else {
-        fclose(config_file);
-    }
-    
-    LOG_INFO_F("Configuration file = %s\n", config_filepath);
-    return config_filepath;
-}  
