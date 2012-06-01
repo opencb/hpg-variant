@@ -14,7 +14,7 @@ void write_summary_file(cp_hashtable *summary_count, FILE *summary_file) {
      free(keys);
 }
 
-void write_genes_with_variants_file(cp_list *gene_list, char *output_directory) {
+void write_genes_with_variants_file(cp_hashtable *gene_list, char *output_directory) {
     char filename[] = "genes_with_variants.txt";
     FILE *file = NULL;
     char *aux_buffer;
@@ -25,14 +25,13 @@ void write_genes_with_variants_file(cp_list *gene_list, char *output_directory) 
     file = fopen(aux_buffer, "w");
     free(aux_buffer);
     
-    cp_list_iterator *genes_iterator = cp_list_create_iterator(gene_list, COLLECTION_LOCK_READ);
-    
-    while ((aux_buffer = cp_list_iterator_next(genes_iterator)) != NULL) {
-        fprintf(file, "%s\n", aux_buffer);
+    char **keys = (char**) cp_hashtable_get_keys(gene_list);
+    int num_keys = cp_hashtable_count(gene_list);
+    for (int i = 0; i < num_keys; i++) {
+        fprintf(file, "%s\n", keys[i]);
     }
     
     fclose(file);
-    cp_list_iterator_destroy(genes_iterator);
 }
 
 
