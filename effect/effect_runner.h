@@ -107,7 +107,7 @@ void write_summary_file(cp_hashtable *summary_count, FILE *summary_file);
 /**
  * Writes a file containing the list of genes with any variant taking place in them.
  */
-void write_genes_with_variants_file(cp_list *gene_list, char *output_directory);
+void write_genes_with_variants_file(cp_hashtable *gene_list, char *output_directory);
 
 /**
  * Writes an XML file containing the process input and output files, as well as some metadata about the 
