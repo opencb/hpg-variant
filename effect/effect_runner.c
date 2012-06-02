@@ -123,17 +123,10 @@ int run_effect(char *url, global_options_data_t *global_options_data, effect_opt
             
                 char *passed_filename = (char*) calloc ((dirname_len + filename_len + 2), sizeof(char));
                 sprintf(passed_filename, "%s/%s", global_options_data->output_directory, global_options_data->output_filename);
-//                 strncat(passed_filename, global_options_data->output_directory, dirname_len);
-//                 strncat(passed_filename, "/", 1);
-//                 strncat(passed_filename, global_options_data->output_filename, filename_len);
                 passed_file = fopen(passed_filename, "w");
             
                 char *failed_filename = (char*) calloc ((dirname_len + filename_len + 11), sizeof(char));
                 sprintf(failed_filename, "%s/%s.filtered", global_options_data->output_directory, global_options_data->output_filename);
-//                 strncat(failed_filename, global_options_data->output_directory, dirname_len);
-//                 strncat(passed_filename, "/", 1);
-//                 strncat(failed_filename, global_options_data->output_filename, filename_len);
-//                 strncat(failed_filename, ".filtered", 9);
                 failed_file = fopen(failed_filename, "w");
                 
                 LOG_DEBUG_F("passed filename = %s\nfailed filename = %s\n", passed_filename, failed_filename);
