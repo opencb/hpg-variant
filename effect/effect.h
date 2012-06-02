@@ -23,27 +23,29 @@
 /**
  * Number of options applicable to the effect tool.
  */
-#define NUM_EFFECT_OPTIONS	5
+#define NUM_EFFECT_OPTIONS  9
 
 static struct option effect_options[] = {
-	// URL construction options
-// 	{ "url",                    required_argument, 0, 'u' },
-// 	{ "version",                required_argument, 0, 'v' },
-// 	{ "species",                required_argument, 0, 's' },
-	
-	{ "region-file",            required_argument, 0, 'f' },
-	{ "region",                 required_argument, 0, 'r' },
-	
-	// Feature types to exclude
-	{ "exclude",                required_argument, 0, 'e' },
-	
-	// Multithreading options
-	{ "num-threads",            required_argument, 0, 'n' },
-	{ "variants-per-request",   required_argument, 0, 'p' },
-	
-	// Other options
-	
-	{NULL,                      0, 0, 0}
+    // Filters applied to data
+    {"alleles",                 required_argument, 0, 'a' },
+    {"coverage",                required_argument, 0, 'c' },
+    {"quality",                 required_argument, 0, 'q' },
+
+    {"region-file",             required_argument, 0, 'f' },
+    {"region",                  required_argument, 0, 'r' },
+
+    {"snp",                     required_argument, 0, 's' },
+    
+    // Feature types to exclude
+    { "exclude",                required_argument, 0, 'e' },
+    
+    // Multithreading options
+    { "num-threads",            required_argument, 0, 'n' },
+    { "variants-per-request",   required_argument, 0, 'p' },
+    
+    // Other options
+    
+    {NULL,                      0, 0, 0}
 };
 
 

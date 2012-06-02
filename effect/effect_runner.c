@@ -152,13 +152,14 @@ int run_effect(char *url, global_options_data_t *global_options_data, effect_opt
             
             LOG_DEBUG("File streams created\n");*/
             
-            // Write file format, header entries and delimiter
-            if (passed_file != NULL) { vcf_write_to_file(file, passed_file); }
-            if (failed_file != NULL) { vcf_write_to_file(file, failed_file); }
-
-            LOG_DEBUG("VCF header written\n");
-            
             while ((item = list_remove_item(read_list)) != NULL) {
+                if (i == 0) {
+                    // Write file format, header entries and delimiter
+                    if (passed_file != NULL) { vcf_write_to_file(file, passed_file); }
+                    if (failed_file != NULL) { vcf_write_to_file(file, failed_file); }
+                    
+                    LOG_DEBUG("VCF header written\n");
+                }
                 vcf_batch_t *batch = (vcf_batch_t*) item->data_p;
                 list_t *input_records = batch;
                 list_t *passed_records = NULL, *failed_records = NULL;
@@ -643,6 +644,7 @@ int initialize_ws_output(global_options_data_t *global_options_data, effect_opti
                                                  (cp_destructor_fn) free_file_key2,
                                                  NULL,
                                                  (cp_destructor_fn) free_summary_counter
+                                                 );
 
     gene_list = cp_hashtable_create_by_option(COLLECTION_MODE_DEEP,
                                               64,
