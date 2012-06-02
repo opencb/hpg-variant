@@ -23,7 +23,7 @@
 /**
  * Number of options applicable to the gwas tool.
  */
-#define NUM_GWAS_OPTIONS  4
+#define NUM_GWAS_OPTIONS  8
 
 static struct option gwas_options[] = {
     // Task options
@@ -33,8 +33,14 @@ static struct option gwas_options[] = {
     { "tdt",                    no_argument, 0, 't' },
     
     // Filtering options
-    { "region-file",            required_argument, 0, 'f' },
-    { "region",                 required_argument, 0, 'r' },
+    {"alleles",                 required_argument, 0, 'a' },
+    {"coverage",                required_argument, 0, 'c' },
+    {"quality",                 required_argument, 0, 'q' },
+
+    {"region-file",             required_argument, 0, 'f' },
+    {"region",                  required_argument, 0, 'r' },
+
+    {"snp",                     required_argument, 0, 's' },
     
     // Multithreading options
     { "num-threads",            required_argument, 0, 'n' },

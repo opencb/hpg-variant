@@ -60,6 +60,7 @@ int run_tdt_test(global_options_data_t* global_options_data, gwas_options_data_t
             
             LOG_DEBUG_F("Thread %d processes data\n", omp_get_thread_num());
             
+            FILE *passed_file = NULL, *failed_file = NULL;
             cp_hashtable *sample_ids = NULL;
             
             // Create chain of filters for the VCF file
@@ -69,15 +70,39 @@ int run_tdt_test(global_options_data_t* global_options_data, gwas_options_data_t
                 filters = sort_filter_chain(options_data->chain, &num_filters);
             }
     
-            
             start = omp_get_wtime();
 
+            if (global_options_data->output_filename != NULL && 
+                strlen(global_options_data->output_filename) > 0) {
+                int dirname_len = strlen(global_options_data->output_directory);
+                int filename_len = strlen(global_options_data->output_filename);
+            
+                char *passed_filename = (char*) calloc ((dirname_len + filename_len + 2), sizeof(char));
+                sprintf(passed_filename, "%s/%s", global_options_data->output_directory, global_options_data->output_filename);
+                passed_file = fopen(passed_filename, "w");
+            
+                char *failed_filename = (char*) calloc ((dirname_len + filename_len + 11), sizeof(char));
+                sprintf(failed_filename, "%s/%s.filtered", global_options_data->output_directory, global_options_data->output_filename);
+                failed_file = fopen(failed_filename, "w");
+                
+                LOG_DEBUG_F("passed filename = %s\nfailed filename = %s\n", passed_filename, failed_filename);
+                
+                free(passed_filename);
+                free(failed_filename);
+            }
+            
             int i = 0;
             list_item_t *item = NULL;
             while ((item = list_remove_item(read_list)) != NULL) {
-                // In the first iteration, create map to associate the position of individuals in the list of samples defined in the VCF file
                 if (i == 0) {
+                    // Create map to associate the position of individuals in the list of samples defined in the VCF file
                     sample_ids = associate_samples_and_positions(file);
+                    
+                    // Write file format, header entries and delimiter
+                    if (passed_file != NULL) { vcf_write_to_file(file, passed_file); }
+                    if (failed_file != NULL) { vcf_write_to_file(file, failed_file); }
+                    
+                    LOG_DEBUG("VCF header written\n");
                 }
                 
                 vcf_batch_t *batch = (vcf_batch_t*) item->data_p;
@@ -118,6 +143,16 @@ int run_tdt_test(global_options_data_t* global_options_data, gwas_options_data_t
                     if (ret_code) {
 //                         LOG_FATAL_F("TDT error: %s\n", get_last_http_error(ret_code));
                         break;
+                    }
+                }
+                
+                // Write records that passed and failed to separate files
+                if (passed_file != NULL && failed_file != NULL) {
+                    if (passed_records != NULL && passed_records->length > 0) {
+                        write_batch(passed_records, passed_file);
+                    }
+                    if (failed_records != NULL && failed_records->length > 0) {
+                        write_batch(failed_records, failed_file);
                     }
                 }
                 
