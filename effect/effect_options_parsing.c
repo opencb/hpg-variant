@@ -63,7 +63,7 @@ void parse_effect_options(int argc, char *argv[], effect_options_data_t *options
     // Last option read, for when the global options parser is invoked
     int previous_opt_index = optind;
 
-    while ((c = getopt_long (argc, argv, "A:N:O:S:U:V:Z:e:f:n:p:r:", options, &optind)) != -1) {
+    while ((c = getopt_long (argc, argv, "A:N:O:S:U:V:Z:a:c:e:f:n:p:q:r:s:", options, &optind)) != -1) {
         LOG_DEBUG_F("<main> c = %c, opt_idx = %d\n", c, optind);
         switch (c) {
             case 'A':
@@ -75,9 +75,28 @@ void parse_effect_options(int argc, char *argv[], effect_options_data_t *options
             case 'Z':   // config, not processed
                 optind = parse_global_options(argc, argv, global_options_data, previous_opt_index);
                 break;
+            case 'a':
+                if (!is_numeric(optarg)) {
+                    LOG_WARN("The argument of the filter by number of alleles must be a numeric value");
+                } else {
+                    tmp_int_field = atoi(optarg);
+                    filter = create_num_alleles_filter(tmp_int_field);
+                    options_data->chain = add_to_filter_chain(filter, options_data->chain);
+                    LOG_INFO_F("number of alleles filter = %d\n", tmp_int_field);
+                }
+                break;
+            case 'c':
+                if (!is_numeric(optarg)) {
+                    LOG_WARN("The argument of the coverage filter must be a numeric value");
+                } else {
+                    tmp_int_field = atoi(optarg);
+                    filter = create_coverage_filter(tmp_int_field);
+                    options_data->chain = add_to_filter_chain(filter, options_data->chain);
+                    LOG_INFO_F("coverage filter, minimum is = %d\n", tmp_int_field);
+                }
+                break;
             case 'e':
-                options_data->excludes = (char*) calloc(strlen(optarg)+1, sizeof(char));
-                strcat(options_data->excludes, optarg);
+                options_data->excludes = strdup(optarg);
                 LOG_INFO_F("exclude = %s\n", options_data->excludes);
                 break;
             case 'f':
@@ -88,22 +107,30 @@ void parse_effect_options(int argc, char *argv[], effect_options_data_t *options
                 free(tmp_string_field);
                 break;
             case 'n':
-                tmp_int_field = atoi(optarg);
-                if (!tmp_int_field) {
+                if (!is_numeric(optarg)) {
                     LOG_WARN_F("The requested number of threads is not valid (%s)\n", optarg);
                 } else {
-                    options_data->num_threads = tmp_int_field;
+                    options_data->num_threads = atoi(optarg);
+                    LOG_INFO_F("num-threads = %ld\n", options_data->num_threads);
                 }
-                LOG_INFO_F("num-threads = %ld\n", options_data->num_threads);
                 break;
             case 'p':
-                tmp_int_field = atoi(optarg);
-                if (!tmp_int_field) {
+                if (!is_numeric(optarg)) {
                     LOG_WARN_F("The requested number of variants per request is not valid (%s)\n", optarg);
                 } else {
-                    options_data->variants_per_request = tmp_int_field;
+                    options_data->variants_per_request = atoi(optarg);
+                    LOG_INFO_F("variants-per-request = %ld\n", options_data->variants_per_request);
                 }
-                LOG_INFO_F("variants-per-request = %ld\n", options_data->variants_per_request);
+                break;
+            case 'q':
+                if (!is_numeric(optarg)) {
+                    LOG_WARN("The argument of the quality filter must be a numeric value");
+                } else {
+                    tmp_int_field = atoi(optarg);
+                    filter = create_quality_filter(tmp_int_field);
+                    options_data->chain = add_to_filter_chain(filter, options_data->chain);
+                    LOG_INFO_F("quality filter, minimum is = %d\n", tmp_int_field);
+                }
                 break;
             case 'r':
                 tmp_string_field = strdup(optarg);
@@ -111,6 +138,11 @@ void parse_effect_options(int argc, char *argv[], effect_options_data_t *options
                 options_data->chain = add_to_filter_chain(filter, options_data->chain);
                 LOG_INFO_F("regions = %s\n", optarg);
                 free(tmp_string_field);
+                break;
+            case 's':
+                filter = create_snp_filter(optarg);
+                options_data->chain = add_to_filter_chain(filter, options_data->chain);
+                LOG_INFO_F("snp filter to %s SNPs\n", (optarg == NULL)? "include" : optarg);
                 break;
             case '?':
             default:
