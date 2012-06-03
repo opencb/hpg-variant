@@ -12,8 +12,10 @@ REGION_DIR = $(BIOINFO_DATA_DIR)/features/region
 # Include and libs folders
 INCLUDES = -I $(CONTAINERS_DIR) -I $(COMMONS_DIR) -I $(REGION_DIR) -I $(BIOINFO_DATA_DIR) -I $(BIOINFO_DATA_DIR)/vcf/ -I $(BIOINFO_DATA_DIR)/gff/ -I $(BIOINFO_DATA_DIR)/ped/ -I . -I ./effect/ -I ./gwas -I /usr/include/libxml2
 LIBS = -L/usr/lib/x86_64-linux-gnu -lcurl -Wl,-Bsymbolic-functions -lconfig -lcprops -fopenmp -lm -lxml2
-#LIBS = -Llibs -L/usr/lib/x86_64-linux-gnu -lcurl -Wl,-Bsymbolic-functions -lconfig -lcprops -fopenmp -lm -lxml2
 LIBS_TEST = -lcheck
+
+INCLUDES_STATIC = -I $(CONTAINERS_DIR) -I $(COMMONS_DIR) -I $(REGION_DIR) -I $(BIOINFO_DATA_DIR) -I $(BIOINFO_DATA_DIR)/vcf/ -I $(BIOINFO_DATA_DIR)/gff/ -I $(BIOINFO_DATA_DIR)/ped/ -I . -I ./effect/ -I ./gwas -I /usr/include/libxml2 -I ./include
+LIBS_STATIC = -Llibs -L/usr/lib/x86_64-linux-gnu -lcurl -Wl,-Bsymbolic-functions -lconfig -lcprops -fopenmp -lm -lxml2
 
 # Source files dependencies
 VCF_OBJS = $(BIOINFO_DATA_DIR)/vcf/vcf_*.o
@@ -37,9 +39,17 @@ ALL_FILES = $(HPG_VARIANT_OBJS) $(EFFECT_OBJS) $(GWAS_OBJS) $(VCF_OBJS) $(GFF_OB
 # Targets
 all: compile-dependencies hpg-variant
 
+deploy: compile-dependencies $(HPG_VARIANT_FILES)
+	$(CC) $(CFLAGS) -D_XOPEN_SOURCE=600 -c main.c $(HPG_VARIANT_FILES) $(EFFECT_FILES) $(GWAS_FILES) $(INCLUDES) $(LIBS)
+	test -d bin || mkdir bin
+	cp hpg-variant.cfg bin
+	$(CC) $(CFLAGS) -D_XOPEN_SOURCE=600 -o bin/hpg-variant main.o $(ALL_FILES) $(INCLUDES_STATIC) $(LIBS_STATIC)
+	
 hpg-variant: compile-dependencies $(HPG_VARIANT_FILES)
 	$(CC) $(CFLAGS_DEBUG) -D_XOPEN_SOURCE=600 -c main.c $(HPG_VARIANT_FILES) $(EFFECT_FILES) $(GWAS_FILES) $(INCLUDES) $(LIBS)
-	$(CC) $(CFLAGS_DEBUG) -D_XOPEN_SOURCE=600 -o $@ main.o $(ALL_FILES) $(INCLUDES) $(LIBS)
+	test -d bin || mkdir bin
+	cp hpg-variant.cfg bin
+	$(CC) $(CFLAGS_DEBUG) -D_XOPEN_SOURCE=600 -o bin/$@ main.o $(ALL_FILES) $(INCLUDES) $(LIBS)
 
 testing: test/test_effect_runner.c test/test_tdt_runner.c $(ALL_FILES)
 	$(CC) $(CFLAGS) -D_XOPEN_SOURCE=600 -o test/effect.test test/test_effect_runner.c $(ALL_FILES) $(INCLUDES) $(LIBS) $(LIBS_TEST)
@@ -67,5 +77,5 @@ clean:
 	rm -f $(BIOINFO_DATA_DIR)/gff/*.o
 	rm -f $(BIOINFO_DATA_DIR)/ped/*.o
 	rm -f $(REGION_DIR)/*.o
-	rm hpg-variant
+	rm -rf bin
 
