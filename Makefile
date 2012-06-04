@@ -10,9 +10,12 @@ BIOINFO_DATA_DIR = $(LIBS_ROOT)/bioformats
 REGION_DIR = $(BIOINFO_DATA_DIR)/features/region
 
 # Include and libs folders
-INCLUDES = -I . -I $(CONTAINERS_DIR) -I $(COMMONS_DIR) -I $(REGION_DIR) -I $(BIOINFO_DATA_DIR)/vcf/ -I $(BIOINFO_DATA_DIR)/gff/  
+INCLUDES = -I . -I $(CONTAINERS_DIR) -I $(COMMONS_DIR) -I $(REGION_DIR) -I $(BIOINFO_DATA_DIR)/vcf/ -I $(BIOINFO_DATA_DIR)/gff/ -I ./filter -I ./split -I ./stats 
 LIBS = -L/usr/lib/x86_64-linux-gnu -lconfig -lcprops -fopenmp -lm -lcurl -Wl,-Bsymbolic-functions
 LIBS_TEST = -lcheck
+
+INCLUDES_STATIC = -I . -I $(CONTAINERS_DIR) -I $(COMMONS_DIR) -I $(REGION_DIR) -I $(BIOINFO_DATA_DIR) -I $(BIOINFO_DATA_DIR)/vcf/ -I $(BIOINFO_DATA_DIR)/gff/ -I ./filter -I ./split -I ./stats -I ./include
+LIBS_STATIC = -Llibs -L/usr/lib/x86_64-linux-gnu -lconfig -lcprops -fopenmp -lm -lcurl -Wl,-Bsymbolic-functions
 
 # Source files dependencies
 VCF_FILES = $(BIOINFO_DATA_DIR)/vcf/*.o
@@ -30,21 +33,36 @@ VCF_TOOLS_FILES = global_options.c hpg_vcf_tools_utils.c $(FILTER_FILES) $(SPLIT
 # Targets
 all: compile-dependencies hpg-vcf
 
-hpg-vcf: compile-dependencies $(VCF_TOOLS_FILES) 
-	$(CC) $(CFLAGS) -D_XOPEN_SOURCE=600 -o $@ main.c $(VCF_TOOLS_FILES) $(INCLUDES) $(LIBS)
+hpg-vcf: compile-dependencies $(VCF_TOOLS_FILES)
+	$(CC) $(CFLAGS) -D_XOPEN_SOURCE=600 -c main.c $(VCF_TOOLS_FILES) $(INCLUDES) $(LIBS)
+	test -d bin || mkdir bin
+	cp hpg-vcf-tools.cfg bin
+	$(CC) $(CFLAGS) -D_XOPEN_SOURCE=600 -o bin/$@ main.o $(VCF_TOOLS_FILES) $(INCLUDES) $(LIBS)
 #	$(CC) $(CFLAGS_DEBUG) -D_XOPEN_SOURCE=600 -o $@ main.c $(VCF_TOOLS_FILES) $(INCLUDES) $(LIBS)
 
+deploy: compile-dependencies-static $(VCF_TOOLS_FILES)
+	$(CC) $(CFLAGS) -D_XOPEN_SOURCE=600 -c main.c $(VCF_TOOLS_FILES) $(INCLUDES_STATIC) $(LIBS_STATIC)
+	test -d bin || mkdir bin
+	cp hpg-vcf-tools.cfg bin
+	$(CC) $(CFLAGS) -D_XOPEN_SOURCE=600 -o bin/hpg-vcf main.o $(VCF_TOOLS_FILES) $(INCLUDES_STATIC) $(LIBS_STATIC)
+
 compile-dependencies:
-	cd $(COMMONS_DIR) && make file_utils.o string_utils.o log.o &&  \
+	cd $(COMMONS_DIR) && make compile &&  \
 	cd $(REGION_DIR) && make region.o &&  \
-	cd $(CONTAINERS_DIR) && make list.o region_table.o region_table_utils.o &&  \
+	cd $(CONTAINERS_DIR) && make compile &&  \
 	cd $(BIOINFO_DATA_DIR)/gff && make compile &&  \
 	cd $(BIOINFO_DATA_DIR)/vcf && make compile
+
+compile-dependencies-static:
+	cd $(COMMONS_DIR) && make compile &&  \
+	cd $(REGION_DIR) && make region.o &&  \
+	cd $(CONTAINERS_DIR) && make compile-static &&  \
+	cd $(BIOINFO_DATA_DIR)/gff && make compile-static &&  \
+	cd $(BIOINFO_DATA_DIR)/vcf && make compile-static
 
 clean:
 	rm -f *.o
 	rm -f $(CONTAINERS_DIR)/*.o
 	rm -f $(COMMONS_DIR)/*.o
 	rm -f $(REGION_DIR)/*.o
-	rm hpg-vcf
-
+	rm -rf bin
