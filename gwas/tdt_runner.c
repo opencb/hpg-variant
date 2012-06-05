@@ -126,7 +126,7 @@ int run_tdt_test(global_options_data_t* global_options_data, gwas_options_data_t
                 // Launch TDT test over records that passed the filters
                 if (passed_records->length > 0) {
                     // Divide the list of passed records in ranges of size defined in config file
-                    int max_chunk_size = 1000;  // TODO define dynamically
+                    int max_chunk_size = options_data->variants_per_request;
                     int num_chunks;
                     list_item_t **chunk_starts = create_chunks(passed_records, max_chunk_size, &num_chunks);
                     
