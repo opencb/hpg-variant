@@ -37,6 +37,14 @@ int read_gwas_configuration(const char *filename, gwas_options_data_t *options_d
         LOG_INFO_F("batch-size = %ld\n", options_data->batch_size);
     }
     
+    // Read number of variants per request of test execution
+    ret_code = config_lookup_int(config, "gwas.variants-per-request", &(options_data->variants_per_request));
+    if (ret_code == CONFIG_FALSE) {
+        LOG_WARN("Variants per request not found in config file, must be set via command-line");
+    } else {
+        LOG_INFO_F("variants-per-request = %ld\n", options_data->variants_per_request);
+    }
+
     config_destroy(config);
     free(config);
 
