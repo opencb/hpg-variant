@@ -4,11 +4,12 @@ int tdt_test(ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_h
     int ret_code = 0;
     int tid = omp_get_thread_num();
     cp_hashtable *families = ped_file->families;
+    char **families_keys = (char**) cp_hashtable_get_keys(families);
     int num_families = get_num_families(ped_file);
     int num_samples = cp_hashtable_count(sample_ids);
     
     tdt_result_t *result;
-    char **sample_data;// = (char**) calloc (num_samples, sizeof(char*));
+    char **sample_data;
     
     
     int father_allele1, father_allele2;
@@ -37,10 +38,9 @@ int tdt_test(ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_h
         
         
         // Count over families
-        char **keys = (char**) cp_hashtable_get_keys(families);
         family_t *family;
         for (int f = 0; f < num_families; f++) {
-            family = cp_hashtable_get(families, keys[f]);
+            family = cp_hashtable_get(families, families_keys[f]);
             individual_t *father = family->father;
             individual_t *mother = family->mother;
             cp_list *children = family->children;
@@ -225,9 +225,14 @@ int tdt_test(ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_h
         LOG_DEBUG_F("[%d] after adding %s:%ld\n", tid, record->chromosome, record->position);
         
         cur_variant = cur_variant->next_p;
+        
+        // Free samples
+        // TODO implement arraylist in order to avoid this code
+        free(sample_data);
     } // next variant
 
-    free(sample_data);
+    // Free families' keys
+    free(families_keys);
     
     return ret_code;
 }
@@ -236,13 +241,10 @@ int tdt_test(ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_h
 tdt_result_t* tdt_result_new(char *chromosome, unsigned long int position, char *reference, char *alternate, double t1, double t2, double chi_square) {
     tdt_result_t *result = (tdt_result_t*) malloc (sizeof(tdt_result_t));
     
-    result->chromosome = (char*) calloc (strlen(chromosome)+1, sizeof(char));
-    strncat(result->chromosome, chromosome, strlen(chromosome));
+    result->chromosome = strdup(chromosome);
     result->position = position;
-    result->reference = (char*) calloc (strlen(reference)+1, sizeof(char));
-    strncat(result->reference, reference, strlen(reference));
-    result->alternate = (char*) calloc (strlen(alternate)+1, sizeof(char));
-    strncat(result->alternate, alternate, strlen(alternate));
+    result->reference = strdup(reference);
+    result->alternate = strdup(alternate);
     result->t1 = t1;
     result->t2 = t2;
     result->odds_ratio = (t2 == 0.0) ? NAN : ((double) t1/t2);
@@ -255,4 +257,5 @@ void tdt_result_free(tdt_result_t* result) {
     free(result->chromosome);
     free(result->reference);
     free(result->alternate);
+    free(result);
 }
