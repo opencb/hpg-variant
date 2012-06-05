@@ -69,6 +69,7 @@ typedef struct gwas_options_data
     long int num_threads; /**< Number of threads that query the web service simultaneously. */
     long int max_batches; /**< Number of VCF records' batches that can be stored simultaneously. */
     long int batch_size; /**< Maximum size of a VCF records' batch. */
+    long int variants_per_request; /**< Maximum number of variants sent in each web service query. */
     
     filter_chain *chain; /**< Chain of filters to apply to the VCF records, if that is the case. */
 } gwas_options_data_t;
