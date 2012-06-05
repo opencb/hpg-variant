@@ -6,12 +6,12 @@
 #include <cprops/hashtable.h>
 #include <omp.h>
 
-#include <file_utils.h>
-#include <list.h>
-#include <log.h>
-#include <vcf_batch.h>
-#include <vcf_filters.h>
-#include <vcf_file.h>
+#include <commons/file_utils.h>
+#include <containers/list.h>
+#include <commons/log.h>
+#include <bioformats/vcf/vcf_batch.h>
+#include <bioformats/vcf/vcf_filters.h>
+#include <bioformats/vcf/vcf_file.h>
 
 #include "hpg_vcf_tools_utils.h"
 #include "split.h"

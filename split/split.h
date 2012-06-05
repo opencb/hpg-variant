@@ -8,9 +8,9 @@
 #include <cprops/linked_list.h>
 #include <libconfig.h>
 
-#include <list.h>
-#include <log.h>
-#include <vcf_file_structure.h>
+#include <bioformats/vcf/vcf_file_structure.h>
+#include <commons/log.h>
+#include <containers/list.h>
 
 #include "error.h"
 #include "global_options.h"

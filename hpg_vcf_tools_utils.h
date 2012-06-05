@@ -4,8 +4,8 @@
 #include <math.h>
 #include <stdlib.h>
 
-#include <list.h>
-#include <log.h>
+#include <commons/log.h>
+#include <containers/list.h>
 
 list_item_t** create_chunks(list_t* records, int max_chunk_size, int *num_chunks);
 

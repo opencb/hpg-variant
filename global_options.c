@@ -104,50 +104,36 @@ int parse_global_options(int argc, char *argv[], global_options_data_t *options_
         {
             case 'A':
                 options_data->vcf_filename = strdup(optarg);
-//                 options_data->vcf_filename = (char*) calloc(strlen(optarg)+1, sizeof(char));
-//                 strncat(options_data->vcf_filename, optarg, strlen(optarg));
                 last_opt_index = optind;
                 LOG_INFO_F("input vcf filename = %s\n", options_data->vcf_filename);
                 break;
             case 'E':
                 options_data->ped_filename = strdup(optarg);
-//                 options_data->ped_filename = (char*) calloc(strlen(optarg)+1, sizeof(char));
-//                 strncat(options_data->ped_filename, optarg, strlen(optarg));
                 last_opt_index = optind;
                 LOG_INFO_F("input ped filename = %s\n", options_data->ped_filename);
                 break;
             case 'N':
                 options_data->output_directory = strdup(optarg);
-//                 options_data->output_directory = (char*) calloc(strlen(optarg)+1, sizeof(char));
-//                 strncat(options_data->output_directory, optarg, strlen(optarg));
                 last_opt_index = optind;
                 LOG_INFO_F("output directory = %s\n", options_data->output_directory);
                 break;
             case 'O':
                 options_data->output_filename = strdup(optarg);
-//                 options_data->output_filename = (char*) calloc(strlen(optarg)+1, sizeof(char));
-//                 strncat(options_data->output_filename, optarg, strlen(optarg));
                 last_opt_index = optind;
                 LOG_INFO_F("output filename template = %s\n", options_data->output_filename);
                 break;
             case 'S':
                 options_data->species = strdup(optarg);
-//                 options_data->output_directory = (char*) calloc(strlen(optarg)+1, sizeof(char));
-//                 strncat(options_data->output_directory, optarg, strlen(optarg));
                 last_opt_index = optind;
                 LOG_INFO_F("species = %s\n", options_data->species);
                 break;
             case 'V':
                 options_data->version = strdup(optarg);
-//                 options_data->output_filename = (char*) calloc(strlen(optarg)+1, sizeof(char));
-//                 strncat(options_data->output_filename, optarg, strlen(optarg));
                 last_opt_index = optind;
                 LOG_INFO_F("version = %s\n", options_data->version);
                 break;
             case 'U':
                 options_data->host_url = strdup(optarg);
-//                 options_data->output_filename = (char*) calloc(strlen(optarg)+1, sizeof(char));
-//                 strncat(options_data->output_filename, optarg, strlen(optarg));
                 last_opt_index = optind;
                 LOG_INFO_F("web services URL = %s\n", options_data->host_url);
                 break;

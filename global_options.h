@@ -15,7 +15,7 @@
 
 #include <libconfig.h>
 
-#include <log.h>
+#include <commons/log.h>
 
 #include "error.h"
 
