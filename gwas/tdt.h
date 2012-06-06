@@ -8,13 +8,13 @@
 #include <cprops/linked_list.h>
 #include <omp.h>
 
-#include <list.h>
-#include <log.h>
-#include <ped_file.h>
-#include <ped_file_structure.h>
-#include <vcf_file.h>
-#include <vcf_file_structure.h>
-#include <vcf_util.h>
+#include <bioformats/ped/ped_file.h>
+#include <bioformats/ped/ped_file_structure.h>
+#include <bioformats/vcf/vcf_file.h>
+#include <bioformats/vcf/vcf_file_structure.h>
+#include <bioformats/vcf/vcf_util.h>
+#include <commons/log.h>
+#include <containers/list.h>
 
 #include "checks_family.h"
 

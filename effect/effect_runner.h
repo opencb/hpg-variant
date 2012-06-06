@@ -21,16 +21,16 @@
 #include <curl/curl.h>
 #include <omp.h>
 
-#include <file_utils.h>
-#include <http_utils.h>
-#include <list.h>
-#include <log.h>
-#include <result.h>
-#include <string_utils.h>
-#include <vcf_batch.h>
-#include <vcf_file.h>
-#include <vcf_filters.h>
-#include <vcf_write.h>
+#include <bioformats/vcf/vcf_batch.h>
+#include <bioformats/vcf/vcf_file.h>
+#include <bioformats/vcf/vcf_filters.h>
+#include <bioformats/vcf/vcf_write.h>
+#include <commons/file_utils.h>
+#include <commons/http_utils.h>
+#include <commons/log.h>
+#include <commons/result.h>
+#include <commons/string_utils.h>
+#include <containers/list.h>
 
 #include "effect.h"
 #include "error.h"

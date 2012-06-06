@@ -11,7 +11,8 @@
 Suite *create_test_suite(void);
 
 
-effect_options_data_t opts_data;
+global_options_data_t *global_data;
+effect_options_data_t *opts_data;
 
 
 /* ******************************
@@ -19,7 +20,16 @@ effect_options_data_t opts_data;
  * ******************************/
 
 void setup_effect_ws(void) {
-    initialize_ws_output(4, "./");
+    global_data = new_global_options_data();
+    global_data->output_directory = strdup("/tmp/variant-test/");
+    
+    opts_data = init_options_data();
+    opts_data->num_threads = 4;
+    opts_data->max_batches = 10;
+    opts_data->batch_size = 4000;
+    opts_data->variants_per_request = 1000;
+    
+    initialize_ws_output(global_data, opts_data);
 }
 
 void teardown_effect_ws(void) {
@@ -33,19 +43,19 @@ void teardown_effect_ws(void) {
 
 START_TEST (url_composition) {
     // All null arguments
-    fail_unless(compose_effect_ws_request(&opts_data) == NULL, "The resulting URL must be null (all args are null)");
+    fail_unless(compose_effect_ws_request(global_data) == NULL, "The resulting URL must be null (all args are null)");
     
     // Some not-null arguments
-    opts_data.species = "hsa";
-    opts_data.version = "v1";
-    fail_unless(compose_effect_ws_request(&opts_data) == NULL, "The resulting URL must be null (some args are null)");
+    global_data->species = "hsa";
+    global_data->version = "v1";
+    fail_unless(compose_effect_ws_request(global_data) == NULL, "The resulting URL must be null (some args are null)");
     
     // None null argument
-    opts_data.host_url = "http://localhost:8080";
-    opts_data.species = "hsa";
-    opts_data.version = "v1";
+    global_data->host_url = "http://localhost:8080";
+    global_data->species = "hsa";
+    global_data->version = "v1";
     
-    char *url = compose_effect_ws_request(&opts_data);
+    char *url = compose_effect_ws_request(global_data);
     fail_if(strcmp(url, "http://localhost:8080/cellbase/rest/v1/hsa/genomic/variant/consequence_type"),
             "The resulting URL must be 'http://localhost:8080/cellbase/rest/v1/hsa/genomic/variant/consequence_type'"); 
 }

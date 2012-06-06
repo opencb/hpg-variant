@@ -9,16 +9,16 @@
 #include <cprops/hashtable.h>
 #include <omp.h>
 
-#include <family.h>
-#include <list.h>
-#include <log.h>
-#include <ped_file.h>
-#include <ped_file_structure.h>
-#include <string_utils.h>
-#include <vcf_batch.h>
-#include <vcf_file.h>
-#include <vcf_filters.h>
-#include <vcf_util.h>
+#include <bioformats/family.h>
+#include <bioformats/ped/ped_file.h>
+#include <bioformats/ped/ped_file_structure.h>
+#include <bioformats/vcf/vcf_batch.h>
+#include <bioformats/vcf/vcf_file.h>
+#include <bioformats/vcf/vcf_filters.h>
+#include <bioformats/vcf/vcf_util.h>
+#include <commons/log.h>
+#include <commons/string_utils.h>
+#include <containers/list.h>
 
 #include "global_options.h"
 #include "gwas.h"
