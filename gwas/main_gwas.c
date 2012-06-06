@@ -1,4 +1,5 @@
 #include "gwas.h"
+#include "assoc_runner.h"
 #include "tdt_runner.h"
 
 int genomic_analysis(int argc, char *argv[], const char *configuration_file) {
@@ -34,25 +35,28 @@ int genomic_analysis(int argc, char *argv[], const char *configuration_file) {
     int check_global_opts, check_gwas_opts;
 
     check_global_opts = verify_global_options(global_options_data);
-    if (check_global_opts > 0)
-    {
+    if (check_global_opts > 0) {
         return check_global_opts;
     }
 
     check_gwas_opts = verify_gwas_options(global_options_data, options_data);
-    if (check_gwas_opts > 0)
-    {
+    if (check_gwas_opts > 0) {
         return check_gwas_opts;
     }
 
     // Step 4: Perform the operations related to the selected GWAS sub-tool
+    // TODO Transform into switch statement when more tests are added
 //     switch (options_data->task) {
 //         case TDT:
-    if (options_data->task == TDT) {
-            run_tdt_test(global_options_data, options_data);
-    }
-//             break;
+//         break;
+//         case ASSOCIATION_BASIC:
+//         break;
 //     }
+    if (options_data->task == TDT) {
+        run_tdt_test(global_options_data, options_data);
+    } else if (options_data->task == ASSOCIATION_BASIC) {
+        run_association_test(global_options_data, options_data);
+    }
     
     free_options_data(options_data);
     free_global_options_data(global_options_data);

@@ -1,8 +1,8 @@
-#include "tdt_runner.h"
+#include "assoc_runner.h"
 
 // int permute = 0;
 
-int run_tdt_test(global_options_data_t* global_options_data, gwas_options_data_t* options_data) {
+int run_association_test(global_options_data_t* global_options_data, gwas_options_data_t* options_data) {
     list_t *read_list = (list_t*) malloc(sizeof(list_t));
     list_init("batches", 1, options_data->max_batches, read_list);
     list_t *output_list = (list_t*) malloc (sizeof(list_t));
@@ -27,7 +27,7 @@ int run_tdt_test(global_options_data_t* global_options_data, gwas_options_data_t
         LOG_FATAL_F("Can't create output directory: %s\n", global_options_data->output_directory);
     }
     
-    LOG_INFO("About to perform TDT test...\n");
+    LOG_INFO("About to perform basic association test...\n");
 
 #pragma omp parallel sections private(start, stop, total)
     {
@@ -134,12 +134,16 @@ int run_tdt_test(global_options_data_t* global_options_data, gwas_options_data_t
                     #pragma omp parallel for
                     for (int j = 0; j < num_chunks; j++) {
                         LOG_DEBUG_F("[%d] Test execution\n", omp_get_thread_num());
-                        ret_code = tdt_test(ped_file, chunk_starts[j], max_chunk_size, sample_ids, output_list);
+                        if (options_data->task == ASSOCIATION_BASIC) {
+                            ret_code = assoc_basic_test(ped_file, chunk_starts[j], max_chunk_size, sample_ids, output_list);
+                        } else {
+                            ret_code = 0;
+                        }
                     }
                     free(chunk_starts);
                     
                     if (i % 10 == 0) { 
-                        LOG_INFO_F("*** %dth TDT execution finished\n", i);
+                        LOG_INFO_F("*** %dth basic case/control association execution finished\n", i);
                     }
                     
                     if (ret_code) {
@@ -200,40 +204,44 @@ int run_tdt_test(global_options_data_t* global_options_data, gwas_options_data_t
 #pragma omp section
         {
             // Thread which writes the results to the output file
-            FILE *fd = NULL;    // TODO check if output file is defined
+            FILE *fd = NULL;
             char *path = NULL, *filename = NULL;
             size_t filename_len = 0;
             
             // Set whole path to the output file
-            if (global_options_data->output_filename != NULL && 
-                strlen(global_options_data->output_filename) > 0) {
+            if (global_options_data->output_filename != NULL && strlen(global_options_data->output_filename) > 0) {
                 filename_len = strlen(global_options_data->output_filename);
                 filename = global_options_data->output_filename;
             } else {
-                filename_len = strlen("hpg-variant.tdt");
-                filename = strdup("hpg-variant.tdt");
+                filename_len = strlen("hpg-variant.assoc");
+                filename = strdup("hpg-variant.assoc");
             }
             path = (char*) calloc ((output_directory_len + filename_len + 2), sizeof(char));
             sprintf(path, "%s/%s", global_options_data->output_directory, filename);
             fd = fopen(path, "w");
             
-            LOG_INFO_F("TDT output filename = %s\n", path);
+            LOG_INFO_F("Basic case/control association output filename = %s\n", path);
             free(filename);
             free(path);
             
             // Write data: header + one line per variant
             list_item_t* item = NULL;
-            tdt_result_t *result;
-//             fprintf(fd, "CHR        BP          A1      A2        T       U          OR            CHISQ            P\n");
-            fprintf(fd, "CHR           BP       A1      A2         T       U           OR           CHISQ\n");
+            assoc_basic_result_t *result;
+            fprintf(fd, "CHR           BP       A1      C_A1    C_U1         F_A1            F_U1       A2      C_A2    C_U2         F_A2            F_U2              OR           CHISQ\n");
             while ((item = list_remove_item(output_list)) != NULL) {
                 result = item->data_p;
                 
-                fprintf(fd, "%s\t%8ld\t%s\t%s\t%3d\t%3d\t%6f\t%6f\n",//\t%f\n", 
-                       result->chromosome, result->position, result->reference, result->alternate, 
-                       result->t1, result->t2, result->odds_ratio, result->chi_square);//p_value);
+                fprintf(fd, "%s\t%8ld\t%s\t%3d\t%3d\t%6f\t%6f\t%s\t%3d\t%3d\t%6f\t%6f\t%6f\t%6f\n",//\t%f\n",
+                        result->chromosome, result->position, 
+                        result->reference, result->affected1, result->unaffected1, 
+                        (double) result->affected1 / (result->affected1 + result->affected2), 
+                        (double) result->unaffected1 / (result->unaffected1 + result->unaffected2), 
+                        result->alternate, result->affected2, result->unaffected2, 
+                        (double) result->affected2 / (result->affected1 + result->affected2), 
+                        (double) result->unaffected2 / (result->unaffected1 + result->unaffected2), 
+                        result->odds_ratio, result->chi_square);//p_value);
                 
-                tdt_result_free(result);
+                assoc_basic_result_free(result);
                 list_item_free(item);
             }
             
