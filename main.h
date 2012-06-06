@@ -10,7 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <vcf_util.h>
+#include <bioformats/vcf/vcf_util.h>
 
 #include "error.h"
 #include "global_options.h"

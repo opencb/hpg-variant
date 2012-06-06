@@ -3,8 +3,8 @@
 
 #include <string.h>
 
-#include <family.h>
-#include <region.h>
+#include <bioformats/family.h>
+#include <bioformats/features/region/region.h>
 
 int check_mendel(char *chromosome, int father_allele1, int father_allele2, int mother_allele1, int mother_allele2, 
                  int child_allele1, int child_allele2, enum Sex child_sex);

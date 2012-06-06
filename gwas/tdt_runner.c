@@ -138,7 +138,9 @@ int run_tdt_test(global_options_data_t* global_options_data, gwas_options_data_t
                     }
                     free(chunk_starts);
                     
-                    LOG_INFO_F("*** %dth TDT execution finished\n", i);
+                    if (i % 10 == 0) { 
+                        LOG_INFO_F("*** %dth TDT execution finished\n", i);
+                    }
                     
                     if (ret_code) {
 //                         LOG_FATAL_F("TDT error: %s\n", get_last_http_error(ret_code));

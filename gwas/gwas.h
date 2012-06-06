@@ -13,8 +13,8 @@
 #include <libconfig.h>
 #include <stdlib.h>
 
-#include <log.h>
-#include <vcf_filters.h>
+#include <bioformats/vcf/vcf_filters.h>
+#include <commons/log.h>
 
 #include "error.h"
 #include "global_options.h"
