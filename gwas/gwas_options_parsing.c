@@ -63,7 +63,7 @@ void parse_gwas_options(int argc, char *argv[], gwas_options_data_t *options_dat
     // Last option read, for when the global options parser is invoked
     int previous_opt_index = optind;
 
-    while ((c = getopt_long (argc, argv, "A:N:O:S:U:V:a:c:f:n:q:r:s:t", options, &optind)) != -1)
+    while ((c = getopt_long (argc, argv, "A:N:O:S:U:V:a:c:f:n:o:q:r:s:t", options, &optind)) != -1)
     {
         LOG_DEBUG_F("<main> c = %c, opt_idx = %d\n", c, optind);
         switch (c)
@@ -111,6 +111,14 @@ void parse_gwas_options(int argc, char *argv[], gwas_options_data_t *options_dat
                     LOG_INFO_F("num-threads = %ld\n", options_data->num_threads);
                 }
                 break;
+            case 'o':
+                if (options_data->task == NONE) {
+                    options_data->task = ASSOCIATION_BASIC;
+                    LOG_INFO("task = Basic case/control association\n");
+                } else {
+                    LOG_ERROR("Task already selected\n");
+                }
+                break;
             case 'q':
                 if (!is_numeric(optarg)) {
                     LOG_WARN("The argument of the quality filter must be a numeric value");
@@ -138,7 +146,7 @@ void parse_gwas_options(int argc, char *argv[], gwas_options_data_t *options_dat
                     options_data->task = TDT;
                     LOG_INFO("task = TDT\n");
                 } else {
-                    LOG_ERROR("Task already selected\n");
+                    LOG_ERROR("Task already chosen\n");
                 }
                 break;
             case '?':
@@ -162,18 +170,17 @@ int verify_gwas_options(global_options_data_t *global_options_data, gwas_options
         return VCF_FILE_NOT_SPECIFIED;
     }
     
-    // Check whether the input PED file is defined
-    if (global_options_data->ped_filename == NULL || strlen(global_options_data->ped_filename) == 0) {
-        LOG_ERROR("Please specify the input PED file.\n");
-        return PED_FILE_NOT_SPECIFIED;
-    }
-
     // Check whether the task to perform is defined
     if (options_data->task == NONE) {
         LOG_ERROR("Please specify the task to perform.\n");
         return GWAS_TASK_NOT_SPECIFIED;
     }
 
+    // Check whether the input PED file is defined
+    if (global_options_data->ped_filename == NULL || strlen(global_options_data->ped_filename) == 0) {
+        LOG_ERROR("Please specify the input PED file.\n");
+        return PED_FILE_NOT_SPECIFIED;
+    }
     
     return 0;
 }

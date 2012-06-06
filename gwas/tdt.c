@@ -11,7 +11,7 @@ int tdt_test(ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_h
     tdt_result_t *result;
     char **sample_data;
     
-    
+    int gt_position;
     int father_allele1, father_allele2;
     int mother_allele1, mother_allele2;
     int child_allele1, child_allele2;
@@ -30,6 +30,7 @@ int tdt_test(ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_h
     //         }
 
         // TODO implement arraylist in order to avoid this conversion
+        gt_position = get_field_position_in_format("GT", record->format);
         sample_data = (char**) list_to_array(record->samples);
     
         // Transmission counts
@@ -72,7 +73,6 @@ int tdt_test(ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_h
             
             LOG_DEBUG_F("[%d] Samples: Father = %s\tMother = %s\n", tid, father_sample, mother_sample);
             // If any parent's alleles can't be read or is missing, go to next family
-            int gt_position = get_field_position_in_format("GT", record->format);
             
             if (get_alleles(father_sample, gt_position, &father_allele1, &father_allele2) ||
                 get_alleles(mother_sample, gt_position, &mother_allele1, &mother_allele2)) {
