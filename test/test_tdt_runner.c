@@ -460,7 +460,7 @@ END_TEST
 
 START_TEST (whole_test) {
     // Invoke hpg-variant/genome-analysis --tdt
-    int tdt_ret = system("../hpg-variant gwas --tdt --vcf-file tdt_files/500K_variants_147_samples.vcf --ped-file tdt_files/500K_variants_147_samples.ped --outdir ./ ");
+    int tdt_ret = system("../bin/hpg-variant gwas --tdt --vcf-file tdt_files/500K_variants_147_samples.vcf --ped-file tdt_files/500K_variants_147_samples.ped --outdir ./ ");
     fail_unless(tdt_ret == 0, "hpg-variant exited with errors");
     
     // Check results in base to output file: get each line, grep plink.tdt and compare fields
@@ -474,7 +474,7 @@ START_TEST (whole_test) {
     int t1, t2;
     int t1_plink, t2_plink;
     
-    fail_if(fgets(&line, line_len, cut_proc) == -1, "The TDT results file cannot be read");
+    fail_if(fgets(&line, line_len, cut_proc) == NULL, "The TDT results file cannot be read");
     
     int i = 0;
     int entries_tested = 2000;
