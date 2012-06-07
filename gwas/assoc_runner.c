@@ -20,7 +20,7 @@ int run_association_test(global_options_data_t* global_options_data, gwas_option
     if (ret_code != 0) {
         LOG_FATAL_F("Can't read PED file: %s\n", ped_file->filename);
     }
-    
+               
     // Try to create the directory where the output files will be stored
     ret_code = create_directory(global_options_data->output_directory);
     if (ret_code != 0 && errno != EEXIST) {
@@ -227,7 +227,7 @@ int run_association_test(global_options_data_t* global_options_data, gwas_option
             // Write data: header + one line per variant
             list_item_t* item = NULL;
             assoc_basic_result_t *result;
-            fprintf(fd, "CHR           BP       A1      C_A1    C_U1         F_A1            F_U1       A2      C_A2    C_U2         F_A2            F_U2              OR           CHISQ\n");
+            fprintf(fd, "#CHR           BP       A1      C_A1    C_U1         F_A1            F_U1       A2      C_A2    C_U2         F_A2            F_U2              OR           CHISQ\n");
             while ((item = list_remove_item(output_list)) != NULL) {
                 result = item->data_p;
                 
