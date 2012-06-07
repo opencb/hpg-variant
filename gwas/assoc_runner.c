@@ -134,21 +134,12 @@ int run_association_test(global_options_data_t* global_options_data, gwas_option
                     #pragma omp parallel for
                     for (int j = 0; j < num_chunks; j++) {
                         LOG_DEBUG_F("[%d] Test execution\n", omp_get_thread_num());
-                        if (options_data->task == ASSOCIATION_BASIC) {
-                            ret_code = assoc_basic_test(ped_file, chunk_starts[j], max_chunk_size, sample_ids, output_list);
-                        } else {
-                            ret_code = 0;
-                        }
+                        assoc_test(options_data->task, ped_file, chunk_starts[j], max_chunk_size, sample_ids, output_list);
                     }
                     free(chunk_starts);
                     
                     if (i % 10 == 0) { 
                         LOG_INFO_F("*** %dth basic case/control association execution finished\n", i);
-                    }
-                    
-                    if (ret_code) {
-//                         LOG_FATAL_F("TDT error: %s\n", get_last_http_error(ret_code));
-                        break;
                     }
                 }
                 
