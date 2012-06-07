@@ -16,7 +16,6 @@
 #include <commons/log.h>
 #include <containers/list.h>
 
-#include "assoc.h"
 #include "checks_family.h"
 
 typedef struct {
@@ -35,9 +34,7 @@ typedef struct {
     double chi_square;
 } assoc_basic_result_t;
 
-int assoc_basic_test(ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_hashtable *sample_ids, list_t *output_list);
-
-double chi_square(int a, int b, int c, int d);
+double assoc_basic_test(int a, int b, int c, int d);
 
 assoc_basic_result_t *assoc_basic_result_new(char *chromosome, unsigned long int position, char *reference, char *alternate, 
                                              int affected1, int affected2, int unaffected1, int unaffected2, double chi_square);

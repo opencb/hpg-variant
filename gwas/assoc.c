@@ -1,11 +1,13 @@
 #include "assoc.h"
 
-void prepare_assoc_counters(ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_hashtable *sample_ids, int *counters) {
+void assoc_test(enum GWAS_task test_type, ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_hashtable *sample_ids, list_t *output_list) {
+    int ret_code = 0;
     int tid = omp_get_thread_num();
     cp_hashtable *families = ped_file->families;
     char **families_keys = (char**) cp_hashtable_get_keys(families);
     int num_families = get_num_families(ped_file);
     int num_samples = cp_hashtable_count(sample_ids);
+    
     
     char **sample_data;
     
@@ -40,8 +42,8 @@ void prepare_assoc_counters(ped_file_t *ped_file, list_item_t *variants, int num
             individual_t *mother = family->mother;
             cp_list *children = family->children;
 
-            printf("Read = %d\tAnalyzed = %d\n", num_read, number_analyzed);
-            printf("Family = %d (%s)\n", f, family->id);
+            LOG_DEBUG_F("Read = %d\tAnalyzed = %d\n", num_read, number_analyzed);
+            LOG_DEBUG_F("Family = %d (%s)\n", f, family->id);
             
             // Perform test with father
             if (father != NULL && father->condition != MISSING) {
@@ -58,8 +60,6 @@ void prepare_assoc_counters(ped_file_t *ped_file, list_item_t *variants, int num
                 if (!get_alleles(father_sample, gt_position, &allele1, &allele2)) {
                     number_analyzed++;
                     assoc_count_individual(father, record, allele1, allele2, &A1, &A2, &U1, &U2);
-                } else {
-                    printf("[%s] Father sample = %s\n", family->id, father_sample);
                 }
             }
             
@@ -78,8 +78,6 @@ void prepare_assoc_counters(ped_file_t *ped_file, list_item_t *variants, int num
                 if (!get_alleles(mother_sample, gt_position, &allele1, &allele2)) {
                     number_analyzed++;
                     assoc_count_individual(mother, record, allele1, allele2, &A1, &A2, &U1, &U2);
-                } else {
-                    printf("[%s] Mother sample = %s\n", family->id, mother_sample);
                 }
             }
             
@@ -100,21 +98,43 @@ void prepare_assoc_counters(ped_file_t *ped_file, list_item_t *variants, int num
                 if (!get_alleles(child_sample, gt_position, &allele1, &allele2)) {
                     number_analyzed++;
                     assoc_count_individual(child, record, allele1, allele2, &A1, &A2, &U1, &U2);
-                } else {
-                    printf("[%s] Child sample = %s\n", family->id, child_sample);
                 }
             
             } // next offspring in family
             cp_list_iterator_destroy(children_iterator);
         }  // next nuclear family
-        
-        counters[i * 4]     = A1;
-        counters[i * 4 + 1] = A2;
-        counters[i * 4 + 2] = U1;
-        counters[i * 4 + 3] = U2;
-    }
 
+        /////////////////////////////
+        // Finished counting: now compute
+        // the statistics
+        
+        
+        LOG_DEBUG_F("[%d] before adding %s:%ld\n", tid, record->chromosome, record->position);
+        
+        if (test_type == ASSOCIATION_BASIC) {
+            double assoc_basic_chisq = assoc_basic_test(A1, U1, A2, U2);
+            assoc_basic_result_t *result = assoc_basic_result_new(record->chromosome, record->position, 
+                                                                  record->reference, record->alternate, 
+                                                                  A1, A2, U1, U2, assoc_basic_chisq);
+            list_item_t *output_item = list_item_new(tid, 0, result);
+            list_insert_item(output_item, output_list);
+        } else if (test_type == FISHER) {
+            // TODO invoke Fisher's exact test
+        }
+        
+        LOG_DEBUG_F("[%d] after adding %s:%ld\n", tid, record->chromosome, record->position);
+        
+        cur_variant = cur_variant->next_p;
+        
+        // Free samples
+        // TODO implement arraylist in order to avoid this code
+        free(sample_data);
+    } // next variant
+
+    // Free families' keys
+    free(families_keys);
 }
+
 
 void assoc_count_individual(individual_t *individual, vcf_record_t *record, int allele1, int allele2, 
                            int *affected1, int *affected2, int *unaffected1, int *unaffected2) {
