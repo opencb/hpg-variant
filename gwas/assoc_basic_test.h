@@ -16,6 +16,7 @@
 #include <commons/log.h>
 #include <containers/list.h>
 
+#include "assoc.h"
 #include "checks_family.h"
 
 typedef struct {
@@ -35,12 +36,6 @@ typedef struct {
 } assoc_basic_result_t;
 
 int assoc_basic_test(ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_hashtable *sample_ids, list_t *output_list);
-// int basic_assoc_test(list_item_t *variants, int num_variants, cp_hashtable *sample_ids, list_t *output_list);
-
-// void basic_assoc_individual(individual_t *individual, vcf_record_t *record, int allele1, int allele2, 
-//                            int *affected1, int *affected2, int *unaffected1, int *unaffected2, double *chi_square);
-void assoc_basic_individual(individual_t *individual, vcf_record_t *record, int allele1, int allele2, 
-                           int *affected1, int *affected2, int *unaffected1, int *unaffected2);
 
 double chi_square(int a, int b, int c, int d);
 
