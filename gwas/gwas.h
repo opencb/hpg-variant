@@ -23,11 +23,12 @@
 /**
  * Number of options applicable to the gwas tool.
  */
-#define NUM_GWAS_OPTIONS  9
+#define NUM_GWAS_OPTIONS  10
 
 static struct option gwas_options[] = {
     // Task options
     { "assoc",                  no_argument, 0, 'o' },
+    { "fisher",                 no_argument, 0, 'i' },
 //     { "copy-number",            no_argument, 0, 'c' },
 //     { "loh",                    no_argument, 0, 'l' },
     { "tdt",                    no_argument, 0, 't' },
@@ -50,8 +51,7 @@ static struct option gwas_options[] = {
     {NULL,                      0, 0, 0}
 };
 
-// enum GWAS_task { ASSOCIATION, COPY_NUMBER, LOH, TDT };
-enum GWAS_task { NONE, TDT, ASSOCIATION_BASIC };
+enum GWAS_task { NONE, TDT, ASSOCIATION_BASIC, FISHER };
 
 
 /**

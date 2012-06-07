@@ -103,6 +103,14 @@ void parse_gwas_options(int argc, char *argv[], gwas_options_data_t *options_dat
                 LOG_INFO_F("regions file = %s\n", optarg);
                 free(tmp_string_field);
                 break;
+            case 'i':
+                if (options_data->task == NONE) {
+                    options_data->task = FISHER;
+                    LOG_INFO("task = Fisher's exact test\n");
+                } else {
+                    LOG_ERROR("Task already selected\n");
+                }
+                break;
             case 'n':
                 if (!is_numeric(optarg)) {
                     LOG_WARN_F("The requested number of threads is not valid (%s)\n", optarg);

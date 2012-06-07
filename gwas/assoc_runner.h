@@ -20,10 +20,11 @@
 #include <commons/string_utils.h>
 #include <containers/list.h>
 
+#include "assoc.h"
+#include "assoc_basic_test.h"
 #include "global_options.h"
 #include "gwas.h"
 #include "hpg_variant_utils.h"
-#include "assoc_basic_test.h"
 
 #define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
 

@@ -27,12 +27,12 @@ MISC_OBJS = $(COMMONS_DIR)/file_utils.o $(COMMONS_DIR)/string_utils.o $(COMMONS_
 
 # Project source files
 EFFECT_FILES = effect/main_effect.c effect/effect_options_parsing.c effect/effect_runner.c effect/auxiliary_files_writer.c
-GWAS_FILES = gwas/main_gwas.c gwas/gwas_options_parsing.c gwas/tdt.c gwas/tdt_runner.c gwas/assoc_basic_test.c gwas/assoc_runner.c gwas/checks_family.c
+GWAS_FILES = gwas/main_gwas.c gwas/gwas_options_parsing.c gwas/tdt.c gwas/tdt_runner.c gwas/assoc.c gwas/assoc_basic_test.c gwas/assoc_runner.c gwas/checks_family.c
 HPG_VARIANT_FILES = global_options.c hpg_variant_utils.c
 
 # Project object files
 EFFECT_OBJS = main_effect.o effect_options_parsing.o effect_runner.o auxiliary_files_writer.o
-GWAS_OBJS = main_gwas.o gwas_options_parsing.o tdt.o tdt_runner.o assoc_basic_test.o assoc_runner.o checks_family.o
+GWAS_OBJS = main_gwas.o gwas_options_parsing.o tdt.o tdt_runner.o assoc.o assoc_basic_test.o assoc_runner.o checks_family.o
 HPG_VARIANT_OBJS = global_options.o hpg_variant_utils.o
 
 ALL_FILES = $(HPG_VARIANT_OBJS) $(EFFECT_OBJS) $(GWAS_OBJS) $(VCF_OBJS) $(GFF_OBJS) $(PED_OBJS) $(REGION_TABLE_OBJS) $(MISC_OBJS)
