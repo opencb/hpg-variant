@@ -1,14 +1,11 @@
-#include "assoc_basic_test.h"
+#include "assoc.h"
 
-int assoc_basic_test(ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_hashtable *sample_ids, list_t *output_list) {
-    int ret_code = 0;
+void prepare_assoc_counters(ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_hashtable *sample_ids, int *counters) {
     int tid = omp_get_thread_num();
     cp_hashtable *families = ped_file->families;
     char **families_keys = (char**) cp_hashtable_get_keys(families);
     int num_families = get_num_families(ped_file);
     int num_samples = cp_hashtable_count(sample_ids);
-    
-    assoc_basic_result_t *result;
     
     char **sample_data;
     
@@ -43,8 +40,8 @@ int assoc_basic_test(ped_file_t *ped_file, list_item_t *variants, int num_varian
             individual_t *mother = family->mother;
             cp_list *children = family->children;
 
-            LOG_DEBUG_F("Read = %d\tAnalyzed = %d\n", num_read, number_analyzed);
-            LOG_DEBUG_F("Family = %d (%s)\n", f, family->id);
+            printf("Read = %d\tAnalyzed = %d\n", num_read, number_analyzed);
+            printf("Family = %d (%s)\n", f, family->id);
             
             // Perform test with father
             if (father != NULL && father->condition != MISSING) {
@@ -61,6 +58,8 @@ int assoc_basic_test(ped_file_t *ped_file, list_item_t *variants, int num_varian
                 if (!get_alleles(father_sample, gt_position, &allele1, &allele2)) {
                     number_analyzed++;
                     assoc_count_individual(father, record, allele1, allele2, &A1, &A2, &U1, &U2);
+                } else {
+                    printf("[%s] Father sample = %s\n", family->id, father_sample);
                 }
             }
             
@@ -79,6 +78,8 @@ int assoc_basic_test(ped_file_t *ped_file, list_item_t *variants, int num_varian
                 if (!get_alleles(mother_sample, gt_position, &allele1, &allele2)) {
                     number_analyzed++;
                     assoc_count_individual(mother, record, allele1, allele2, &A1, &A2, &U1, &U2);
+                } else {
+                    printf("[%s] Mother sample = %s\n", family->id, mother_sample);
                 }
             }
             
@@ -99,84 +100,65 @@ int assoc_basic_test(ped_file_t *ped_file, list_item_t *variants, int num_varian
                 if (!get_alleles(child_sample, gt_position, &allele1, &allele2)) {
                     number_analyzed++;
                     assoc_count_individual(child, record, allele1, allele2, &A1, &A2, &U1, &U2);
+                } else {
+                    printf("[%s] Child sample = %s\n", family->id, child_sample);
                 }
             
             } // next offspring in family
             cp_list_iterator_destroy(children_iterator);
         }  // next nuclear family
+        
+        counters[i * 4]     = A1;
+        counters[i * 4 + 1] = A2;
+        counters[i * 4 + 2] = U1;
+        counters[i * 4 + 3] = U2;
+    }
 
-        /////////////////////////////
-        // Finished counting: now compute
-        // the statistics
-        
-        double assoc_basic_chisq = chi_square(A1, U1, A2, U2);
-        
-        LOG_DEBUG_F("[%d] before adding %s:%ld\n", tid, record->chromosome, record->position);
-        result = assoc_basic_result_new(record->chromosome, record->position, record->reference, record->alternate, 
-                                        A1, A2, U1, U2, 
-                                        assoc_basic_chisq);
-        list_item_t *output_item = list_item_new(tid, 0, result);
-        list_insert_item(output_item, output_list);
-        LOG_DEBUG_F("[%d] after adding %s:%ld\n", tid, record->chromosome, record->position);
-        
-        cur_variant = cur_variant->next_p;
-        
-        // Free samples
-        // TODO implement arraylist in order to avoid this code
-        free(sample_data);
-    } // next variant
-
-    // Free families' keys
-    free(families_keys);
-    
-    return ret_code;
 }
 
-
-double chi_square(int a, int b, int c, int d) {
-    double total_alleles = a + c + b + d;
+void assoc_count_individual(individual_t *individual, vcf_record_t *record, int allele1, int allele2, 
+                           int *affected1, int *affected2, int *unaffected1, int *unaffected2) {
+    int A1 = 0, A2 = 0, A0 = 0;
+    int U1 = 0, U2 = 0, U0 = 0;
     
-    double total_affected = a + c;
-    double total_unaffected = b + d;
+    if (!strcmp("X", record->chromosome)) {
+        if (individual->condition == AFFECTED) { // if affected 
+            if (!allele1 && !allele2) {
+                A1++;
+            } else if (allele1 && allele2) {
+                A2++;
+            }
+        } else if (individual->condition == UNAFFECTED) { // unaffected if not missing
+            if (!allele1 && !allele2) {
+                U1++;
+            } else if (allele1 && allele2) {
+                U2++;
+            }
+        }
+    } else {
+        if (individual->condition == AFFECTED) { // if affected
+            if (!allele1 && !allele2) {
+                A1 += 2;
+            } else if (allele1 && allele2) {
+                A2 += 2;
+            } else if (allele1 != allele2) {
+                A1++; A2++;
+            }
+        } else if (individual->condition == UNAFFECTED) { // unaffected if not missing
+            if (!allele1 && !allele2) {
+                U1 += 2;
+            } else if (allele1 && allele2) {
+                U2 += 2;
+            } else if (allele1 != allele2) {
+                U1++; U2++;
+            }
+        }
+          
+    }
     
-    double total_allele1 = a + b;
-    double total_allele2 = c + d;
-    
-    double expected_affected_allele1    = (total_affected   * total_allele1) / total_alleles;
-    double expected_affected_allele2    = (total_affected   * total_allele2) / total_alleles;
-    double expected_unaffected_allele1  = (total_unaffected * total_allele1) / total_alleles;
-    double expected_unaffected_allele2  = (total_unaffected * total_allele2) / total_alleles;
-
-    return ((a - expected_affected_allele1)   * (a - expected_affected_allele1))   / expected_affected_allele1 + 
-           ((c - expected_affected_allele2)   * (c - expected_affected_allele2))   / expected_affected_allele2 +
-           ((b - expected_unaffected_allele1) * (b - expected_unaffected_allele1)) / expected_unaffected_allele1 + 
-           ((d - expected_unaffected_allele2) * (d - expected_unaffected_allele2)) / expected_unaffected_allele2 ;
-               
-}
-
-
-assoc_basic_result_t* assoc_basic_result_new(char *chromosome, unsigned long int position, char *reference, char *alternate, 
-                                             int affected1, int affected2, int unaffected1, int unaffected2, double chi_square) {
-    assoc_basic_result_t *result = (assoc_basic_result_t*) malloc (sizeof(assoc_basic_result_t));
-    
-    result->chromosome = strdup(chromosome);
-    result->position = position;
-    result->reference = strdup(reference);
-    result->alternate = strdup(alternate);
-    result->affected1 = affected1;
-    result->affected2 = affected2;
-    result->unaffected1 = unaffected1;
-    result->unaffected2 = unaffected2;
-    result->odds_ratio = (affected2 == 0 || unaffected1 == 0) ? NAN : 
-                         ((double) affected1 / affected2) * ((double) unaffected2 / unaffected1);
-    result->chi_square = chi_square;
-    
-    return result;
-}
-
-void assoc_basic_result_free(assoc_basic_result_t* result) {
-    free(result->chromosome);
-    free(result->reference);
-    free(result->alternate);
-    free(result);
+    // Set output values
+    *affected1 += A1;
+    *affected2 += A2;
+    *unaffected1 += U1;
+    *unaffected2 += U2;
 }
