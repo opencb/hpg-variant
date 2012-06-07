@@ -91,6 +91,8 @@ int run_association_test(global_options_data_t* global_options_data, gwas_option
                 free(failed_filename);
             }
             
+            double *factorial_logarithms = NULL;
+            
             int i = 0;
             list_item_t *item = NULL;
             while ((item = list_remove_item(read_list)) != NULL) {
@@ -102,6 +104,15 @@ int run_association_test(global_options_data_t* global_options_data, gwas_option
                     if (passed_file != NULL) { vcf_write_to_file(file, passed_file); }
                     if (failed_file != NULL) { vcf_write_to_file(file, failed_file); }
                     
+                    if (options_data->task == FISHER) {
+                        factorial_logarithms = init_logarithm_array(file->num_samples * 10);
+                        
+//                         for (int i = 0; i < file->num_samples * 2; i++) {
+//                             printf("%f ", factorial_logarithms[i]);
+//                         }
+//                         printf("\n\n");
+    
+                    }
                     LOG_DEBUG("VCF header written\n");
                 }
                 
@@ -134,12 +145,16 @@ int run_association_test(global_options_data_t* global_options_data, gwas_option
                     #pragma omp parallel for
                     for (int j = 0; j < num_chunks; j++) {
                         LOG_DEBUG_F("[%d] Test execution\n", omp_get_thread_num());
-                        assoc_test(options_data->task, ped_file, chunk_starts[j], max_chunk_size, sample_ids, output_list);
+                        if (options_data->task == ASSOCIATION_BASIC) {
+                            assoc_test(options_data->task, ped_file, chunk_starts[j], max_chunk_size, sample_ids, NULL, output_list);
+                        } else if (options_data->task == FISHER) {
+                            assoc_test(options_data->task, ped_file, chunk_starts[j], max_chunk_size, sample_ids, factorial_logarithms, output_list);
+                        }
                     }
                     free(chunk_starts);
                     
                     if (i % 10 == 0) { 
-                        LOG_INFO_F("*** %dth basic case/control association execution finished\n", i);
+                        LOG_INFO_F("*** %dth association test execution finished\n", i);
                     }
                 }
                 
@@ -203,37 +218,63 @@ int run_association_test(global_options_data_t* global_options_data, gwas_option
             if (global_options_data->output_filename != NULL && strlen(global_options_data->output_filename) > 0) {
                 filename_len = strlen(global_options_data->output_filename);
                 filename = global_options_data->output_filename;
-            } else {
+            } else if (options_data->task == ASSOCIATION_BASIC) {
                 filename_len = strlen("hpg-variant.assoc");
                 filename = strdup("hpg-variant.assoc");
+            } else if (options_data->task == FISHER) {
+                filename_len = strlen("hpg-variant.fisher");
+                filename = strdup("hpg-variant.fisher");
             }
+                
             path = (char*) calloc ((output_directory_len + filename_len + 2), sizeof(char));
             sprintf(path, "%s/%s", global_options_data->output_directory, filename);
             fd = fopen(path, "w");
             
-            LOG_INFO_F("Basic case/control association output filename = %s\n", path);
+            LOG_INFO_F("Association test output filename = %s\n", path);
             free(filename);
             free(path);
             
             // Write data: header + one line per variant
             list_item_t* item = NULL;
-            assoc_basic_result_t *result;
-            fprintf(fd, "#CHR           BP       A1      C_A1    C_U1         F_A1            F_U1       A2      C_A2    C_U2         F_A2            F_U2              OR           CHISQ\n");
-            while ((item = list_remove_item(output_list)) != NULL) {
-                result = item->data_p;
-                
-                fprintf(fd, "%s\t%8ld\t%s\t%3d\t%3d\t%6f\t%6f\t%s\t%3d\t%3d\t%6f\t%6f\t%6f\t%6f\n",//\t%f\n",
-                        result->chromosome, result->position, 
-                        result->reference, result->affected1, result->unaffected1, 
-                        (double) result->affected1 / (result->affected1 + result->affected2), 
-                        (double) result->unaffected1 / (result->unaffected1 + result->unaffected2), 
-                        result->alternate, result->affected2, result->unaffected2, 
-                        (double) result->affected2 / (result->affected1 + result->affected2), 
-                        (double) result->unaffected2 / (result->unaffected1 + result->unaffected2), 
-                        result->odds_ratio, result->chi_square);//p_value);
-                
-                assoc_basic_result_free(result);
-                list_item_free(item);
+            
+            if (options_data->task == ASSOCIATION_BASIC) {
+                assoc_basic_result_t *result;
+                fprintf(fd, "#CHR          BP       A1      C_A1    C_U1         F_A1            F_U1       A2      C_A2    C_U2         F_A2            F_U2              OR           CHISQ\n");
+                while ((item = list_remove_item(output_list)) != NULL) {
+                    result = item->data_p;
+                    
+                    fprintf(fd, "%s\t%8ld\t%s\t%3d\t%3d\t%6f\t%6f\t%s\t%3d\t%3d\t%6f\t%6f\t%6f\t%6f\n",//\t%f\n",
+                            result->chromosome, result->position, 
+                            result->reference, result->affected1, result->unaffected1, 
+                            (double) result->affected1 / (result->affected1 + result->affected2), 
+                            (double) result->unaffected1 / (result->unaffected1 + result->unaffected2), 
+                            result->alternate, result->affected2, result->unaffected2, 
+                            (double) result->affected2 / (result->affected1 + result->affected2), 
+                            (double) result->unaffected2 / (result->unaffected1 + result->unaffected2), 
+                            result->odds_ratio, result->chi_square);//p_value);
+                    
+                    assoc_basic_result_free(result);
+                    list_item_free(item);
+                }
+            } else if (options_data->task == FISHER) {
+                assoc_fisher_result_t *result;
+                fprintf(fd, "#CHR          BP       A1      C_A1    C_U1         F_A1            F_U1       A2      C_A2    C_U2         F_A2            F_U2              OR         P-VALUE\n");
+                while ((item = list_remove_item(output_list)) != NULL) {
+                    result = item->data_p;
+                    
+                    fprintf(fd, "%s\t%8ld\t%s\t%3d\t%3d\t%6f\t%6f\t%s\t%3d\t%3d\t%6f\t%6f\t%6f\t%6f\n",//\t%f\n",
+                            result->chromosome, result->position, 
+                            result->reference, result->affected1, result->unaffected1, 
+                            (double) result->affected1 / (result->affected1 + result->affected2), 
+                            (double) result->unaffected1 / (result->unaffected1 + result->unaffected2), 
+                            result->alternate, result->affected2, result->unaffected2, 
+                            (double) result->affected2 / (result->affected1 + result->affected2), 
+                            (double) result->unaffected2 / (result->unaffected1 + result->unaffected2), 
+                            result->odds_ratio, result->p_value);
+                    
+                    assoc_fisher_result_free(result);
+                    list_item_free(item);
+                }
             }
             
             fclose(fd);
