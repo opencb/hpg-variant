@@ -23,6 +23,7 @@ int assoc_basic_test(ped_file_t *ped_file, list_item_t *variants, int num_varian
         vcf_record_t *record = (vcf_record_t*) cur_variant->data_p;
         LOG_DEBUG_F("[%d] Checking variant %s:%ld\n", tid, record->chromosome, record->position);
         
+        int num_read = 0, number_analyzed = 0;
         // TODO implement arraylist in order to avoid this conversion
         sample_data = (char**) list_to_array(record->samples);
         gt_position = get_field_position_in_format("GT", record->format);
@@ -42,8 +43,12 @@ int assoc_basic_test(ped_file_t *ped_file, list_item_t *variants, int num_varian
             individual_t *mother = family->mother;
             cp_list *children = family->children;
 
-            // TODO perform test with father
-            if (father != NULL) {
+            printf("Read = %d\tAnalyzed = %d\n", num_read, number_analyzed);
+            printf("Family = %d (%s)\n", f, family->id);
+            
+            // Perform test with father
+            if (father != NULL && father->condition != MISSING) {
+                num_read++;
                 int *father_pos = cp_hashtable_get(sample_ids, father->id);
                 if (father_pos != NULL) {
                     LOG_DEBUG_F("[%d] Father %s is in position %d\n", tid, father->id, *father_pos);
@@ -53,17 +58,15 @@ int assoc_basic_test(ped_file_t *ped_file, list_item_t *variants, int num_varian
                 }
                 
                 char *father_sample = sample_data[*father_pos];
-                LOG_DEBUG_F("[%d] Father sample = %s\n", tid, father_sample);
-                
-                if (get_alleles(father_sample, gt_position, &allele1, &allele2)) {
-                    continue;
-                } else {
+                if (!get_alleles(father_sample, gt_position, &allele1, &allele2)) {
+                    number_analyzed++;
                     assoc_basic_individual(father, record, allele1, allele2, &A1, &A2, &U1, &U2);
                 }
             }
             
-            // TODO perform test with mother
-            if (mother != NULL) {
+            // Perform test with mother
+            if (mother != NULL && mother->condition != MISSING) {
+                num_read++;
                 int *mother_pos = cp_hashtable_get(sample_ids, mother->id);
                 if (mother_pos != NULL) {
                     LOG_DEBUG_F("[%d] Mother %s is in position %d\n", tid, mother->id, *mother_pos);
@@ -73,16 +76,13 @@ int assoc_basic_test(ped_file_t *ped_file, list_item_t *variants, int num_varian
                 }
                 
                 char *mother_sample = sample_data[*mother_pos];
-                LOG_DEBUG_F("[%d] Mother sample = %s\n", tid, mother_sample);
-                
-                if (get_alleles(mother_sample, gt_position, &allele1, &allele2)) {
-                    continue;
-                } else {
+                if (!get_alleles(mother_sample, gt_position, &allele1, &allele2)) {
+                    number_analyzed++;
                     assoc_basic_individual(mother, record, allele1, allele2, &A1, &A2, &U1, &U2);
                 }
             }
             
-            // TODO perform test with children
+            // Perform test with children
             cp_list_iterator *children_iterator = cp_list_create_iterator(family->children, COLLECTION_LOCK_READ);
             individual_t *child = NULL;
             while ((child = cp_list_iterator_next(children_iterator)) != NULL) {
@@ -94,18 +94,15 @@ int assoc_basic_test(ped_file_t *ped_file, list_item_t *variants, int num_varian
                     continue;
                 }
                 
+                num_read++;
                 char *child_sample = sample_data[*child_pos];
-                LOG_DEBUG_F("[%d] Child sample = %s\n", tid, child_sample);
-                
-                if (get_alleles(child_sample, gt_position, &allele1, &allele2)) {
-                    continue;
-                } else {
+                if (!get_alleles(child_sample, gt_position, &allele1, &allele2)) {
+                    number_analyzed++;
                     assoc_basic_individual(child, record, allele1, allele2, &A1, &A2, &U1, &U2);
                 }
             
             } // next offspring in family
             cp_list_iterator_destroy(children_iterator);
-        
         }  // next nuclear family
 
         /////////////////////////////
@@ -130,7 +127,7 @@ int assoc_basic_test(ped_file_t *ped_file, list_item_t *variants, int num_varian
     } // next variant
 
     // Free families' keys
-//     free(families_keys);
+    free(families_keys);
     
     return ret_code;
 }
@@ -141,47 +138,19 @@ void assoc_basic_individual(individual_t *individual, vcf_record_t *record, int 
     int A1 = 0, A2 = 0, A0 = 0;
     int U1 = 0, U2 = 0, U0 = 0;
     
-//     printf("individual %s, condition %d\n", individual->id, individual->condition);
-           
     if (!strcmp("X", record->chromosome)) {
         if (individual->condition == AFFECTED) { // if affected 
             if (!allele1 && !allele2) {
                 A1++;
             } else if (allele1 && allele2) {
                 A2++;
-            } /*else {
-                A0++;
-            }*/
-//             if (!allele1) {
-//                 if (!allele2) {  // 0|0
-//                     A1++;
-//                 }
-//             } else {
-//                 if (allele2) { 
-//                     A2++;
-//                 } else {
-//                     A0++;
-//                 }
-//             }
+            }
         } else if (individual->condition == UNAFFECTED) { // unaffected if not missing
             if (!allele1 && !allele2) {
                 U1++;
             } else if (allele1 && allele2) {
                 U2++;
-            } /*else {
-                U0++;
-            }*/
-//             if (!allele1) {
-//                 if (!allele2) {  
-//                     U1++;
-//                 }
-//             } else {
-//                 if (allele2) {
-//                     U2++;
-//                 } else {
-//                     U0++;
-//                 }
-//             }
+            }
         }
     } else {
         if (individual->condition == AFFECTED) { // if affected
@@ -192,21 +161,7 @@ void assoc_basic_individual(individual_t *individual, vcf_record_t *record, int 
             } else if (allele1 != allele2) {
                 A1++; A2++;
             }
-//             if (!allele1) {
-//                 if (!allele2) {  
-//                     A1+=2;
-//                 } else { 
-//                     A1++; A2++;
-//                 }
-//             } else {
-//                 if (allele2) {  
-//                     A2+=2;
-//                 } else {
-//                     A0+=2;
-//                 }
-//             }
         } else if (individual->condition == UNAFFECTED) { // unaffected if not missing
-//             printf("unaffected = %s\n", individual->id);
             if (!allele1 && !allele2) {
                 U1 += 2;
             } else if (allele1 && allele2) {
@@ -214,26 +169,9 @@ void assoc_basic_individual(individual_t *individual, vcf_record_t *record, int 
             } else if (allele1 != allele2) {
                 U1++; U2++;
             }
-//             if (!allele1)  {
-//                 if (!allele2) {
-//                     U1+=2;
-//                 } else { 
-//                     U1++; U2++;
-//                 } 
-//             } else {
-//                 if (allele2) {  
-//                     U2+=2;
-//                 } else {
-//                     U0+=2;
-//                 }
-//             }
         }
           
     }
-    
-//     if (!strcmp("3737", individual->id)) {
-//         printf("[%s] A1 = %d, U1 = %d, A2 = %d, U2 = %d\n", individual->id, A1, U1, A2, U2);
-//     }
     
     // Set output values
     *affected1 += A1;
