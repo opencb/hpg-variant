@@ -225,7 +225,7 @@ int run_tdt_test(global_options_data_t* global_options_data, gwas_options_data_t
             list_item_t* item = NULL;
             tdt_result_t *result;
 //             fprintf(fd, "CHR        BP          A1      A2        T       U          OR            CHISQ            P\n");
-            fprintf(fd, "#CHR           BP       A1      A2         T       U           OR           CHISQ\n");
+            fprintf(fd, "#CHR          BP       A1      A2         T       U           OR           CHISQ\n");
             while ((item = list_remove_item(output_list)) != NULL) {
                 result = item->data_p;
                 

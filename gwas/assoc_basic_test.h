@@ -1,22 +1,23 @@
 #ifndef ASSOCIATION_BASIC_TEST_H
 #define ASSOCIATION_BASIC_TEST_H
 
+#include <math.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include <cprops/hashtable.h>
-#include <cprops/linked_list.h>
-#include <omp.h>
+// #include <cprops/hashtable.h>
+// #include <cprops/linked_list.h>
+// #include <omp.h>
 
-#include <bioformats/ped/ped_file.h>
-#include <bioformats/ped/ped_file_structure.h>
-#include <bioformats/vcf/vcf_file.h>
-#include <bioformats/vcf/vcf_file_structure.h>
-#include <bioformats/vcf/vcf_util.h>
-#include <commons/log.h>
-#include <containers/list.h>
+// #include <bioformats/ped/ped_file.h>
+// #include <bioformats/ped/ped_file_structure.h>
+// #include <bioformats/vcf/vcf_file.h>
+// #include <bioformats/vcf/vcf_file_structure.h>
+// #include <bioformats/vcf/vcf_util.h>
+// #include <commons/log.h>
+// #include <containers/list.h>
 
-#include "checks_family.h"
+// #include "checks_family.h"
 
 typedef struct {
     char *chromosome;

@@ -1,6 +1,6 @@
 #include "assoc.h"
 
-void assoc_test(enum GWAS_task test_type, ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_hashtable *sample_ids, list_t *output_list) {
+void assoc_test(enum GWAS_task test_type, ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_hashtable *sample_ids, const void *opt_input, list_t *output_list) {
     int ret_code = 0;
     int tid = omp_get_thread_num();
     cp_hashtable *families = ped_file->families;
@@ -8,12 +8,15 @@ void assoc_test(enum GWAS_task test_type, ped_file_t *ped_file, list_item_t *var
     int num_families = get_num_families(ped_file);
     int num_samples = cp_hashtable_count(sample_ids);
     
-    
     char **sample_data;
     
     int gt_position;
     int allele1, allele2;
 
+    // Affection counts
+    int A1 = 0, A2 = 0, U1 = 0, U2 = 0;
+    int num_read = 0, num_analyzed = 0;
+    
     ///////////////////////////////////
     // Perform analysis for each variant
 
@@ -22,17 +25,15 @@ void assoc_test(enum GWAS_task test_type, ped_file_t *ped_file, list_item_t *var
         vcf_record_t *record = (vcf_record_t*) cur_variant->data_p;
         LOG_DEBUG_F("[%d] Checking variant %s:%ld\n", tid, record->chromosome, record->position);
         
-        int num_read = 0, number_analyzed = 0;
+        A1 = 0; A2 = 0;
+        U1 = 0; U2 = 0;
+        num_read = 0;
+        num_analyzed = 0;
+
         // TODO implement arraylist in order to avoid this conversion
         sample_data = (char**) list_to_array(record->samples);
         gt_position = get_field_position_in_format("GT", record->format);
     
-        // Affection counts
-        int A1 = 0;
-        int A2 = 0;
-        int U1 = 0;
-        int U2 = 0;
-
         // Count over families
         family_t *family;
         
@@ -42,7 +43,7 @@ void assoc_test(enum GWAS_task test_type, ped_file_t *ped_file, list_item_t *var
             individual_t *mother = family->mother;
             cp_list *children = family->children;
 
-            LOG_DEBUG_F("Read = %d\tAnalyzed = %d\n", num_read, number_analyzed);
+            LOG_DEBUG_F("Read = %d\tAnalyzed = %d\n", num_read, num_analyzed);
             LOG_DEBUG_F("Family = %d (%s)\n", f, family->id);
             
             // Perform test with father
@@ -58,7 +59,7 @@ void assoc_test(enum GWAS_task test_type, ped_file_t *ped_file, list_item_t *var
                 
                 char *father_sample = sample_data[*father_pos];
                 if (!get_alleles(father_sample, gt_position, &allele1, &allele2)) {
-                    number_analyzed++;
+                    num_analyzed++;
                     assoc_count_individual(father, record, allele1, allele2, &A1, &A2, &U1, &U2);
                 }
             }
@@ -76,7 +77,7 @@ void assoc_test(enum GWAS_task test_type, ped_file_t *ped_file, list_item_t *var
                 
                 char *mother_sample = sample_data[*mother_pos];
                 if (!get_alleles(mother_sample, gt_position, &allele1, &allele2)) {
-                    number_analyzed++;
+                    num_analyzed++;
                     assoc_count_individual(mother, record, allele1, allele2, &A1, &A2, &U1, &U2);
                 }
             }
@@ -96,7 +97,7 @@ void assoc_test(enum GWAS_task test_type, ped_file_t *ped_file, list_item_t *var
                 num_read++;
                 char *child_sample = sample_data[*child_pos];
                 if (!get_alleles(child_sample, gt_position, &allele1, &allele2)) {
-                    number_analyzed++;
+                    num_analyzed++;
                     assoc_count_individual(child, record, allele1, allele2, &A1, &A2, &U1, &U2);
                 }
             
@@ -119,7 +120,13 @@ void assoc_test(enum GWAS_task test_type, ped_file_t *ped_file, list_item_t *var
             list_item_t *output_item = list_item_new(tid, 0, result);
             list_insert_item(output_item, output_list);
         } else if (test_type == FISHER) {
-            // TODO invoke Fisher's exact test
+            double p_value = assoc_fisher_test(A1, A2, U1, U2, (double*) opt_input);
+//             double p_value = assoc_fisher_test(A1, U1, A2, U2, (double*) opt_input);
+            assoc_fisher_result_t *result = assoc_fisher_result_new(record->chromosome, record->position, 
+                                                                  record->reference, record->alternate, 
+                                                                  A1, A2, U1, U2, p_value);
+            list_item_t *output_item = list_item_new(tid, 0, result);
+            list_insert_item(output_item, output_list);
         }
         
         LOG_DEBUG_F("[%d] after adding %s:%ld\n", tid, record->chromosome, record->position);

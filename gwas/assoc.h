@@ -14,11 +14,11 @@
 
 #include "gwas.h"
 #include "assoc_basic_test.h"
-// #include "assoc_fisher_test.h"
+#include "assoc_fisher_test.h"
 
 #define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
 
-void assoc_test(enum GWAS_task test_type, ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_hashtable *sample_ids, list_t *output_list);
+void assoc_test(enum GWAS_task test_type, ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_hashtable *sample_ids, const void *opt_input, list_t *output_list);
 
 void assoc_count_individual(individual_t *individual, vcf_record_t *record, int allele1, int allele2, 
                            int *affected1, int *affected2, int *unaffected1, int *unaffected2);
