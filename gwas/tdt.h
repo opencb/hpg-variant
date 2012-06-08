@@ -6,6 +6,7 @@
 
 #include <cprops/hashtable.h>
 #include <cprops/linked_list.h>
+#include <gsl/gsl_cdf.h>
 #include <omp.h>
 
 #include <bioformats/ped/ped_file.h>
@@ -29,6 +30,7 @@ typedef struct {
     int t2;
     double odds_ratio;
     double chi_square;
+    double p_value;
 } tdt_result_t;
 
 int tdt_test(ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_hashtable *sample_ids, list_t *output_list);

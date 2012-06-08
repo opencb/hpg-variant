@@ -11,12 +11,12 @@ BIOFORMATS_DIR = $(LIBS_DIR)/bioformats
 MATH_DIR = $(LIBS_DIR)/math
 
 # Include and libs folders
-INCLUDES = -I . -I $(LIBS_DIR) -I $(INC_DIR) -I /usr/include/libxml2
-LIBS = -L/usr/lib/x86_64-linux-gnu -lcurl -Wl,-Bsymbolic-functions -lconfig -lcprops -fopenmp -lm -lxml2
+INCLUDES = -I . -I $(LIBS_DIR) -I $(INC_DIR) -I /usr/include/libxml2 -I/usr/local/include
+LIBS = -L/usr/lib/x86_64-linux-gnu -lcurl -Wl,-Bsymbolic-functions -lconfig -lcprops -fopenmp -lm -lxml2 -lgsl -lgslcblas
 LIBS_TEST = -lcheck
 
-INCLUDES_STATIC = -I . -I $(LIBS_DIR) -I $(INC_DIR) -I /usr/include/libxml2
-LIBS_STATIC = -L$(LIBS_DIR) -L/usr/lib/x86_64-linux-gnu -lcurl -Wl,-Bsymbolic-functions -lconfig -lcprops -fopenmp -lm -lxml2
+INCLUDES_STATIC = -I . -I $(LIBS_DIR) -I $(INC_DIR) -I /usr/include/libxml2 -I/usr/local/include
+LIBS_STATIC = -L$(LIBS_DIR) -L/usr/lib/x86_64-linux-gnu -lcurl -Wl,-Bsymbolic-functions -lconfig -lcprops -fopenmp -lm -lxml2 -lgsl -lgslcblas
 
 # Source files dependencies
 VCF_OBJS = $(BIOFORMATS_DIR)/vcf/vcf_*.o

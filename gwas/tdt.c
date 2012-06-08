@@ -24,11 +24,6 @@ int tdt_test(ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_h
         vcf_record_t *record = (vcf_record_t*) cur_variant->data_p;
         LOG_DEBUG_F("[%d] Checking variant %s:%ld\n", tid, record->chromosome, record->position);
         
-    //         // Adaptive permutation, skip this SNP?
-    //         if (par::adaptive_perm && (!perm.snp_test[variant])) {
-    //             continue;
-    //         }
-
         // TODO implement arraylist in order to avoid this conversion
         gt_position = get_field_position_in_format("GT", record->format);
         sample_data = (char**) list_to_array(record->samples);
@@ -210,8 +205,7 @@ int tdt_test(ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_h
         // Finished counting: now compute
         // the statistics
         
-        double tdt_chisq, par_chisq, com_chisq;
-        tdt_chisq = par_chisq = com_chisq = -1;
+        double tdt_chisq = -1;
         
         // Basic TDT test
         if (t1+t2 > 0) {
@@ -249,6 +243,7 @@ tdt_result_t* tdt_result_new(char *chromosome, unsigned long int position, char 
     result->t2 = t2;
     result->odds_ratio = (t2 == 0.0) ? NAN : ((double) t1/t2);
     result->chi_square = chi_square;
+    result->p_value = 1 - gsl_cdf_chisq_P(chi_square, 1);
     
     return result;
 }

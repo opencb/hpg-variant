@@ -36,6 +36,7 @@ assoc_basic_result_t* assoc_basic_result_new(char *chromosome, unsigned long int
     result->odds_ratio = (affected2 == 0 || unaffected1 == 0) ? NAN : 
                          ((double) affected1 / affected2) * ((double) unaffected2 / unaffected1);
     result->chi_square = chi_square;
+    result->p_value = 1 - gsl_cdf_chisq_P(chi_square, 1);
     
     return result;
 }
