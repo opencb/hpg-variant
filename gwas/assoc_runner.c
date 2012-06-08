@@ -239,11 +239,11 @@ int run_association_test(global_options_data_t* global_options_data, gwas_option
             
             if (options_data->task == ASSOCIATION_BASIC) {
                 assoc_basic_result_t *result;
-                fprintf(fd, "#CHR          BP       A1      C_A1    C_U1         F_A1            F_U1       A2      C_A2    C_U2         F_A2            F_U2              OR           CHISQ\n");
+                fprintf(fd, "#CHR          BP       A1      C_A1    C_U1         F_A1            F_U1       A2      C_A2    C_U2         F_A2            F_U2              OR           CHISQ         P-VALUE\n");
                 while ((item = list_remove_item(output_list)) != NULL) {
                     result = item->data_p;
                     
-                    fprintf(fd, "%s\t%8ld\t%s\t%3d\t%3d\t%6f\t%6f\t%s\t%3d\t%3d\t%6f\t%6f\t%6f\t%6f\n",//\t%f\n",
+                    fprintf(fd, "%s\t%8ld\t%s\t%3d\t%3d\t%6f\t%6f\t%s\t%3d\t%3d\t%6f\t%6f\t%6f\t%6f\t%6f\n",
                             result->chromosome, result->position, 
                             result->reference, result->affected1, result->unaffected1, 
                             (double) result->affected1 / (result->affected1 + result->affected2), 
@@ -251,7 +251,7 @@ int run_association_test(global_options_data_t* global_options_data, gwas_option
                             result->alternate, result->affected2, result->unaffected2, 
                             (double) result->affected2 / (result->affected1 + result->affected2), 
                             (double) result->unaffected2 / (result->unaffected1 + result->unaffected2), 
-                            result->odds_ratio, result->chi_square);//p_value);
+                            result->odds_ratio, result->chi_square, result->p_value);
                     
                     assoc_basic_result_free(result);
                     list_item_free(item);
