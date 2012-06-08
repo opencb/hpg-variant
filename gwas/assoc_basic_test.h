@@ -5,19 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-// #include <cprops/hashtable.h>
-// #include <cprops/linked_list.h>
-// #include <omp.h>
-
-// #include <bioformats/ped/ped_file.h>
-// #include <bioformats/ped/ped_file_structure.h>
-// #include <bioformats/vcf/vcf_file.h>
-// #include <bioformats/vcf/vcf_file_structure.h>
-// #include <bioformats/vcf/vcf_util.h>
-// #include <commons/log.h>
-// #include <containers/list.h>
-
-// #include "checks_family.h"
+#include <gsl/gsl_cdf.h>
 
 typedef struct {
     char *chromosome;
@@ -33,6 +21,7 @@ typedef struct {
     
     double odds_ratio;
     double chi_square;
+    double p_value;
 } assoc_basic_result_t;
 
 double assoc_basic_test(int a, int b, int c, int d);
