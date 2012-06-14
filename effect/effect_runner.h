@@ -37,6 +37,7 @@
 #include "hpg_variant_utils.h"
 #include "main.h"
 
+#define CONSEQUENCE_TYPE_WS_NUM_PARAMS  3
 #define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
 
 /**
@@ -75,12 +76,13 @@ char *compose_effect_ws_request(global_options_data_t *options_data);
  * @param url URL to invoke the web service through
  * @param first_item first item of the list of regions
  * @param num_regions number of regions
+ * @param excludes consequence types to exclude from the response
  * @return Whether the request could be successfully serviced
  * 
  * Given a list of regions, invokes the web service that returns a list of effect or consequences 
  * of the mutations in them. A callback function in order to parse the response.
  */
-int invoke_effect_ws(const char *url, list_item_t *first_item, int num_regions);
+int invoke_effect_ws(const char *url, list_item_t *first_item, int num_regions, char *excludes);
 
 
 /* **********************************************
