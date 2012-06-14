@@ -54,7 +54,7 @@
  * processed and a file for the entries associated to each consequence type is created. There is 
  * also a summary file which contains the number of entries for each of these consequence types.
  */
-int run_effect(char *url, global_options_data_t *global_options_data, effect_options_data_t *options_data);
+int run_effect(char *url, shared_options_data_t *global_options_data, effect_options_data_t *options_data);
 
 
 /* **********************************************
@@ -68,7 +68,7 @@ int run_effect(char *url, global_options_data_t *global_options_data, effect_opt
  * 
  * Given a list of arguments, compounds a URL to invoke a web service.
  */
-char *compose_effect_ws_request(global_options_data_t *options_data);
+char *compose_effect_ws_request(shared_options_data_t *options_data);
 
 /**
  * @brief Invokes the effect web service for a list of regions.
@@ -115,7 +115,7 @@ void write_genes_with_variants_file(cp_hashtable *gene_list, char *output_direct
  * Writes an XML file containing the process input and output files, as well as some metadata about the 
  * process.
  */
-void write_result_file(global_options_data_t *global_options_data, effect_options_data_t *options_data, cp_hashtable *summary_count, char *output_directory);
+void write_result_file(shared_options_data_t *global_options_data, effect_options_data_t *options_data, cp_hashtable *summary_count, char *output_directory);
 
 /**
  * @param num_threads the number of threads that parse the response
@@ -124,7 +124,7 @@ void write_result_file(global_options_data_t *global_options_data, effect_option
  * 
  * Initialize the structures for storing the web service response and writing it to the output files.
  */
-int initialize_ws_output(global_options_data_t *global_options_data, effect_options_data_t *options_data);
+int initialize_ws_output(shared_options_data_t *global_options_data, effect_options_data_t *options_data);
 
 /**
  * @param num_threads the number of threads that parsed the response

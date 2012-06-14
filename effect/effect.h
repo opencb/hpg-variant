@@ -13,6 +13,8 @@
 #include <libconfig.h>
 #include <stdlib.h>
 
+#include <argtable2.h>
+
 #include <bioformats/vcf/vcf_filters.h>
 #include <commons/log.h>
 
@@ -23,31 +25,35 @@
 /**
  * Number of options applicable to the effect tool.
  */
-#define NUM_EFFECT_OPTIONS  9
+#define NUM_EFFECT_OPTIONS  1
 
-static struct option effect_options[] = {
-    // Filters applied to data
-    {"alleles",                 required_argument, 0, 'a' },
-    {"coverage",                required_argument, 0, 'c' },
-    {"quality",                 required_argument, 0, 'q' },
+// static struct option effect_options[] = {
+//     // Filters applied to data
+//     {"alleles",                 required_argument, 0, 'a' },
+//     {"coverage",                required_argument, 0, 'c' },
+//     {"quality",                 required_argument, 0, 'q' },
+// 
+//     {"region-file",             required_argument, 0, 'f' },
+//     {"region",                  required_argument, 0, 'r' },
+// 
+//     {"snp",                     required_argument, 0, 's' },
+//     
+//     // Feature types to exclude
+//     { "exclude",                required_argument, 0, 'e' },
+//     
+//     // Multithreading options
+//     { "num-threads",            required_argument, 0, 'n' },
+//     { "variants-per-request",   required_argument, 0, 'p' },
+//     
+//     // Other options
+//     
+//     {NULL,                      0, 0, 0}
+// };
 
-    {"region-file",             required_argument, 0, 'f' },
-    {"region",                  required_argument, 0, 'r' },
-
-    {"snp",                     required_argument, 0, 's' },
-    
-    // Feature types to exclude
-    { "exclude",                required_argument, 0, 'e' },
-    
-    // Multithreading options
-    { "num-threads",            required_argument, 0, 'n' },
-    { "variants-per-request",   required_argument, 0, 'p' },
-    
-    // Other options
-    
-    {NULL,                      0, 0, 0}
-};
-
+typedef struct effect_options {
+    int num_options;
+    struct arg_str *excludes; /**< Consequence types to exclude from the query. */
+} effect_options_t;
 
 /**
  * @brief Values for the options of the effect tool.
@@ -56,22 +62,23 @@ static struct option effect_options[] = {
  * such as different parts of the web service URL or the parallelism 
  * parameters (number of threads, variants sent per request, and so on).
  */
-typedef struct effect_options_data
-{
-	/*	uint32_t???	*/
-	long int num_threads; /**< Number of threads that query the web service simultaneously. */
-    long int max_batches; /**< Number of VCF records' batches that can be stored simultaneously. */
-    long int batch_size; /**< Maximum size of a VCF records' batch. */
-	long int variants_per_request; /**< Maximum number of variants sent in each web service query. */
-	
-// 	char *host_url; /**< URL of the host where the web service runs. */
-// 	char *version; /**< Version of the WS to query. */
-// 	char *species; /**< Species whose genome is taken as reference. */
-	
-    filter_chain *chain; /**< Chain of filters to apply to the VCF records, if that is the case. */
+typedef struct effect_options_data {
+// 	/*	uint32_t???	*/
+// 	long int num_threads; /**< Number of threads that query the web service simultaneously. */
+//     long int max_batches; /**< Number of VCF records' batches that can be stored simultaneously. */
+//     long int batch_size; /**< Maximum size of a VCF records' batch. */
+// 	long int variants_per_request; /**< Maximum number of variants sent in each web service query. */
+// 	
+// // 	char *host_url; /**< URL of the host where the web service runs. */
+// // 	char *version; /**< Version of the WS to query. */
+// // 	char *species; /**< Species whose genome is taken as reference. */
+// 	
+//     filter_chain *chain; /**< Chain of filters to apply to the VCF records, if that is the case. */
 	char *excludes; /**< Consequence types to exclude from the query. */
 } effect_options_data_t;
 
+
+static effect_options_t *init_options(void);
 
 /**
  * @brief Initializes an effect_options_data_t structure mandatory members.
@@ -80,7 +87,7 @@ typedef struct effect_options_data
  * Initializes a new effect_options_data_t structure mandatory members, which are the buffers for 
  * the URL parts, as well as its numerical ones.
  */
-static effect_options_data_t *init_options_data(void);
+static effect_options_data_t *init_options_data(effect_options_t *options);
 
 /**
  * @brief Free memory associated to a effect_options_data_t structure.
@@ -105,7 +112,7 @@ static void free_options_data(effect_options_data_t *options_data);
  * file can't be read, these parameters should be provided via the command-line
  * interface.
  */
-int read_effect_configuration(const char *filename, effect_options_data_t *options_data);
+int read_effect_configuration(const char *filename, effect_options_t *options_data, shared_options_t *global_options_data);
 
 /**
  * @brief Parses the tool options from the command-line.
@@ -117,7 +124,9 @@ int read_effect_configuration(const char *filename, effect_options_data_t *optio
  * Reads the arguments from the command-line, checking they correspond to an option for the 
  * effect tool, and stores them in the local or global structure, depending on their scope.
  */
-void parse_effect_options(int argc, char *argv[], effect_options_data_t *options_data, global_options_data_t *global_options_data);
+void *parse_effect_options(int argc, char *argv[], effect_options_t *options_data, shared_options_t *global_options_data);
+
+void* merge_effect_options(effect_options_t *options_data, shared_options_t *global_options_data, struct arg_end *arg_end);
 
 /**
  * @brief Checks semantic dependencies among the tool options.
@@ -128,7 +137,7 @@ void parse_effect_options(int argc, char *argv[], effect_options_data_t *options
  * Checks that all dependencies among options are satisfied, i.e.: option A is mandatory, 
  * option B can't be provided at the same time as option C, and so on.
  */
-int verify_effect_options(global_options_data_t *global_options_data, effect_options_data_t *options_data);
+int verify_effect_options(shared_options_t *global_options_data, effect_options_t *options_data);
 
 
 #endif

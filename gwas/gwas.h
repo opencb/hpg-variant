@@ -13,6 +13,8 @@
 #include <libconfig.h>
 #include <stdlib.h>
 
+#include <argtable2.h>
+
 #include <bioformats/vcf/vcf_filters.h>
 #include <commons/log.h>
 
@@ -63,15 +65,19 @@ enum GWAS_task { NONE, TDT, ASSOCIATION_BASIC, FISHER };
  */
 typedef struct gwas_options_data
 {
+    struct arg_lit *assoc;
+    struct arg_lit *fisher;
+    struct arg_lit *tdt;
+    
     enum GWAS_task task; /**< Task to perform */
     
-    /*  uint32_t??? */
-    long int num_threads; /**< Number of threads that query the web service simultaneously. */
-    long int max_batches; /**< Number of VCF records' batches that can be stored simultaneously. */
-    long int batch_size; /**< Maximum size of a VCF records' batch. */
-    long int variants_per_request; /**< Maximum number of variants sent in each web service query. */
-    
-    filter_chain *chain; /**< Chain of filters to apply to the VCF records, if that is the case. */
+//     /*  uint32_t??? */
+//     long int num_threads; /**< Number of threads that query the web service simultaneously. */
+//     long int max_batches; /**< Number of VCF records' batches that can be stored simultaneously. */
+//     long int batch_size; /**< Maximum size of a VCF records' batch. */
+//     long int variants_per_request; /**< Maximum number of variants sent in each web service query. */
+//     
+//     filter_chain *chain; /**< Chain of filters to apply to the VCF records, if that is the case. */
 } gwas_options_data_t;
 
 
@@ -119,7 +125,7 @@ int read_gwas_configuration(const char *filename, gwas_options_data_t *options_d
  * Reads the arguments from the command-line, checking they correspond to an option for the 
  * gwas tool, and stores them in the local or global structure, depending on their scope.
  */
-void parse_gwas_options(int argc, char *argv[], gwas_options_data_t *options_data, global_options_data_t *global_options_data);
+void parse_gwas_options(int argc, char *argv[], gwas_options_data_t *options_data, shared_options_data_t *global_options_data);
 
 /**
  * @brief Checks semantic dependencies among the tool options.
@@ -130,7 +136,7 @@ void parse_gwas_options(int argc, char *argv[], gwas_options_data_t *options_dat
  * Checks that all dependencies among options are satisfied, i.e.: option A is mandatory, 
  * option B can't be provided at the same time as option C, and so on.
  */
-int verify_gwas_options(global_options_data_t *global_options_data, gwas_options_data_t *options_data);
+int verify_gwas_options(shared_options_data_t *global_options_data, gwas_options_data_t *options_data);
 
 
 #endif
