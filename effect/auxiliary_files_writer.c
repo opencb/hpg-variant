@@ -96,9 +96,13 @@ void write_result_file(global_options_data_t *global_options_data, effect_option
         sprintf(passed_filename, "%s.filtered", global_options_data->output_filename);
         output_item = result_item_new(passed_filename, passed_filename, "Filtered Variants", "FILE", "", "Summary", "");
         result_add_output_item(output_item, result_file);
-    } else {
+    } else if (options_data->chain != NULL) {
         char *passed_filename = (char*) calloc (strlen(input_vcf_buffer) + 10, sizeof(char));
         sprintf(passed_filename, "%s.filtered", input_vcf_buffer);
+        output_item = result_item_new(passed_filename, passed_filename, "Filtered Variants", "FILE", "", "Summary", "");
+        result_add_output_item(output_item, result_file);
+    } else {
+        char *passed_filename = strdup(input_vcf_buffer);
         output_item = result_item_new(passed_filename, passed_filename, "Filtered Variants", "FILE", "", "Summary", "");
         result_add_output_item(output_item, result_file);
     }
