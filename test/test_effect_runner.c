@@ -11,7 +11,7 @@
 Suite *create_test_suite(void);
 
 
-global_options_data_t *global_data;
+shared_options_data_t *global_data;
 effect_options_data_t *opts_data;
 
 

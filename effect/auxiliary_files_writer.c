@@ -35,7 +35,7 @@ void write_genes_with_variants_file(cp_hashtable *gene_list, char *output_direct
 }
 
 
-void write_result_file(global_options_data_t *global_options_data, effect_options_data_t *options_data, cp_hashtable *summary_count, char *output_directory) {
+void write_result_file(shared_options_data_t *shared_options, effect_options_data_t *effect_options, cp_hashtable *summary_count, char *output_directory) {
     char *aux_buffer, *input_vcf_buffer;
     result_file_t *result_file = NULL;
     
@@ -68,17 +68,17 @@ void write_result_file(global_options_data_t *global_options_data, effect_option
 <item name="home" title="Variant home path" type="MESSAGE" tags="" style="" group="" context="">/httpd/bioinfo/variant1.0</item>
     */
     result_item_t *input_item_tool = result_item_new("tool", "consequence-type", "tool name", "MESSAGE", "", "", "");
-    result_item_t *input_item_outdir = result_item_new("outdir", global_options_data->output_directory, "outdir to save the results", "MESSAGE", "", "", "");
+    result_item_t *input_item_outdir = result_item_new("outdir", shared_options->output_directory, "outdir to save the results", "MESSAGE", "", "", "");
     // TODO log-file
-    result_item_t *input_item_vcf_file = result_item_new("vcf-file", global_options_data->vcf_filename, "The VCF variant file", "MESSAGE", "", "", "");
+    result_item_t *input_item_vcf_file = result_item_new("vcf-file", shared_options->vcf_filename, "The VCF variant file", "MESSAGE", "", "", "");
     // TODO excludes
-    result_item_t *input_item_species = result_item_new("species", global_options_data->species, "The species of the ids", "MESSAGE", "", "", "");
+    result_item_t *input_item_species = result_item_new("species", shared_options->species, "The species of the ids", "MESSAGE", "", "", "");
     // TODO home
     aux_buffer = (char*) calloc (8, sizeof(char));
-    sprintf(aux_buffer, "%ld", options_data->num_threads);
+    sprintf(aux_buffer, "%ld", shared_options->num_threads);
     result_item_t *input_item_numthreads = result_item_new("number-threads", aux_buffer, "Number of connections to the web-service", "MESSAGE", "", "", "");
-    input_vcf_buffer = (char*) calloc (strlen(global_options_data->vcf_filename), sizeof(char));
-    get_filename_from_path(global_options_data->vcf_filename, input_vcf_buffer);
+    input_vcf_buffer = (char*) calloc (strlen(shared_options->vcf_filename), sizeof(char));
+    get_filename_from_path(shared_options->vcf_filename, input_vcf_buffer);
     result_item_t *input_item_vcf_input = result_item_new(input_vcf_buffer, input_vcf_buffer, "VCF input file", "DATA", "", "Input", "");
     
     result_add_input_item(input_item_tool, result_file);
@@ -90,13 +90,13 @@ void write_result_file(global_options_data_t *global_options_data, effect_option
     result_item_t *output_item;
     
     // Add output files for summaries
-    if (global_options_data->output_filename != NULL && strlen(global_options_data->output_filename) > 0) {
-        int filename_len = strlen(global_options_data->output_filename);
+    if (shared_options->output_filename != NULL && strlen(shared_options->output_filename) > 0) {
+        int filename_len = strlen(shared_options->output_filename);
         char *passed_filename = (char*) calloc (filename_len + 10, sizeof(char));
-        sprintf(passed_filename, "%s.filtered", global_options_data->output_filename);
+        sprintf(passed_filename, "%s.filtered", shared_options->output_filename);
         output_item = result_item_new(passed_filename, passed_filename, "Filtered Variants", "FILE", "", "Summary", "");
         result_add_output_item(output_item, result_file);
-    } else if (options_data->chain != NULL) {
+    } else if (effect_options->chain != NULL) {
         char *passed_filename = (char*) calloc (strlen(input_vcf_buffer) + 10, sizeof(char));
         sprintf(passed_filename, "%s.filtered", input_vcf_buffer);
         output_item = result_item_new(passed_filename, passed_filename, "Filtered Variants", "FILE", "", "Summary", "");

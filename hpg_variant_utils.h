@@ -4,6 +4,7 @@
 #include <math.h>
 #include <stdlib.h>
 
+#include <commons/file_utils.h>
 #include <commons/log.h>
 #include <containers/list.h>
 
@@ -29,6 +30,8 @@ void close_job_status_file(FILE *file);
 /* ***********************
  *      Miscellaneous    *
  * ***********************/
+
+// int get_output_files(global_options_data_t *global_options_data, FILE **passed_file, FILE **failed_file);
 
 /**
  * @brief Given a list of records, distributes them in chunks of similar size

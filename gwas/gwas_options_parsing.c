@@ -52,7 +52,7 @@ int read_gwas_configuration(const char *filename, gwas_options_data_t *options_d
 }
 
 
-void parse_gwas_options(int argc, char *argv[], gwas_options_data_t *options_data, global_options_data_t *global_options_data) {
+void parse_gwas_options(int argc, char *argv[], gwas_options_data_t *options_data, shared_options_data_t *global_options_data) {
     struct option *options = merge_options(gwas_options, NUM_GWAS_OPTIONS);
 
     char *tmp_string_field;
@@ -170,7 +170,7 @@ void parse_gwas_options(int argc, char *argv[], gwas_options_data_t *options_dat
 }
 
 
-int verify_gwas_options(global_options_data_t *global_options_data, gwas_options_data_t *options_data)
+int verify_gwas_options(shared_options_data_t *global_options_data, gwas_options_data_t *options_data)
 {
     // Check whether the input VCF file is defined
     if (global_options_data->vcf_filename == NULL || strlen(global_options_data->vcf_filename) == 0) {

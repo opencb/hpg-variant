@@ -30,7 +30,7 @@
 #define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
 
 
-int run_association_test(global_options_data_t *global_options_data, gwas_options_data_t *options_data);
+int run_association_test(shared_options_data_t *global_options_data, gwas_options_data_t *options_data);
 
 
 static cp_hashtable *associate_samples_and_positions(vcf_file_t *file);
