@@ -116,17 +116,39 @@ int run_effect(char *url, global_options_data_t *global_options_data, effect_opt
             int i = 0;
             list_item_t* item = NULL;
             
-            if (global_options_data->output_filename != NULL && 
-                strlen(global_options_data->output_filename) > 0) {
+            // If an output filename has been provided as command-line argument, write 2 files with that prefix
+            // If no output filename has been provided but some filters are applied, use the original filename as prefix
+            if (global_options_data->output_filename != NULL && strlen(global_options_data->output_filename) > 0) {
                 int dirname_len = strlen(global_options_data->output_directory);
                 int filename_len = strlen(global_options_data->output_filename);
             
-                char *passed_filename = (char*) calloc ((dirname_len + filename_len + 2), sizeof(char));
-                sprintf(passed_filename, "%s/%s", global_options_data->output_directory, global_options_data->output_filename);
+                char *passed_filename = (char*) calloc (dirname_len + filename_len + 11, sizeof(char));
+                sprintf(passed_filename, "%s/%s.filtered", global_options_data->output_directory, global_options_data->output_filename);
                 passed_file = fopen(passed_filename, "w");
             
-                char *failed_filename = (char*) calloc ((dirname_len + filename_len + 11), sizeof(char));
-                sprintf(failed_filename, "%s/%s.filtered", global_options_data->output_directory, global_options_data->output_filename);
+                char *failed_filename = (char*) calloc (dirname_len + filename_len + 2, sizeof(char));
+                sprintf(failed_filename, "%s/%s", global_options_data->output_directory, global_options_data->output_filename);
+                failed_file = fopen(failed_filename, "w");
+                
+                LOG_DEBUG_F("passed filename = %s\nfailed filename = %s\n", passed_filename, failed_filename);
+                
+                free(passed_filename);
+                free(failed_filename);
+            } else if (options_data->chain != NULL) {
+                // Get name of the input VCF file
+                char input_filename[strlen(global_options_data->vcf_filename)];
+                memset(input_filename, 0, strlen(global_options_data->vcf_filename) * sizeof(char));
+                get_filename_from_path(global_options_data->vcf_filename, input_filename);
+                
+                int dirname_len = strlen(global_options_data->output_directory);
+                int filename_len = strlen(input_filename);
+                
+                char *passed_filename = (char*) calloc (dirname_len + filename_len + 11, sizeof(char));
+                sprintf(passed_filename, "%s/%s.filtered", global_options_data->output_directory, input_filename);
+                passed_file = fopen(passed_filename, "w");
+            
+                char *failed_filename = (char*) calloc (dirname_len + filename_len + 2, sizeof(char));
+                sprintf(failed_filename, "%s/%s", global_options_data->output_directory, input_filename);
                 failed_file = fopen(failed_filename, "w");
                 
                 LOG_DEBUG_F("passed filename = %s\nfailed filename = %s\n", passed_filename, failed_filename);

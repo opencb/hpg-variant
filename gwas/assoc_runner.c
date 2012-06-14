@@ -77,12 +77,12 @@ int run_association_test(global_options_data_t* global_options_data, gwas_option
                 int dirname_len = strlen(global_options_data->output_directory);
                 int filename_len = strlen(global_options_data->output_filename);
             
-                char *passed_filename = (char*) calloc ((dirname_len + filename_len + 2), sizeof(char));
-                sprintf(passed_filename, "%s/%s", global_options_data->output_directory, global_options_data->output_filename);
+                char *passed_filename = (char*) calloc (dirname_len + filename_len + 11, sizeof(char));
+                sprintf(passed_filename, "%s/%s.filtered", global_options_data->output_directory, global_options_data->output_filename);
                 passed_file = fopen(passed_filename, "w");
             
-                char *failed_filename = (char*) calloc ((dirname_len + filename_len + 11), sizeof(char));
-                sprintf(failed_filename, "%s/%s.filtered", global_options_data->output_directory, global_options_data->output_filename);
+                char *failed_filename = (char*) calloc (dirname_len + filename_len + 2, sizeof(char));
+                sprintf(failed_filename, "%s/%s", global_options_data->output_directory, global_options_data->output_filename);
                 failed_file = fopen(failed_filename, "w");
                 
                 LOG_DEBUG_F("passed filename = %s\nfailed filename = %s\n", passed_filename, failed_filename);
