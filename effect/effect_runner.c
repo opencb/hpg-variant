@@ -204,7 +204,7 @@ int run_effect(char *url, global_options_data_t *global_options_data, effect_opt
                     #pragma omp parallel for
                     for (int j = 0; j < num_chunks; j++) {
                         LOG_DEBUG_F("[%d] WS invocation\n", omp_get_thread_num());
-                        ret_code = invoke_effect_ws(url, chunk_starts[j], max_chunk_size);
+                        ret_code = invoke_effect_ws(url, chunk_starts[j], max_chunk_size, options_data->excludes);
                     }
                     free(chunk_starts);
                     
@@ -366,7 +366,7 @@ char *compose_effect_ws_request(global_options_data_t *options_data) {
     return result_url;
 }
 
-int invoke_effect_ws(const char *url, list_item_t *first_item, int max_chunk_size) {
+int invoke_effect_ws(const char *url, list_item_t *first_item, int max_chunk_size, char *excludes) {
     CURL *curl;
     CURLcode ret_code = CURLE_OK;
 
@@ -416,11 +416,12 @@ int invoke_effect_ws(const char *url, list_item_t *first_item, int max_chunk_siz
     }
     
     LOG_DEBUG_F("variants = %s\n", variants);
-
-    char *params[2] = { "of", "variants" };
-    char *params_values[2] = { output_format, variants };
+    LOG_DEBUG_F("excludes = %s\n", excludes);
     
-    ret_code = http_post(url, params, params_values, 2, write_effect_ws_results);
+    char *params[CONSEQUENCE_TYPE_WS_NUM_PARAMS] = { "of", "variants", "exclude" };
+    char *params_values[CONSEQUENCE_TYPE_WS_NUM_PARAMS] = { output_format, variants, excludes };
+    
+    ret_code = http_post(url, params, params_values, CONSEQUENCE_TYPE_WS_NUM_PARAMS, write_effect_ws_results);
     
     free(variants);
     
