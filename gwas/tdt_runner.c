@@ -2,7 +2,7 @@
 
 // int permute = 0;
 
-int run_tdt_test(global_options_data_t* global_options_data, gwas_options_data_t* options_data) {
+int run_tdt_test(shared_options_data_t* global_options_data, gwas_options_data_t* options_data) {
     list_t *read_list = (list_t*) malloc(sizeof(list_t));
     list_init("batches", 1, options_data->max_batches, read_list);
     list_t *output_list = (list_t*) malloc (sizeof(list_t));

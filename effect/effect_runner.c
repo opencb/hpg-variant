@@ -24,30 +24,31 @@ static size_t output_directory_len;
 static int batch_num;
 
 
-int run_effect(char *url, global_options_data_t *global_options_data, effect_options_data_t *options_data) {
+int run_effect(char *url, shared_options_data_t *shared_options, effect_options_data_t *options_data) {
     list_t *read_list = (list_t*) malloc(sizeof(list_t));
-    list_init("batches", 1, options_data->max_batches, read_list);
+    list_init("batches", 1, shared_options->max_batches, read_list);
 
     int ret_code = 0;
     double start, stop, total;
-    vcf_file_t *file = vcf_open(global_options_data->vcf_filename);
+    vcf_file_t *file = vcf_open(shared_options->vcf_filename);
     
     if (!file) {
         LOG_FATAL("VCF file does not exist!\n");
     }
     
-    ret_code = create_directory(global_options_data->output_directory);
+    output_directory = shared_options->output_directory;
+    output_directory_len = strlen(output_directory);
+    
+    ret_code = create_directory(output_directory);
     if (ret_code != 0 && errno != EEXIST) {
-        LOG_FATAL_F("Can't create output directory: %s\n", global_options_data->output_directory);
+        LOG_FATAL_F("Can't create output directory: %s\n", output_directory);
     }
     
     // Remove all .txt files in folder
-    ret_code = delete_files_by_extension(global_options_data->output_directory, "txt");
+    ret_code = delete_files_by_extension(output_directory, "txt");
     if (ret_code != 0) {
         return ret_code;
     }
-    output_directory = global_options_data->output_directory;
-    output_directory_len = strlen(output_directory);
     
     // Initialize environment for connecting to the web service
     ret_code = init_http_environment(0);
@@ -56,8 +57,8 @@ int run_effect(char *url, global_options_data_t *global_options_data, effect_opt
     }
     
     // Initialize collections of file descriptors and summary counters
-//     ret_code = initialize_ws_output(options_data->num_threads, global_options_data->output_directory);
-    ret_code = initialize_ws_output(global_options_data, options_data);
+//     ret_code = initialize_ws_output(options_data->num_threads, shared_options->output_directory);
+    ret_code = initialize_ws_output(shared_options, options_data);
     if (ret_code != 0) {
         return ret_code;
     }
@@ -81,7 +82,7 @@ int run_effect(char *url, global_options_data_t *global_options_data, effect_opt
             // Reading
             start = omp_get_wtime();
 
-            ret_code = vcf_read_batches(read_list, options_data->batch_size, file, 0);
+            ret_code = vcf_read_batches(read_list, shared_options->batch_size, file, 0);
 
             stop = omp_get_wtime();
             total = stop - start;
@@ -100,15 +101,15 @@ int run_effect(char *url, global_options_data_t *global_options_data, effect_opt
         {
             // Enable nested parallelism and set the number of threads the user has chosen
             omp_set_nested(1);
-            omp_set_num_threads(options_data->num_threads);
+            omp_set_num_threads(shared_options->num_threads);
             
             LOG_DEBUG_F("Thread %d processes data\n", omp_get_thread_num());
             FILE *passed_file = NULL, *failed_file = NULL;
             
             filter_t **filters = NULL;
             int num_filters = 0;
-            if (options_data->chain != NULL) {
-                filters = sort_filter_chain(options_data->chain, &num_filters);
+            if (shared_options->chain != NULL) {
+                filters = sort_filter_chain(shared_options->chain, &num_filters);
             }
     
             start = omp_get_wtime();
@@ -118,37 +119,37 @@ int run_effect(char *url, global_options_data_t *global_options_data, effect_opt
             
             // If an output filename has been provided as command-line argument, write 2 files with that prefix
             // If no output filename has been provided but some filters are applied, use the original filename as prefix
-            if (global_options_data->output_filename != NULL && strlen(global_options_data->output_filename) > 0) {
-                int dirname_len = strlen(global_options_data->output_directory);
-                int filename_len = strlen(global_options_data->output_filename);
+            if (shared_options->output_filename != NULL && strlen(shared_options->output_filename) > 0) {
+                int dirname_len = strlen(output_directory);
+                int filename_len = strlen(shared_options->output_filename);
             
                 char *passed_filename = (char*) calloc (dirname_len + filename_len + 11, sizeof(char));
-                sprintf(passed_filename, "%s/%s.filtered", global_options_data->output_directory, global_options_data->output_filename);
+                sprintf(passed_filename, "%s/%s.filtered", shared_options->output_directory, shared_options->output_filename);
                 passed_file = fopen(passed_filename, "w");
             
                 char *failed_filename = (char*) calloc (dirname_len + filename_len + 2, sizeof(char));
-                sprintf(failed_filename, "%s/%s", global_options_data->output_directory, global_options_data->output_filename);
+                sprintf(failed_filename, "%s/%s", shared_options->output_directory, shared_options->output_filename);
                 failed_file = fopen(failed_filename, "w");
                 
                 LOG_DEBUG_F("passed filename = %s\nfailed filename = %s\n", passed_filename, failed_filename);
                 
                 free(passed_filename);
                 free(failed_filename);
-            } else if (options_data->chain != NULL) {
+            } else if (shared_options->chain != NULL) {
                 // Get name of the input VCF file
-                char input_filename[strlen(global_options_data->vcf_filename)];
-                memset(input_filename, 0, strlen(global_options_data->vcf_filename) * sizeof(char));
-                get_filename_from_path(global_options_data->vcf_filename, input_filename);
+                char input_filename[strlen(shared_options->vcf_filename)];
+                memset(input_filename, 0, strlen(shared_options->vcf_filename) * sizeof(char));
+                get_filename_from_path(shared_options->vcf_filename, input_filename);
                 
-                int dirname_len = strlen(global_options_data->output_directory);
+                int dirname_len = strlen(shared_options->output_directory);
                 int filename_len = strlen(input_filename);
                 
                 char *passed_filename = (char*) calloc (dirname_len + filename_len + 11, sizeof(char));
-                sprintf(passed_filename, "%s/%s.filtered", global_options_data->output_directory, input_filename);
+                sprintf(passed_filename, "%s/%s.filtered", shared_options->output_directory, input_filename);
                 passed_file = fopen(passed_filename, "w");
             
                 char *failed_filename = (char*) calloc (dirname_len + filename_len + 2, sizeof(char));
-                sprintf(failed_filename, "%s/%s", global_options_data->output_directory, input_filename);
+                sprintf(failed_filename, "%s/%s", shared_options->output_directory, input_filename);
                 failed_file = fopen(failed_filename, "w");
                 
                 LOG_DEBUG_F("passed filename = %s\nfailed filename = %s\n", passed_filename, failed_filename);
@@ -196,7 +197,7 @@ int run_effect(char *url, global_options_data_t *global_options_data, effect_opt
                 // Write records that passed to a separate file, and query the WS with them as args
                 if (passed_records->length > 0) {
                     // Divide the list of passed records in ranges of size defined in config file
-                    int max_chunk_size = options_data->variants_per_request;
+                    int max_chunk_size = shared_options->entries_per_thread;
                     int num_chunks;
                     list_item_t **chunk_starts = create_chunks(passed_records, max_chunk_size, &num_chunks);
                     
@@ -301,7 +302,7 @@ int run_effect(char *url, global_options_data_t *global_options_data, effect_opt
 
     write_summary_file(summary_count, summary_file);
     write_genes_with_variants_file(gene_list, output_directory);
-    write_result_file(global_options_data, options_data, summary_count, output_directory);
+    write_result_file(shared_options, options_data, summary_count, output_directory);
 
     ret_code = free_ws_output(options_data->num_threads);
     free(read_list);
@@ -315,7 +316,7 @@ int run_effect(char *url, global_options_data_t *global_options_data, effect_opt
 }
 
 
-char *compose_effect_ws_request(global_options_data_t *options_data) {
+char *compose_effect_ws_request(shared_options_data_t *options_data) {
     if (options_data->host_url == NULL || options_data->version == NULL || options_data->species == NULL) {
         return NULL;
     }
@@ -610,13 +611,13 @@ static size_t write_effect_ws_results(char *contents, size_t size, size_t nmemb,
 }
 
 
-int initialize_ws_output(global_options_data_t *global_options_data, effect_options_data_t *options_data){
-    int num_threads = options_data->num_threads;
-    char *outdir = global_options_data->output_directory;
+int initialize_ws_output(shared_options_data_t *shared_options, effect_options_data_t *options_data){
+    int num_threads = shared_options->num_threads;
+    char *outdir = shared_options->output_directory;
     
     // Initialize output text list
     output_list = (list_t*) malloc (sizeof(list_t));
-    list_init("output", options_data->num_threads, options_data->max_batches * options_data->batch_size, output_list);
+    list_init("output", num_threads, shared_options->max_batches * shared_options->batch_size, output_list);
     
     // Initialize collections of file descriptors
     output_files = cp_hashtable_create_by_option(COLLECTION_MODE_DEEP,
