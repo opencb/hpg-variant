@@ -36,7 +36,7 @@ void write_genes_with_variants_file(cp_hashtable *gene_list, char *output_direct
 
 
 void write_result_file(global_options_data_t *global_options_data, effect_options_data_t *options_data, cp_hashtable *summary_count, char *output_directory) {
-    char *aux_buffer;
+    char *aux_buffer, *input_vcf_buffer;
     result_file_t *result_file = NULL;
     
     // Create result file
@@ -77,9 +77,9 @@ void write_result_file(global_options_data_t *global_options_data, effect_option
     aux_buffer = (char*) calloc (8, sizeof(char));
     sprintf(aux_buffer, "%ld", options_data->num_threads);
     result_item_t *input_item_numthreads = result_item_new("number-threads", aux_buffer, "Number of connections to the web-service", "MESSAGE", "", "", "");
-    aux_buffer = (char*) calloc (strlen(global_options_data->vcf_filename), sizeof(char));
-    get_filename_from_path(global_options_data->vcf_filename, aux_buffer);
-    result_item_t *input_item_vcf_input = result_item_new(aux_buffer, aux_buffer, "VCF input file", "DATA", "", "Input", "");
+    input_vcf_buffer = (char*) calloc (strlen(global_options_data->vcf_filename), sizeof(char));
+    get_filename_from_path(global_options_data->vcf_filename, input_vcf_buffer);
+    result_item_t *input_item_vcf_input = result_item_new(input_vcf_buffer, input_vcf_buffer, "VCF input file", "DATA", "", "Input", "");
     
     result_add_input_item(input_item_tool, result_file);
     result_add_input_item(input_item_outdir, result_file);
@@ -87,11 +87,32 @@ void write_result_file(global_options_data_t *global_options_data, effect_option
     result_add_input_item(input_item_species, result_file);
     result_add_input_item(input_item_vcf_input, result_file);
     
+    result_item_t *output_item;
     
-    // Add output data
+    // Add output files for summaries
+    if (global_options_data->output_filename != NULL && strlen(global_options_data->output_filename) > 0) {
+        int filename_len = strlen(global_options_data->output_filename);
+        char *passed_filename = (char*) calloc (filename_len + 10, sizeof(char));
+        sprintf(passed_filename, "%s.filtered", global_options_data->output_filename);
+        output_item = result_item_new(passed_filename, passed_filename, "Filtered Variants", "FILE", "", "Summary", "");
+        result_add_output_item(output_item, result_file);
+    } else {
+        char *passed_filename = (char*) calloc (strlen(input_vcf_buffer) + 10, sizeof(char));
+        sprintf(passed_filename, "%s.filtered", input_vcf_buffer);
+        output_item = result_item_new(passed_filename, passed_filename, "Filtered Variants", "FILE", "", "Summary", "");
+        result_add_output_item(output_item, result_file);
+    }
+    
+    output_item = result_item_new("genes_with_variants.txt", "genes_with_variants.txt", "Genes with Variants", 
+                                        "FILE", "", "Summary", "");
+    result_add_output_item(output_item, result_file);
+    output_item = result_item_new("summary", "summary.txt", "Consequence types histogram:", 
+                                        "FILE", "HISTOGRAM", "Summary", "");
+    result_add_output_item(output_item, result_file);
+    
+    // Add output files retrieved from the WS
     char *consequence_type, *consequence_type_filename;
     int *count, total_count = 0;
-    result_item_t *output_item;
     
     char **keys = (char**) cp_hashtable_get_keys(summary_count);
     int num_keys = cp_hashtable_count(summary_count);
@@ -121,14 +142,6 @@ void write_result_file(global_options_data_t *global_options_data, effect_option
     sprintf(aux_buffer, "All (%d)", total_count);
     output_item = result_item_new("all_variants.txt", "all_variants.txt", aux_buffer, 
                                         "FILE", "CONSEQUENCE_TYPE_VARIANTS", "Variants by Consequence Type", "");
-    result_add_output_item(output_item, result_file);
-    
-    // Add output data for summaries
-    output_item = result_item_new("genes_with_variants.txt", "genes_with_variants.txt", "Genes with Variants", 
-                                        "FILE", "", "Summary", "");
-    result_add_output_item(output_item, result_file);
-    output_item = result_item_new("summary", "summary.txt", "Consequence types histogram:", 
-                                        "FILE", "HISTOGRAM", "Summary", "");
     result_add_output_item(output_item, result_file);
     
     // Write and free file
