@@ -1,24 +1,24 @@
 #include "effect.h"
 #include "effect_runner.h"
 
-int effect(int argc, char *argv[]) {
+int effect(int argc, char *argv[], const char *configuration_file) {
     LOG_DEBUG_F("effect called with %d args\n", argc);
 
     /* ******************************
-        * 	    Modifiable options	    *
-        * ******************************/
+     * 	    Modifiable options	    *
+     * ******************************/
 
-    global_options_data_t *global_options_data = new_global_options_data();
-    effect_options_data_t *options_data = init_options_data();
+    shared_options_t *shared_options = new_shared_cli_options();
+    effect_options_t *effect_options = new_effect_cli_options();
 
 
     /* ******************************
-        * 	    Execution steps	        *
-        * ******************************/
+     * 	    Execution steps	        *
+     * ******************************/
 
     // Step 1: read options from configuration file
-    int config_errors = read_global_configuration("hpg-variant.cfg", global_options_data);
-    config_errors &= read_effect_configuration("hpg-variant.cfg", options_data);
+    int config_errors = read_global_configuration(configuration_file, shared_options);
+    config_errors &= read_effect_configuration(configuration_file, effect_options, shared_options);
     LOG_INFO_F("Config read with errors = %d\n", config_errors);
     
     if (config_errors) {
@@ -26,59 +26,48 @@ int effect(int argc, char *argv[]) {
     }
 
     // Step 2: parse command-line options
-    parse_effect_options(argc, argv, options_data, global_options_data);
+    void **argtable = parse_effect_options(argc, argv, effect_options, shared_options);
 
     // Step 3: check that all options are set with valid values
     // Mandatory options that couldn't be read from the config file must be set via command-line
     // If not, return error code!
-    int check_global_opts, check_effect_opts;
-
-    check_global_opts = verify_global_options(global_options_data);
-    if (check_global_opts > 0)
-    {
-        return check_global_opts;
-    }
-
-    check_effect_opts = verify_effect_options(global_options_data, options_data);
-    if (check_effect_opts > 0)
-    {
+    int check_effect_opts = verify_effect_options(effect_options, shared_options);
+    if (check_effect_opts > 0) {
         return check_effect_opts;
     }
+    
+    // Step 4: Create XXX_options_data_t structures from valid XXX_options_t
+    shared_options_data_t *shared_options_data = new_shared_options_data(shared_options);
+    effect_options_data_t *effect_options_data = new_effect_options_data(effect_options);
 
-    // Step 4: Create the web service request with all the parameters
-    char *url = compose_effect_ws_request(options_data);
+    // Step 5: Create the web service request with all the parameters
+    char *url = compose_effect_ws_request(shared_options_data);
 
-    // Step 5: Execute request and manage its response (as CURL request callback function)
-    int result = run_effect(url, global_options_data, options_data);
+    // Step 6: Execute request and manage its response (as CURL request callback function)
+    int result = run_effect(url, shared_options_data, effect_options_data);
 
     free(url);
-    free_options_data(options_data);
-    free_global_options_data(global_options_data);
+    free_effect_options_data(effect_options_data);
+    free_shared_options_data(shared_options_data);
+    arg_freetable(argtable, effect_options->num_options + shared_options->num_options);
 
     return 0;
 }
 
-effect_options_data_t *init_options_data(void) {
-    effect_options_data_t *options_data = (effect_options_data_t*) malloc (sizeof(effect_options_data_t));
-    
-    options_data->host_url = NULL;
-    options_data->version = NULL;
-    options_data->species = NULL;
-    options_data->chain = NULL;
-    options_data->excludes = NULL;
-    options_data->max_batches = 10;
-    options_data->batch_size = 2000;
-    options_data->num_threads = 4;
-    options_data->variants_per_request = 1000;
+effect_options_t *new_effect_cli_options(void) {
+    effect_options_t *options = (effect_options_t*) malloc (sizeof(effect_options_t));
+    options->num_options = NUM_EFFECT_OPTIONS;
+    options->excludes = arg_str0(NULL, "exclude", NULL, "Consequence types to exclude from the query");
+    return options;
+}
 
+effect_options_data_t *new_effect_options_data(effect_options_t *options) {
+    effect_options_data_t *options_data = (effect_options_data_t*) malloc (sizeof(effect_options_data_t));
+    options_data->excludes = strdup(*(options->excludes->sval));
     return options_data;
 }
 
-void free_options_data(effect_options_data_t *options_data) {
-    if (options_data->host_url) { free((void*) options_data->host_url); }
-    if (options_data->version)  { free((void*) options_data->version); }
-    if (options_data->species)  { free((void*) options_data->species); }
-    if (options_data->chain)    { cp_heap_destroy(options_data->chain); }
-    if (options_data->excludes) { free((void*) options_data->excludes); }
+void free_effect_options_data(effect_options_data_t *options_data) {
+    if (options_data->excludes) { free(options_data->excludes); }
     free(options_data);
 }
