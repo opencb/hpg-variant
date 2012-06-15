@@ -31,7 +31,7 @@ int effect(int argc, char *argv[], const char *configuration_file) {
     // Step 3: check that all options are set with valid values
     // Mandatory options that couldn't be read from the config file must be set via command-line
     // If not, return error code!
-    int check_effect_opts = verify_effect_options(shared_options, effect_options);
+    int check_effect_opts = verify_effect_options(effect_options, shared_options);
     if (check_effect_opts > 0) {
         return check_effect_opts;
     }

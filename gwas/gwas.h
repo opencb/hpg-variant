@@ -25,36 +25,17 @@
 /**
  * Number of options applicable to the gwas tool.
  */
-#define NUM_GWAS_OPTIONS  10
+#define NUM_GWAS_OPTIONS  3
 
-static struct option gwas_options[] = {
-    // Task options
-    { "assoc",                  no_argument, 0, 'o' },
-    { "fisher",                 no_argument, 0, 'i' },
-//     { "copy-number",            no_argument, 0, 'c' },
-//     { "loh",                    no_argument, 0, 'l' },
-    { "tdt",                    no_argument, 0, 't' },
+typedef struct gwas_options {
+    int num_options;
     
-    // Filtering options
-    {"alleles",                 required_argument, 0, 'a' },
-    {"coverage",                required_argument, 0, 'c' },
-    {"quality",                 required_argument, 0, 'q' },
-
-    {"region-file",             required_argument, 0, 'f' },
-    {"region",                  required_argument, 0, 'r' },
-
-    {"snp",                     required_argument, 0, 's' },
-    
-    // Multithreading options
-    { "num-threads",            required_argument, 0, 'n' },
-    
-    // Other options
-    
-    {NULL,                      0, 0, 0}
-};
+    struct arg_lit *assoc;
+    struct arg_lit *fisher;
+    struct arg_lit *tdt;
+} gwas_options_t;
 
 enum GWAS_task { NONE, TDT, ASSOCIATION_BASIC, FISHER };
-
 
 /**
  * @brief Values for the options of the gwas tool.
@@ -63,23 +44,12 @@ enum GWAS_task { NONE, TDT, ASSOCIATION_BASIC, FISHER };
  * such as different parts of the web service URL or the parallelism 
  * parameters (number of threads, variants sent per request, and so on).
  */
-typedef struct gwas_options_data
-{
-    struct arg_lit *assoc;
-    struct arg_lit *fisher;
-    struct arg_lit *tdt;
-    
+typedef struct gwas_options_data {
     enum GWAS_task task; /**< Task to perform */
-    
-//     /*  uint32_t??? */
-//     long int num_threads; /**< Number of threads that query the web service simultaneously. */
-//     long int max_batches; /**< Number of VCF records' batches that can be stored simultaneously. */
-//     long int batch_size; /**< Maximum size of a VCF records' batch. */
-//     long int variants_per_request; /**< Maximum number of variants sent in each web service query. */
-//     
-//     filter_chain *chain; /**< Chain of filters to apply to the VCF records, if that is the case. */
 } gwas_options_data_t;
 
+
+static gwas_options_t *new_gwas_cli_options(void);
 
 /**
  * @brief Initializes an gwas_options_data_t structure mandatory members.
@@ -88,7 +58,7 @@ typedef struct gwas_options_data
  * Initializes a new gwas_options_data_t structure mandatory members, which are the buffers for 
  * the URL parts, as well as its numerical ones.
  */
-static gwas_options_data_t *init_options_data(void);
+static gwas_options_data_t *new_gwas_options_data(gwas_options_t *options);
 
 /**
  * @brief Free memory associated to a gwas_options_data_t structure.
@@ -96,7 +66,7 @@ static gwas_options_data_t *init_options_data(void);
  * 
  * Free memory associated to a gwas_options_data_t structure, including its text buffers.
  */
-static void free_options_data(gwas_options_data_t *options_data);
+static void free_gwas_options_data(gwas_options_data_t *options_data);
 
 
 /* **********************************************
@@ -113,7 +83,7 @@ static void free_options_data(gwas_options_data_t *options_data);
  * file can't be read, these parameters should be provided via the command-line
  * interface.
  */
-int read_gwas_configuration(const char *filename, gwas_options_data_t *options_data);
+int read_gwas_configuration(const char *filename, gwas_options_t *gwas_options, shared_options_t *shared_options);
 
 /**
  * @brief Parses the tool options from the command-line.
@@ -125,7 +95,9 @@ int read_gwas_configuration(const char *filename, gwas_options_data_t *options_d
  * Reads the arguments from the command-line, checking they correspond to an option for the 
  * gwas tool, and stores them in the local or global structure, depending on their scope.
  */
-void parse_gwas_options(int argc, char *argv[], gwas_options_data_t *options_data, shared_options_data_t *global_options_data);
+void **parse_gwas_options(int argc, char *argv[], gwas_options_t *gwas_options, shared_options_t *shared_options);
+
+void **merge_gwas_options(gwas_options_t *gwas_options, shared_options_t *shared_options, struct arg_end *arg_end);
 
 /**
  * @brief Checks semantic dependencies among the tool options.
@@ -136,7 +108,7 @@ void parse_gwas_options(int argc, char *argv[], gwas_options_data_t *options_dat
  * Checks that all dependencies among options are satisfied, i.e.: option A is mandatory, 
  * option B can't be provided at the same time as option C, and so on.
  */
-int verify_gwas_options(shared_options_data_t *global_options_data, gwas_options_data_t *options_data);
+int verify_gwas_options(gwas_options_t *gwas_options, shared_options_t *shared_options);
 
 
 #endif

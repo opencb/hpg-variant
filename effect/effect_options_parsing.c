@@ -1,8 +1,8 @@
 #include "effect.h"
 
 
-int read_effect_configuration(const char *filename, effect_options_t *options_data, shared_options_t *global_options_data) {
-    if (filename == NULL || options_data == NULL) {
+int read_effect_configuration(const char *filename, effect_options_t *effect_options, shared_options_t *shared_options) {
+    if (filename == NULL || effect_options == NULL || shared_options == NULL) {
         return -1;
     }
     
@@ -16,35 +16,35 @@ int read_effect_configuration(const char *filename, effect_options_t *options_da
     const char *tmp_string;
     
     // Read number of threads that will make request to the web service
-    ret_code = config_lookup_int(config, "effect.num-threads", global_options_data->num_threads->ival);
+    ret_code = config_lookup_int(config, "effect.num-threads", shared_options->num_threads->ival);
     if (ret_code == CONFIG_FALSE) {
         LOG_WARN("Number of threads not found in config file, must be set via command-line");
     } else {
-        LOG_INFO_F("num-threads = %ld\n", *(global_options_data->num_threads->ival));
+        LOG_INFO_F("num-threads = %ld\n", *(shared_options->num_threads->ival));
     }
 
     // Read maximum number of batches that can be stored at certain moment
-    ret_code = config_lookup_int(config, "effect.max-batches", global_options_data->max_batches->ival);
+    ret_code = config_lookup_int(config, "effect.max-batches", shared_options->max_batches->ival);
     if (ret_code == CONFIG_FALSE) {
         LOG_WARN("Maximum number of batches not found in configuration file, must be set via command-line");
     } else {
-        LOG_INFO_F("max-batches = %ld\n", *(global_options_data->max_batches->ival));
+        LOG_INFO_F("max-batches = %ld\n", *(shared_options->max_batches->ival));
     }
     
     // Read size of every batch read
-    ret_code = config_lookup_int(config, "effect.batch-size", global_options_data->batch_size->ival);
+    ret_code = config_lookup_int(config, "effect.batch-size", shared_options->batch_size->ival);
     if (ret_code == CONFIG_FALSE) {
         LOG_WARN("Batch size not found in configuration file, must be set via command-line");
     } else {
-        LOG_INFO_F("batch-size = %ld\n", *(global_options_data->batch_size->ival));
+        LOG_INFO_F("batch-size = %ld\n", *(shared_options->batch_size->ival));
     }
     
     // Read number of variants per request to the web service
-    ret_code = config_lookup_int(config, "effect.variants-per-request", global_options_data->entries_per_thread->ival);
+    ret_code = config_lookup_int(config, "effect.variants-per-request", shared_options->entries_per_thread->ival);
     if (ret_code == CONFIG_FALSE) {
         LOG_WARN("Variants per request not found in configuration file, must be set via command-line");
     } else {
-        LOG_INFO_F("entries-per-thread = %ld\n", *(global_options_data->entries_per_thread->ival));
+        LOG_INFO_F("entries-per-thread = %ld\n", *(shared_options->entries_per_thread->ival));
     }
 
     // Read host URL
@@ -52,11 +52,11 @@ int read_effect_configuration(const char *filename, effect_options_t *options_da
     if (ret_code == CONFIG_FALSE) {
         LOG_WARN("Web services URL not found in configuration file, must be set via command-line");
     } else {
-//         free(global_options_data->host_url);
-//         global_options_data->host_url = strdup(tmp_string);
-        *(global_options_data->host_url->sval) = strdup(tmp_string);
+//         free(shared_options->host_url);
+//         shared_options->host_url = strdup(tmp_string);
+        *(shared_options->host_url->sval) = strdup(tmp_string);
         LOG_INFO_F("web services host URL = %s (%zu chars)\n",
-                   *(global_options_data->host_url->sval), strlen(*(global_options_data->host_url->sval)));
+                   *(shared_options->host_url->sval), strlen(*(shared_options->host_url->sval)));
     }
     
     // Read species
@@ -64,11 +64,11 @@ int read_effect_configuration(const char *filename, effect_options_t *options_da
     if (ret_code == CONFIG_FALSE) {
         LOG_WARN("Species not found in configuration file, must be set via command-line");
     } else {
-//         free(global_options_data->species);
-//         global_options_data->species = strdup(tmp_string);
-        *(global_options_data->species->sval) = strdup(tmp_string);
+//         free(shared_options->species);
+//         shared_options->species = strdup(tmp_string);
+        *(shared_options->species->sval) = strdup(tmp_string);
         LOG_INFO_F("species = %s (%zu chars)\n",
-                   *(global_options_data->species->sval), strlen(*(global_options_data->species->sval)));
+                   *(shared_options->species->sval), strlen(*(shared_options->species->sval)));
     }
     
     // Read version
@@ -76,11 +76,11 @@ int read_effect_configuration(const char *filename, effect_options_t *options_da
     if (ret_code == CONFIG_FALSE) {
         LOG_WARN("Version not found in configuration file, must be set via command-line");
     } else {
-//         free(global_options_data->version);
-//         global_options_data->version = strdup(tmp_string);
-        *(global_options_data->version->sval) = strdup(tmp_string);
+//         free(shared_options->version);
+//         shared_options->version = strdup(tmp_string);
+        *(shared_options->version->sval) = strdup(tmp_string);
         LOG_INFO_F("version = %s (%zu chars)\n",
-                   *(global_options_data->version->sval), strlen(*(global_options_data->version->sval)));
+                   *(shared_options->version->sval), strlen(*(shared_options->version->sval)));
     }
 
     config_destroy(config);
@@ -89,9 +89,9 @@ int read_effect_configuration(const char *filename, effect_options_t *options_da
     return 0;
 }
 
-void **parse_effect_options(int argc, char *argv[], effect_options_t *options_data, shared_options_t *global_options_data) {
-    struct arg_end *end = arg_end(options_data->num_options + global_options_data->num_options);
-    void **argtable = merge_effect_options(options_data, global_options_data, end);
+void **parse_effect_options(int argc, char *argv[], effect_options_t *effect_options, shared_options_t *shared_options) {
+    struct arg_end *end = arg_end(effect_options->num_options + shared_options->num_options);
+    void **argtable = merge_effect_options(effect_options, shared_options, end);
     
     int num_errors = arg_parse(argc, argv, argtable);
     if (num_errors > 0) {
@@ -135,27 +135,27 @@ void **merge_effect_options(effect_options_t *effect_options, shared_options_t *
 }
 
 
-int verify_effect_options(shared_options_t *global_options_data, effect_options_t *options_data) {
+int verify_effect_options(effect_options_t *effect_options, shared_options_t *shared_options) {
     // Check whether the input VCF file is defined
-    if (global_options_data->vcf_filename->count == 0) {
+    if (shared_options->vcf_filename->count == 0) {
         LOG_ERROR("Please specify the input VCF file.\n");
         return VCF_FILE_NOT_SPECIFIED;
     }
     
     // Check whether the host URL is defined
-    if (global_options_data->host_url->sval == NULL || strlen(global_options_data->host_url->sval) == 0) {
+    if (shared_options->host_url->sval == NULL || strlen(*(shared_options->host_url->sval)) == 0) {
         LOG_ERROR("Please specify the host URL to the web service.\n");
         return EFFECT_HOST_URL_NOT_SPECIFIED;
     }
 
     // Check whether the version is defined
-    if (global_options_data->version->sval == NULL || strlen(global_options_data->version->sval) == 0) {
+    if (shared_options->version->sval == NULL || strlen(*(shared_options->version->sval)) == 0) {
         LOG_ERROR("Please specify the version.\n");
         return EFFECT_VERSION_NOT_SPECIFIED;
     }
 
     // Check whether the species is defined
-    if (global_options_data->species->sval == NULL || strlen(global_options_data->species->sval) == 0) {
+    if (shared_options->species->sval == NULL || strlen(*(shared_options->species->sval)) == 0) {
         LOG_ERROR("Please specify the species to take as reference.\n");
         return EFFECT_SPECIES_NOT_SPECIFIED;
     }
