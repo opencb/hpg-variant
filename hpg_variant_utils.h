@@ -8,6 +8,7 @@
 #include <commons/log.h>
 #include <containers/list.h>
 
+#include "global_options.h"
 
 /* ***********************
  *     Initialization    *
@@ -31,7 +32,18 @@ void close_job_status_file(FILE *file);
  *      Miscellaneous    *
  * ***********************/
 
-// int get_output_files(global_options_data_t *global_options_data, FILE **passed_file, FILE **failed_file);
+/**
+ * @brief Creates output files depending on the tool options given as input
+ * @param global_options_data Options that apply to decide whether to create the output files or not
+ * @param passed_file File containing entries that pass filters tests
+ * @param failed_file File containing entries that don't pass filters tests
+ * @return 0 if no errors occurred, 1 otherwise
+ * 
+ * If an output filename has been provided as command-line argument, creates 2 files with that prefix. 
+ * If no output filename has been provided but some filters are applied, uses the original filename as prefix.
+ * If no output filename nor filters are provided, don't create output files.
+ */
+int get_output_files(shared_options_data_t *global_options_data, FILE **passed_file, FILE **failed_file);
 
 /**
  * @brief Given a list of records, distributes them in chunks of similar size
