@@ -262,7 +262,7 @@ int run_effect(char *url, shared_options_data_t *shared_options, effect_options_
             free(filters);
             
             // Decrease list writers count
-            for (i = 0; i < options_data->num_threads; i++) {
+            for (i = 0; i < shared_options->num_threads; i++) {
                 list_decr_writers(output_list);
             }
         }
@@ -304,7 +304,7 @@ int run_effect(char *url, shared_options_data_t *shared_options, effect_options_
     write_genes_with_variants_file(gene_list, output_directory);
     write_result_file(shared_options, options_data, summary_count, output_directory);
 
-    ret_code = free_ws_output(options_data->num_threads);
+    ret_code = free_ws_output(shared_options->num_threads);
     free(read_list);
     free(output_list);
     vcf_close(file);
