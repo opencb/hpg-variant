@@ -2,17 +2,17 @@
 
 // int permute = 0;
 
-int run_association_test(shared_options_data_t* global_options_data, gwas_options_data_t* options_data) {
+int run_association_test(shared_options_data_t* shared_options_data, gwas_options_data_t* options_data) {
     list_t *read_list = (list_t*) malloc(sizeof(list_t));
-    list_init("batches", 1, options_data->max_batches, read_list);
+    list_init("batches", 1, shared_options_data->max_batches, read_list);
     list_t *output_list = (list_t*) malloc (sizeof(list_t));
-    list_init("output", options_data->num_threads, options_data->max_batches * options_data->batch_size, output_list);
+    list_init("output", shared_options_data->num_threads, shared_options_data->max_batches * shared_options_data->batch_size, output_list);
 
     int ret_code = 0;
     double start, stop, total;
-    vcf_file_t *file = vcf_open(global_options_data->vcf_filename);
-    ped_file_t *ped_file = ped_open(global_options_data->ped_filename);
-    size_t output_directory_len = strlen(global_options_data->output_directory);
+    vcf_file_t *file = vcf_open(shared_options_data->vcf_filename);
+    ped_file_t *ped_file = ped_open(shared_options_data->ped_filename);
+    size_t output_directory_len = strlen(shared_options_data->output_directory);
     
     LOG_INFO("About to read PED file...\n");
     // Read PED file before doing any proccessing
@@ -22,9 +22,9 @@ int run_association_test(shared_options_data_t* global_options_data, gwas_option
     }
                
     // Try to create the directory where the output files will be stored
-    ret_code = create_directory(global_options_data->output_directory);
+    ret_code = create_directory(shared_options_data->output_directory);
     if (ret_code != 0 && errno != EEXIST) {
-        LOG_FATAL_F("Can't create output directory: %s\n", global_options_data->output_directory);
+        LOG_FATAL_F("Can't create output directory: %s\n", shared_options_data->output_directory);
     }
     
     LOG_INFO("About to perform basic association test...\n");
@@ -37,7 +37,7 @@ int run_association_test(shared_options_data_t* global_options_data, gwas_option
             // Reading
             start = omp_get_wtime();
 
-            ret_code = vcf_read_batches(read_list, options_data->batch_size, file, 1);
+            ret_code = vcf_read_batches(read_list, shared_options_data->batch_size, file, 1);
 
             stop = omp_get_wtime();
             total = stop - start;
@@ -56,7 +56,7 @@ int run_association_test(shared_options_data_t* global_options_data, gwas_option
         {
             // Enable nested parallelism and set the number of threads the user has chosen
             omp_set_nested(1);
-            omp_set_num_threads(options_data->num_threads);
+            omp_set_num_threads(shared_options_data->num_threads);
             
             LOG_DEBUG_F("Thread %d processes data\n", omp_get_thread_num());
             
@@ -66,23 +66,23 @@ int run_association_test(shared_options_data_t* global_options_data, gwas_option
             // Create chain of filters for the VCF file
             filter_t **filters = NULL;
             int num_filters = 0;
-            if (options_data->chain != NULL) {
-                filters = sort_filter_chain(options_data->chain, &num_filters);
+            if (shared_options_data->chain != NULL) {
+                filters = sort_filter_chain(shared_options_data->chain, &num_filters);
             }
     
             start = omp_get_wtime();
 
-            if (global_options_data->output_filename != NULL && 
-                strlen(global_options_data->output_filename) > 0) {
-                int dirname_len = strlen(global_options_data->output_directory);
-                int filename_len = strlen(global_options_data->output_filename);
+            if (shared_options_data->output_filename != NULL && 
+                strlen(shared_options_data->output_filename) > 0) {
+                int dirname_len = strlen(shared_options_data->output_directory);
+                int filename_len = strlen(shared_options_data->output_filename);
             
                 char *passed_filename = (char*) calloc (dirname_len + filename_len + 11, sizeof(char));
-                sprintf(passed_filename, "%s/%s.filtered", global_options_data->output_directory, global_options_data->output_filename);
+                sprintf(passed_filename, "%s/%s.filtered", shared_options_data->output_directory, shared_options_data->output_filename);
                 passed_file = fopen(passed_filename, "w");
             
                 char *failed_filename = (char*) calloc (dirname_len + filename_len + 2, sizeof(char));
-                sprintf(failed_filename, "%s/%s", global_options_data->output_directory, global_options_data->output_filename);
+                sprintf(failed_filename, "%s/%s", shared_options_data->output_directory, shared_options_data->output_filename);
                 failed_file = fopen(failed_filename, "w");
                 
                 LOG_DEBUG_F("passed filename = %s\nfailed filename = %s\n", passed_filename, failed_filename);
@@ -137,7 +137,7 @@ int run_association_test(shared_options_data_t* global_options_data, gwas_option
                 // Launch TDT test over records that passed the filters
                 if (passed_records->length > 0) {
                     // Divide the list of passed records in ranges of size defined in config file
-                    int max_chunk_size = options_data->variants_per_request;
+                    int max_chunk_size = shared_options_data->entries_per_thread;
                     int num_chunks;
                     list_item_t **chunk_starts = create_chunks(passed_records, max_chunk_size, &num_chunks);
                     
@@ -202,7 +202,7 @@ int run_association_test(shared_options_data_t* global_options_data, gwas_option
             free(filters);
             
             // Decrease list writers count
-            for (i = 0; i < options_data->num_threads; i++) {
+            for (i = 0; i < shared_options_data->num_threads; i++) {
                 list_decr_writers(output_list);
             }
         }
@@ -215,9 +215,9 @@ int run_association_test(shared_options_data_t* global_options_data, gwas_option
             size_t filename_len = 0;
             
             // Set whole path to the output file
-            if (global_options_data->output_filename != NULL && strlen(global_options_data->output_filename) > 0) {
-                filename_len = strlen(global_options_data->output_filename);
-                filename = global_options_data->output_filename;
+            if (shared_options_data->output_filename != NULL && strlen(shared_options_data->output_filename) > 0) {
+                filename_len = strlen(shared_options_data->output_filename);
+                filename = shared_options_data->output_filename;
             } else if (options_data->task == ASSOCIATION_BASIC) {
                 filename_len = strlen("hpg-variant.assoc");
                 filename = strdup("hpg-variant.assoc");
@@ -227,7 +227,7 @@ int run_association_test(shared_options_data_t* global_options_data, gwas_option
             }
                 
             path = (char*) calloc ((output_directory_len + filename_len + 2), sizeof(char));
-            sprintf(path, "%s/%s", global_options_data->output_directory, filename);
+            sprintf(path, "%s/%s", shared_options_data->output_directory, filename);
             fd = fopen(path, "w");
             
             LOG_INFO_F("Association test output filename = %s\n", path);
