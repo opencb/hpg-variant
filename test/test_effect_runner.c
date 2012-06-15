@@ -20,10 +20,10 @@ effect_options_data_t *opts_data;
  * ******************************/
 
 void setup_effect_ws(void) {
-    global_data = new_global_options_data();
+    global_data = new_shared_options_data();
     global_data->output_directory = strdup("/tmp/variant-test/");
     
-    opts_data = init_options_data();
+    opts_data = new_effect_options_data();
     opts_data->num_threads = 4;
     opts_data->max_batches = 10;
     opts_data->batch_size = 4000;
