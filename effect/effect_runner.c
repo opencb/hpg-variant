@@ -57,7 +57,6 @@ int run_effect(char *url, shared_options_data_t *shared_options, effect_options_
     }
     
     // Initialize collections of file descriptors and summary counters
-//     ret_code = initialize_ws_output(options_data->num_threads, shared_options->output_directory);
     ret_code = initialize_ws_output(shared_options, options_data);
     if (ret_code != 0) {
         return ret_code;
@@ -104,69 +103,19 @@ int run_effect(char *url, shared_options_data_t *shared_options, effect_options_
             omp_set_num_threads(shared_options->num_threads);
             
             LOG_DEBUG_F("Thread %d processes data\n", omp_get_thread_num());
-            FILE *passed_file = NULL, *failed_file = NULL;
             
             filter_t **filters = NULL;
             int num_filters = 0;
             if (shared_options->chain != NULL) {
                 filters = sort_filter_chain(shared_options->chain, &num_filters);
             }
+            FILE *passed_file = NULL, *failed_file = NULL;
+            get_output_files(shared_options, &passed_file, &failed_file);
     
             start = omp_get_wtime();
 
             int i = 0;
             list_item_t* item = NULL;
-            
-            // If an output filename has been provided as command-line argument, write 2 files with that prefix
-            // If no output filename has been provided but some filters are applied, use the original filename as prefix
-            if (shared_options->output_filename != NULL && strlen(shared_options->output_filename) > 0) {
-                int dirname_len = strlen(output_directory);
-                int filename_len = strlen(shared_options->output_filename);
-            
-                char *passed_filename = (char*) calloc (dirname_len + filename_len + 11, sizeof(char));
-                sprintf(passed_filename, "%s/%s.filtered", shared_options->output_directory, shared_options->output_filename);
-                passed_file = fopen(passed_filename, "w");
-            
-                char *failed_filename = (char*) calloc (dirname_len + filename_len + 2, sizeof(char));
-                sprintf(failed_filename, "%s/%s", shared_options->output_directory, shared_options->output_filename);
-                failed_file = fopen(failed_filename, "w");
-                
-                LOG_DEBUG_F("passed filename = %s\nfailed filename = %s\n", passed_filename, failed_filename);
-                
-                free(passed_filename);
-                free(failed_filename);
-            } else if (shared_options->chain != NULL) {
-                // Get name of the input VCF file
-                char input_filename[strlen(shared_options->vcf_filename)];
-                memset(input_filename, 0, strlen(shared_options->vcf_filename) * sizeof(char));
-                get_filename_from_path(shared_options->vcf_filename, input_filename);
-                
-                int dirname_len = strlen(shared_options->output_directory);
-                int filename_len = strlen(input_filename);
-                
-                char *passed_filename = (char*) calloc (dirname_len + filename_len + 11, sizeof(char));
-                sprintf(passed_filename, "%s/%s.filtered", shared_options->output_directory, input_filename);
-                passed_file = fopen(passed_filename, "w");
-            
-                char *failed_filename = (char*) calloc (dirname_len + filename_len + 2, sizeof(char));
-                sprintf(failed_filename, "%s/%s", shared_options->output_directory, input_filename);
-                failed_file = fopen(failed_filename, "w");
-                
-                LOG_DEBUG_F("passed filename = %s\nfailed filename = %s\n", passed_filename, failed_filename);
-                
-                free(passed_filename);
-                free(failed_filename);
-            }
-            
-            // TODO doesn't work (segfault)
-/*            if (!passed_file) {
-                passed_file = stdout;
-            }
-            if (!failed_file) {
-                failed_file = stderr;
-            }
-            
-            LOG_DEBUG("File streams created\n");*/
             
             while ((item = list_remove_item(read_list)) != NULL) {
                 if (i == 0) {
