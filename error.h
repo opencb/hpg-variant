@@ -18,5 +18,6 @@
 
 // GWAS tool errors
 #define GWAS_TASK_NOT_SPECIFIED                 200
+#define GWAS_MANY_TASKS_SPECIFIED               201
 
 #endif
