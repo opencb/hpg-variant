@@ -11,7 +11,6 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include <getopt.h>
 
 #include <argtable2.h>
 #include <libconfig.h>
@@ -24,28 +23,7 @@
 /**
  * Number of options applicable to the whole application.
  */
-#define NUM_GLOBAL_OPTIONS  17
-    
-// static struct option global_options[] = {
-//     // File formats accepted (range available A-H)
-//     {"vcf-file",        required_argument, 0, 'A' },
-// //  {"bam-file",        required_argument, 0, 'B' },
-//     {"ped-file",        required_argument, 0, 'E' },
-// //    {"gff-file",      required_argument, 0, 'G' },
-//     
-//     // IO options (range available I-O)
-//     {"outdir",          required_argument, 0, 'N' },
-//     {"out",             required_argument, 0, 'O' },
-//     
-//     // Other options (range available P-Z)
-//     { "species",        required_argument, 0, 'S' },
-//     { "version",        required_argument, 0, 'V' },
-//     { "url",            required_argument, 0, 'U' },
-//     
-//     { "config",         required_argument, 0, 'Z' },
-//     
-//     {NULL,          0, 0, 0}
-// };
+#define NUM_GLOBAL_OPTIONS  18
 
 typedef struct shared_options {
     struct arg_file *vcf_filename; /**< VCF file used as input. */
@@ -68,6 +46,8 @@ typedef struct shared_options {
     struct arg_str *region; /**< Filter by region */
     struct arg_file *region_file; /**< Filter by region (using a GFF file) */
     struct arg_str *snp; /**< Filter by SNP */
+    
+    struct arg_file *config_file;
     
     int num_options;
 } shared_options_t;
@@ -102,15 +82,6 @@ typedef struct shared_options_data {
     char *snp; /**< Filter by SNP */
     
     filter_chain *chain; /**< Chain of filters to apply to the VCF records, if that is the case. */
-    
-//     char *ped_filename; /**< PED file used as input. */
-//     char *vcf_filename; /**< VCF file used as input. */
-//     char *output_directory; /**< Directory where the output files will be stored. */
-//     char *output_filename; /**< Filename template for the main output file. */
-//     
-//     char *host_url; /**< URL of the host where the web service runs. */
-//     char *version; /**< Version of the WS to query. */
-//     char *species; /**< Species whose genome is taken as reference. */
 } shared_options_data_t;
 
 
@@ -120,7 +91,7 @@ typedef struct shared_options_data {
  * 
  * Initializes the only mandatory member of a global_options_t, which is the output directory.
  */
-shared_options_t *new_global_options(void);
+shared_options_t *new_shared_cli_options(void);
 
 /**
  * @brief Initializes an global_options_data_t structure mandatory members.
@@ -128,7 +99,7 @@ shared_options_t *new_global_options(void);
  * 
  * Initializes the only mandatory member of a global_options_data_t, which is the output directory.
  */
-shared_options_data_t *new_global_options_data(shared_options_t *options);
+shared_options_data_t *new_shared_options_data(shared_options_t *options);
 
 /**
  * @brief Free memory associated to a global_options_data_t structure.
@@ -136,7 +107,7 @@ shared_options_data_t *new_global_options_data(shared_options_t *options);
  * 
  * Free memory associated to a global_options_data_t structure, including its text buffers.
  */
-void free_global_options_data(shared_options_data_t *options_data);
+void free_shared_options_data(shared_options_data_t *options_data);
 
 
 /* **********************************************
@@ -153,41 +124,5 @@ void free_global_options_data(shared_options_data_t *options_data);
  * read, these parameters should be provided via the command-line interface.
  */
 int read_global_configuration(const char *filename, shared_options_t *options_data);
-
-/**
- * @brief Given a list of options, parse the global ones it contains.
- * @param argc number of input token
- * @param argv input tokens
- * @param options_data structure for values of all the global options
- * @param start_index index of the next option to parse
- * @return The index where the parsing finished at
- * 
- * Given a list of options, parse the global ones it contains. Because it invokes
- * a nested getopt_long loop, the start_index argument sets the position of the next 
- * common option to parse.
- */
-// int parse_global_options(int argc, char *argv[], shared_options_t *options_data, int start_index);
-
-/**
- * @brief Checks semantic dependencies among the application options.
- * @param options_data Application-wide options to check
- * @return Zero (0) if the options are correct, non-zero otherwise
- * 
- * Checks that all dependencies among options are satisfied, i.e.: option A is mandatory, 
- * option B can't be provided at the same time as option C, and so on.
- */
-int verify_global_options(shared_options_t *options_data);
-
-// /**
-//  * @brief Merges application-wide options with the ones from a certain tool.
-//  * @param local_options options for a tool
-//  * @param num_local_options number of options for a tool
-//  * @return The global and local options merged in a unique structure
-//  * 
-//  * Given a set of options local to certain tool, merges them with the ones globally 
-//  * available to the whole application.
-//  */
-// void *merge_options(effect_options_data_t *options_data, global_options_data_t *global_options_data, size_t num_local_options);
-// struct option *merge_options(struct option local_options[], size_t num_local_options);
 
 #endif

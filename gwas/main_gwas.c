@@ -9,7 +9,7 @@ int genomic_analysis(int argc, char *argv[], const char *configuration_file) {
      *       Modifiable options     *
      * ******************************/
 
-    shared_options_data_t *global_options_data = new_global_options_data();
+    shared_options_data_t *global_options_data = new_shared_options_data();
     gwas_options_data_t *options_data = init_options_data();
 
 
@@ -62,7 +62,7 @@ int genomic_analysis(int argc, char *argv[], const char *configuration_file) {
 //     }
     
     free_options_data(options_data);
-    free_global_options_data(global_options_data);
+    free_shared_options_data(global_options_data);
 
     return 0;
 }

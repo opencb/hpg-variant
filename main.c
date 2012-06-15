@@ -24,7 +24,7 @@ int main(int argc, char *argv[])
         exit_code = NOT_IMPLEMENTED_TOOL;
         
 	} else if (strcmp(tool, "gwas") == 0) {
-        exit_code = genomic_analysis(argc - 1, argv + 1, config);
+//         exit_code = genomic_analysis(argc - 1, argv + 1, config);
         
 	} else if (strcmp(tool, "pathway-analysis") == 0) {
 		fprintf(stderr, "%s tool not yet implemented\n", tool);

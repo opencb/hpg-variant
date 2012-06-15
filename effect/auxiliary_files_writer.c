@@ -75,7 +75,7 @@ void write_result_file(shared_options_data_t *shared_options, effect_options_dat
     result_item_t *input_item_species = result_item_new("species", shared_options->species, "The species of the ids", "MESSAGE", "", "", "");
     // TODO home
     aux_buffer = (char*) calloc (8, sizeof(char));
-    sprintf(aux_buffer, "%ld", shared_options->num_threads);
+    sprintf(aux_buffer, "%d", shared_options->num_threads);
     result_item_t *input_item_numthreads = result_item_new("number-threads", aux_buffer, "Number of connections to the web-service", "MESSAGE", "", "", "");
     input_vcf_buffer = (char*) calloc (strlen(shared_options->vcf_filename), sizeof(char));
     get_filename_from_path(shared_options->vcf_filename, input_vcf_buffer);
@@ -96,7 +96,7 @@ void write_result_file(shared_options_data_t *shared_options, effect_options_dat
         sprintf(passed_filename, "%s.filtered", shared_options->output_filename);
         output_item = result_item_new(passed_filename, passed_filename, "Filtered Variants", "FILE", "", "Summary", "");
         result_add_output_item(output_item, result_file);
-    } else if (effect_options->chain != NULL) {
+    } else if (shared_options->chain != NULL) {
         char *passed_filename = (char*) calloc (strlen(input_vcf_buffer) + 10, sizeof(char));
         sprintf(passed_filename, "%s.filtered", input_vcf_buffer);
         output_item = result_item_new(passed_filename, passed_filename, "Filtered Variants", "FILE", "", "Summary", "");
