@@ -60,7 +60,6 @@ int run_tdt_test(shared_options_data_t* shared_options_data, gwas_options_data_t
             
             LOG_DEBUG_F("Thread %d processes data\n", omp_get_thread_num());
             
-            FILE *passed_file = NULL, *failed_file = NULL;
             cp_hashtable *sample_ids = NULL;
             
             // Create chain of filters for the VCF file
@@ -69,27 +68,10 @@ int run_tdt_test(shared_options_data_t* shared_options_data, gwas_options_data_t
             if (shared_options_data->chain != NULL) {
                 filters = sort_filter_chain(shared_options_data->chain, &num_filters);
             }
+            FILE *passed_file = NULL, *failed_file = NULL;
+            get_output_files(shared_options_data, &passed_file, &failed_file);
     
             start = omp_get_wtime();
-
-            if (shared_options_data->output_filename != NULL && 
-                strlen(shared_options_data->output_filename) > 0) {
-                int dirname_len = strlen(shared_options_data->output_directory);
-                int filename_len = strlen(shared_options_data->output_filename);
-            
-                char *passed_filename = (char*) calloc (dirname_len + filename_len + 11, sizeof(char));
-                sprintf(passed_filename, "%s/%s.filtered", shared_options_data->output_directory, shared_options_data->output_filename);
-                passed_file = fopen(passed_filename, "w");
-            
-                char *failed_filename = (char*) calloc (dirname_len + filename_len + 2, sizeof(char));
-                sprintf(failed_filename, "%s/%s", shared_options_data->output_directory, shared_options_data->output_filename);
-                failed_file = fopen(failed_filename, "w");
-                
-                LOG_DEBUG_F("passed filename = %s\nfailed filename = %s\n", passed_filename, failed_filename);
-                
-                free(passed_filename);
-                free(failed_filename);
-            }
             
             int i = 0;
             list_item_t *item = NULL;
@@ -201,18 +183,11 @@ int run_tdt_test(shared_options_data_t* shared_options_data, gwas_options_data_t
         {
             // Thread which writes the results to the output file
             FILE *fd = NULL;    // TODO check if output file is defined
-            char *path = NULL, *filename = NULL;
-            size_t filename_len = 0;
+            char *path = NULL;
+            char *filename = strdup("hpg-variant.tdt");
+            size_t filename_len = strlen(filename);
             
             // Set whole path to the output file
-            if (shared_options_data->output_filename != NULL && 
-                strlen(shared_options_data->output_filename) > 0) {
-                filename_len = strlen(shared_options_data->output_filename);
-                filename = shared_options_data->output_filename;
-            } else {
-                filename_len = strlen("hpg-variant.tdt");
-                filename = strdup("hpg-variant.tdt");
-            }
             path = (char*) calloc ((output_directory_len + filename_len + 2), sizeof(char));
             sprintf(path, "%s/%s", shared_options_data->output_directory, filename);
             fd = fopen(path, "w");
