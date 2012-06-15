@@ -4,13 +4,14 @@ int tdt_test(ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_h
     int ret_code = 0;
     int tid = omp_get_thread_num();
     cp_hashtable *families = ped_file->families;
+    char **families_keys = (char**) cp_hashtable_get_keys(families);
     int num_families = get_num_families(ped_file);
     int num_samples = cp_hashtable_count(sample_ids);
     
     tdt_result_t *result;
-    char **sample_data;// = (char**) calloc (num_samples, sizeof(char*));
+    char **sample_data;
     
-    
+    int gt_position;
     int father_allele1, father_allele2;
     int mother_allele1, mother_allele2;
     int child_allele1, child_allele2;
@@ -23,12 +24,8 @@ int tdt_test(ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_h
         vcf_record_t *record = (vcf_record_t*) cur_variant->data_p;
         LOG_DEBUG_F("[%d] Checking variant %s:%ld\n", tid, record->chromosome, record->position);
         
-    //         // Adaptive permutation, skip this SNP?
-    //         if (par::adaptive_perm && (!perm.snp_test[variant])) {
-    //             continue;
-    //         }
-
         // TODO implement arraylist in order to avoid this conversion
+        gt_position = get_field_position_in_format("GT", record->format);
         sample_data = (char**) list_to_array(record->samples);
     
         // Transmission counts
@@ -37,10 +34,9 @@ int tdt_test(ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_h
         
         
         // Count over families
-        char **keys = (char**) cp_hashtable_get_keys(families);
         family_t *family;
         for (int f = 0; f < num_families; f++) {
-            family = cp_hashtable_get(families, keys[f]);
+            family = cp_hashtable_get(families, families_keys[f]);
             individual_t *father = family->father;
             individual_t *mother = family->mother;
             cp_list *children = family->children;
@@ -67,16 +63,17 @@ int tdt_test(ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_h
                 continue;
             }
             
-            char *father_sample = sample_data[*father_pos];
-            char *mother_sample = sample_data[*mother_pos];
+            char *father_sample = strdup(sample_data[*father_pos]);
+            char *mother_sample = strdup(sample_data[*mother_pos]);
             
             LOG_DEBUG_F("[%d] Samples: Father = %s\tMother = %s\n", tid, father_sample, mother_sample);
             // If any parent's alleles can't be read or is missing, go to next family
-            int gt_position = get_field_position_in_format("GT", record->format);
             
             if (get_alleles(father_sample, gt_position, &father_allele1, &father_allele2) ||
                 get_alleles(mother_sample, gt_position, &mother_allele1, &mother_allele2)) {
-                    continue;
+                free(father_sample);
+                free(mother_sample);
+                continue;
             }
             
             LOG_DEBUG_F("[%d] Alleles: Father = %d/%d\tMother = %d/%d\n", tid, father_allele1, father_allele2, mother_allele1, mother_allele2);
@@ -113,11 +110,12 @@ int tdt_test(ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_h
                     continue;
                 }
                 
-                char *child_sample = sample_data[*child_pos];
+                char *child_sample = strdup(sample_data[*child_pos]);
                 LOG_DEBUG_F("[%d] Samples: Child = %s\n", tid, child_sample);
                 
                 // Skip if offspring has missing genotype
                 if (get_alleles(child_sample, gt_position, &child_allele1, &child_allele2)) {
+                    free(child_sample);
                     continue;
                 }
                 
@@ -201,17 +199,20 @@ int tdt_test(ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_h
                 LOG_DEBUG_F("TDT\t%s %s : %d %d - %d %d - %d %d - F %d/%d - M %d/%d - C %d/%d\n", 
                             record->id, family->id, trA, unA, trB, unB, t1, t2, 
                             father_allele1, father_allele2, mother_allele1, mother_allele2, child_allele1, child_allele2);
+                free(child_sample);
+                
             } // next offspring in family
+            
             cp_list_iterator_destroy(children_iterator);
-        
+            free(father_sample);
+            free(mother_sample);
         }  // next nuclear family
 
         /////////////////////////////
         // Finished counting: now compute
         // the statistics
         
-        double tdt_chisq, par_chisq, com_chisq;
-        tdt_chisq = par_chisq = com_chisq = -1;
+        double tdt_chisq = -1;
         
         // Basic TDT test
         if (t1+t2 > 0) {
@@ -225,9 +226,14 @@ int tdt_test(ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_h
         LOG_DEBUG_F("[%d] after adding %s:%ld\n", tid, record->chromosome, record->position);
         
         cur_variant = cur_variant->next_p;
+        
+        // Free samples
+        // TODO implement arraylist in order to avoid this code
+        free(sample_data);
     } // next variant
 
-    free(sample_data);
+    // Free families' keys
+    free(families_keys);
     
     return ret_code;
 }
@@ -236,17 +242,15 @@ int tdt_test(ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_h
 tdt_result_t* tdt_result_new(char *chromosome, unsigned long int position, char *reference, char *alternate, double t1, double t2, double chi_square) {
     tdt_result_t *result = (tdt_result_t*) malloc (sizeof(tdt_result_t));
     
-    result->chromosome = (char*) calloc (strlen(chromosome)+1, sizeof(char));
-    strncat(result->chromosome, chromosome, strlen(chromosome));
+    result->chromosome = strdup(chromosome);
     result->position = position;
-    result->reference = (char*) calloc (strlen(reference)+1, sizeof(char));
-    strncat(result->reference, reference, strlen(reference));
-    result->alternate = (char*) calloc (strlen(alternate)+1, sizeof(char));
-    strncat(result->alternate, alternate, strlen(alternate));
+    result->reference = strdup(reference);
+    result->alternate = strdup(alternate);
     result->t1 = t1;
     result->t2 = t2;
     result->odds_ratio = (t2 == 0.0) ? NAN : ((double) t1/t2);
     result->chi_square = chi_square;
+    result->p_value = 1 - gsl_cdf_chisq_P(chi_square, 1);
     
     return result;
 }
@@ -255,4 +259,5 @@ void tdt_result_free(tdt_result_t* result) {
     free(result->chromosome);
     free(result->reference);
     free(result->alternate);
+    free(result);
 }

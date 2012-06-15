@@ -4,6 +4,8 @@ int main(int argc, char *argv[])
 {
 	init_log_custom(2, 1, "hpg-variant.log");
 
+    const char *config = find_configuration_file(argc, argv);
+    
     mmap_vcf = 0;
 	// Get tool
 	char *tool = argv[1];
@@ -15,14 +17,14 @@ int main(int argc, char *argv[])
 		exit_code = NOT_IMPLEMENTED_TOOL;
         
 	} else if (strcmp(tool, "effect") == 0) {
-		exit_code = effect(argc - 1, argv + 1);
+		exit_code = effect(argc - 1, argv + 1, config);
         
 	} else if (strcmp(tool, "functional-analysis") == 0) {
 		fprintf(stderr, "%s tool not yet implemented\n", tool);
         exit_code = NOT_IMPLEMENTED_TOOL;
         
 	} else if (strcmp(tool, "gwas") == 0) {
-        exit_code = genomic_analysis(argc - 1, argv + 1);
+        exit_code = genomic_analysis(argc - 1, argv + 1, config);
         
 	} else if (strcmp(tool, "pathway-analysis") == 0) {
 		fprintf(stderr, "%s tool not yet implemented\n", tool);
