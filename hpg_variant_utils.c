@@ -45,83 +45,44 @@ void close_job_status_file(FILE* file) {
 
 
 
-// int get_output_files(global_options_data_t *global_options_data, FILE** passed_file, FILE** failed_file) {
-//     if (global_options_data == NULL) {
-//         return 1;
-//     }
-//     
-//     char *prefix_filename, *passed_filename, *failed_filename;
-//     int prefix_filename_len = 0;
-//     int dirname_len = strlen(global_options_data->output_directory);
-//     
-//     if (global_options_data->output_filename != NULL && strlen(global_options_data->output_filename) > 0) {
-//         prefix_filename = global_options_data->output_filename;
-//     } else if (global_options_data->chain != NULL) {
-//         char input_filename[strlen(global_options_data->vcf_filename)];
-//         memset(input_filename, 0, strlen(global_options_data->vcf_filename) * sizeof(char));
-//         get_filename_from_path(global_options_data->vcf_filename, input_filename);
-//         prefix_filename = strdup(input_filename);
-//     } else {
-//         // Output files are not created
-//         return 0;
-//     }
-//     
-//     prefix_filename_len = strlen(prefix_filename);
-//     
-//     passed_filename = (char*) calloc (dirname_len + prefix_filename_len + 11, sizeof(char));
-//     sprintf(passed_filename, "%s/%s.filtered", global_options_data->output_directory, prefix_filename);
-//     passed_file = fopen(passed_filename, "w");
-// 
-//     failed_filename = (char*) calloc (dirname_len + prefix_filename_len + 2, sizeof(char));
-//     sprintf(failed_filename, "%s/%s", global_options_data->output_directory, prefix_filename);
-//     failed_file = fopen(failed_filename, "w");
-//     
-//     LOG_DEBUG_F("passed filename = %s\nfailed filename = %s\n", passed_filename, failed_filename);
-//     
-//     free(passed_filename);
-//     free(failed_filename);
-//     
-//     
-// //     if (global_options_data->output_filename != NULL && strlen(global_options_data->output_filename) > 0) {
-// // //         int dirname_len = strlen(global_options_data->output_directory);
-// // //         int filename_len = strlen(global_options_data->output_filename);
-// // 
-// //         char *passed_filename = (char*) calloc (dirname_len + prefix_filename_len + 11, sizeof(char));
-// //         sprintf(passed_filename, "%s/%s.filtered", global_options_data->output_directory, global_options_data->output_filename);
-// //         passed_file = fopen(passed_filename, "w");
-// // 
-// //         char *failed_filename = (char*) calloc (dirname_len + prefix_filename_len + 2, sizeof(char));
-// //         sprintf(failed_filename, "%s/%s", global_options_data->output_directory, global_options_data->output_filename);
-// //         failed_file = fopen(failed_filename, "w");
-// //         
-// //         LOG_DEBUG_F("passed filename = %s\nfailed filename = %s\n", passed_filename, failed_filename);
-// //         
-// //         free(passed_filename);
-// //         free(failed_filename);
-// //     } else if (global_options_data->chain != NULL) {
-// //         // Get name of the input VCF file
-// // //         char input_filename[strlen(global_options_data->vcf_filename)];
-// // //         memset(input_filename, 0, strlen(global_options_data->vcf_filename) * sizeof(char));
-// // //         get_filename_from_path(global_options_data->vcf_filename, input_filename);
-// // //         
-// // //         int filename_len = strlen(input_filename);
-// //         
-// //         char *passed_filename = (char*) calloc (dirname_len + prefix_filename_len + 11, sizeof(char));
-// //         sprintf(passed_filename, "%s/%s.filtered", global_options_data->output_directory, input_filename);
-// //         passed_file = fopen(passed_filename, "w");
-// // 
-// //         char *failed_filename = (char*) calloc (dirname_len + prefix_filename_len + 2, sizeof(char));
-// //         sprintf(failed_filename, "%s/%s", global_options_data->output_directory, input_filename);
-// //         failed_file = fopen(failed_filename, "w");
-// //         
-// //         LOG_DEBUG_F("passed filename = %s\nfailed filename = %s\n", passed_filename, failed_filename);
-// //         
-// //         free(passed_filename);
-// //         free(failed_filename);
-// //     }
-//     
-//     return 0;
-// }
+int get_output_files(shared_options_data_t *global_options_data, FILE** passed_file, FILE** failed_file) {
+    if (global_options_data == NULL) {
+        return 1;
+    }
+    
+    char *prefix_filename, *passed_filename, *failed_filename;
+    int prefix_filename_len = 0;
+    int dirname_len = strlen(global_options_data->output_directory);
+    
+    if (global_options_data->output_filename != NULL && strlen(global_options_data->output_filename) > 0) {
+        prefix_filename = global_options_data->output_filename;
+    } else if (global_options_data->chain != NULL) {
+        char input_filename[strlen(global_options_data->vcf_filename)];
+        memset(input_filename, 0, strlen(global_options_data->vcf_filename) * sizeof(char));
+        get_filename_from_path(global_options_data->vcf_filename, input_filename);
+        prefix_filename = strdup(input_filename);
+    } else {
+        // Output files are not created
+        return 0;
+    }
+    
+    prefix_filename_len = strlen(prefix_filename);
+    
+    passed_filename = (char*) calloc (dirname_len + prefix_filename_len + 11, sizeof(char));
+    sprintf(passed_filename, "%s/%s.filtered", global_options_data->output_directory, prefix_filename);
+    *passed_file = fopen(passed_filename, "w");
+
+    failed_filename = (char*) calloc (dirname_len + prefix_filename_len + 11, sizeof(char));
+    sprintf(failed_filename, "%s/%s.rejected", global_options_data->output_directory, prefix_filename);
+    *failed_file = fopen(failed_filename, "w");
+    
+//     LOG_INFO_F("passed filename = %s\nfailed filename = %s\n", passed_filename, failed_filename);
+    
+    free(passed_filename);
+    free(failed_filename);
+    
+    return 0;
+}
 
 list_item_t** create_chunks(list_t* records, int max_chunk_size, int *num_chunks) {
     *num_chunks = (int) ceil((float) records->length / max_chunk_size);

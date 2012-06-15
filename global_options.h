@@ -75,12 +75,6 @@ typedef struct shared_options_data {
     int num_threads; /**< Number of threads when a task is perform in parallel. */
     int entries_per_thread; /**< Number of entries in a batch each thread processes. */
     
-    int num_alleles; /**< Filter by number of alleles. */
-    int coverage; /**< Filter by coverage. */
-    int quality; /**< Filter by quality. */
-    char *region; /**< Filter by region (list of regions or GFF file) */
-    char *snp; /**< Filter by SNP */
-    
     filter_chain *chain; /**< Chain of filters to apply to the VCF records, if that is the case. */
 } shared_options_data_t;
 
