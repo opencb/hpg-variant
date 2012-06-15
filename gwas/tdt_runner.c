@@ -2,17 +2,17 @@
 
 // int permute = 0;
 
-int run_tdt_test(global_options_data_t* global_options_data, gwas_options_data_t* options_data) {
+int run_tdt_test(shared_options_data_t* shared_options_data, gwas_options_data_t* options_data) {
     list_t *read_list = (list_t*) malloc(sizeof(list_t));
-    list_init("batches", 1, options_data->max_batches, read_list);
+    list_init("batches", 1, shared_options_data->max_batches, read_list);
     list_t *output_list = (list_t*) malloc (sizeof(list_t));
-    list_init("output", options_data->num_threads, options_data->max_batches * options_data->batch_size, output_list);
+    list_init("output", shared_options_data->num_threads, shared_options_data->max_batches * shared_options_data->batch_size, output_list);
 
     int ret_code = 0;
     double start, stop, total;
-    vcf_file_t *file = vcf_open(global_options_data->vcf_filename);
-    ped_file_t *ped_file = ped_open(global_options_data->ped_filename);
-    size_t output_directory_len = strlen(global_options_data->output_directory);
+    vcf_file_t *file = vcf_open(shared_options_data->vcf_filename);
+    ped_file_t *ped_file = ped_open(shared_options_data->ped_filename);
+    size_t output_directory_len = strlen(shared_options_data->output_directory);
     
     LOG_INFO("About to read PED file...\n");
     // Read PED file before doing any proccessing
@@ -22,9 +22,9 @@ int run_tdt_test(global_options_data_t* global_options_data, gwas_options_data_t
     }
     
     // Try to create the directory where the output files will be stored
-    ret_code = create_directory(global_options_data->output_directory);
+    ret_code = create_directory(shared_options_data->output_directory);
     if (ret_code != 0 && errno != EEXIST) {
-        LOG_FATAL_F("Can't create output directory: %s\n", global_options_data->output_directory);
+        LOG_FATAL_F("Can't create output directory: %s\n", shared_options_data->output_directory);
     }
     
     LOG_INFO("About to perform TDT test...\n");
@@ -37,7 +37,7 @@ int run_tdt_test(global_options_data_t* global_options_data, gwas_options_data_t
             // Reading
             start = omp_get_wtime();
 
-            ret_code = vcf_read_batches(read_list, options_data->batch_size, file, 1);
+            ret_code = vcf_read_batches(read_list, shared_options_data->batch_size, file, 1);
 
             stop = omp_get_wtime();
             total = stop - start;
@@ -56,7 +56,7 @@ int run_tdt_test(global_options_data_t* global_options_data, gwas_options_data_t
         {
             // Enable nested parallelism and set the number of threads the user has chosen
             omp_set_nested(1);
-            omp_set_num_threads(options_data->num_threads);
+            omp_set_num_threads(shared_options_data->num_threads);
             
             LOG_DEBUG_F("Thread %d processes data\n", omp_get_thread_num());
             
@@ -65,19 +65,26 @@ int run_tdt_test(global_options_data_t* global_options_data, gwas_options_data_t
             // Create chain of filters for the VCF file
             filter_t **filters = NULL;
             int num_filters = 0;
-            if (options_data->chain != NULL) {
-                filters = sort_filter_chain(options_data->chain, &num_filters);
+            if (shared_options_data->chain != NULL) {
+                filters = sort_filter_chain(shared_options_data->chain, &num_filters);
             }
+            FILE *passed_file = NULL, *failed_file = NULL;
+            get_output_files(shared_options_data, &passed_file, &failed_file);
     
-            
             start = omp_get_wtime();
-
+            
             int i = 0;
             list_item_t *item = NULL;
             while ((item = list_remove_item(read_list)) != NULL) {
-                // In the first iteration, create map to associate the position of individuals in the list of samples defined in the VCF file
                 if (i == 0) {
+                    // Create map to associate the position of individuals in the list of samples defined in the VCF file
                     sample_ids = associate_samples_and_positions(file);
+                    
+                    // Write file format, header entries and delimiter
+                    if (passed_file != NULL) { vcf_write_to_file(file, passed_file); }
+                    if (failed_file != NULL) { vcf_write_to_file(file, failed_file); }
+                    
+                    LOG_DEBUG("VCF header written\n");
                 }
                 
                 vcf_batch_t *batch = (vcf_batch_t*) item->data_p;
@@ -101,7 +108,7 @@ int run_tdt_test(global_options_data_t* global_options_data, gwas_options_data_t
                 // Launch TDT test over records that passed the filters
                 if (passed_records->length > 0) {
                     // Divide the list of passed records in ranges of size defined in config file
-                    int max_chunk_size = 1000;  // TODO define dynamically
+                    int max_chunk_size = shared_options_data->entries_per_thread;
                     int num_chunks;
                     list_item_t **chunk_starts = create_chunks(passed_records, max_chunk_size, &num_chunks);
                     
@@ -113,11 +120,23 @@ int run_tdt_test(global_options_data_t* global_options_data, gwas_options_data_t
                     }
                     free(chunk_starts);
                     
-                    LOG_INFO_F("*** %dth TDT execution finished\n", i);
+                    if (i % 10 == 0) { 
+                        LOG_INFO_F("*** %dth TDT execution finished\n", i);
+                    }
                     
                     if (ret_code) {
 //                         LOG_FATAL_F("TDT error: %s\n", get_last_http_error(ret_code));
                         break;
+                    }
+                }
+                
+                // Write records that passed and failed to separate files
+                if (passed_file != NULL && failed_file != NULL) {
+                    if (passed_records != NULL && passed_records->length > 0) {
+                        write_batch(passed_records, passed_file);
+                    }
+                    if (failed_records != NULL && failed_records->length > 0) {
+                        write_batch(failed_records, failed_file);
                     }
                 }
                 
@@ -155,7 +174,7 @@ int run_tdt_test(global_options_data_t* global_options_data, gwas_options_data_t
             free(filters);
             
             // Decrease list writers count
-            for (i = 0; i < options_data->num_threads; i++) {
+            for (i = 0; i < shared_options_data->num_threads; i++) {
                 list_decr_writers(output_list);
             }
         }
@@ -164,22 +183,13 @@ int run_tdt_test(global_options_data_t* global_options_data, gwas_options_data_t
         {
             // Thread which writes the results to the output file
             FILE *fd = NULL;    // TODO check if output file is defined
-            char *path = NULL, *filename = NULL;
-            size_t filename_len = 0;
+            char *path = NULL;
+            char *filename = strdup("hpg-variant.tdt");
+            size_t filename_len = strlen(filename);
             
             // Set whole path to the output file
-            if (global_options_data->output_filename != NULL && 
-                strlen(global_options_data->output_filename) > 0) {
-                filename_len = strlen(global_options_data->output_filename);
-                filename = global_options_data->output_filename;
-            } else {
-                filename_len = strlen("hpg-variant.tdt");
-                filename = (char*) calloc (filename_len+1, sizeof(char));
-                strncpy(filename, "hpg-variant.tdt", filename_len);
-            }
-            path = (char*) calloc ((output_directory_len + filename_len + 1), sizeof(char));
-            strncat(path, global_options_data->output_directory, output_directory_len);
-            strncat(path, filename, filename_len);
+            path = (char*) calloc ((output_directory_len + filename_len + 2), sizeof(char));
+            sprintf(path, "%s/%s", shared_options_data->output_directory, filename);
             fd = fopen(path, "w");
             
             LOG_INFO_F("TDT output filename = %s\n", path);
@@ -189,13 +199,13 @@ int run_tdt_test(global_options_data_t* global_options_data, gwas_options_data_t
             // Write data: header + one line per variant
             list_item_t* item = NULL;
             tdt_result_t *result;
-            fprintf(fd, "CHR        BP          A1      A2        T       U          OR            CHISQ            P\n");
+            fprintf(fd, "CHR           BP       A1      A2         T       U           OR           CHISQ         P-VALUE\n");
             while ((item = list_remove_item(output_list)) != NULL) {
                 result = item->data_p;
                 
-                fprintf(fd, "%s\t%8ld\t%s\t%s\t%3d\t%3d\t%6f\t%6f\n",//\t%f\n", 
+                fprintf(fd, "%s\t%8ld\t%s\t%s\t%3d\t%3d\t%6f\t%6f\t%6f\n",
                        result->chromosome, result->position, result->reference, result->alternate, 
-                       result->t1, result->t2, result->odds_ratio, result->chi_square);//p_value);
+                       result->t1, result->t2, result->odds_ratio, result->chi_square, result->p_value);
                 
                 tdt_result_free(result);
                 list_item_free(item);
@@ -216,7 +226,7 @@ int run_tdt_test(global_options_data_t* global_options_data, gwas_options_data_t
 
 
 cp_hashtable* associate_samples_and_positions(vcf_file_t* file) {
-    printf("** %zu sample names read\n", file->samples_names->length);
+    LOG_DEBUG_F("** %zu sample names read\n", file->samples_names->length);
     list_t *sample_names = file->samples_names;
     cp_hashtable *sample_ids = cp_hashtable_create_by_option(COLLECTION_MODE_DEEP,
                                                              sample_names->length * 2,

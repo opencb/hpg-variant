@@ -10,19 +10,25 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <vcf_util.h>
+#include <bioformats/vcf/vcf_util.h>
 
 #include "error.h"
 #include "global_options.h"
+#include "hpg_variant_utils.h"
 
+
+
+/* ***********************
+ *     Available tools   *
+ * ***********************/
 
 int call(void);
 
-int effect(int argc, char *argv[]);
+int effect(int argc, char *argv[], const char *configuration_file);
 
 int functional_analysis(void);
 
-int genomic_analysis(int argc, char *argv[]);
+int genomic_analysis(int argc, char *argv[], const char *configuration_file);
 
 int pathway_analysis(void);
 
