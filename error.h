@@ -8,7 +8,6 @@
 #define VCF_FILE_NOT_SPECIFIED                  10
 #define PED_FILE_NOT_SPECIFIED                  11
 
-
 // Effect tool errors
 #define EFFECT_HOST_URL_NOT_SPECIFIED           100
 #define EFFECT_VERSION_NOT_SPECIFIED            101

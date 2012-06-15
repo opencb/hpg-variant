@@ -63,15 +63,17 @@ int tdt_test(ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_h
                 continue;
             }
             
-            char *father_sample = sample_data[*father_pos];
-            char *mother_sample = sample_data[*mother_pos];
+            char *father_sample = strdup(sample_data[*father_pos]);
+            char *mother_sample = strdup(sample_data[*mother_pos]);
             
             LOG_DEBUG_F("[%d] Samples: Father = %s\tMother = %s\n", tid, father_sample, mother_sample);
             // If any parent's alleles can't be read or is missing, go to next family
             
             if (get_alleles(father_sample, gt_position, &father_allele1, &father_allele2) ||
                 get_alleles(mother_sample, gt_position, &mother_allele1, &mother_allele2)) {
-                    continue;
+                free(father_sample);
+                free(mother_sample);
+                continue;
             }
             
             LOG_DEBUG_F("[%d] Alleles: Father = %d/%d\tMother = %d/%d\n", tid, father_allele1, father_allele2, mother_allele1, mother_allele2);
@@ -108,11 +110,12 @@ int tdt_test(ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_h
                     continue;
                 }
                 
-                char *child_sample = sample_data[*child_pos];
+                char *child_sample = strdup(sample_data[*child_pos]);
                 LOG_DEBUG_F("[%d] Samples: Child = %s\n", tid, child_sample);
                 
                 // Skip if offspring has missing genotype
                 if (get_alleles(child_sample, gt_position, &child_allele1, &child_allele2)) {
+                    free(child_sample);
                     continue;
                 }
                 
@@ -196,9 +199,13 @@ int tdt_test(ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_h
                 LOG_DEBUG_F("TDT\t%s %s : %d %d - %d %d - %d %d - F %d/%d - M %d/%d - C %d/%d\n", 
                             record->id, family->id, trA, unA, trB, unB, t1, t2, 
                             father_allele1, father_allele2, mother_allele1, mother_allele2, child_allele1, child_allele2);
+                free(child_sample);
+                
             } // next offspring in family
+            
             cp_list_iterator_destroy(children_iterator);
-        
+            free(father_sample);
+            free(mother_sample);
         }  // next nuclear family
 
         /////////////////////////////

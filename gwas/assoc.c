@@ -57,11 +57,12 @@ void assoc_test(enum GWAS_task test_type, ped_file_t *ped_file, list_item_t *var
                     continue;
                 }
                 
-                char *father_sample = sample_data[*father_pos];
+                char *father_sample = strdup(sample_data[*father_pos]);
                 if (!get_alleles(father_sample, gt_position, &allele1, &allele2)) {
                     num_analyzed++;
                     assoc_count_individual(father, record, allele1, allele2, &A1, &A2, &U1, &U2);
                 }
+                free(father_sample);
             }
             
             // Perform test with mother
@@ -75,11 +76,12 @@ void assoc_test(enum GWAS_task test_type, ped_file_t *ped_file, list_item_t *var
                     continue;
                 }
                 
-                char *mother_sample = sample_data[*mother_pos];
+                char *mother_sample = strdup(sample_data[*mother_pos]);
                 if (!get_alleles(mother_sample, gt_position, &allele1, &allele2)) {
                     num_analyzed++;
                     assoc_count_individual(mother, record, allele1, allele2, &A1, &A2, &U1, &U2);
                 }
+                free(mother_sample);
             }
             
             // Perform test with children
@@ -95,11 +97,12 @@ void assoc_test(enum GWAS_task test_type, ped_file_t *ped_file, list_item_t *var
                 }
                 
                 num_read++;
-                char *child_sample = sample_data[*child_pos];
+                char *child_sample = strdup(sample_data[*child_pos]);
                 if (!get_alleles(child_sample, gt_position, &allele1, &allele2)) {
                     num_analyzed++;
                     assoc_count_individual(child, record, allele1, allele2, &A1, &A2, &U1, &U2);
                 }
+                free(child_sample);
             
             } // next offspring in family
             cp_list_iterator_destroy(children_iterator);
