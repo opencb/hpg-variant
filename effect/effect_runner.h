@@ -54,7 +54,7 @@
  * processed and a file for the entries associated to each consequence type is created. There is 
  * also a summary file which contains the number of entries for each of these consequence types.
  */
-int run_effect(char *url, shared_options_data_t *global_options_data, effect_options_data_t *options_data);
+int run_effect(char **urls, shared_options_data_t *global_options_data, effect_options_data_t *options_data);
 
 
 /* **********************************************
@@ -68,7 +68,7 @@ int run_effect(char *url, shared_options_data_t *global_options_data, effect_opt
  * 
  * Given a list of arguments, compounds a URL to invoke a web service.
  */
-char *compose_effect_ws_request(shared_options_data_t *options_data);
+char *compose_effect_ws_request(const char *method, shared_options_data_t *options_data);
 
 /**
  * @brief Invokes the effect web service for a list of regions.
