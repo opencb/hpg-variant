@@ -41,12 +41,22 @@ int effect(int argc, char *argv[], const char *configuration_file) {
     effect_options_data_t *effect_options_data = new_effect_options_data(effect_options);
 
     // Step 5: Create the web service request with all the parameters
-    char *url = compose_effect_ws_request(shared_options_data);
+    const int num_urls = 3;
+    char **urls = malloc (num_urls * sizeof(char*));
+//     char *url = compose_effect_ws_request(shared_options_data);
+    urls[0] = compose_effect_ws_request("consequence_type", shared_options_data);
+    urls[1] = compose_effect_ws_request("snp_phenotype", shared_options_data);
+    urls[2] = compose_effect_ws_request("mutation_phenotype", shared_options_data);
 
     // Step 6: Execute request and manage its response (as CURL request callback function)
-    int result = run_effect(url, shared_options_data, effect_options_data);
+    int result = run_effect(urls, shared_options_data, effect_options_data);
 
-    free(url);
+    // Step 7: Free memory
+    for (int i = 0; i < num_urls; i++) {
+        free(urls[i]);
+    }
+    free(urls);
+    
     free_effect_options_data(effect_options_data);
     free_shared_options_data(shared_options_data);
     arg_freetable(argtable, effect_options->num_options + shared_options->num_options);
