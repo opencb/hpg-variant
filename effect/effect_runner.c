@@ -24,7 +24,7 @@ static size_t output_directory_len;
 static int batch_num;
 
 
-int run_effect(char *url, shared_options_data_t *shared_options, effect_options_data_t *options_data) {
+int run_effect(char **urls, shared_options_data_t *shared_options, effect_options_data_t *options_data) {
     list_t *read_list = (list_t*) malloc(sizeof(list_t));
     list_init("batches", 1, shared_options->max_batches, read_list);
 
@@ -154,7 +154,7 @@ int run_effect(char *url, shared_options_data_t *shared_options, effect_options_
                     #pragma omp parallel for
                     for (int j = 0; j < num_chunks; j++) {
                         LOG_DEBUG_F("[%d] WS invocation\n", omp_get_thread_num());
-                        ret_code = invoke_effect_ws(url, chunk_starts[j], max_chunk_size, options_data->excludes);
+                        ret_code = invoke_effect_ws(urls[0], chunk_starts[j], max_chunk_size, options_data->excludes);
                     }
                     free(chunk_starts);
                     
@@ -265,14 +265,14 @@ int run_effect(char *url, shared_options_data_t *shared_options, effect_options_
 }
 
 
-char *compose_effect_ws_request(shared_options_data_t *options_data) {
+char *compose_effect_ws_request(const char *method, shared_options_data_t *options_data) {
     if (options_data->host_url == NULL || options_data->version == NULL || options_data->species == NULL) {
         return NULL;
     }
     
     // URL Constants
     const char *ws_root_url = "cellbase/rest/";
-    const char *ws_name_url = "genomic/variant/consequence_type";
+    const char *ws_name_url = "genomic/variant/";//consequence_type";
     const char *ws_extra_params = "?header=false";
     
     // Length of URL parts
@@ -281,8 +281,9 @@ char *compose_effect_ws_request(shared_options_data_t *options_data) {
     const int version_len = strlen(options_data->version);
     const int species_len = strlen(options_data->species);
     const int ws_name_len = strlen(ws_name_url);
+    const int method_len = strlen(method);
     const int ws_extra_len = strlen(ws_extra_params);
-    const int result_len = host_url_len + ws_root_len + version_len + species_len + ws_name_len + ws_extra_len + 4;
+    const int result_len = host_url_len + ws_root_len + version_len + species_len + ws_name_len + method_len + ws_extra_len + 4;
     
     char *result_url = (char*) calloc (result_len, sizeof(char));
     
@@ -309,6 +310,7 @@ char *compose_effect_ws_request(shared_options_data_t *options_data) {
     
     // Name of the web service
     strncat(result_url, ws_name_url, ws_name_len);
+    strncat(result_url, method, method_len);
     
     // Extra arguments of the web service
     strncat(result_url, ws_extra_params, ws_extra_len);
