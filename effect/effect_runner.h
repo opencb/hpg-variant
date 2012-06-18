@@ -40,6 +40,8 @@
 #define CONSEQUENCE_TYPE_WS_NUM_PARAMS  3
 #define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
 
+enum phenotype_source { SNP_PHENOTYPE = -1, MUTATION_PHENOTYPE = -2};
+
 /**
  * @brief Performs the whole process of invocation of the effect web service and parsing of its output.
  * @param url URL of the web service
@@ -84,6 +86,7 @@ char *compose_effect_ws_request(const char *method, shared_options_data_t *optio
  */
 int invoke_effect_ws(const char *url, list_item_t *first_item, int num_regions, char *excludes);
 
+int invoke_phenotype_ws(const char *url, list_item_t *first_item, int max_chunk_size, enum phenotype_source source);
 
 /* **********************************************
  *              Response management             *
@@ -100,6 +103,10 @@ int invoke_effect_ws(const char *url, list_item_t *first_item, int num_regions, 
  * Reads the contents of the response from the effect web service
  */
 static size_t write_effect_ws_results(char *contents, size_t size, size_t nmemb, void *userdata);
+
+static size_t write_snp_phenotype_ws_results(char *contents, size_t size, size_t nmemb, void *userdata);
+
+static size_t write_mutation_phenotype_ws_results(char *contents, size_t size, size_t nmemb, void *userdata);
 
 /**
  * Writes a summary file containing the number of entries for each of the consequence types processed.
