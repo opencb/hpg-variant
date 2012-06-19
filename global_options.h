@@ -16,6 +16,7 @@
 #include <libconfig.h>
 
 #include <bioformats/vcf/vcf_filters.h>
+#include <bioformats/vcf/vcf_util.h>
 #include <commons/log.h>
 
 #include "error.h"
@@ -23,7 +24,7 @@
 /**
  * Number of options applicable to the whole application.
  */
-#define NUM_GLOBAL_OPTIONS  18
+#define NUM_GLOBAL_OPTIONS  19
 
 typedef struct shared_options {
     struct arg_file *vcf_filename; /**< VCF file used as input. */
@@ -47,7 +48,9 @@ typedef struct shared_options {
     struct arg_file *region_file; /**< Filter by region (using a GFF file) */
     struct arg_str *snp; /**< Filter by SNP */
     
-    struct arg_file *config_file;
+    struct arg_file *config_file; /**< Path to the configuration file */
+    
+    struct arg_lit *mmap_vcf_files; /**< Whether to use map VCF files to virtual memory or use the I/O API. */
     
     int num_options;
 } shared_options_t;

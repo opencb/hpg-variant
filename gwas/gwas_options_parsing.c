@@ -126,12 +126,13 @@ void **merge_gwas_options(gwas_options_t *gwas_options, shared_options_t *shared
     tool_options[16] = shared_options->snp;
     
     tool_options[17] = shared_options->config_file;
+    tool_options[18] = shared_options->mmap_vcf_files;
     
-    tool_options[18] = gwas_options->assoc;
-    tool_options[19] = gwas_options->fisher;
-    tool_options[20] = gwas_options->tdt;
+    tool_options[19] = gwas_options->assoc;
+    tool_options[20] = gwas_options->fisher;
+    tool_options[21] = gwas_options->tdt;
                
-    tool_options[21] = arg_end;
+    tool_options[22] = arg_end;
     
     return tool_options;
 }
