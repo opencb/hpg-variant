@@ -18,15 +18,15 @@
 #include "split/split.h"
 
 
-int vcf_tool_filter(int argc, char *argv[]);
+int vcf_tool_filter(int argc, char *argv[], const char *configuration_file);
 
-int vcf_tool_merge(int argc, char *argv[]);
+int vcf_tool_merge(int argc, char *argv[], const char *configuration_file);
 
-int vcf_tool_sort(int argc, char *argv[]);
+int vcf_tool_sort(int argc, char *argv[], const char *configuration_file);
 
-int vcf_tool_split(int argc, char *argv[]);
+int vcf_tool_split(int argc, char *argv[], const char *configuration_file);
 
-int vcf_tool_stats(int argc, char *argv[]);
+int vcf_tool_stats(int argc, char *argv[], const char *configuration_file);
 
 
 #endif

@@ -2,7 +2,7 @@
 #include "split_runner.h"
 
 
-int vcf_tool_split(int argc, char *argv[]) {
+int vcf_tool_split(int argc, char *argv[], const char *configuration_file) {
 
     /* ******************************
      *       Modifiable options     *
@@ -17,8 +17,8 @@ int vcf_tool_split(int argc, char *argv[]) {
      * ******************************/
 
     // Step 1: read options from configuration file
-    int config_errors = read_global_configuration("hpg-vcf-tools.cfg", global_options_data);
-    config_errors &= read_split_configuration("hpg-vcf-tools.cfg", options_data);
+    int config_errors = read_global_configuration(configuration_file, global_options_data);
+    config_errors &= read_split_configuration(configuration_file, options_data);
     LOG_INFO_F("Config read with errors = %d\n", config_errors);
 
     if (config_errors) {
