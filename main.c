@@ -18,14 +18,18 @@ int main(int argc, char *argv[]) {
         exit_code = NOT_IMPLEMENTED_TOOL;
         
     } else if (strcmp(tool, "split") == 0) {
-        exit_code = vcf_tool_split(argc - 1, argv + 1, config);
+        fprintf(stderr, "%s tool not yet implemented\n", tool);
+        exit_code = NOT_IMPLEMENTED_TOOL;
+//         exit_code = vcf_tool_split(argc - 1, argv + 1, config);
         
     } else if (strcmp(tool, "sort") == 0) {
         fprintf(stderr, "%s tool not yet implemented\n", tool);
         exit_code = NOT_IMPLEMENTED_TOOL;
         
     } else if (strcmp(tool, "stats") == 0) {
-        exit_code = vcf_tool_stats(argc - 1, argv + 1, config);
+        fprintf(stderr, "%s tool not yet implemented\n", tool);
+        exit_code = NOT_IMPLEMENTED_TOOL;
+//         exit_code = vcf_tool_stats(argc - 1, argv + 1, config);
         
     } else {
         fprintf(stderr, "The requested tool does not exist! (%s)\n", tool);

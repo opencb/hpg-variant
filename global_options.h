@@ -2,7 +2,7 @@
 #define GLOBAL_OPTIONS_H
 
 /** 
- * @file global_options.h 
+ * @file shared_options.h 
  * @brief Structures and functions associated to application-wide options
  * 
  * This file defines the structures which store the options for the whole application, and also 
@@ -11,10 +11,12 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include <getopt.h>
+//#include <getopt.h>
 
+#include <argtable2.h>
 #include <libconfig.h>
 
+#include <bioformats/vcf/vcf_util.h>
 #include <commons/log.h>
 
 #include "error.h"
@@ -22,9 +24,9 @@
 /**
  * Number of options applicable to the whole application.
  */
-#define NUM_GLOBAL_OPTIONS  7
+#define NUM_GLOBAL_OPTIONS	13
     
-static struct option global_options[] = {
+/*static struct option shared_options[] = {
     // File formats accepted (range available A-H)
     {"vcf-file",        required_argument, 0, 'A' },
 //  {"bam-file",        required_argument, 0, 'B' },
@@ -41,7 +43,29 @@ static struct option global_options[] = {
     { "url",            required_argument, 0, 'U' },
     
     {NULL,          0, 0, 0}
-};
+};*/
+
+typedef struct shared_options {
+    struct arg_file *vcf_filename; /**< VCF file used as input. */
+    struct arg_file *ped_filename; /**< PED file used as input. */
+    struct arg_file *output_filename; /**< Filename template for the main output file. */
+    struct arg_str *output_directory; /**< Directory where the output files will be stored. */
+
+    struct arg_str *host_url; /**< URL of the host where the web service runs. */
+    struct arg_str *version; /**< Version of the WS to query. */
+    struct arg_str *species; /**< Species whose genome is taken as reference. */
+
+    struct arg_int *max_batches; /**< Maximum number of batches stored at the same time. */
+    struct arg_int *batch_size; /**< Maximum size of a batch. */
+    struct arg_int *num_threads; /**< Number of threads when a task is perform in parallel. */
+    struct arg_int *entries_per_thread; /**< Number of entries in a batch each thread processes. */
+
+    struct arg_file *config_file; /**< Path to the configuration file */
+
+    struct arg_lit *mmap_vcf_files; /**< Whether to use map VCF files to virtual memory or use the I/O API. */
+
+    int num_options;
+} shared_options_t;
 
 
 /**
@@ -51,7 +75,7 @@ static struct option global_options[] = {
  * all its tools, such as filenames for different formats (VCF, GFF, BAM...) and the output files 
  * and folders.
  */
-typedef struct global_options_data
+typedef struct shared_options_data
 {
     char *ped_filename; /**< PED file used as input. */
     char *vcf_filename; /**< VCF file used as input. */
@@ -61,8 +85,20 @@ typedef struct global_options_data
     char *host_url;
     char *version;
     char *species;
-} global_options_data_t;
 
+    int max_batches;
+    int batch_size;
+    int num_threads;
+    int entries_per_thread;
+} shared_options_data_t;
+
+/**
+ * @brief Initializes an global_options_t structure mandatory members.
+ * @return A new global_options_t structure.
+ * 
+ * Initializes the only mandatory member of a global_options_t, which is the output directory.
+ */
+shared_options_t *new_shared_cli_options(void);
 
 /**
  * @brief Initializes an global_options_data_t structure mandatory members.
@@ -70,7 +106,7 @@ typedef struct global_options_data
  * 
  * Initializes the only mandatory member of a global_options_data_t, which is the output directory.
  */
-global_options_data_t *new_global_options_data(void);
+shared_options_data_t *new_shared_options_data(shared_options_t *options);
 
 /**
  * @brief Free memory associated to a global_options_data_t structure.
@@ -78,7 +114,7 @@ global_options_data_t *new_global_options_data(void);
  * 
  * Free memory associated to a global_options_data_t structure, including its text buffers.
  */
-void free_global_options_data(global_options_data_t *options_data);
+void free_shared_options_data(shared_options_data_t *options_data);
 
 
 /* **********************************************
@@ -94,41 +130,6 @@ void free_global_options_data(global_options_data_t *options_data);
  * Reads the basic configuration parameters of the application. If the configuration file can't be 
  * read, these parameters should be provided via the command-line interface.
  */
-int read_global_configuration(const char *filename, global_options_data_t *options_data);
-
-/**
- * @brief Given a list of options, parse the global ones it contains.
- * @param argc number of input token
- * @param argv input tokens
- * @param options_data structure for values of all the global options
- * @param start_index index of the next option to parse
- * @return The index where the parsing finished at
- * 
- * Given a list of options, parse the global ones it contains. Because it invokes
- * a nested getopt_long loop, the start_index argument sets the position of the next 
- * common option to parse.
- */
-int parse_global_options(int argc, char *argv[], global_options_data_t *options_data, int start_index);
-
-/**
- * @brief Checks semantic dependencies among the application options.
- * @param options_data Application-wide options to check
- * @return Zero (0) if the options are correct, non-zero otherwise
- * 
- * Checks that all dependencies among options are satisfied, i.e.: option A is mandatory, 
- * option B can't be provided at the same time as option C, and so on.
- */
-int verify_global_options(global_options_data_t *options_data);
-
-/**
- * @brief Merges application-wide options with the ones from a certain tool.
- * @param local_options options for a tool
- * @param num_local_options number of options for a tool
- * @return The global and local options merged in a unique structure
- * 
- * Given a set of options local to certain tool, merges them with the ones globally 
- * available to the whole application.
- */
-struct option *merge_options(struct option local_options[], size_t num_local_options);
+int read_shared_configuration(const char *filename, shared_options_t *options);
 
 #endif

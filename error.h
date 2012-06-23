@@ -8,6 +8,9 @@
 
 #define VCF_FILE_NOT_SPECIFIED                  10
 
+#define HOST_URL_NOT_SPECIFIED                  30
+#define VERSION_NOT_SPECIFIED                   31
+#define SPECIES_NOT_SPECIFIED                   32
 
 // Filter tool errors
 #define EMPTY_LIST_OF_FILTERS                   100

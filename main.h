@@ -13,9 +13,10 @@
 #include <commons/log.h>
 
 #include "error.h"
+#include "hpg_vcf_tools_utils.h"
 #include "filter/filter.h"
-#include "stats/stats.h"
-#include "split/split.h"
+// #include "stats/stats.h"
+// #include "split/split.h"
 
 
 int vcf_tool_filter(int argc, char *argv[], const char *configuration_file);

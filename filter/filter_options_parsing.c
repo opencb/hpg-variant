@@ -1,7 +1,11 @@
 #include "filter.h"
 
 
-int read_filter_configuration(const char *filename, filter_options_data_t *options_data) {
+int read_filter_configuration(const char *filename, filter_options_t *options, shared_options_t *shared_options) {
+    if (filename == NULL || options == NULL || shared_options == NULL) {
+        return -1;
+    }
+    
     config_t *config = (config_t*) malloc (sizeof(config_t));
     
     int ret_code = config_read_file(config, filename);
@@ -10,129 +14,279 @@ int read_filter_configuration(const char *filename, filter_options_data_t *optio
         return ret_code;
     }
     
-    // Read number of threads to perform the operations
-    ret_code = config_lookup_int(config, "filter.num-threads", &(options_data->num_threads));
+    const char *tmp_string;
+    
+    // Read number of threads that will make request to the web service
+    ret_code = config_lookup_int(config, "filter.num-threads", shared_options->num_threads->ival);
     if (ret_code == CONFIG_FALSE) {
         LOG_WARN("Number of threads not found in config file, must be set via command-line");
     } else {
-        LOG_INFO_F("num-threads = %ld\n", options_data->num_threads);
+        LOG_INFO_F("num-threads = %ld\n", *(shared_options->num_threads->ival));
+    }
+
+    // Read maximum number of batches that can be stored at certain moment
+    ret_code = config_lookup_int(config, "filter.max-batches", shared_options->max_batches->ival);
+    if (ret_code == CONFIG_FALSE) {
+        LOG_WARN("Maximum number of batches not found in configuration file, must be set via command-line");
+    } else {
+        LOG_INFO_F("max-batches = %ld\n", *(shared_options->max_batches->ival));
     }
     
-    // Read number of threads to perform the operations
-    ret_code = config_lookup_int(config, "filter.max-batches", &(options_data->max_batches));
+    // Read size of every batch read
+    ret_code = config_lookup_int(config, "filter.batch-size", shared_options->batch_size->ival);
     if (ret_code == CONFIG_FALSE) {
-        LOG_WARN("Maximum number of batches not found in config file, must be set via command-line");
+        LOG_WARN("Batch size not found in configuration file, must be set via command-line");
     } else {
-        LOG_INFO_F("max-batches = %ld\n", options_data->max_batches);
+        LOG_INFO_F("batch-size = %ld\n", *(shared_options->batch_size->ival));
     }
     
-    // Read number of threads to perform the operations
-    ret_code = config_lookup_int(config, "filter.batch-size", &(options_data->batch_size));
+    // Read number of variants per request to the web service
+    ret_code = config_lookup_int(config, "filter.entries-per-thread", shared_options->entries_per_thread->ival);
     if (ret_code == CONFIG_FALSE) {
-        LOG_WARN("Batch size not found in config file, must be set via command-line");
+        LOG_WARN("Variants per request not found in configuration file, must be set via command-line");
     } else {
-        LOG_INFO_F("batch-size = %ld\n", options_data->batch_size);
+        LOG_INFO_F("entries-per-thread = %ld\n", *(shared_options->entries_per_thread->ival));
     }
+
+    // Read host URL
+    ret_code = config_lookup_string(config, "filter.url", &tmp_string);
+    if (ret_code == CONFIG_FALSE) {
+        LOG_WARN("Web services URL not found in configuration file, must be set via command-line");
+    } else {
+//         free(shared_options->host_url);
+//         shared_options->host_url = strdup(tmp_string);
+        *(shared_options->host_url->sval) = strdup(tmp_string);
+        LOG_INFO_F("web services host URL = %s (%zu chars)\n",
+                   *(shared_options->host_url->sval), strlen(*(shared_options->host_url->sval)));
+    }
+    
+    // Read species
+    ret_code = config_lookup_string(config, "filter.species", &tmp_string);
+    if (ret_code == CONFIG_FALSE) {
+        LOG_WARN("Species not found in configuration file, must be set via command-line");
+    } else {
+//         free(shared_options->species);
+//         shared_options->species = strdup(tmp_string);
+        *(shared_options->species->sval) = strdup(tmp_string);
+        LOG_INFO_F("species = %s (%zu chars)\n",
+                   *(shared_options->species->sval), strlen(*(shared_options->species->sval)));
+    }
+    
+    // Read version
+    ret_code = config_lookup_string(config, "filter.version", &tmp_string);
+    if (ret_code == CONFIG_FALSE) {
+        LOG_WARN("Version not found in configuration file, must be set via command-line");
+    } else {
+//         free(shared_options->version);
+//         shared_options->version = strdup(tmp_string);
+        *(shared_options->version->sval) = strdup(tmp_string);
+        LOG_INFO_F("version = %s (%zu chars)\n",
+                   *(shared_options->version->sval), strlen(*(shared_options->version->sval)));
+    }
+
+//     // Read number of threads to perform the operations
+//     ret_code = config_lookup_int(config, "filter.num-threads", &(options->num_threads));
+//     if (ret_code == CONFIG_FALSE) {
+//         LOG_WARN("Number of threads not found in config file, must be set via command-line");
+//     } else {
+//         LOG_INFO_F("num-threads = %ld\n", options_data->num_threads);
+//     }
+//     
+//     // Read number of threads to perform the operations
+//     ret_code = config_lookup_int(config, "filter.max-batches", &(options->max_batches));
+//     if (ret_code == CONFIG_FALSE) {
+//         LOG_WARN("Maximum number of batches not found in config file, must be set via command-line");
+//     } else {
+//         LOG_INFO_F("max-batches = %ld\n", options_data->max_batches);
+//     }
+//     
+//     // Read number of threads to perform the operations
+//     ret_code = config_lookup_int(config, "filter.batch-size", &(options->batch_size));
+//     if (ret_code == CONFIG_FALSE) {
+//         LOG_WARN("Batch size not found in config file, must be set via command-line");
+//     } else {
+//         LOG_INFO_F("batch-size = %ld\n", options_data->batch_size);
+//     }
     
     return 0;
 }
 
 
-void parse_filter_options(int argc, char *argv[], filter_options_data_t *options_data, global_options_data_t *global_options_data) {
-    const struct option *options = merge_options(filter_options, NUM_FILTER_OPTIONS);
-
-    char *tmp_string_field;
-    int tmp_int_field;
-    filter_t *filter;
-
-    int c;
-    // Last option read, for when the global options parser is invoked
-    int previous_opt_index = optind;
-
-    while ((c = getopt_long (argc, argv, "A:N:O:S:V:a:c:f:q:r:s:", options, &optind)) != -1) {
-        LOG_DEBUG_F("<main> c = %c, opt_idx = %d\n", c, optind);
-        switch (c) {
-            case 'A':
-            case 'N':
-            case 'O':
-            case 'S':
-            case 'V':
-            case 'U':
-                optind = parse_global_options(argc, argv, global_options_data, previous_opt_index);
-                break;
-            case 'a':
-                if (!is_numeric(optarg)) {
-                    LOG_WARN("The argument of the filter by number of alleles must be a numeric value");
-                } else {
-                    tmp_int_field = atoi(optarg);
-                    filter = create_num_alleles_filter(tmp_int_field);
-                    options_data->chain = add_to_filter_chain(filter, options_data->chain);
-                    LOG_INFO_F("number of alleles filter = %d\n", tmp_int_field);
-                }
-                break;
-            case 'c':
-                if (!is_numeric(optarg)) {
-                    LOG_WARN("The argument of the coverage filter must be a numeric value");
-                } else {
-                    tmp_int_field = atoi(optarg);
-                    filter = create_coverage_filter(tmp_int_field);
-                    options_data->chain = add_to_filter_chain(filter, options_data->chain);
-                    LOG_INFO_F("coverage filter, minimum is = %d\n", tmp_int_field);
-                }
-                break;
-            case 'f':
-                tmp_string_field = (char*) calloc(strlen(optarg)+1, sizeof(char));
-                strncat(tmp_string_field, optarg, strlen(optarg));
-                filter = create_region_filter(tmp_string_field, 1, global_options_data->host_url, global_options_data->species, global_options_data->version);
-                options_data->chain = add_to_filter_chain(filter, options_data->chain);
-                LOG_INFO_F("regions file = %s\n", optarg);
-                break;
-            case 'q':
-                if (!is_numeric(optarg)) {
-                    LOG_WARN("The argument of the quality filter must be a numeric value");
-                } else {
-                    tmp_int_field = atoi(optarg);
-                    filter = create_quality_filter(tmp_int_field);
-                    options_data->chain = add_to_filter_chain(filter, options_data->chain);
-                    LOG_INFO_F("quality filter, minimum is = %d\n", tmp_int_field);
-                }
-                break;
-            case 'r':
-                tmp_string_field = (char*) calloc(strlen(optarg)+1, sizeof(char));
-                strncat(tmp_string_field, optarg, strlen(optarg));
-                filter = create_region_filter(tmp_string_field, 0, global_options_data->host_url, global_options_data->species, global_options_data->version);
-                options_data->chain = add_to_filter_chain(filter, options_data->chain);
-                LOG_INFO_F("regions = %s\n", optarg);
-                break;
-            case 's':
-                filter = create_snp_filter(optarg);
-                options_data->chain = add_to_filter_chain(filter, options_data->chain);
-                LOG_INFO_F("snp filter to %s SNPs\n", (optarg == NULL)? "include" : optarg);
-                break;
-            case '?':
-            default:
-                LOG_WARN("Option unknown\n");
-                break;
-        }
-        
-        previous_opt_index = optind;
+void **parse_filter_options(int argc, char *argv[], filter_options_t *filter_options, shared_options_t *shared_options) {
+    struct arg_end *end = arg_end(filter_options->num_options + shared_options->num_options);
+    void **argtable = merge_filter_options(filter_options, shared_options, end);
+    
+    int num_errors = arg_parse(argc, argv, argtable);
+    if (num_errors > 0) {
+        arg_print_errors(stdout, end, "hpg-variant");
     }
+    
+    return argtable;
+}
+
+void **merge_filter_options(filter_options_t *filter_options, shared_options_t *shared_options, struct arg_end *arg_end) {
+    size_t opts_size = filter_options->num_options + shared_options->num_options + 1;
+    void **tool_options = malloc (opts_size * sizeof(void*));
+    tool_options[0] = shared_options->vcf_filename;
+    tool_options[1] = shared_options->ped_filename;
+    tool_options[2] = shared_options->output_filename;
+    tool_options[3] = shared_options->output_directory;
+    
+    tool_options[4] = shared_options->host_url;
+    tool_options[5] = shared_options->version;
+    tool_options[6] = shared_options->species;
+    
+    tool_options[7] = shared_options->max_batches;
+    tool_options[8] = shared_options->batch_size;
+    tool_options[9] = shared_options->num_threads;
+    tool_options[10] = shared_options->entries_per_thread;
+    
+    tool_options[11] = shared_options->config_file;
+    tool_options[12] = shared_options->mmap_vcf_files;
+    
+    tool_options[13] = filter_options->num_alleles;
+    tool_options[14] = filter_options->coverage;
+    tool_options[15] = filter_options->quality;
+    tool_options[16] = filter_options->region;
+    tool_options[17] = filter_options->region_file;
+    tool_options[18] = filter_options->snp;
+    
+    tool_options[19] = arg_end;
+    
+    return tool_options;
 }
 
 
-int verify_filter_options(global_options_data_t *global_options_data, filter_options_data_t *options_data) {
+int verify_filter_options(filter_options_t *filter_options, shared_options_t *shared_options) {
     // Check whether the input VCF file is defined
-    if (global_options_data->vcf_filename == NULL || strlen(global_options_data->vcf_filename) == 0) {
+    if (shared_options->vcf_filename->count == 0) {
         LOG_ERROR("Please specify the input VCF file.\n");
         return VCF_FILE_NOT_SPECIFIED;
     }
     
     // Check whether a filter or more has been specified
-    if (cp_heap_count(options_data->chain) == 0) {
+    if (filter_options->coverage->count + filter_options->num_alleles->count + filter_options->quality->count + 
+        filter_options->region->count + filter_options->region_file->count + filter_options->snp->count == 0) {
         LOG_ERROR("Please specify at least one filter\n");
         return EMPTY_LIST_OF_FILTERS;
     }
 
+    // Check whether the host URL is defined
+    if (shared_options->host_url->sval == NULL || strlen(*(shared_options->host_url->sval)) == 0) {
+        LOG_ERROR("Please specify the host URL to the web service.\n");
+        return HOST_URL_NOT_SPECIFIED;
+    }
+
+    // Check whether the version is defined
+    if (shared_options->version->sval == NULL || strlen(*(shared_options->version->sval)) == 0) {
+        LOG_ERROR("Please specify the version.\n");
+        return VERSION_NOT_SPECIFIED;
+    }
+
+    // Check whether the species is defined
+    if (shared_options->species->sval == NULL || strlen(*(shared_options->species->sval)) == 0) {
+        LOG_ERROR("Please specify the species to take as reference.\n");
+        return SPECIES_NOT_SPECIFIED;
+    }
+
     return 0;
 }
+
+// void parse_filter_options(int argc, char *argv[], filter_options_data_t *options_data, global_options_data_t *global_options_data) {
+//     const struct option *options = merge_options(filter_options, NUM_FILTER_OPTIONS);
+// 
+//     char *tmp_string_field;
+//     int tmp_int_field;
+//     filter_t *filter;
+// 
+//     int c;
+//     // Last option read, for when the global options parser is invoked
+//     int previous_opt_index = optind;
+// 
+//     while ((c = getopt_long (argc, argv, "A:N:O:S:V:a:c:f:q:r:s:", options, &optind)) != -1) {
+//         LOG_DEBUG_F("<main> c = %c, opt_idx = %d\n", c, optind);
+//         switch (c) {
+//             case 'A':
+//             case 'N':
+//             case 'O':
+//             case 'S':
+//             case 'V':
+//             case 'U':
+//                 optind = parse_global_options(argc, argv, global_options_data, previous_opt_index);
+//                 break;
+//             case 'a':
+//                 if (!is_numeric(optarg)) {
+//                     LOG_WARN("The argument of the filter by number of alleles must be a numeric value");
+//                 } else {
+//                     tmp_int_field = atoi(optarg);
+//                     filter = create_num_alleles_filter(tmp_int_field);
+//                     options_data->chain = add_to_filter_chain(filter, options_data->chain);
+//                     LOG_INFO_F("number of alleles filter = %d\n", tmp_int_field);
+//                 }
+//                 break;
+//             case 'c':
+//                 if (!is_numeric(optarg)) {
+//                     LOG_WARN("The argument of the coverage filter must be a numeric value");
+//                 } else {
+//                     tmp_int_field = atoi(optarg);
+//                     filter = create_coverage_filter(tmp_int_field);
+//                     options_data->chain = add_to_filter_chain(filter, options_data->chain);
+//                     LOG_INFO_F("coverage filter, minimum is = %d\n", tmp_int_field);
+//                 }
+//                 break;
+//             case 'f':
+//                 tmp_string_field = (char*) calloc(strlen(optarg)+1, sizeof(char));
+//                 strncat(tmp_string_field, optarg, strlen(optarg));
+//                 filter = create_region_filter(tmp_string_field, 1, global_options_data->host_url, global_options_data->species, global_options_data->version);
+//                 options_data->chain = add_to_filter_chain(filter, options_data->chain);
+//                 LOG_INFO_F("regions file = %s\n", optarg);
+//                 break;
+//             case 'q':
+//                 if (!is_numeric(optarg)) {
+//                     LOG_WARN("The argument of the quality filter must be a numeric value");
+//                 } else {
+//                     tmp_int_field = atoi(optarg);
+//                     filter = create_quality_filter(tmp_int_field);
+//                     options_data->chain = add_to_filter_chain(filter, options_data->chain);
+//                     LOG_INFO_F("quality filter, minimum is = %d\n", tmp_int_field);
+//                 }
+//                 break;
+//             case 'r':
+//                 tmp_string_field = (char*) calloc(strlen(optarg)+1, sizeof(char));
+//                 strncat(tmp_string_field, optarg, strlen(optarg));
+//                 filter = create_region_filter(tmp_string_field, 0, global_options_data->host_url, global_options_data->species, global_options_data->version);
+//                 options_data->chain = add_to_filter_chain(filter, options_data->chain);
+//                 LOG_INFO_F("regions = %s\n", optarg);
+//                 break;
+//             case 's':
+//                 filter = create_snp_filter(optarg);
+//                 options_data->chain = add_to_filter_chain(filter, options_data->chain);
+//                 LOG_INFO_F("snp filter to %s SNPs\n", (optarg == NULL)? "include" : optarg);
+//                 break;
+//             case '?':
+//             default:
+//                 LOG_WARN("Option unknown\n");
+//                 break;
+//         }
+//         
+//         previous_opt_index = optind;
+//     }
+// }
+// 
+// 
+// int verify_filter_options(global_options_data_t *global_options_data, filter_options_data_t *options_data) {
+//     // Check whether the input VCF file is defined
+//     if (global_options_data->vcf_filename == NULL || strlen(global_options_data->vcf_filename) == 0) {
+//         LOG_ERROR("Please specify the input VCF file.\n");
+//         return VCF_FILE_NOT_SPECIFIED;
+//     }
+//     
+//     // Check whether a filter or more has been specified
+//     if (cp_heap_count(options_data->chain) == 0) {
+//         LOG_ERROR("Please specify at least one filter\n");
+//         return EMPTY_LIST_OF_FILTERS;
+//     }
+// 
+//     return 0;
+// }
 

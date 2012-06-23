@@ -1,21 +1,21 @@
 #include "filter.h"
 
-int run_filter(global_options_data_t *global_options_data, filter_options_data_t *options_data) {
+int run_filter(shared_options_data_t *shared_options_data, filter_options_data_t *options_data) {
     
     list_t *read_list = (list_t*) malloc(sizeof(list_t));
-    list_init("batches", 1, options_data->max_batches, read_list);
+    list_init("batches", 1, shared_options_data->max_batches, read_list);
 
     int ret_code;
     double start, stop, total;
-    vcf_file_t *file = vcf_open(global_options_data->vcf_filename);
+    vcf_file_t *file = vcf_open(shared_options_data->vcf_filename);
     
     if (!file) {
         LOG_FATAL("VCF file does not exist!\n");
     }
     
-    ret_code = create_directory(global_options_data->output_directory);
+    ret_code = create_directory(shared_options_data->output_directory);
     if (ret_code != 0 && errno != EEXIST) {
-        LOG_FATAL_F("Can't create output directory: %s\n", global_options_data->output_directory);
+        LOG_FATAL_F("Can't create output directory: %s\n", shared_options_data->output_directory);
     }
     
 #pragma omp parallel sections private(start, stop, total)
@@ -26,7 +26,7 @@ int run_filter(global_options_data_t *global_options_data, filter_options_data_t
             // Reading
             start = omp_get_wtime();
 
-            ret_code = vcf_read_batches(read_list, options_data->batch_size, file, 1);
+            ret_code = vcf_read_batches(read_list, shared_options_data->batch_size, file, 1);
 
             stop = omp_get_wtime();
             total = stop - start;
@@ -50,34 +50,24 @@ int run_filter(global_options_data_t *global_options_data, filter_options_data_t
                 filters = sort_filter_chain(options_data->chain, &num_filters);
             }
     
-            if (global_options_data->output_filename == NULL || 
-                strlen(global_options_data->output_filename) == 0) {
-                int dirname_len = strlen(global_options_data->output_directory);
-                int filename_len = strlen("filter-tool-output.vcf");
-                passed_filename = (char*) calloc ((dirname_len + filename_len + 1), sizeof(char));
-                strncat(passed_filename, global_options_data->output_directory, dirname_len);
-                strncat(passed_filename, "filter-tool-output.vcf", filename_len);
-            
-                failed_filename = (char*) calloc ((dirname_len + filename_len + 10), sizeof(char));
-                strncat(failed_filename, global_options_data->output_directory, dirname_len);
-                strncat(failed_filename, "filter-tool-output.vcf", filename_len);
-                strncat(failed_filename, ".filtered", 9);
+            if (shared_options_data->output_filename == NULL || strlen(shared_options_data->output_filename) == 0) {
+                int dirname_len = strlen(shared_options_data->output_directory);
+                int filename_len = strlen("filter-tool-output");
+                passed_filename = (char*) calloc ((dirname_len + filename_len + 15), sizeof(char));
+                sprintf(passed_filename, "%s/%s.vcf.filtered", shared_options_data->output_directory, "filter-tool-output");
+                failed_filename = (char*) calloc ((dirname_len + filename_len + 15), sizeof(char));
+                sprintf(failed_filename, "%s/%s.vcf.rejected", shared_options_data->output_directory, "filter-tool-output");
                 
             } else {
-                int dirname_len = strlen(global_options_data->output_directory);
-                int filename_len = strlen(global_options_data->output_filename);
-            
-                passed_filename = (char*) calloc ((dirname_len + filename_len + 1), sizeof(char));
-                strncat(passed_filename, global_options_data->output_directory, dirname_len);
-                strncat(passed_filename, global_options_data->output_filename, filename_len);
-            
-                failed_filename = (char*) calloc ((dirname_len + filename_len + 10), sizeof(char));
-                strncat(failed_filename, global_options_data->output_directory, dirname_len);
-                strncat(failed_filename, global_options_data->output_filename, filename_len);
-                strncat(failed_filename, ".filtered", 9);
+                int dirname_len = strlen(shared_options_data->output_directory);
+                int filename_len = strlen(shared_options_data->output_filename);
+                passed_filename = (char*) calloc ((dirname_len + filename_len + 11), sizeof(char));
+                sprintf(passed_filename, "%s/%s.filtered", shared_options_data->output_directory, shared_options_data->output_filename);            
+                failed_filename = (char*) calloc ((dirname_len + filename_len + 11), sizeof(char));
+                sprintf(failed_filename, "%s/%s.rejected", shared_options_data->output_directory, shared_options_data->output_filename);
             }
             
-            LOG_DEBUG_F("passed filename = %s\nfailed filename = %s\n", passed_filename, failed_filename);
+            LOG_INFO_F("passed filename = %s\nfailed filename = %s\n", passed_filename, failed_filename);
             passed_file = fopen(passed_filename, "w");
             failed_file = fopen(failed_filename, "w");
             free(passed_filename);
