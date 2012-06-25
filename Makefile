@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -std=c99 -O3
+CFLAGS = -std=c99 -O3 -march=native
 CFLAGS_DEBUG = -std=c99 -g
 
 # Source code folders
@@ -42,7 +42,7 @@ ALL_FILES = $(HPG_VARIANT_OBJS) $(EFFECT_OBJS) $(GWAS_OBJS) $(VCF_OBJS) $(GFF_OB
 all: compile-dependencies hpg-variant
 
 deploy: compile-dependencies-static $(HPG_VARIANT_FILES)
-	$(CC) $(CFLAGS_DEBUG) -D_XOPEN_SOURCE=600 -c main.c $(HPG_VARIANT_FILES) $(EFFECT_FILES) $(GWAS_FILES) $(INCLUDES) $(LIBS)
+	$(CC) $(CFLAGS_DEBUG) -D_XOPEN_SOURCE=600 -c main.c $(HPG_VARIANT_FILES) $(EFFECT_FILES) $(GWAS_FILES) $(INCLUDES) $(LIBS_STATIC)
 	test -d bin || mkdir bin
 	cp hpg-variant.cfg bin
 	$(CC) $(CFLAGS_DEBUG) -D_XOPEN_SOURCE=600 -o bin/hpg-variant main.o $(ALL_FILES) $(INCLUDES_STATIC) $(LIBS_STATIC)
