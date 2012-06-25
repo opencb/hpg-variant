@@ -20,7 +20,7 @@ int read_gwas_configuration(const char *filename, gwas_options_t *gwas_options, 
     if (ret_code == CONFIG_FALSE) {
         LOG_WARN("Number of threads not found in config file, must be set via command-line");
     } else {
-        LOG_INFO_F("num-threads = %ld\n", *(shared_options->num_threads->ival));
+        LOG_DEBUG_F("num-threads = %ld\n", *(shared_options->num_threads->ival));
     }
 
     // Read maximum number of batches that can be stored at certain moment
@@ -28,7 +28,7 @@ int read_gwas_configuration(const char *filename, gwas_options_t *gwas_options, 
     if (ret_code == CONFIG_FALSE) {
         LOG_WARN("Maximum number of batches not found in configuration file, must be set via command-line");
     } else {
-        LOG_INFO_F("max-batches = %ld\n", *(shared_options->max_batches->ival));
+        LOG_DEBUG_F("max-batches = %ld\n", *(shared_options->max_batches->ival));
     }
     
     // Read size of every batch read
@@ -36,15 +36,15 @@ int read_gwas_configuration(const char *filename, gwas_options_t *gwas_options, 
     if (ret_code == CONFIG_FALSE) {
         LOG_WARN("Batch size not found in configuration file, must be set via command-line");
     } else {
-        LOG_INFO_F("batch-size = %ld\n", *(shared_options->batch_size->ival));
+        LOG_DEBUG_F("batch-size = %ld\n", *(shared_options->batch_size->ival));
     }
     
     // Read number of variants per request to the web service
-    ret_code = config_lookup_int(config, "gwas.variants-per-request", shared_options->entries_per_thread->ival);
+    ret_code = config_lookup_int(config, "gwas.entries-per-thread", shared_options->entries_per_thread->ival);
     if (ret_code == CONFIG_FALSE) {
-        LOG_WARN("Variants per request not found in configuration file, must be set via command-line");
+        LOG_WARN("Entries per thread not found in configuration file, must be set via command-line");
     } else {
-        LOG_INFO_F("entries-per-thread = %ld\n", *(shared_options->entries_per_thread->ival));
+        LOG_DEBUG_F("entries-per-thread = %ld\n", *(shared_options->entries_per_thread->ival));
     }
 
     // Read host URL
@@ -52,10 +52,8 @@ int read_gwas_configuration(const char *filename, gwas_options_t *gwas_options, 
     if (ret_code == CONFIG_FALSE) {
         LOG_WARN("Web services URL not found in configuration file, must be set via command-line");
     } else {
-//         free(shared_options->host_url);
-//         shared_options->host_url = strdup(tmp_string);
         *(shared_options->host_url->sval) = strdup(tmp_string);
-        LOG_INFO_F("web services host URL = %s (%zu chars)\n",
+        LOG_DEBUG_F("web services host URL = %s (%zu chars)\n",
                    *(shared_options->host_url->sval), strlen(*(shared_options->host_url->sval)));
     }
     
@@ -64,10 +62,8 @@ int read_gwas_configuration(const char *filename, gwas_options_t *gwas_options, 
     if (ret_code == CONFIG_FALSE) {
         LOG_WARN("Species not found in configuration file, must be set via command-line");
     } else {
-//         free(shared_options->species);
-//         shared_options->species = strdup(tmp_string);
         *(shared_options->species->sval) = strdup(tmp_string);
-        LOG_INFO_F("species = %s (%zu chars)\n",
+        LOG_DEBUG_F("species = %s (%zu chars)\n",
                    *(shared_options->species->sval), strlen(*(shared_options->species->sval)));
     }
     
@@ -76,10 +72,8 @@ int read_gwas_configuration(const char *filename, gwas_options_t *gwas_options, 
     if (ret_code == CONFIG_FALSE) {
         LOG_WARN("Version not found in configuration file, must be set via command-line");
     } else {
-//         free(shared_options->version);
-//         shared_options->version = strdup(tmp_string);
         *(shared_options->version->sval) = strdup(tmp_string);
-        LOG_INFO_F("version = %s (%zu chars)\n",
+        LOG_DEBUG_F("version = %s (%zu chars)\n",
                    *(shared_options->version->sval), strlen(*(shared_options->version->sval)));
     }
 
