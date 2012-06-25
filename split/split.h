@@ -19,23 +19,13 @@
 
 enum Split_criterion { NONE, CHROMOSOME, GENE };
 
-static struct option split_options[] = {
-    {"criterion",    required_argument, 0, 'c' },
-    
-    {NULL,          0, 0, 0}
-};
+typedef struct split_options {
+    struct arg_str *criterion;   /**< Criterion for splitting the file */
+    int num_options;
+} split_options_t;
 
-/**
- * @struct split_options_data
- * 
- */
 typedef struct split_options_data {
     enum Split_criterion criterion;   /**< Criterion for splitting the file */
-
-    long int max_batches;   /**< Number of VCF records' batches that can be stored simultaneously. */
-    long int batch_size;   /**< Maximum size of a VCF records' batch. */
-    long int num_threads;   /**< Number of threads that to run simultaneously. */
-    long int variants_per_thread;   /**< Number of variants each thread will analyze. */
 } split_options_data_t;
 
 
@@ -45,10 +35,12 @@ typedef struct {
 } split_result_t;
 
 
+static split_options_t *new_split_cli_options(void);
+
 /**
  * Initialize a split_options_data_t structure mandatory fields.
  */
-static split_options_data_t *new_split_options_data();
+static split_options_data_t *new_split_options_data(split_options_t *options);
 
 /**
  * Free memory associated to a split_options_data_t structure.
@@ -72,6 +64,7 @@ void free_split_result(split_result_t* split_result);
 
 int split_by_chromosome(list_item_t* variants, int num_variants, list_t* output_list);
 
+
 /* ******************************
  *      Options parsing         *
  * ******************************/
@@ -86,7 +79,7 @@ int split_by_chromosome(list_item_t* variants, int num_variants, list_t* output_
  * 
  * @return If the configuration has been successfully read
  */
-int read_split_configuration(const char *filename, split_options_data_t *options_data);
+int read_split_configuration(const char *filename, split_options_t *options_data, shared_options_t *shared_options);
 
 /**
  * 
@@ -95,13 +88,15 @@ int read_split_configuration(const char *filename, split_options_data_t *options
  * @param options_data
  * @param global_options_data
  */
-void parse_split_options(int argc, char *argv[], split_options_data_t *options_data, global_options_data_t *global_options_data);
+void **parse_split_options(int argc, char *argv[], split_options_t *options_data, shared_options_t *shared_options_data);
+
+void **merge_split_options(split_options_t *split_options, shared_options_t *shared_options, struct arg_end *arg_end);
 
 /**
  * 
  * @param options_data
  */
-int verify_split_options(global_options_data_t *global_options_data, split_options_data_t *options_data);
+int verify_split_options(split_options_t *options_data, shared_options_t *shared_options_data);
 
 
 

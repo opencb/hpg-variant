@@ -7,7 +7,6 @@ int read_filter_configuration(const char *filename, filter_options_t *options, s
     }
     
     config_t *config = (config_t*) calloc (1, sizeof(config_t));
-    
     int ret_code = config_read_file(config, filename);
     if (ret_code == CONFIG_FALSE) {
         LOG_ERROR_F("config file error: %s\n", config_error_text(config));
@@ -53,8 +52,6 @@ int read_filter_configuration(const char *filename, filter_options_t *options, s
     if (ret_code == CONFIG_FALSE) {
         LOG_WARN("Web services URL not found in configuration file, must be set via command-line");
     } else {
-//         free(shared_options->host_url);
-//         shared_options->host_url = strdup(tmp_string);
         *(shared_options->host_url->sval) = strdup(tmp_string);
         LOG_INFO_F("web services host URL = %s (%zu chars)\n",
                    *(shared_options->host_url->sval), strlen(*(shared_options->host_url->sval)));
@@ -65,8 +62,6 @@ int read_filter_configuration(const char *filename, filter_options_t *options, s
     if (ret_code == CONFIG_FALSE) {
         LOG_WARN("Species not found in configuration file, must be set via command-line");
     } else {
-//         free(shared_options->species);
-//         shared_options->species = strdup(tmp_string);
         *(shared_options->species->sval) = strdup(tmp_string);
         LOG_INFO_F("species = %s (%zu chars)\n",
                    *(shared_options->species->sval), strlen(*(shared_options->species->sval)));
@@ -77,37 +72,11 @@ int read_filter_configuration(const char *filename, filter_options_t *options, s
     if (ret_code == CONFIG_FALSE) {
         LOG_WARN("Version not found in configuration file, must be set via command-line");
     } else {
-//         free(shared_options->version);
-//         shared_options->version = strdup(tmp_string);
         *(shared_options->version->sval) = strdup(tmp_string);
         LOG_INFO_F("version = %s (%zu chars)\n",
                    *(shared_options->version->sval), strlen(*(shared_options->version->sval)));
     }
 
-//     // Read number of threads to perform the operations
-//     ret_code = config_lookup_int(config, "filter.num-threads", &(options->num_threads));
-//     if (ret_code == CONFIG_FALSE) {
-//         LOG_WARN("Number of threads not found in config file, must be set via command-line");
-//     } else {
-//         LOG_INFO_F("num-threads = %ld\n", options_data->num_threads);
-//     }
-//     
-//     // Read number of threads to perform the operations
-//     ret_code = config_lookup_int(config, "filter.max-batches", &(options->max_batches));
-//     if (ret_code == CONFIG_FALSE) {
-//         LOG_WARN("Maximum number of batches not found in config file, must be set via command-line");
-//     } else {
-//         LOG_INFO_F("max-batches = %ld\n", options_data->max_batches);
-//     }
-//     
-//     // Read number of threads to perform the operations
-//     ret_code = config_lookup_int(config, "filter.batch-size", &(options->batch_size));
-//     if (ret_code == CONFIG_FALSE) {
-//         LOG_WARN("Batch size not found in config file, must be set via command-line");
-//     } else {
-//         LOG_INFO_F("batch-size = %ld\n", options_data->batch_size);
-//     }
-    
     return 0;
 }
 
@@ -118,7 +87,7 @@ void **parse_filter_options(int argc, char *argv[], filter_options_t *filter_opt
     
     int num_errors = arg_parse(argc, argv, argtable);
     if (num_errors > 0) {
-        arg_print_errors(stdout, end, "hpg-variant");
+        arg_print_errors(stdout, end, "hpg-vcf");
     }
     
     return argtable;

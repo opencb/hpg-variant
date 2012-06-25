@@ -1,11 +1,11 @@
 #include "split_runner.h"
 
 
-int run_split(global_options_data_t *global_options_data, split_options_data_t *options_data) {
+int run_split(shared_options_data_t *shared_options_data, split_options_data_t *options_data) {
     list_t *read_list = (list_t*) malloc(sizeof(list_t));
-    list_init("batches", 1, options_data->max_batches, read_list);
+    list_init("batches", 1, shared_options_data->max_batches, read_list);
     list_t *output_list = (list_t*) malloc (sizeof(list_t));
-    list_init("output", options_data->num_threads, MIN(10, options_data->max_batches) * options_data->batch_size, output_list);
+    list_init("output", shared_options_data->num_threads, MIN(10, shared_options_data->max_batches) * shared_options_data->batch_size, output_list);
 //     cp_hashtable **output_files = (cp_hashtable**) malloc (sizeof(cp_hashtable*));
 //     initialize_output(output_files);
     cp_hashtable *output_files = cp_hashtable_create_by_option(COLLECTION_MODE_DEEP,
@@ -20,15 +20,15 @@ int run_split(global_options_data_t *global_options_data, split_options_data_t *
     
     int ret_code = 0;
     double start, stop, total;
-    vcf_file_t *file = vcf_open(global_options_data->vcf_filename);
+    vcf_file_t *file = vcf_open(shared_options_data->vcf_filename);
     
     if (!file) {
         LOG_FATAL("VCF file does not exist!\n");
     }
     
-    ret_code = create_directory(global_options_data->output_directory);
+    ret_code = create_directory(shared_options_data->output_directory);
     if (ret_code != 0 && errno != EEXIST) {
-        LOG_FATAL_F("Can't create output directory: %s\n", global_options_data->output_directory);
+        LOG_FATAL_F("Can't create output directory: %s\n", shared_options_data->output_directory);
     }
     
 #pragma omp parallel sections private(start, stop, total)
@@ -39,7 +39,7 @@ int run_split(global_options_data_t *global_options_data, split_options_data_t *
             // Reading
             start = omp_get_wtime();
 
-            ret_code = vcf_read_batches(read_list, options_data->batch_size, file, 1);
+            ret_code = vcf_read_batches(read_list, shared_options_data->batch_size, file, 1);
 
             stop = omp_get_wtime();
             total = stop - start;
@@ -58,7 +58,7 @@ int run_split(global_options_data_t *global_options_data, split_options_data_t *
         {
             // Enable nested parallelism and set the number of threads the user has chosen
             omp_set_nested(1);
-            omp_set_num_threads(options_data->num_threads);
+            omp_set_num_threads(shared_options_data->num_threads);
             
             LOG_DEBUG_F("Thread %d processes data\n", omp_get_thread_num());
             
@@ -77,7 +77,7 @@ int run_split(global_options_data_t *global_options_data, split_options_data_t *
                 }
 
                 // Divide the list of passed records in ranges of size defined in config file
-                int max_chunk_size = options_data->variants_per_thread;
+                int max_chunk_size = shared_options_data->entries_per_thread;
                 int num_chunks;
                 list_item_t **chunk_starts = create_chunks(input_records, max_chunk_size, &num_chunks);
                 
@@ -110,7 +110,7 @@ int run_split(global_options_data_t *global_options_data, split_options_data_t *
             LOG_INFO_F("[%d] Time elapsed = %e ms\n", omp_get_thread_num(), total*1000);
 
             // Decrease list writers count
-            for (i = 0; i < options_data->num_threads; i++) {
+            for (i = 0; i < shared_options_data->num_threads; i++) {
                 list_decr_writers(output_list);
             }
         }
@@ -122,21 +122,21 @@ int run_split(global_options_data_t *global_options_data, split_options_data_t *
             start = omp_get_wtime();
 
             // Create file streams for results
-            int dirname_len = strlen(global_options_data->output_directory);
+            int dirname_len = strlen(shared_options_data->output_directory);
             
             list_item_t* item = NULL;
             split_result_t *split;
             FILE *split_fd = NULL;
             char split_filename[1024];
             char input_filename[256];
-            get_filename_from_path(global_options_data->vcf_filename, input_filename);
+            get_filename_from_path(shared_options_data->vcf_filename, input_filename);
             
             while ((item = list_remove_item(output_list)) != NULL) {
                 split = item->data_p;
                 
                 memset(split_filename, 0, 1024 * sizeof(char));
-                sprintf(split_filename, "%s/%s_%s", global_options_data->output_directory, split->split_name, input_filename);
-//                 sprintf(split_filename, "%s/%s.vcf", global_options_data->output_directory, split->split_name, global_options_data->vcf_filename);
+                sprintf(split_filename, "%s/%s_%s", shared_options_data->output_directory, split->split_name, input_filename);
+//                 sprintf(split_filename, "%s/%s.vcf", shared_options_data->output_directory, split->split_name, shared_options_data->vcf_filename);
                 
 //                 printf("Split filename = '%s'\n", split_filename);
                 
