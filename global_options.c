@@ -54,32 +54,32 @@ shared_options_data_t* new_shared_options_data(shared_options_t* options) {
     if (options->num_alleles->count > 0) {
         filter = create_num_alleles_filter(*(options->num_alleles->ival));
         options_data->chain = add_to_filter_chain(filter, options_data->chain);
-        LOG_INFO_F("number of alleles filter = %d\n", *(options->num_alleles->ival));
+        LOG_DEBUG_F("number of alleles filter = %d\n", *(options->num_alleles->ival));
     }
     if (options->coverage->count > 0) {
         filter = create_coverage_filter(*(options->coverage->ival));
         options_data->chain = add_to_filter_chain(filter, options_data->chain);
-        LOG_INFO_F("minimum coverage filter = %d\n", *(options->coverage->ival));
+        LOG_DEBUG_F("minimum coverage filter = %d\n", *(options->coverage->ival));
     }
     if (options->quality->count > 0) {
         filter = create_quality_filter(*(options->quality->ival));
         options_data->chain = add_to_filter_chain(filter, options_data->chain);
-        LOG_INFO_F("minimum quality filter = %d\n", *(options->quality->ival));
+        LOG_DEBUG_F("minimum quality filter = %d\n", *(options->quality->ival));
     }
     if (options->snp->count > 0) {
         filter = create_snp_filter(strdup(*(options->snp->sval)));
         options_data->chain = add_to_filter_chain(filter, options_data->chain);
-        LOG_INFO_F("snp filter to %s SNPs\n", *(options->snp->sval));
+        LOG_DEBUG_F("snp filter to %s SNPs\n", *(options->snp->sval));
     }
     if (options->region->count > 0) {
         filter = create_region_exact_filter(strdup(*(options->region->sval)), 0, options_data->host_url, options_data->species, options_data->version);
         options_data->chain = add_to_filter_chain(filter, options_data->chain);
-        LOG_INFO_F("regions = %s\n", *(options->region->sval));
+        LOG_DEBUG_F("regions = %s\n", *(options->region->sval));
     } 
     if (options->region_file->count > 0) {
         filter = create_region_exact_filter(strdup(*(options->region->sval)), 1, options_data->host_url, options_data->species, options_data->version);
         options_data->chain = add_to_filter_chain(filter, options_data->chain);
-        LOG_INFO_F("regions file = %s\n", *(options->region->sval));
+        LOG_DEBUG_F("regions file = %s\n", *(options->region->sval));
     }
     
     // If not previously defined, set the value present in the command-line
@@ -118,7 +118,7 @@ int read_global_configuration(const char *filename, shared_options_t *options_da
         LOG_WARN("Output folder not found in configuration file, must be set via command-line");
     } else {
         *(options_data->output_directory->sval) = strdup(tmp_string);
-        LOG_INFO_F("Output folder = %s (%zu chars)\n",
+        LOG_DEBUG_F("Output folder = %s (%zu chars)\n",
                    *(options_data->output_directory->sval), 
                    strlen(*(options_data->output_directory->sval)));
     }
@@ -128,7 +128,7 @@ int read_global_configuration(const char *filename, shared_options_t *options_da
     if (ret_code == CONFIG_FALSE) {
         LOG_WARN("I/O strategy for VCF files not found in configuration file, must be set via command-line");
     } else {
-        LOG_INFO_F("VCF files mapped to virtual memory = %d\n", mmap_vcf);
+        LOG_DEBUG_F("VCF files mapped to virtual memory = %d\n", mmap_vcf);
     }
     
     config_destroy(config);
