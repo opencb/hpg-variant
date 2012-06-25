@@ -42,7 +42,7 @@ int read_gwas_configuration(const char *filename, gwas_options_t *gwas_options, 
     // Read number of variants per request to the web service
     ret_code = config_lookup_int(config, "gwas.entries-per-thread", shared_options->entries_per_thread->ival);
     if (ret_code == CONFIG_FALSE) {
-        LOG_WARN("Variants per request not found in configuration file, must be set via command-line");
+        LOG_WARN("Entries per thread not found in configuration file, must be set via command-line");
     } else {
         LOG_DEBUG_F("entries-per-thread = %ld\n", *(shared_options->entries_per_thread->ival));
     }
