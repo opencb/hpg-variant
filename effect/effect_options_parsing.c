@@ -40,7 +40,7 @@ int read_effect_configuration(const char *filename, effect_options_t *effect_opt
     }
     
     // Read number of variants per request to the web service
-    ret_code = config_lookup_int(config, "effect.variants-per-request", shared_options->entries_per_thread->ival);
+    ret_code = config_lookup_int(config, "effect.entries-per-thread", shared_options->entries_per_thread->ival);
     if (ret_code == CONFIG_FALSE) {
         LOG_WARN("Variants per request not found in configuration file, must be set via command-line");
     } else {
