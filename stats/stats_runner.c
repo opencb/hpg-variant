@@ -1,23 +1,23 @@
 #include "stats.h"
 
-int run_stats(global_options_data_t *global_options_data, stats_options_data_t *options_data) {
+int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *options_data) {
     list_t *read_list = (list_t*) malloc(sizeof(list_t));
-    list_init("batches", 1, options_data->max_batches, read_list);
+    list_init("batches", 1, shared_options_data->max_batches, read_list);
     list_t *output_list = (list_t*) malloc (sizeof(list_t));
-    list_init("output", options_data->num_threads, MIN(10, options_data->max_batches) * options_data->batch_size, output_list);
+    list_init("output", shared_options_data->num_threads, MIN(10, shared_options_data->max_batches) * shared_options_data->batch_size, output_list);
     file_stats_t *file_stats = new_file_stats();
 
     int ret_code;
     double start, stop, total;
-    vcf_file_t *file = vcf_open(global_options_data->vcf_filename);
+    vcf_file_t *file = vcf_open(shared_options_data->vcf_filename);
     
     if (!file) {
         LOG_FATAL("VCF file does not exist!\n");
     }
     
-    ret_code = create_directory(global_options_data->output_directory);
+    ret_code = create_directory(shared_options_data->output_directory);
     if (ret_code != 0 && errno != EEXIST) {
-        LOG_FATAL_F("Can't create output directory: %s\n", global_options_data->output_directory);
+        LOG_FATAL_F("Can't create output directory: %s\n", shared_options_data->output_directory);
     }
     
 #pragma omp parallel sections private(start, stop, total)
@@ -28,7 +28,7 @@ int run_stats(global_options_data_t *global_options_data, stats_options_data_t *
             // Reading
             start = omp_get_wtime();
 
-            ret_code = vcf_read_batches(read_list, options_data->batch_size, file, 1);
+            ret_code = vcf_read_batches(read_list, shared_options_data->batch_size, file, 1);
 
             stop = omp_get_wtime();
             total = stop - start;
@@ -45,7 +45,7 @@ int run_stats(global_options_data_t *global_options_data, stats_options_data_t *
         {
             // Enable nested parallelism and set the number of threads the user has chosen
             omp_set_nested(1);
-            omp_set_num_threads(options_data->num_threads);
+            omp_set_num_threads(shared_options_data->num_threads);
             
             LOG_DEBUG_F("Thread %d processes data\n", omp_get_thread_num());
             
@@ -64,7 +64,7 @@ int run_stats(global_options_data_t *global_options_data, stats_options_data_t *
                 }
 
                 // Divide the list of passed records in ranges of size defined in config file
-                int max_chunk_size = options_data->variants_per_thread;
+                int max_chunk_size = shared_options_data->entries_per_thread;
                 int num_chunks;
                 list_item_t **chunk_starts = create_chunks(input_records, max_chunk_size, &num_chunks);
                 
@@ -90,7 +90,7 @@ int run_stats(global_options_data_t *global_options_data, stats_options_data_t *
             LOG_INFO_F("[%d] Time elapsed = %e ms\n", omp_get_thread_num(), total*1000);
             
             // Decrease list writers count
-            for (i = 0; i < options_data->num_threads; i++) {
+            for (i = 0; i < shared_options_data->num_threads; i++) {
                 list_decr_writers(output_list);
             }
         }
@@ -103,25 +103,28 @@ int run_stats(global_options_data_t *global_options_data, stats_options_data_t *
             FILE *stats_fd, *summary_fd;
     
             // Create file streams (summary and results)
-            int dirname_len = strlen(global_options_data->output_directory);
+            int dirname_len = strlen(shared_options_data->output_directory);
             int filename_len = strlen("summary-stats");
             
-            summary_filename = (char*) calloc ((dirname_len + strlen("summary-stats") + 1), sizeof(char));
-            strncat(summary_filename, global_options_data->output_directory, dirname_len);
-            strncat(summary_filename, "summary-stats", strlen("summary-stats"));
+            summary_filename = (char*) calloc ((dirname_len + strlen("summary-stats") + 2), sizeof(char));
+            sprintf(summary_filename, "%s/summary-stats", shared_options_data->output_directory);
+//             strncat(summary_filename, shared_options_data->output_directory, dirname_len);
+//             strncat(summary_filename, "summary-stats", strlen("summary-stats"));
             
-            if (global_options_data->output_filename == NULL || strlen(global_options_data->output_filename) == 0) {
+            if (shared_options_data->output_filename == NULL || strlen(shared_options_data->output_filename) == 0) {
                 filename_len = strlen("stats-tool-output");
             
-                stats_filename = (char*) calloc ((dirname_len + filename_len + 1), sizeof(char));
-                strncat(stats_filename, global_options_data->output_directory, dirname_len);
-                strncat(stats_filename, "stats-tool-output", filename_len);
+                stats_filename = (char*) calloc ((dirname_len + filename_len + 2), sizeof(char));
+                sprintf(stats_filename, "%s/stats-tool-output", shared_options_data->output_directory);
+//                 strncat(stats_filename, shared_options_data->output_directory, dirname_len);
+//                 strncat(stats_filename, "stats-tool-output", filename_len);
             } else {
-                filename_len = strlen(global_options_data->output_filename);
+                filename_len = strlen(shared_options_data->output_filename);
             
-                stats_filename = (char*) calloc ((dirname_len + filename_len + 1), sizeof(char));
-                strncat(stats_filename, global_options_data->output_directory, dirname_len);
-                strncat(stats_filename, global_options_data->output_filename, filename_len);
+                stats_filename = (char*) calloc ((dirname_len + filename_len + 2), sizeof(char));
+                sprintf(stats_filename, "%s/%s", shared_options_data->output_directory, shared_options_data->output_filename);
+//                 strncat(stats_filename, shared_options_data->output_directory, dirname_len);
+//                 strncat(stats_filename, shared_options_data->output_filename, filename_len);
             }
             
             LOG_DEBUG_F("stats filename = %s\nsummary filename = %s\n", stats_filename, summary_filename);
@@ -144,7 +147,7 @@ int run_stats(global_options_data_t *global_options_data, stats_options_data_t *
                 stats = item->data_p;
                 num_alleles = stats->num_alleles;
                 
-                // Generate global counters for alleles and genotypes (used for calculating frequencies)
+                // Generate shared counters for alleles and genotypes (used for calculating frequencies)
                 count_alleles_total = 0;
                 genotypes_count_total = 0;
                 for (int i = 0; i < num_alleles; i++) {

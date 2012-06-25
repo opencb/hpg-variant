@@ -6,7 +6,7 @@ int read_filter_configuration(const char *filename, filter_options_t *options, s
         return -1;
     }
     
-    config_t *config = (config_t*) malloc (sizeof(config_t));
+    config_t *config = (config_t*) calloc (1, sizeof(config_t));
     
     int ret_code = config_read_file(config, filename);
     if (ret_code == CONFIG_FALSE) {
@@ -191,102 +191,3 @@ int verify_filter_options(filter_options_t *filter_options, shared_options_t *sh
 
     return 0;
 }
-
-// void parse_filter_options(int argc, char *argv[], filter_options_data_t *options_data, global_options_data_t *global_options_data) {
-//     const struct option *options = merge_options(filter_options, NUM_FILTER_OPTIONS);
-// 
-//     char *tmp_string_field;
-//     int tmp_int_field;
-//     filter_t *filter;
-// 
-//     int c;
-//     // Last option read, for when the global options parser is invoked
-//     int previous_opt_index = optind;
-// 
-//     while ((c = getopt_long (argc, argv, "A:N:O:S:V:a:c:f:q:r:s:", options, &optind)) != -1) {
-//         LOG_DEBUG_F("<main> c = %c, opt_idx = %d\n", c, optind);
-//         switch (c) {
-//             case 'A':
-//             case 'N':
-//             case 'O':
-//             case 'S':
-//             case 'V':
-//             case 'U':
-//                 optind = parse_global_options(argc, argv, global_options_data, previous_opt_index);
-//                 break;
-//             case 'a':
-//                 if (!is_numeric(optarg)) {
-//                     LOG_WARN("The argument of the filter by number of alleles must be a numeric value");
-//                 } else {
-//                     tmp_int_field = atoi(optarg);
-//                     filter = create_num_alleles_filter(tmp_int_field);
-//                     options_data->chain = add_to_filter_chain(filter, options_data->chain);
-//                     LOG_INFO_F("number of alleles filter = %d\n", tmp_int_field);
-//                 }
-//                 break;
-//             case 'c':
-//                 if (!is_numeric(optarg)) {
-//                     LOG_WARN("The argument of the coverage filter must be a numeric value");
-//                 } else {
-//                     tmp_int_field = atoi(optarg);
-//                     filter = create_coverage_filter(tmp_int_field);
-//                     options_data->chain = add_to_filter_chain(filter, options_data->chain);
-//                     LOG_INFO_F("coverage filter, minimum is = %d\n", tmp_int_field);
-//                 }
-//                 break;
-//             case 'f':
-//                 tmp_string_field = (char*) calloc(strlen(optarg)+1, sizeof(char));
-//                 strncat(tmp_string_field, optarg, strlen(optarg));
-//                 filter = create_region_filter(tmp_string_field, 1, global_options_data->host_url, global_options_data->species, global_options_data->version);
-//                 options_data->chain = add_to_filter_chain(filter, options_data->chain);
-//                 LOG_INFO_F("regions file = %s\n", optarg);
-//                 break;
-//             case 'q':
-//                 if (!is_numeric(optarg)) {
-//                     LOG_WARN("The argument of the quality filter must be a numeric value");
-//                 } else {
-//                     tmp_int_field = atoi(optarg);
-//                     filter = create_quality_filter(tmp_int_field);
-//                     options_data->chain = add_to_filter_chain(filter, options_data->chain);
-//                     LOG_INFO_F("quality filter, minimum is = %d\n", tmp_int_field);
-//                 }
-//                 break;
-//             case 'r':
-//                 tmp_string_field = (char*) calloc(strlen(optarg)+1, sizeof(char));
-//                 strncat(tmp_string_field, optarg, strlen(optarg));
-//                 filter = create_region_filter(tmp_string_field, 0, global_options_data->host_url, global_options_data->species, global_options_data->version);
-//                 options_data->chain = add_to_filter_chain(filter, options_data->chain);
-//                 LOG_INFO_F("regions = %s\n", optarg);
-//                 break;
-//             case 's':
-//                 filter = create_snp_filter(optarg);
-//                 options_data->chain = add_to_filter_chain(filter, options_data->chain);
-//                 LOG_INFO_F("snp filter to %s SNPs\n", (optarg == NULL)? "include" : optarg);
-//                 break;
-//             case '?':
-//             default:
-//                 LOG_WARN("Option unknown\n");
-//                 break;
-//         }
-//         
-//         previous_opt_index = optind;
-//     }
-// }
-// 
-// 
-// int verify_filter_options(global_options_data_t *global_options_data, filter_options_data_t *options_data) {
-//     // Check whether the input VCF file is defined
-//     if (global_options_data->vcf_filename == NULL || strlen(global_options_data->vcf_filename) == 0) {
-//         LOG_ERROR("Please specify the input VCF file.\n");
-//         return VCF_FILE_NOT_SPECIFIED;
-//     }
-//     
-//     // Check whether a filter or more has been specified
-//     if (cp_heap_count(options_data->chain) == 0) {
-//         LOG_ERROR("Please specify at least one filter\n");
-//         return EMPTY_LIST_OF_FILTERS;
-//     }
-// 
-//     return 0;
-// }
-

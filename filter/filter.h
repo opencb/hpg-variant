@@ -22,23 +22,6 @@
 
 #define NUM_FILTER_OPTIONS  6
 
-
-// static struct option filter_options[] = {
-//     // Filters applied to data
-//     {"alleles",     required_argument, 0, 'a' },
-//     
-//     {"coverage",    required_argument, 0, 'c' },
-//     
-//     {"quality",     required_argument, 0, 'q' },
-// 
-//     {"region-file", required_argument, 0, 'f' },
-//     {"region",      required_argument, 0, 'r' },
-// 
-//     {"snp",         required_argument, 0, 's' },
-// 
-//     {NULL,          0, 0, 0}
-// };
-
 typedef struct filter_options {
     struct arg_int *num_alleles; /**< Filter by number of alleles. */
     struct arg_int *coverage; /**< Filter by coverage. */
@@ -54,11 +37,7 @@ typedef struct filter_options {
  * @struct filter_options_data
  * 
  */
-typedef struct filter_options_data
-{
-//     long int num_threads;   /**< Number of threads that to run simultaneously. */
-//     long int max_batches;   /**< Number of VCF records' batches that can be stored simultaneously. */
-//     long int batch_size;    /**< Maximum size of a VCF records' batch. */
+typedef struct filter_options_data {
     filter_chain *chain;    /**< Chain of filters to apply to the VCF records. */
 } filter_options_data_t;
 
@@ -107,7 +86,6 @@ int read_filter_configuration(const char *filename, filter_options_t *options, s
  * @param shared_options
  */
 void **parse_filter_options(int argc, char *argv[], filter_options_t *filter_options, shared_options_t *shared_options);
-// void parse_filter_options(int argc, char *argv[], filter_options_t *options, shared_options_t *shared_options);
 
 void **merge_filter_options(filter_options_t *filter_options, shared_options_t *shared_options, struct arg_end *arg_end);
 
@@ -116,8 +94,6 @@ void **merge_filter_options(filter_options_t *filter_options, shared_options_t *
  * @param options
  */
 int verify_filter_options(filter_options_t *filter_options, shared_options_t *shared_options);
-// int verify_filter_options(shared_options_t *shared_options, filter_options_t *options);
-
 
 
 #endif

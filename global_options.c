@@ -14,7 +14,7 @@ shared_options_t *new_shared_cli_options(void) {
     
     options_data->max_batches = arg_int0(NULL, "num-batches", NULL, "Maximum number of batches stored at the same time");
     options_data->batch_size = arg_int0(NULL, "batch-size", NULL, "Maximum size of a batch");
-    options_data->num_threads = arg_int0(NULL, "num-threads", NULL, "Number of threads when a task is perform in parallel");
+    options_data->num_threads = arg_int0(NULL, "num-threads", "<n>", "Number of threads when a task is perform in parallel");
     options_data->entries_per_thread = arg_int0(NULL, "entries-per-thread", NULL, "Number of entries in a batch each thread processes");
     
 //     options_data->num_alleles = arg_int0(NULL, "alleles", NULL, "Filter: by number of alleles");
