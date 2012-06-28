@@ -39,14 +39,6 @@ int read_gwas_configuration(const char *filename, gwas_options_t *gwas_options, 
         LOG_DEBUG_F("batch-size = %ld\n", *(shared_options->batch_size->ival));
     }
     
-    // Read number of variants per request to the web service
-//     ret_code = config_lookup_int(config, "gwas.entries-per-thread", shared_options->entries_per_thread->ival);
-//     if (ret_code == CONFIG_FALSE) {
-//         LOG_WARN("Entries per thread not found in configuration file, must be set via command-line");
-//     } else {
-//         LOG_DEBUG_F("entries-per-thread = %ld\n", *(shared_options->entries_per_thread->ival));
-//     }
-
     // Read host URL
     ret_code = config_lookup_string(config, "gwas.url", &tmp_string);
     if (ret_code == CONFIG_FALSE) {
