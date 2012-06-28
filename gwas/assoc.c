@@ -30,8 +30,7 @@ void assoc_test(enum GWAS_task test_type, ped_file_t *ped_file, list_item_t *var
         num_read = 0;
         num_analyzed = 0;
 
-        // TODO implement arraylist in order to avoid this conversion
-        sample_data = (char**) list_to_array(record->samples);
+        sample_data = (char**) record->samples->items;
         gt_position = get_field_position_in_format("GT", record->format);
     
         // Count over families
@@ -135,10 +134,6 @@ void assoc_test(enum GWAS_task test_type, ped_file_t *ped_file, list_item_t *var
         LOG_DEBUG_F("[%d] after adding %s:%ld\n", tid, record->chromosome, record->position);
         
         cur_variant = cur_variant->next_p;
-        
-        // Free samples
-        // TODO implement arraylist in order to avoid this code
-        free(sample_data);
     } // next variant
 
     // Free families' keys
