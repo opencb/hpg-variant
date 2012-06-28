@@ -1,10 +1,10 @@
 #include "tdt_runner.h"
 
-// int permute = 0;
-
 int run_tdt_test(shared_options_data_t* shared_options_data, gwas_options_data_t* options_data) {
     list_t *read_list = (list_t*) malloc(sizeof(list_t));
-    list_init("batches", 1, shared_options_data->max_batches, read_list);
+    list_init("text", 1, shared_options_data->max_batches, read_list);
+    list_t *vcf_batches_list = (list_t*) malloc(sizeof(list_t));
+    list_init("batches", 1, shared_options_data->max_batches, vcf_batches_list);
     list_t *output_list = (list_t*) malloc (sizeof(list_t));
     list_init("output", shared_options_data->num_threads, shared_options_data->max_batches * shared_options_data->batch_size, output_list);
 
@@ -29,7 +29,7 @@ int run_tdt_test(shared_options_data_t* shared_options_data, gwas_options_data_t
     
     LOG_INFO("About to perform TDT test...\n");
 
-#pragma omp parallel sections private(start, stop, total)
+#pragma omp parallel sections private(start, stop, total) firstprivate(vcf_batches_list)
     {
 #pragma omp section
         {
@@ -60,6 +60,7 @@ int run_tdt_test(shared_options_data_t* shared_options_data, gwas_options_data_t
             
             LOG_DEBUG_F("Thread %d processes data\n", omp_get_thread_num());
             
+            volatile int samples_initialized = 0;
             cp_hashtable *sample_ids = NULL;
             
             // Create chain of filters for the VCF file
@@ -73,21 +74,43 @@ int run_tdt_test(shared_options_data_t* shared_options_data, gwas_options_data_t
     
             start = omp_get_wtime();
             
+#pragma omp parallel num_threads(shared_options_data->num_threads) shared(samples_initialized, filters, sample_ids)
+            {
+            
             int i = 0;
             list_item_t *item = NULL;
             while ((item = list_remove_item(read_list)) != NULL) {
-                if (i == 0) {
-                    // Create map to associate the position of individuals in the list of samples defined in the VCF file
-                    sample_ids = associate_samples_and_positions(file);
-                    
-                    // Write file format, header entries and delimiter
-                    if (passed_file != NULL) { vcf_write_to_file(file, passed_file); }
-                    if (failed_file != NULL) { vcf_write_to_file(file, failed_file); }
-                    
-                    LOG_DEBUG("VCF header written\n");
+                char *text_begin = item->data_p;
+                char *text_end = text_begin + strlen(text_begin);
+                
+                assert(text_end != NULL);
+                assert(vcf_batches_list != NULL);
+                
+                vcf_reader_status *status = new_vcf_reader_status(shared_options_data->batch_size, 1, 1);
+                execute_vcf_ragel_machine(text_begin, text_end, vcf_batches_list, shared_options_data->batch_size, file, status);
+                
+                // Initialize structures needed for TDT and write headers of output files
+                if (!samples_initialized) {
+# pragma omp critical
+                {
+                    // Guarantee that just one thread performs this operation
+                    if (!samples_initialized) {
+                        // Create map to associate the position of individuals in the list of samples defined in the VCF file
+                        sample_ids = associate_samples_and_positions(file);
+                        
+                        // Write file format, header entries and delimiterG
+                        if (passed_file != NULL) { vcf_write_to_file(file, passed_file); }
+                        if (failed_file != NULL) { vcf_write_to_file(file, failed_file); }
+                        
+                        LOG_DEBUG("VCF header written\n");
+                        
+                        samples_initialized = 1;
+                    }
+                }
                 }
                 
-                vcf_batch_t *batch = (vcf_batch_t*) item->data_p;
+                list_item_t *batch_item = list_remove_item(vcf_batches_list);
+                vcf_batch_t *batch = batch_item->data_p;
                 list_t *input_records = batch;
                 list_t *passed_records = NULL, *failed_records = NULL;
 
@@ -107,26 +130,10 @@ int run_tdt_test(shared_options_data_t* shared_options_data, gwas_options_data_t
 
                 // Launch TDT test over records that passed the filters
                 if (passed_records->length > 0) {
-                    // Divide the list of passed records in ranges of size defined in config file
-                    int max_chunk_size = shared_options_data->entries_per_thread;
-                    int num_chunks;
-                    list_item_t **chunk_starts = create_chunks(passed_records, max_chunk_size, &num_chunks);
-                    
-                    // OpenMP: Launch a thread for each range
-                    #pragma omp parallel for
-                    for (int j = 0; j < num_chunks; j++) {
-                        LOG_DEBUG_F("[%d] Test execution\n", omp_get_thread_num());
-                        ret_code = tdt_test(ped_file, chunk_starts[j], max_chunk_size, sample_ids, output_list);
-                    }
-                    free(chunk_starts);
-                    
-                    if (i % 10 == 0) { 
-                        LOG_INFO_F("*** %dth TDT execution finished\n", i);
-                    }
+                    ret_code = tdt_test(ped_file, passed_records->first_p, shared_options_data->batch_size, sample_ids, output_list);
                     
                     if (ret_code) {
-//                         LOG_FATAL_F("TDT error: %s\n", get_last_http_error(ret_code));
-                        break;
+                        LOG_FATAL_F("[%d] Error in execution #%d of TDT\n", omp_get_thread_num(), i);
                     }
                 }
                 
@@ -149,11 +156,16 @@ int run_tdt_test(shared_options_data_t* shared_options_data, gwas_options_data_t
                     LOG_DEBUG_F("[Batch %d] %zu failed records\n", i, failed_records->length);
                     list_free_deep(failed_records, NULL);
                 }
+                
                 // Free batch and its contents
-                vcf_batch_free(item->data_p);
+                vcf_batch_free(batch);
+                list_item_free(batch_item);
+                free(item->data_p);
                 list_item_free(item);
+                free(status);
                 
                 i++;
+            }
             }
 
             stop = omp_get_wtime();
@@ -167,14 +179,14 @@ int run_tdt_test(shared_options_data_t* shared_options_data, gwas_options_data_t
             if (sample_ids) { cp_hashtable_destroy(sample_ids); }
             
             // Free filters
-            for (i = 0; i < num_filters; i++) {
+            for (int i = 0; i < num_filters; i++) {
                 filter_t *filter = filters[i];
                 filter->free_func(filter);
             }
             free(filters);
             
             // Decrease list writers count
-            for (i = 0; i < shared_options_data->num_threads; i++) {
+            for (int i = 0; i < shared_options_data->num_threads; i++) {
                 list_decr_writers(output_list);
             }
         }
@@ -196,6 +208,8 @@ int run_tdt_test(shared_options_data_t* shared_options_data, gwas_options_data_t
             free(filename);
             free(path);
             
+            start = omp_get_wtime();
+            
             // Write data: header + one line per variant
             list_item_t* item = NULL;
             tdt_result_t *result;
@@ -212,6 +226,14 @@ int run_tdt_test(shared_options_data_t* shared_options_data, gwas_options_data_t
             }
             
             fclose(fd);
+            
+            stop = omp_get_wtime();
+
+            total = stop - start;
+
+            LOG_INFO_F("[%dW] Time elapsed = %f s\n", omp_get_thread_num(), total);
+            LOG_INFO_F("[%dW] Time elapsed = %e ms\n", omp_get_thread_num(), total*1000);
+
         }
     }
     

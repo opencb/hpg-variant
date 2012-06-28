@@ -81,7 +81,7 @@ int run_effect(char *url, shared_options_data_t *shared_options, effect_options_
             // Reading
             start = omp_get_wtime();
 
-            ret_code = vcf_read_batches(read_list, shared_options->batch_size, file, 0);
+            ret_code = vcf_parse_batches(read_list, shared_options->batch_size, file, 0);
 
             stop = omp_get_wtime();
             total = stop - start;
