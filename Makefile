@@ -24,7 +24,7 @@ GFF_OBJS = $(BIOFORMATS_DIR)/gff/gff_*.o
 PED_OBJS = $(BIOFORMATS_DIR)/ped/ped_*.o
 REGION_TABLE_OBJS = $(BIOFORMATS_DIR)/features/region/region.o $(CONTAINERS_DIR)/region_table.o $(CONTAINERS_DIR)/region_table_utils.o
 MISC_OBJS = $(COMMONS_DIR)/file_utils.o $(COMMONS_DIR)/string_utils.o $(COMMONS_DIR)/http_utils.o $(COMMONS_DIR)/log.o $(COMMONS_DIR)/result.o \
-	$(CONTAINERS_DIR)/list.o $(BIOFORMATS_DIR)/family.o $(MATH_DIR)/fisher.o
+	$(CONTAINERS_DIR)/array_list.o $(CONTAINERS_DIR)/list.o $(BIOFORMATS_DIR)/family.o $(MATH_DIR)/fisher.o
 
 # Project source files
 EFFECT_FILES = effect/main_effect.c effect/effect_options_parsing.c effect/effect_runner.c effect/auxiliary_files_writer.c

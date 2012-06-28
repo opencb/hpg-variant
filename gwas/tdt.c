@@ -24,9 +24,8 @@ int tdt_test(ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_h
         vcf_record_t *record = (vcf_record_t*) cur_variant->data_p;
         LOG_DEBUG_F("[%d] Checking variant %s:%ld\n", tid, record->chromosome, record->position);
         
-        // TODO implement arraylist in order to avoid this conversion
+        sample_data = (char**) record->samples->items;
         gt_position = get_field_position_in_format("GT", record->format);
-        sample_data = (char**) list_to_array(record->samples);
     
         // Transmission counts
         int t1 = 0;
@@ -226,10 +225,6 @@ int tdt_test(ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_h
         LOG_DEBUG_F("[%d] after adding %s:%ld\n", tid, record->chromosome, record->position);
         
         cur_variant = cur_variant->next_p;
-        
-        // Free samples
-        // TODO implement arraylist in order to avoid this code
-        free(sample_data);
     } // next variant
 
     // Free families' keys
