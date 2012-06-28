@@ -60,7 +60,7 @@ int run_tdt_test(shared_options_data_t* shared_options_data, gwas_options_data_t
             
             LOG_DEBUG_F("Thread %d processes data\n", omp_get_thread_num());
             
-            volatile int samples_initialized = 0;
+            volatile int initialization_done = 0;
             cp_hashtable *sample_ids = NULL;
             
             // Create chain of filters for the VCF file
@@ -74,9 +74,8 @@ int run_tdt_test(shared_options_data_t* shared_options_data, gwas_options_data_t
     
             start = omp_get_wtime();
             
-#pragma omp parallel num_threads(shared_options_data->num_threads) shared(samples_initialized, filters, sample_ids)
+#pragma omp parallel num_threads(shared_options_data->num_threads) shared(initialization_done, sample_ids, filters)
             {
-            
             int i = 0;
             list_item_t *item = NULL;
             while ((item = list_remove_item(read_list)) != NULL) {
@@ -90,21 +89,21 @@ int run_tdt_test(shared_options_data_t* shared_options_data, gwas_options_data_t
                 execute_vcf_ragel_machine(text_begin, text_end, vcf_batches_list, shared_options_data->batch_size, file, status);
                 
                 // Initialize structures needed for TDT and write headers of output files
-                if (!samples_initialized) {
+                if (!initialization_done) {
 # pragma omp critical
                 {
                     // Guarantee that just one thread performs this operation
-                    if (!samples_initialized) {
+                    if (!initialization_done) {
                         // Create map to associate the position of individuals in the list of samples defined in the VCF file
                         sample_ids = associate_samples_and_positions(file);
                         
-                        // Write file format, header entries and delimiterG
+                        // Write file format, header entries and delimiter
                         if (passed_file != NULL) { vcf_write_to_file(file, passed_file); }
                         if (failed_file != NULL) { vcf_write_to_file(file, failed_file); }
                         
                         LOG_DEBUG("VCF header written\n");
                         
-                        samples_initialized = 1;
+                        initialization_done = 1;
                     }
                 }
                 }
