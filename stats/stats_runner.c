@@ -147,16 +147,6 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
                 stats = item->data_p;
                 num_alleles = stats->num_alleles;
                 
-                // Generate shared counters for alleles and genotypes (used for calculating frequencies)
-                count_alleles_total = 0;
-                genotypes_count_total = 0;
-                for (int i = 0; i < num_alleles; i++) {
-                    count_alleles_total += stats->alleles_count[i];
-                }
-                for (int i = 0; i < num_alleles * num_alleles; i++) {
-                    genotypes_count_total += stats->genotypes_count[i];
-                }
-                
                 fprintf(stats_fd, "%s\t%ld\t",
                         stats->chromosome, 
                         stats->position);
@@ -165,7 +155,7 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
                 fprintf(stats_fd, "%s\t%d\t%.4f\t",
                         stats->ref_allele,
                         stats->alleles_count[0],
-                        (float) stats->alleles_count[0] / count_alleles_total
+                        stats->alleles_freq[0]
                        );
                 
                 // Alternate alleles
@@ -173,27 +163,30 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
                     fprintf(stats_fd, "%s\t%d\t%.4f\t",
                             stats->alternates[i-1],
                             stats->alleles_count[i],
-                            (float) stats->alleles_count[i] / count_alleles_total
+                            stats->alleles_freq[i]
                            );
                 }
                 
                 // Genotypes
                 int gt_count = 0;
+                float gt_freq = 0;
                 for (int i = 0; i < num_alleles; i++) {
                     for (int j = i; j < num_alleles; j++) {
                         int idx1 = i * num_alleles + j;
                         if (i == j) {
                             gt_count = stats->genotypes_count[idx1];
+                            gt_freq = stats->genotypes_freq[idx1];
                         } else {
                             int idx2 = j * num_alleles + i;
                             gt_count = stats->genotypes_count[idx1] + stats->genotypes_count[idx2];
+                            gt_freq = stats->genotypes_freq[idx1] + stats->genotypes_freq[idx2];
                         }
                         
                     fprintf(stats_fd, "%s|%s\t%d\t%.4f\t",
                             i == 0 ? stats->ref_allele : stats->alternates[i-1],
                             j == 0 ? stats->ref_allele : stats->alternates[j-1],
                             gt_count, 
-                            (float) gt_count / genotypes_count_total
+                            gt_freq
                            );
                     }
                 }
