@@ -50,12 +50,13 @@ int get_output_files(shared_options_data_t *global_options_data, FILE **passed_f
  * @param records list of records to separate in chunks
  * @param max_chunk_size maximum size of a chunk
  * @param[out] num_chunks number of chunks created
- * @return The list of chunks
+ * @param[out] chunk_sizes size of each chunk
+ * @return The indices of the beginning of each chunk
  * 
  * Given a list of records, defines another list of chunks whose elements point to records separated 
  * by a maximum distance of max_chunk_size. These records will mark the beginning of each chunk.
  */
-list_item_t** create_chunks(list_t* records, int max_chunk_size, int *num_chunks);
+int *create_chunks(int length, int max_chunk_size, int *num_chunks, int **chunk_sizes);
 
 
 #endif

@@ -1,6 +1,8 @@
 #include "assoc.h"
 
-void assoc_test(enum GWAS_task test_type, ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_hashtable *sample_ids, const void *opt_input, list_t *output_list) {
+// void assoc_test(enum GWAS_task test_type, ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_hashtable *sample_ids, const void *opt_input, list_t *output_list) {
+void assoc_test(enum GWAS_task test_type, ped_file_t *ped_file, vcf_record_t **variants, int num_variants, 
+                cp_hashtable *sample_ids, const void *opt_input, list_t *output_list) {
     int ret_code = 0;
     int tid = omp_get_thread_num();
     cp_hashtable *families = ped_file->families;
@@ -19,10 +21,13 @@ void assoc_test(enum GWAS_task test_type, ped_file_t *ped_file, list_item_t *var
     
     ///////////////////////////////////
     // Perform analysis for each variant
-
-    list_item_t *cur_variant = variants;
-    for (int i = 0; i < num_variants && cur_variant != NULL; i++) {
-        vcf_record_t *record = (vcf_record_t*) cur_variant->data_p;
+    
+    vcf_record_t *record;
+//     list_item_t *cur_variant = variants;
+//     for (int i = 0; i < num_variants && cur_variant != NULL; i++) {
+//         vcf_record_t *record = (vcf_record_t*) cur_variant->data_p;
+    for (int i = 0; i < num_variants; i++) {
+        record = variants[i];
         LOG_DEBUG_F("[%d] Checking variant %s:%ld\n", tid, record->chromosome, record->position);
         
         A1 = 0; A2 = 0;
@@ -133,7 +138,7 @@ void assoc_test(enum GWAS_task test_type, ped_file_t *ped_file, list_item_t *var
         
         LOG_DEBUG_F("[%d] after adding %s:%ld\n", tid, record->chromosome, record->position);
         
-        cur_variant = cur_variant->next_p;
+//         cur_variant = cur_variant->next_p;
     } // next variant
 
     // Free families' keys

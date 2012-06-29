@@ -5,11 +5,12 @@
 
 #include <check.h>
 
-#include <family.h>
-#include <string_utils.h>
-#include <vcf_batch.h>
-#include <vcf_file_structure.h>
-#include <vcf_read.h>
+#include <bioformats/family.h>
+#include <bioformats/vcf/vcf_batch.h>
+#include <bioformats/vcf/vcf_file_structure.h>
+#include <bioformats/vcf/vcf_read.h>
+#include <commons/string_utils.h>
+#include <containers/array_list.h>
 
 #include "../gwas/gwas.h"
 #include "../gwas/tdt_runner.h"
@@ -18,8 +19,6 @@ Suite *create_test_suite(void);
 
 
 static ped_file_t *ped;
-
-static list_item_t *variant;
 static vcf_record_t *record;
 
 static cp_hashtable *sample_ids;
@@ -64,7 +63,7 @@ void teardown_positions(void) {
 
 
 void setup_tdt_function(void) {
-    ped = ped_open("tdt_files/newjob.ped");
+    ped = ped_open("tdt_files/500K_variants_147_samples.ped");
     family = family_new("TESTFAM");
     add_family(family, ped);
     
@@ -77,7 +76,7 @@ void setup_tdt_function(void) {
     set_record_position(111111, record);
     set_record_reference("C", record);
     set_record_alternate("T", record);
-    variant = list_item_new(1, 0, record);
+    set_record_format("GT", record);
     
     output_list = (list_t*) malloc (sizeof(list_t));
     list_init("output", 1, 1, output_list);
@@ -108,12 +107,9 @@ START_TEST (family_unaffected_child) {
     strcat(mother_sample, "0/1");
     strcat(child_sample, "0/0");
     
-    list_item_t *item = list_item_new(1, 0, father_sample);
-    list_insert_item(item, record->samples);
-    item = list_item_new(2, 0, mother_sample);
-    list_insert_item(item, record->samples);
-    item = list_item_new(3, 0, child_sample);
-    list_insert_item(item, record->samples);
+    array_list_insert(father_sample, record->samples);
+    array_list_insert(mother_sample, record->samples);
+    array_list_insert(child_sample, record->samples);
     
     // Create ordering structure
     sample_ids = cp_hashtable_create(6, cp_hash_string, (cp_compare_fn) strcasecmp);
@@ -122,7 +118,7 @@ START_TEST (family_unaffected_child) {
     cp_hashtable_put(sample_ids, "CHILD00", pos2);
     
     // Launch and verify execution
-    fail_unless(tdt_test(ped, variant, 1, sample_ids, output_list) == 0, "TDT test terminated with errors");
+    fail_unless(tdt_test(ped, &record, 1, sample_ids, output_list) == 0, "TDT test terminated with errors");
     fail_if(output_list->length == 0, "There must be one result inserted");
     
     tdt_result_t *result = output_list->first_p->data_p;
@@ -145,12 +141,9 @@ START_TEST (family_01_01_00) {
     strcat(mother_sample, "0/1");
     strcat(child_sample, "0/0");
     
-    list_item_t *item = list_item_new(1, 0, father_sample);
-    list_insert_item(item, record->samples);
-    item = list_item_new(2, 0, mother_sample);
-    list_insert_item(item, record->samples);
-    item = list_item_new(3, 0, child_sample);
-    list_insert_item(item, record->samples);
+    array_list_insert(father_sample, record->samples);
+    array_list_insert(mother_sample, record->samples);
+    array_list_insert(child_sample, record->samples);
     
     // Create ordering structure
     sample_ids = cp_hashtable_create(6, cp_hash_string, (cp_compare_fn) strcasecmp);
@@ -159,7 +152,7 @@ START_TEST (family_01_01_00) {
     cp_hashtable_put(sample_ids, "CHILD00", pos2);
     
     // Launch and verify execution
-    fail_unless(tdt_test(ped, variant, 1, sample_ids, output_list) == 0, "TDT test terminated with errors");
+    fail_unless(tdt_test(ped, &record, 1, sample_ids, output_list) == 0, "TDT test terminated with errors");
     fail_if(output_list->length == 0, "There must be one result inserted");
     
     tdt_result_t *result = output_list->first_p->data_p;
@@ -182,12 +175,9 @@ START_TEST (family_01_00_00) {
     strcat(mother_sample, "0/0");
     strcat(child_sample, "0/0");
     
-    list_item_t *item = list_item_new(1, 0, father_sample);
-    list_insert_item(item, record->samples);
-    item = list_item_new(2, 0, mother_sample);
-    list_insert_item(item, record->samples);
-    item = list_item_new(3, 0, child_sample);
-    list_insert_item(item, record->samples);
+    array_list_insert(father_sample, record->samples);
+    array_list_insert(mother_sample, record->samples);
+    array_list_insert(child_sample, record->samples);
     
     // Create ordering structure
     sample_ids = cp_hashtable_create(6, cp_hash_string, (cp_compare_fn) strcasecmp);
@@ -196,7 +186,7 @@ START_TEST (family_01_00_00) {
     cp_hashtable_put(sample_ids, "CHILD00", pos2);
     
     // Launch and verify execution
-    fail_unless(tdt_test(ped, variant, 1, sample_ids, output_list) == 0, "TDT test terminated with errors");
+    fail_unless(tdt_test(ped, &record, 1, sample_ids, output_list) == 0, "TDT test terminated with errors");
     fail_if(output_list->length == 0, "There must be one result inserted");
     
     tdt_result_t *result = output_list->first_p->data_p;
@@ -219,12 +209,9 @@ START_TEST (family_01_01_01) {
     strcat(mother_sample, "0/1");
     strcat(child_sample, "0/1");
     
-    list_item_t *item = list_item_new(1, 0, father_sample);
-    list_insert_item(item, record->samples);
-    item = list_item_new(2, 0, mother_sample);
-    list_insert_item(item, record->samples);
-    item = list_item_new(3, 0, child_sample);
-    list_insert_item(item, record->samples);
+    array_list_insert(father_sample, record->samples);
+    array_list_insert(mother_sample, record->samples);
+    array_list_insert(child_sample, record->samples);
     
     // Create ordering structure
     sample_ids = cp_hashtable_create(6, cp_hash_string, (cp_compare_fn) strcasecmp);
@@ -233,7 +220,7 @@ START_TEST (family_01_01_01) {
     cp_hashtable_put(sample_ids, "CHILD01", pos2);
     
     // Launch and verify execution
-    fail_unless(tdt_test(ped, variant, 1, sample_ids, output_list) == 0, "TDT test terminated with errors");
+    fail_unless(tdt_test(ped, &record, 1, sample_ids, output_list) == 0, "TDT test terminated with errors");
     fail_if(output_list->length == 0, "There must be one result inserted");
     
     tdt_result_t *result = output_list->first_p->data_p;
@@ -256,12 +243,9 @@ START_TEST (family_01_00_01) {
     strcat(mother_sample, "0/0");
     strcat(child_sample, "0/1");
     
-    list_item_t *item = list_item_new(1, 0, father_sample);
-    list_insert_item(item, record->samples);
-    item = list_item_new(2, 0, mother_sample);
-    list_insert_item(item, record->samples);
-    item = list_item_new(3, 0, child_sample);
-    list_insert_item(item, record->samples);
+    array_list_insert(father_sample, record->samples);
+    array_list_insert(mother_sample, record->samples);
+    array_list_insert(child_sample, record->samples);
     
     // Create ordering structure
     sample_ids = cp_hashtable_create(6, cp_hash_string, (cp_compare_fn) strcasecmp);
@@ -270,7 +254,7 @@ START_TEST (family_01_00_01) {
     cp_hashtable_put(sample_ids, "CHILD01", pos2);
     
     // Launch and verify execution
-    fail_unless(tdt_test(ped, variant, 1, sample_ids, output_list) == 0, "TDT test terminated with errors");
+    fail_unless(tdt_test(ped, &record, 1, sample_ids, output_list) == 0, "TDT test terminated with errors");
     fail_if(output_list->length == 0, "There must be one result inserted");
     
     tdt_result_t *result = output_list->first_p->data_p;
@@ -293,12 +277,9 @@ START_TEST (family_01_11_01) {
     strcat(mother_sample, "1/1");
     strcat(child_sample, "0/1");
     
-    list_item_t *item = list_item_new(1, 0, father_sample);
-    list_insert_item(item, record->samples);
-    item = list_item_new(2, 0, mother_sample);
-    list_insert_item(item, record->samples);
-    item = list_item_new(3, 0, child_sample);
-    list_insert_item(item, record->samples);
+    array_list_insert(father_sample, record->samples);
+    array_list_insert(mother_sample, record->samples);
+    array_list_insert(child_sample, record->samples);
     
     // Create ordering structure
     sample_ids = cp_hashtable_create(6, cp_hash_string, (cp_compare_fn) strcasecmp);
@@ -307,7 +288,7 @@ START_TEST (family_01_11_01) {
     cp_hashtable_put(sample_ids, "CHILD01", pos2);
     
     // Launch and verify execution
-    fail_unless(tdt_test(ped, variant, 1, sample_ids, output_list) == 0, "TDT test terminated with errors");
+    fail_unless(tdt_test(ped, &record, 1, sample_ids, output_list) == 0, "TDT test terminated with errors");
     fail_if(output_list->length == 0, "There must be one result inserted");
     
     tdt_result_t *result = output_list->first_p->data_p;
@@ -330,12 +311,9 @@ START_TEST (family_00_01_01) {
     strcat(mother_sample, "0/1");
     strcat(child_sample, "0/1");
     
-    list_item_t *item = list_item_new(1, 0, father_sample);
-    list_insert_item(item, record->samples);
-    item = list_item_new(2, 0, mother_sample);
-    list_insert_item(item, record->samples);
-    item = list_item_new(3, 0, child_sample);
-    list_insert_item(item, record->samples);
+    array_list_insert(father_sample, record->samples);
+    array_list_insert(mother_sample, record->samples);
+    array_list_insert(child_sample, record->samples);
     
     // Create ordering structure
     sample_ids = cp_hashtable_create(6, cp_hash_string, (cp_compare_fn) strcasecmp);
@@ -344,7 +322,7 @@ START_TEST (family_00_01_01) {
     cp_hashtable_put(sample_ids, "CHILD01", pos2);
     
     // Launch and verify execution
-    fail_unless(tdt_test(ped, variant, 1, sample_ids, output_list) == 0, "TDT test terminated with errors");
+    fail_unless(tdt_test(ped, &record, 1, sample_ids, output_list) == 0, "TDT test terminated with errors");
     fail_if(output_list->length == 0, "There must be one result inserted");
     
     tdt_result_t *result = output_list->first_p->data_p;
@@ -367,12 +345,9 @@ START_TEST (family_11_01_01) {
     strcat(mother_sample, "0/1");
     strcat(child_sample, "0/1");
     
-    list_item_t *item = list_item_new(1, 0, father_sample);
-    list_insert_item(item, record->samples);
-    item = list_item_new(2, 0, mother_sample);
-    list_insert_item(item, record->samples);
-    item = list_item_new(3, 0, child_sample);
-    list_insert_item(item, record->samples);
+    array_list_insert(father_sample, record->samples);
+    array_list_insert(mother_sample, record->samples);
+    array_list_insert(child_sample, record->samples);
     
     // Create ordering structure
     sample_ids = cp_hashtable_create(6, cp_hash_string, (cp_compare_fn) strcasecmp);
@@ -381,7 +356,7 @@ START_TEST (family_11_01_01) {
     cp_hashtable_put(sample_ids, "CHILD01", pos2);
     
     // Launch and verify execution
-    fail_unless(tdt_test(ped, variant, 1, sample_ids, output_list) == 0, "TDT test terminated with errors");
+    fail_unless(tdt_test(ped, &record, 1, sample_ids, output_list) == 0, "TDT test terminated with errors");
     fail_if(output_list->length == 0, "There must be one result inserted");
     
     tdt_result_t *result = output_list->first_p->data_p;
@@ -424,19 +399,13 @@ START_TEST (combined_families) {
     strcat(mother_sampleB, "0/0");
     strcat(child_sampleB, "0/0");
     
-    list_item_t *item = list_item_new(1, 0, father_sample);
-    list_insert_item(item, record->samples);
-    item = list_item_new(2, 0, mother_sample);
-    list_insert_item(item, record->samples);
-    item = list_item_new(3, 0, child_sample);
-    list_insert_item(item, record->samples);
+    array_list_insert(father_sample, record->samples);
+    array_list_insert(mother_sample, record->samples);
+    array_list_insert(child_sample, record->samples);
     
-    item = list_item_new(4, 0, father_sampleB);
-    list_insert_item(item, record->samples);
-    item = list_item_new(5, 0, mother_sampleB);
-    list_insert_item(item, record->samples);
-    item = list_item_new(6, 0, child_sampleB);
-    list_insert_item(item, record->samples);
+    array_list_insert(father_sampleB, record->samples);
+    array_list_insert(mother_sampleB, record->samples);
+    array_list_insert(child_sampleB, record->samples);
     
     // Create ordering structure
     sample_ids = cp_hashtable_create(12, cp_hash_string, (cp_compare_fn) strcasecmp);
@@ -448,7 +417,7 @@ START_TEST (combined_families) {
     cp_hashtable_put(sample_ids, "CHILD00B", pos5);
     
     // Launch and verify execution
-    fail_unless(tdt_test(ped, variant, 1, sample_ids, output_list) == 0, "TDT test terminated with errors");
+    fail_unless(tdt_test(ped, &record, 1, sample_ids, output_list) == 0, "TDT test terminated with errors");
     fail_if(output_list->length == 0, "There must be one result inserted");
     
     tdt_result_t *result = output_list->first_p->data_p;
@@ -460,7 +429,10 @@ END_TEST
 
 START_TEST (whole_test) {
     // Invoke hpg-variant/genome-analysis --tdt
-    int tdt_ret = system("../bin/hpg-variant gwas --tdt --vcf-file tdt_files/500K_variants_147_samples.vcf --ped-file tdt_files/500K_variants_147_samples.ped --outdir ./ ");
+    int tdt_ret = system("../bin/hpg-variant gwas --tdt --vcf-file tdt_files/500K_variants_147_samples.vcf \
+                                                        --ped-file tdt_files/500K_variants_147_samples.ped \
+                                                        --config ../bin/hpg-variant.cfg \
+                                                        --outdir ./ ");
     fail_unless(tdt_ret == 0, "hpg-variant exited with errors");
     
     // Check results in base to output file: get each line, grep plink.tdt and compare fields
@@ -477,7 +449,7 @@ START_TEST (whole_test) {
     fail_if(fgets(&line, line_len, cut_proc) == NULL, "The TDT results file cannot be read");
     
     int i = 0;
-    int entries_tested = 2000;
+    int entries_tested = 5000;
     
     while (fgets(&line, line_len, cut_proc) && i < entries_tested) {
         if (i % 50 == 0) {

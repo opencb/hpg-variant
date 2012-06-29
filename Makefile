@@ -54,9 +54,9 @@ hpg-variant: compile-dependencies $(HPG_VARIANT_FILES)
 	$(CC) $(CFLAGS_DEBUG) -D_XOPEN_SOURCE=600 -o bin/$@ main.o $(ALL_FILES) $(INCLUDES) $(LIBS)
 
 testing: test/test_effect_runner.c test/test_tdt_runner.c $(ALL_FILES)
-	$(CC) $(CFLAGS) -D_XOPEN_SOURCE=600 -o test/effect.test test/test_effect_runner.c $(ALL_FILES) $(INCLUDES) $(LIBS) $(LIBS_TEST)
+	$(CC) $(CFLAGS_DEBUG) -D_XOPEN_SOURCE=600 -o test/effect.test test/test_effect_runner.c $(ALL_FILES) $(INCLUDES) $(LIBS) $(LIBS_TEST)
 	$(CC) $(CFLAGS_DEBUG) -D_XOPEN_SOURCE=600 -o test/tdt.test test/test_tdt_runner.c $(ALL_FILES) $(INCLUDES) $(LIBS) $(LIBS_TEST)
-	$(CC) $(CFLAGS) -D_XOPEN_SOURCE=600 -o test/checks_family.test test/test_checks_family.c $(ALL_FILES) $(INCLUDES) $(LIBS) $(LIBS_TEST)
+	$(CC) $(CFLAGS_DEBUG) -D_XOPEN_SOURCE=600 -o test/checks_family.test test/test_checks_family.c $(ALL_FILES) $(INCLUDES) $(LIBS) $(LIBS_TEST)
 
 compile-dependencies:
 	make family.o && \

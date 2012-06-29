@@ -126,39 +126,40 @@ int run_effect(char *url, shared_options_data_t *shared_options, effect_options_
                     LOG_DEBUG("VCF header written\n");
                 }
                 vcf_batch_t *batch = (vcf_batch_t*) item->data_p;
-                list_t *input_records = batch;
-                list_t *passed_records = NULL, *failed_records = NULL;
+                array_list_t *input_records = batch;
+                array_list_t *passed_records = NULL, *failed_records = NULL;
 
                 if (i % 20 == 0) {
                     LOG_INFO_F("Batch %d reached by thread %d - %zu/%zu records \n", 
                             i, omp_get_thread_num(),
-                            batch->length, batch->max_length);
+                            batch->size, batch->capacity);
                 }
 
                 if (filters == NULL) {
                     passed_records = input_records;
                 } else {
-                    failed_records = (list_t*) malloc(sizeof(list_t));
-                    list_init("failed_records", 1, INT_MAX, failed_records);
+                    failed_records = array_list_new(input_records->size + 1, 1, COLLECTION_MODE_ASYNCHRONIZED);
                     passed_records = run_filter_chain(input_records, failed_records, filters, num_filters);
                 }
 
                 // Write records that passed to a separate file, and query the WS with them as args
-                if (passed_records->length > 0) {
+                if (passed_records->size > 0) {
                     // Divide the list of passed records in ranges of size defined in config file
-                    int max_chunk_size = shared_options->entries_per_thread;
                     int num_chunks;
-                    list_item_t **chunk_starts = create_chunks(passed_records, max_chunk_size, &num_chunks);
+                    int *chunk_sizes;
+                    int *chunk_starts = create_chunks(passed_records->size, shared_options->entries_per_thread, &num_chunks, &chunk_sizes);
                     
                     // OpenMP: Launch a thread for each range
                     #pragma omp parallel for
                     for (int j = 0; j < num_chunks; j++) {
                         LOG_DEBUG_F("[%d] WS invocation\n", omp_get_thread_num());
-                        ret_code = invoke_effect_ws(url, chunk_starts[j], max_chunk_size, options_data->excludes);
+                        ret_code = invoke_effect_ws(url, (vcf_record_t**) (passed_records->items + j), chunk_sizes[j], options_data->excludes); 
                     }
-                    free(chunk_starts);
                     
-                    LOG_INFO_F("*** %dth web service invocation finished\n", i);
+                    free(chunk_starts);
+                    free(chunk_sizes);
+                    
+                    LOG_DEBUG_F("*** %dth web service invocation finished\n", i);
                     
                     if (ret_code) {
                         LOG_FATAL_F("Effect web service error: %s\n", get_last_http_error(ret_code));
@@ -168,22 +169,22 @@ int run_effect(char *url, shared_options_data_t *shared_options, effect_options_
                 
                 // Write records that passed and failed to separate files
                 if (passed_file != NULL && failed_file != NULL) {
-                    if (passed_records != NULL && passed_records->length > 0) {
+                    if (passed_records != NULL && passed_records->size > 0) {
                         write_batch(passed_records, passed_file);
                     }
-                    if (failed_records != NULL && failed_records->length > 0) {
+                    if (failed_records != NULL && failed_records->size > 0) {
                         write_batch(failed_records, failed_file);
                     }
                 }
                 
                 // Free items in both lists (not their internal data)
                 if (passed_records != input_records) {
-                    LOG_DEBUG_F("[Batch %d] %zu passed records\n", i, passed_records->length);
-                    list_free_deep(passed_records, NULL);
+                    LOG_DEBUG_F("[Batch %d] %zu passed records\n", i, passed_records->size);
+                    array_list_free(passed_records, NULL);
                 }
                 if (failed_records) {
-                    LOG_DEBUG_F("[Batch %d] %zu failed records\n", i, failed_records->length);
-                    list_free_deep(failed_records, NULL);
+                    LOG_DEBUG_F("[Batch %d] %zu failed records\n", i, failed_records->size);
+                    array_list_free(failed_records, NULL);
                 }
                 // Free batch and its contents
                 vcf_batch_free(item->data_p);
@@ -266,7 +267,7 @@ int run_effect(char *url, shared_options_data_t *shared_options, effect_options_
 
 
 char *compose_effect_ws_request(shared_options_data_t *options_data) {
-    if (options_data->host_url == NULL || options_data->version == NULL || options_data->species == NULL) {
+    if (options_data == NULL || options_data->host_url == NULL || options_data->version == NULL || options_data->species == NULL) {
         return NULL;
     }
     
@@ -316,7 +317,7 @@ char *compose_effect_ws_request(shared_options_data_t *options_data) {
     return result_url;
 }
 
-int invoke_effect_ws(const char *url, list_item_t *first_item, int max_chunk_size, char *excludes) {
+int invoke_effect_ws(const char *url, vcf_record_t **records, int num_variants, char *excludes) {
     CURL *curl;
     CURLcode ret_code = CURLE_OK;
 
@@ -334,9 +335,8 @@ int invoke_effect_ws(const char *url, list_item_t *first_item, int max_chunk_siz
     LOG_DEBUG_F("[%d] WS for batch #%d\n", omp_get_thread_num(), batch_num);
     batch_num++;
     
-    list_item_t *item = first_item;
-    for (int i = 0; i < max_chunk_size && item != NULL; i++, item = item->next_p) {
-        vcf_record_t *record = item->data_p;
+    for (int i = 0; i < num_variants; i++) {
+        vcf_record_t *record = records[i];
         chr_len = strlen(record->chromosome);
         reference_len = strlen(record->reference);
         alternate_len = strlen(record->alternate);
