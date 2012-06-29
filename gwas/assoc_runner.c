@@ -295,29 +295,20 @@ int run_association_test(shared_options_data_t* shared_options_data, gwas_option
 
 
 cp_hashtable* associate_samples_and_positions(vcf_file_t* file) {
-    LOG_DEBUG_F("** %zu sample names read\n", file->samples_names->length);
-    list_t *sample_names = file->samples_names;
-    cp_hashtable *sample_ids = cp_hashtable_create_by_option(COLLECTION_MODE_DEEP,
-                                                             sample_names->length * 2,
-                                                             cp_hash_string,
-                                                             (cp_compare_fn) strcasecmp,
-                                                             NULL,
-                                                             NULL,
-                                                             NULL,
-                                                             (cp_destructor_fn) free
-                                                            );
+    LOG_DEBUG_F("** %zu sample names read\n", file->samples_names->size);
+    array_list_t *sample_names = file->samples_names;
+    cp_hashtable *sample_ids = cp_hashtable_create(sample_names->size * 2,
+                                                   cp_hash_string,
+                                                   (cp_compare_fn) strcasecmp
+                                                  );
     
-    list_item_t *sample_item = sample_names->first_p;
     int *index;
     char *name;
-    for (int i = 0; i < sample_names->length && sample_item != NULL; i++) {
-        name = sample_item->data_p;
+    for (int i = 0; i < sample_names->size; i++) {
+        name = sample_names->items[i];
         index = (int*) malloc (sizeof(int)); *index = i;
-        cp_hashtable_put(sample_ids, (char*) sample_item->data_p, index);
-        
-        sample_item = sample_item->next_p;
+        cp_hashtable_put(sample_ids, name, index);
     }
-    
 //     char **keys = (char**) cp_hashtable_get_keys(sample_names);
 //     int num_keys = cp_hashtable_count(sample_names);
 //     for (int i = 0; i < num_keys; i++) {
