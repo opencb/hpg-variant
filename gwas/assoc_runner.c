@@ -116,51 +116,59 @@ int run_association_test(shared_options_data_t* shared_options_data, gwas_option
                 
                 list_item_t *batch_item = list_remove_item(vcf_batches_list);
                 vcf_batch_t *batch = batch_item->data_p;
-                list_t *input_records = batch;
-                list_t *passed_records = NULL, *failed_records = NULL;
+//                 list_t *input_records = batch;
+//                 list_t *passed_records = NULL, *failed_records = NULL;
+                array_list_t *input_records = batch;
+                array_list_t *passed_records = NULL, *failed_records = NULL;
 
                 if (i % 20 == 0) {
                     LOG_INFO_F("Batch %d reached by thread %d - %zu/%zu records \n", 
                             i, omp_get_thread_num(),
-                            batch->length, batch->max_length);
+                            batch->size, batch->capacity);
                 }
 
                 if (filters == NULL) {
                     passed_records = input_records;
                 } else {
-                    failed_records = (list_t*) malloc(sizeof(list_t));
-                    list_init("failed_records", 1, INT_MAX, failed_records);
+//                     failed_records = (list_t*) malloc(sizeof(list_t));
+//                     list_init("failed_records", 1, INT_MAX, failed_records);
+                    failed_records = array_list_new(input_records->size + 1, 1, COLLECTION_MODE_ASYNCHRONIZED);
                     passed_records = run_filter_chain(input_records, failed_records, filters, num_filters);
                 }
 
                 // Launch TDT test over records that passed the filters
-                if (passed_records->length > 0) {
+                int num_variants = MIN(shared_options_data->batch_size, passed_records->size);
+                if (passed_records->size > 0) {
                     LOG_DEBUG_F("[%d] Test execution\n", omp_get_thread_num());
                     if (options_data->task == ASSOCIATION_BASIC) {
-                        assoc_test(options_data->task, ped_file, passed_records->first_p, shared_options_data->batch_size, sample_ids, NULL, output_list);
+//                         assoc_test(options_data->task, ped_file, passed_records->first_p, shared_options_data->batch_size, sample_ids, NULL, output_list);
+                        assoc_test(options_data->task, ped_file, (vcf_record_t**) passed_records->items, num_variants, sample_ids, NULL, output_list);
                     } else if (options_data->task == FISHER) {
-                        assoc_test(options_data->task, ped_file, passed_records->first_p, shared_options_data->batch_size, sample_ids, factorial_logarithms, output_list);
+//                         assoc_test(options_data->task, ped_file, passed_records->first_p, shared_options_data->batch_size, sample_ids, factorial_logarithms, output_list);
+                        assoc_test(options_data->task, ped_file, (vcf_record_t**) passed_records->items, num_variants, sample_ids, factorial_logarithms, output_list);
                     }
                 }
                 
                 // Write records that passed and failed to separate files
                 if (passed_file != NULL && failed_file != NULL) {
-                    if (passed_records != NULL && passed_records->length > 0) {
+                    if (passed_records != NULL && passed_records->size > 0) {
                         write_batch(passed_records, passed_file);
                     }
-                    if (failed_records != NULL && failed_records->length > 0) {
+                    if (failed_records != NULL && failed_records->size > 0) {
                         write_batch(failed_records, failed_file);
                     }
                 }
                 
                 // Free items in both lists (not their internal data)
                 if (passed_records != input_records) {
-                    LOG_DEBUG_F("[Batch %d] %zu passed records\n", i, passed_records->length);
-                    list_free_deep(passed_records, NULL);
+                    LOG_DEBUG_F("[Batch %d] %zu passed records\n", i, passed_records->size);
+//                     list_free_deep(passed_records, NULL);
+                    array_list_free(passed_records, NULL);
                 }
                 if (failed_records) {
-                    LOG_DEBUG_F("[Batch %d] %zu failed records\n", i, failed_records->length);
-                    list_free_deep(failed_records, NULL);
+                    LOG_DEBUG_F("[Batch %d] %zu failed records\n", i, failed_records->size);
+//                     list_free_deep(failed_records, NULL);
+                    array_list_free(failed_records, NULL);
                 }
                 
                 // Free batch and its contents

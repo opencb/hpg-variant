@@ -1,6 +1,7 @@
 #include "tdt.h"
 
-int tdt_test(ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_hashtable *sample_ids, list_t *output_list) {
+// int tdt_test(ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_hashtable *sample_ids, list_t *output_list) {
+int tdt_test(ped_file_t *ped_file, vcf_record_t **variants, int num_variants, cp_hashtable *sample_ids, list_t *output_list) {
     int ret_code = 0;
     int tid = omp_get_thread_num();
     cp_hashtable *families = ped_file->families;
@@ -19,9 +20,12 @@ int tdt_test(ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_h
     ///////////////////////////////////
     // Perform analysis for each variant
 
-    list_item_t *cur_variant = variants;
-    for (int i = 0; i < num_variants && cur_variant != NULL; i++) {
-        vcf_record_t *record = (vcf_record_t*) cur_variant->data_p;
+    vcf_record_t *record;
+//     list_item_t *cur_variant = variants;
+//     for (int i = 0; i < num_variants && cur_variant != NULL; i++) {
+//         vcf_record_t *record = (vcf_record_t*) cur_variant->data_p;
+    for (int i = 0; i < num_variants; i++) {
+        record = variants[i];
         LOG_DEBUG_F("[%d] Checking variant %s:%ld\n", tid, record->chromosome, record->position);
         
         sample_data = (char**) record->samples->items;
@@ -224,7 +228,7 @@ int tdt_test(ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_h
         list_insert_item(output_item, output_list);
         LOG_DEBUG_F("[%d] after adding %s:%ld\n", tid, record->chromosome, record->position);
         
-        cur_variant = cur_variant->next_p;
+//         cur_variant = cur_variant->next_p;
     } // next variant
 
     // Free families' keys
