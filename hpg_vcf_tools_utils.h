@@ -28,6 +28,7 @@ char *find_configuration_file(int argc, char *argv[]);
  * Given a list of records, defines another list of chunks whose elements point to records separated 
  * by a maximum distance of max_chunk_size. These records will mark the beginning of each chunk.
  */
-list_item_t** create_chunks(list_t* records, int max_chunk_size, int *num_chunks);
+// list_item_t** create_chunks(list_t* records, int max_chunk_size, int *num_chunks);
+int *create_chunks(int length, int max_chunk_size, int *num_chunks, int **chunk_sizes);
 
 #endif

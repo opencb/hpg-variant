@@ -39,7 +39,7 @@ int run_split(shared_options_data_t *shared_options_data, split_options_data_t *
             // Reading
             start = omp_get_wtime();
 
-            ret_code = vcf_read_batches(read_list, shared_options_data->batch_size, file, 1);
+            ret_code = vcf_parse_batches(read_list, shared_options_data->batch_size, file, 1);
 
             stop = omp_get_wtime();
             total = stop - start;
@@ -68,25 +68,27 @@ int run_split(shared_options_data_t *shared_options_data, split_options_data_t *
             list_item_t* item = NULL;
             while ((item = list_remove_item(read_list)) != NULL) {
                 vcf_batch_t *batch = (vcf_batch_t*) item->data_p;
-                list_t *input_records = batch;
+                array_list_t *input_records = batch;
 
                 if (i % 100 == 0) {
                     LOG_INFO_F("Batch %d reached by thread %d - %zu/%zu records \n", 
                                 i, omp_get_thread_num(),
-                                batch->length, batch->max_length);
+                                batch->size, batch->capacity);
                 }
 
                 // Divide the list of passed records in ranges of size defined in config file
-                int max_chunk_size = shared_options_data->entries_per_thread;
                 int num_chunks;
-                list_item_t **chunk_starts = create_chunks(input_records, max_chunk_size, &num_chunks);
+                int *chunk_sizes;
+                int *chunk_starts = create_chunks(input_records->size, shared_options_data->entries_per_thread, &num_chunks, &chunk_sizes);
                 
                 // OpenMP: Launch a thread for each range
                 #pragma omp parallel for
                 for (int j = 0; j < num_chunks; j++) {
                     LOG_DEBUG_F("[%d] Split invocation\n", omp_get_thread_num());
                     if (options_data->criterion == CHROMOSOME) {
-                        ret_code = split_by_chromosome(chunk_starts[j], max_chunk_size, output_list);
+                        ret_code = split_by_chromosome((vcf_record_t**) (input_records->items + chunk_starts[j]), 
+                                                       chunk_sizes[j],
+                                                       output_list);
 //                         ret_code = split_by_chromosome(input_records->first_p, input_records->length, output_list);
                     } else if (options_data->criterion == GENE) {
                         ret_code = 0;
@@ -95,7 +97,7 @@ int run_split(shared_options_data_t *shared_options_data, split_options_data_t *
 //                 if (i % 50 == 0) { LOG_INFO_F("*** %dth split invocation finished\n", i); }
                 
                 free(chunk_starts);
-//                 vcf_batch_free(item->data_p);
+                // Can't free batch contents because they will be written to file by another thread
                 free(item->data_p);
                 list_item_free(item);
                 

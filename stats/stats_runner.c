@@ -28,7 +28,7 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
             // Reading
             start = omp_get_wtime();
 
-            ret_code = vcf_read_batches(read_list, shared_options_data->batch_size, file, 1);
+            ret_code = vcf_parse_batches(read_list, shared_options_data->batch_size, file, 1);
 
             stop = omp_get_wtime();
             total = stop - start;
@@ -55,24 +55,31 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
             list_item_t* item = NULL;
             while ((item = list_remove_item(read_list)) != NULL) {
                 vcf_batch_t *batch = (vcf_batch_t*) item->data_p;
-                list_t *input_records = batch;
+                array_list_t *input_records = batch;
 
                 if (i % 50 == 0) {
                     LOG_INFO_F("Batch %d reached by thread %d - %zu/%zu records \n", 
                                 i, omp_get_thread_num(),
-                                batch->length, batch->max_length);
+                                batch->size, batch->capacity);
                 }
 
                 // Divide the list of passed records in ranges of size defined in config file
-                int max_chunk_size = shared_options_data->entries_per_thread;
                 int num_chunks;
-                list_item_t **chunk_starts = create_chunks(input_records, max_chunk_size, &num_chunks);
+                int *chunk_sizes;
+                int *chunk_starts = create_chunks(input_records->size, shared_options_data->entries_per_thread, &num_chunks, &chunk_sizes);
+//                 int max_chunk_size = shared_options_data->entries_per_thread;
+//                 int num_chunks;
+//                 list_item_t **chunk_starts = create_chunks(input_records, max_chunk_size, &num_chunks);
                 
                 // OpenMP: Launch a thread for each range
                 #pragma omp parallel for
                 for (int j = 0; j < num_chunks; j++) {
                     LOG_DEBUG_F("[%d] Stats invocation\n", omp_get_thread_num());
-                    ret_code = get_variants_stats(chunk_starts[j], max_chunk_size, output_list, file_stats);
+//                     ret_code = get_variants_stats(chunk_starts[j], max_chunk_size, output_list, file_stats);
+                    ret_code = get_variants_stats((vcf_record_t**) (input_records->items + chunk_starts[j]), 
+                                                  chunk_sizes[j], 
+                                                  output_list,
+                                                  file_stats);
                 }
                 if (i % 25 == 0) { LOG_INFO_F("*** %dth stats invocation finished\n", i); }
                 

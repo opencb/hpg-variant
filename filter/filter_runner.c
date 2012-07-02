@@ -26,7 +26,7 @@ int run_filter(shared_options_data_t *shared_options_data, filter_options_data_t
             // Reading
             start = omp_get_wtime();
 
-            ret_code = vcf_read_batches(read_list, shared_options_data->batch_size, file, 1);
+            ret_code = vcf_parse_batches(read_list, shared_options_data->batch_size, file, 1);
 
             stop = omp_get_wtime();
             total = stop - start;
@@ -67,7 +67,7 @@ int run_filter(shared_options_data_t *shared_options_data, filter_options_data_t
                 sprintf(failed_filename, "%s/%s.rejected", shared_options_data->output_directory, shared_options_data->output_filename);
             }
             
-            LOG_INFO_F("passed filename = %s\nfailed filename = %s\n", passed_filename, failed_filename);
+            LOG_DEBUG_F("passed filename = %s\nfailed filename = %s\n", passed_filename, failed_filename);
             passed_file = fopen(passed_filename, "w");
             failed_file = fopen(failed_filename, "w");
             free(passed_filename);
@@ -88,31 +88,32 @@ int run_filter(shared_options_data_t *shared_options_data, filter_options_data_t
                 }
                 
                 vcf_batch_t *batch = (vcf_batch_t*) item->data_p;
-                list_t *input_records = batch;
-                list_t *passed_records, *failed_records;
+                array_list_t *input_records = batch;
+                array_list_t *passed_records, *failed_records;
 
                 if (i % 100 == 0) {
                     LOG_INFO_F("Batch %d reached by thread %d - %zu/%zu records \n", 
                                 i, omp_get_thread_num(),
-                                batch->length, batch->max_length);
+                                batch->size, batch->capacity);
                 }
 
                 if (filters != NULL) {
-                    failed_records = (list_t*) malloc(sizeof(list_t));
-                    list_init("failed_records", 1, INT_MAX, failed_records);
+//                     failed_records = (list_t*) malloc(sizeof(list_t));
+//                     list_init("failed_records", 1, INT_MAX, failed_records);
+                    failed_records = array_list_new(input_records->size + 1, 1, COLLECTION_MODE_ASYNCHRONIZED);
                     passed_records = run_filter_chain(input_records, failed_records, filters, num_filters);
                 } else {
                     passed_records = input_records;
                 }
 
                 // Write records that passed and failed to 2 new separated files
-                if (passed_records != NULL && passed_records->length > 0) {
-                    LOG_DEBUG_F("[batch %d] %zu passed records\n", i, passed_records->length);
+                if (passed_records != NULL && passed_records->size > 0) {
+                    LOG_DEBUG_F("[batch %d] %zu passed records\n", i, passed_records->size);
                     write_batch(passed_records, passed_file);
                 }
                 
-                if (failed_records != NULL && failed_records->length > 0) {
-                    LOG_DEBUG_F("[batch %d] %zu failed records\n", i, failed_records->length);
+                if (failed_records != NULL && failed_records->size > 0) {
+                    LOG_DEBUG_F("[batch %d] %zu failed records\n", i, failed_records->size);
                     write_batch(failed_records, failed_file);
                 }
                 
