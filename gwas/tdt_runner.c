@@ -1,10 +1,10 @@
 #include "tdt_runner.h"
 
-// int permute = 0;
-
 int run_tdt_test(shared_options_data_t* shared_options_data, gwas_options_data_t* options_data) {
     list_t *read_list = (list_t*) malloc(sizeof(list_t));
-    list_init("batches", 1, shared_options_data->max_batches, read_list);
+    list_init("text", 1, shared_options_data->max_batches, read_list);
+    list_t *vcf_batches_list = (list_t*) malloc(sizeof(list_t));
+    list_init("batches", 1, shared_options_data->max_batches, vcf_batches_list);
     list_t *output_list = (list_t*) malloc (sizeof(list_t));
     list_init("output", shared_options_data->num_threads, shared_options_data->max_batches * shared_options_data->batch_size, output_list);
 
@@ -29,7 +29,7 @@ int run_tdt_test(shared_options_data_t* shared_options_data, gwas_options_data_t
     
     LOG_INFO("About to perform TDT test...\n");
 
-#pragma omp parallel sections private(start, stop, total)
+#pragma omp parallel sections private(start, stop, total) firstprivate(vcf_batches_list)
     {
 #pragma omp section
         {
@@ -60,6 +60,7 @@ int run_tdt_test(shared_options_data_t* shared_options_data, gwas_options_data_t
             
             LOG_DEBUG_F("Thread %d processes data\n", omp_get_thread_num());
             
+            volatile int initialization_done = 0;
             cp_hashtable *sample_ids = NULL;
             
             // Create chain of filters for the VCF file
@@ -73,87 +74,104 @@ int run_tdt_test(shared_options_data_t* shared_options_data, gwas_options_data_t
     
             start = omp_get_wtime();
             
+#pragma omp parallel num_threads(shared_options_data->num_threads) shared(initialization_done, sample_ids, filters)
+            {
             int i = 0;
             list_item_t *item = NULL;
             while ((item = list_remove_item(read_list)) != NULL) {
-                if (i == 0) {
-                    // Create map to associate the position of individuals in the list of samples defined in the VCF file
-                    sample_ids = associate_samples_and_positions(file);
-                    
-                    // Write file format, header entries and delimiter
-                    if (passed_file != NULL) { vcf_write_to_file(file, passed_file); }
-                    if (failed_file != NULL) { vcf_write_to_file(file, failed_file); }
-                    
-                    LOG_DEBUG("VCF header written\n");
+                char *text_begin = item->data_p;
+                char *text_end = text_begin + strlen(text_begin);
+                
+                assert(text_end != NULL);
+                assert(vcf_batches_list != NULL);
+                
+                vcf_reader_status *status = new_vcf_reader_status(shared_options_data->batch_size, 1, 1);
+                execute_vcf_ragel_machine(text_begin, text_end, vcf_batches_list, shared_options_data->batch_size, file, status);
+                
+                // Initialize structures needed for TDT and write headers of output files
+                if (!initialization_done) {
+# pragma omp critical
+                {
+                    // Guarantee that just one thread performs this operation
+                    if (!initialization_done) {
+                        // Create map to associate the position of individuals in the list of samples defined in the VCF file
+                        sample_ids = associate_samples_and_positions(file);
+                        
+                        // Write file format, header entries and delimiter
+                        if (passed_file != NULL) { vcf_write_to_file(file, passed_file); }
+                        if (failed_file != NULL) { vcf_write_to_file(file, failed_file); }
+                        
+                        LOG_DEBUG("VCF header written\n");
+                        
+                        initialization_done = 1;
+                    }
+                }
                 }
                 
-                vcf_batch_t *batch = (vcf_batch_t*) item->data_p;
-                list_t *input_records = batch;
-                list_t *passed_records = NULL, *failed_records = NULL;
+                list_item_t *batch_item = list_remove_item(vcf_batches_list);
+                vcf_batch_t *batch = batch_item->data_p;
+//                 list_t *input_records = batch;
+//                 list_t *passed_records = NULL, *failed_records = NULL;
+                array_list_t *input_records = batch;
+                array_list_t *passed_records = NULL, *failed_records = NULL;
 
                 if (i % 20 == 0) {
                     LOG_INFO_F("Batch %d reached by thread %d - %zu/%zu records \n", 
                             i, omp_get_thread_num(),
-                            batch->length, batch->max_length);
+                            batch->size, batch->capacity);
                 }
 
                 if (filters == NULL) {
                     passed_records = input_records;
                 } else {
-                    failed_records = (list_t*) malloc(sizeof(list_t));
-                    list_init("failed_records", 1, INT_MAX, failed_records);
+//                     failed_records = (list_t*) malloc(sizeof(list_t));
+//                     list_init("failed_records", 1, INT_MAX, failed_records);
+                    failed_records = array_list_new(input_records->size + 1, 1, COLLECTION_MODE_ASYNCHRONIZED);
                     passed_records = run_filter_chain(input_records, failed_records, filters, num_filters);
                 }
 
                 // Launch TDT test over records that passed the filters
-                if (passed_records->length > 0) {
-                    // Divide the list of passed records in ranges of size defined in config file
-                    int max_chunk_size = shared_options_data->entries_per_thread;
-                    int num_chunks;
-                    list_item_t **chunk_starts = create_chunks(passed_records, max_chunk_size, &num_chunks);
-                    
-                    // OpenMP: Launch a thread for each range
-                    #pragma omp parallel for
-                    for (int j = 0; j < num_chunks; j++) {
-                        LOG_DEBUG_F("[%d] Test execution\n", omp_get_thread_num());
-                        ret_code = tdt_test(ped_file, chunk_starts[j], max_chunk_size, sample_ids, output_list);
-                    }
-                    free(chunk_starts);
-                    
-                    if (i % 10 == 0) { 
-                        LOG_INFO_F("*** %dth TDT execution finished\n", i);
-                    }
+                int num_variants = MIN(shared_options_data->batch_size, passed_records->size);
+                if (passed_records->size > 0) {
+//                     ret_code = tdt_test(ped_file, passed_records->first_p, shared_options_data->batch_size, sample_ids, output_list);
+                    ret_code = tdt_test(ped_file, (vcf_record_t**) passed_records->items, num_variants, sample_ids, output_list);
                     
                     if (ret_code) {
-//                         LOG_FATAL_F("TDT error: %s\n", get_last_http_error(ret_code));
-                        break;
+                        LOG_FATAL_F("[%d] Error in execution #%d of TDT\n", omp_get_thread_num(), i);
                     }
                 }
                 
                 // Write records that passed and failed to separate files
                 if (passed_file != NULL && failed_file != NULL) {
-                    if (passed_records != NULL && passed_records->length > 0) {
+                    if (passed_records != NULL && passed_records->size > 0) {
                         write_batch(passed_records, passed_file);
                     }
-                    if (failed_records != NULL && failed_records->length > 0) {
+                    if (failed_records != NULL && failed_records->size > 0) {
                         write_batch(failed_records, failed_file);
                     }
                 }
                 
                 // Free items in both lists (not their internal data)
                 if (passed_records != input_records) {
-                    LOG_DEBUG_F("[Batch %d] %zu passed records\n", i, passed_records->length);
-                    list_free_deep(passed_records, NULL);
+                    LOG_DEBUG_F("[Batch %d] %zu passed records\n", i, passed_records->size);
+//                     list_free_deep(passed_records, NULL);
+                    array_list_free(passed_records, NULL);
                 }
                 if (failed_records) {
-                    LOG_DEBUG_F("[Batch %d] %zu failed records\n", i, failed_records->length);
-                    list_free_deep(failed_records, NULL);
+                    LOG_DEBUG_F("[Batch %d] %zu failed records\n", i, failed_records->size);
+//                     list_free_deep(failed_records, NULL);
+                    array_list_free(failed_records, NULL);
                 }
+                
                 // Free batch and its contents
-                vcf_batch_free(item->data_p);
+                vcf_batch_free(batch);
+                list_item_free(batch_item);
+                free(item->data_p);
                 list_item_free(item);
+                free(status);
                 
                 i++;
+            }
             }
 
             stop = omp_get_wtime();
@@ -167,14 +185,14 @@ int run_tdt_test(shared_options_data_t* shared_options_data, gwas_options_data_t
             if (sample_ids) { cp_hashtable_destroy(sample_ids); }
             
             // Free filters
-            for (i = 0; i < num_filters; i++) {
+            for (int i = 0; i < num_filters; i++) {
                 filter_t *filter = filters[i];
                 filter->free_func(filter);
             }
             free(filters);
             
             // Decrease list writers count
-            for (i = 0; i < shared_options_data->num_threads; i++) {
+            for (int i = 0; i < shared_options_data->num_threads; i++) {
                 list_decr_writers(output_list);
             }
         }
@@ -196,6 +214,8 @@ int run_tdt_test(shared_options_data_t* shared_options_data, gwas_options_data_t
             free(filename);
             free(path);
             
+            start = omp_get_wtime();
+            
             // Write data: header + one line per variant
             list_item_t* item = NULL;
             tdt_result_t *result;
@@ -212,6 +232,14 @@ int run_tdt_test(shared_options_data_t* shared_options_data, gwas_options_data_t
             }
             
             fclose(fd);
+            
+            stop = omp_get_wtime();
+
+            total = stop - start;
+
+            LOG_INFO_F("[%dW] Time elapsed = %f s\n", omp_get_thread_num(), total);
+            LOG_INFO_F("[%dW] Time elapsed = %e ms\n", omp_get_thread_num(), total*1000);
+
         }
     }
     
@@ -220,35 +248,26 @@ int run_tdt_test(shared_options_data_t* shared_options_data, gwas_options_data_t
     vcf_close(file);
     // TODO delete conflicts among frees
     ped_close(ped_file, 0);
-        
+    
     return ret_code;
 }
 
 
 cp_hashtable* associate_samples_and_positions(vcf_file_t* file) {
-    LOG_DEBUG_F("** %zu sample names read\n", file->samples_names->length);
-    list_t *sample_names = file->samples_names;
-    cp_hashtable *sample_ids = cp_hashtable_create_by_option(COLLECTION_MODE_DEEP,
-                                                             sample_names->length * 2,
-                                                             cp_hash_string,
-                                                             (cp_compare_fn) strcasecmp,
-                                                             NULL,
-                                                             NULL,
-                                                             NULL,
-                                                             (cp_destructor_fn) free
-                                                            );
+    LOG_DEBUG_F("** %zu sample names read\n", file->samples_names->size);
+    array_list_t *sample_names = file->samples_names;
+    cp_hashtable *sample_ids = cp_hashtable_create(sample_names->size * 2,
+                                                   cp_hash_string,
+                                                   (cp_compare_fn) strcasecmp
+                                                  );
     
-    list_item_t *sample_item = sample_names->first_p;
     int *index;
     char *name;
-    for (int i = 0; i < sample_names->length && sample_item != NULL; i++) {
-        name = sample_item->data_p;
+    for (int i = 0; i < sample_names->size; i++) {
+        name = sample_names->items[i];
         index = (int*) malloc (sizeof(int)); *index = i;
-        cp_hashtable_put(sample_ids, (char*) sample_item->data_p, index);
-        
-        sample_item = sample_item->next_p;
+        cp_hashtable_put(sample_ids, name, index);
     }
-    
 //     char **keys = (char**) cp_hashtable_get_keys(sample_names);
 //     int num_keys = cp_hashtable_count(sample_names);
 //     for (int i = 0; i < num_keys; i++) {

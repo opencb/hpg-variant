@@ -15,6 +15,7 @@
 #include <bioformats/vcf/vcf_batch.h>
 #include <bioformats/vcf/vcf_file.h>
 #include <bioformats/vcf/vcf_filters.h>
+#include <bioformats/vcf/vcf_reader.h>
 #include <bioformats/vcf/vcf_util.h>
 #include <commons/log.h>
 #include <commons/string_utils.h>

@@ -10,8 +10,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <bioformats/vcf/vcf_util.h>
-
 #include "error.h"
 #include "global_options.h"
 #include "hpg_variant_utils.h"
