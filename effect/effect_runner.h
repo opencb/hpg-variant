@@ -30,6 +30,7 @@
 #include <commons/log.h>
 #include <commons/result.h>
 #include <commons/string_utils.h>
+#include <containers/array_list.h>
 #include <containers/list.h>
 
 #include "effect.h"
@@ -76,15 +77,15 @@ char *compose_effect_ws_request(const char *method, shared_options_data_t *optio
  * @brief Invokes the effect web service for a list of regions.
  * 
  * @param url URL to invoke the web service through
- * @param first_item first item of the list of regions
+ * @param records VCF records whose variant effect will be predicted
  * @param num_regions number of regions
  * @param excludes consequence types to exclude from the response
  * @return Whether the request could be successfully serviced
  * 
- * Given a list of regions, invokes the web service that returns a list of effect or consequences 
+ * Given a list of genome positions, invokes the web service that returns a list of effect or consequences 
  * of the mutations in them. A callback function in order to parse the response.
  */
-int invoke_effect_ws(const char *url, list_item_t *first_item, int num_regions, char *excludes);
+int invoke_effect_ws(const char *url, vcf_record_t **records, int num_variants, char *excludes);
 
 int invoke_phenotype_ws(const char *url, list_item_t *first_item, int max_chunk_size, enum phenotype_source source);
 

@@ -1,6 +1,7 @@
 #ifndef TDT_RUNNER_H
 #define TDT_RUNNER_H
 
+#include <assert.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -15,6 +16,7 @@
 #include <bioformats/vcf/vcf_batch.h>
 #include <bioformats/vcf/vcf_file.h>
 #include <bioformats/vcf/vcf_filters.h>
+#include <bioformats/vcf/vcf_reader.h>
 #include <bioformats/vcf/vcf_util.h>
 #include <commons/log.h>
 #include <commons/string_utils.h>
