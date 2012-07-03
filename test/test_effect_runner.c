@@ -4,6 +4,8 @@
 
 #include <check.h>
 
+#include <containers/array_list.h>
+
 #include "../effect/effect.h"
 #include "../effect/effect_runner.h"
 
@@ -20,20 +22,21 @@ effect_options_data_t *opts_data;
  * ******************************/
 
 void setup_effect_ws(void) {
-    global_data = new_shared_options_data();
+    global_data = (shared_options_data_t*) calloc (1, sizeof(shared_options_data_t));
+    global_data->vcf_filename = strdup("effect_files/variants_marta_head_3K.vcf");
     global_data->output_directory = strdup("/tmp/variant-test/");
+    global_data->num_threads = 4;
+    global_data->max_batches = 10;
+    global_data->batch_size = 4000;
+    global_data->entries_per_thread = 1000;
     
-    opts_data = new_effect_options_data();
-    opts_data->num_threads = 4;
-    opts_data->max_batches = 10;
-    opts_data->batch_size = 4000;
-    opts_data->variants_per_request = 1000;
+    opts_data = (effect_options_data_t*) calloc (1, sizeof(effect_options_data_t));
     
     initialize_ws_output(global_data, opts_data);
 }
 
 void teardown_effect_ws(void) {
-    free_ws_output(4);
+//     free_ws_output(4);
 }
 
 
@@ -56,46 +59,39 @@ START_TEST (url_composition) {
     global_data->version = "v1";
     
     char *url = compose_effect_ws_request(global_data);
-    fail_if(strcmp(url, "http://localhost:8080/cellbase/rest/v1/hsa/genomic/variant/consequence_type"),
+    fail_if(strcmp(url, "http://localhost:8080/cellbase/rest/v1/hsa/genomic/variant/consequence_type?header=false"),
             "The resulting URL must be 'http://localhost:8080/cellbase/rest/v1/hsa/genomic/variant/consequence_type'"); 
 }
 END_TEST
 
 
 START_TEST (effect_ws_request) {
-    char *url = "http://localhost:8080/cellbase/rest/v1/hsa/genomic/variant/consequence_type";
-    vcf_batch_t *batch = (vcf_batch_t*) malloc (sizeof(vcf_batch_t));
-    list_item_t *item = NULL;
-    
-    list_init("test batch", 1, 3, batch);
+    char *url = "http://mem16:8080/cellbase/rest/v1/hsa/genomic/variant/consequence_type?header=false";
+    vcf_batch_t *batch = vcf_batch_new(4);
     
     vcf_record_t *record_1 = (vcf_record_t*) malloc (sizeof(vcf_record_t));
     record_1->chromosome = "11";
     record_1->position = 423423;
     record_1->reference = "G";
     record_1->alternate = "C";
-    item = list_item_new(1, 1, record_1);
-    list_insert_item(item, batch);
     
     vcf_record_t *record_2 = (vcf_record_t*) malloc (sizeof(vcf_record_t));
     record_2->chromosome = "11";
     record_2->position = 4234230;
     record_2->reference = "AC";
     record_2->alternate = "C";
-    item = list_item_new(2, 1, record_2);
-    list_insert_item(item, batch);
     
     vcf_record_t *record_3 = (vcf_record_t*) malloc (sizeof(vcf_record_t));
     record_3->chromosome = "12";
     record_3->position = 4234230;
     record_3->reference = "A";
     record_3->alternate = "TC";
-    item = list_item_new(3, 1, record_3);
-    list_insert_item(item, batch);
     
-    fail_unless(invoke_effect_ws(url, batch->first_p, 4) == 0, "The web service request was not successfully performed");
+    array_list_insert(record_1, batch);
+    array_list_insert(record_2, batch);
+    array_list_insert(record_3, batch);
     
-    write_summary_file();
+    fail_unless(run_effect(url, global_data, opts_data) == 0, "The web service request was not successfully performed");
 }
 END_TEST
 
@@ -106,7 +102,7 @@ START_TEST (effect_ws_response) {
     FILE *p;
     
     // Check summary
-    p = popen("/usr/bin/wc -l summary.txt","r");
+    p = popen("/usr/bin/wc -l /tmp/variant-test/summary.txt","r");
     if (p) {
         i = 0;
         while (!feof(p) && (i < 99) ) {
@@ -127,7 +123,9 @@ START_TEST (whole_test) {
     FILE *p;
     
     // Invoke hpg-variant/effect
-    int tdt_ret = system("../hpg-variant effect --vcf-file effect_files/variants_marta_head_3K.vcf --outdir ./ --region 1:10000-400000");
+    int tdt_ret = system("../bin/hpg-variant effect --vcf-file effect_files/variants_marta_head_3K.vcf \
+                                                    --config ../bin/hpg-variant.cfg \
+                                                    --outdir ./ --region 1:10000-400000");
     fail_unless(tdt_ret == 0, "hpg-variant exited with errors");
     
     // Check all variants
@@ -216,12 +214,14 @@ int main (int argc, char *argv) {
 Suite *create_test_suite(void)
 {
     TCase *tc_composition = tcase_create("URL composition");
+    tcase_add_unchecked_fixture(tc_composition, setup_effect_ws, teardown_effect_ws);
     tcase_add_test(tc_composition, url_composition);
     
     TCase *tc_web_service = tcase_create("Web service request");
     tcase_add_unchecked_fixture(tc_web_service, setup_effect_ws, teardown_effect_ws);
     tcase_add_test(tc_web_service, effect_ws_request);
-    tcase_add_test(tc_web_service, effect_ws_response);
+//     tcase_add_test(tc_web_service, effect_ws_response);
+    tcase_set_timeout(tc_web_service, 0);
     
     TCase *tc_system = tcase_create("System test");
     tcase_add_test(tc_system, whole_test);

@@ -91,7 +91,7 @@ int run_effect(char **urls, shared_options_data_t *shared_options, effect_option
             // Reading
             start = omp_get_wtime();
 
-            ret_code = vcf_read_batches(read_list, shared_options->batch_size, file, 0);
+            ret_code = vcf_parse_batches(read_list, shared_options->batch_size, file, 0);
 
             stop = omp_get_wtime();
             total = stop - start;
@@ -137,41 +137,42 @@ int run_effect(char **urls, shared_options_data_t *shared_options, effect_option
                     LOG_DEBUG("VCF header written\n");
                 }
                 vcf_batch_t *batch = (vcf_batch_t*) item->data_p;
-                list_t *input_records = batch;
-                list_t *passed_records = NULL, *failed_records = NULL;
+                array_list_t *input_records = batch;
+                array_list_t *passed_records = NULL, *failed_records = NULL;
 
                 if (i % 20 == 0) {
                     LOG_INFO_F("Batch %d reached by thread %d - %zu/%zu records \n", 
                             i, omp_get_thread_num(),
-                            batch->length, batch->max_length);
+                            batch->size, batch->capacity);
                 }
 
                 if (filters == NULL) {
                     passed_records = input_records;
                 } else {
-                    failed_records = (list_t*) malloc(sizeof(list_t));
-                    list_init("failed_records", 1, INT_MAX, failed_records);
+                    failed_records = array_list_new(input_records->size + 1, 1, COLLECTION_MODE_ASYNCHRONIZED);
                     passed_records = run_filter_chain(input_records, failed_records, filters, num_filters);
                 }
 
                 // Write records that passed to a separate file, and query the WS with them as args
-                if (passed_records->length > 0) {
+                if (passed_records->size > 0) {
                     // Divide the list of passed records in ranges of size defined in config file
-                    int max_chunk_size = shared_options->entries_per_thread;
                     int num_chunks;
-                    list_item_t **chunk_starts = create_chunks(passed_records, max_chunk_size, &num_chunks);
+                    int *chunk_sizes;
+                    int *chunk_starts = create_chunks(passed_records->size, shared_options->entries_per_thread, &num_chunks, &chunk_sizes);
                     
                     // OpenMP: Launch a thread for each range
                     #pragma omp parallel for
                     for (int j = 0; j < num_chunks; j++) {
                         LOG_DEBUG_F("[%d] WS invocation\n", omp_get_thread_num());
-                        ret_ws_0 = invoke_effect_ws(urls[0], chunk_starts[j], max_chunk_size, options_data->excludes);
-                        ret_ws_1 = invoke_phenotype_ws(urls[1], chunk_starts[j], max_chunk_size, SNP_PHENOTYPE);
-                        ret_ws_2 = invoke_phenotype_ws(urls[2], chunk_starts[j], max_chunk_size, MUTATION_PHENOTYPE);
+                        ret_ws_0 = invoke_effect_ws(urls[0], (vcf_record_t**) (passed_records->items + j), chunk_sizes[j], options_data->excludes);
+                        ret_ws_1 = invoke_phenotype_ws(urls[1], (vcf_record_t**) (passed_records->items + j), chunk_sizes[j], SNP_PHENOTYPE);
+                        ret_ws_2 = invoke_phenotype_ws(urls[2], (vcf_record_t**) (passed_records->items + j), chunk_sizes[j], MUTATION_PHENOTYPE);
                     }
-                    free(chunk_starts);
                     
-                    LOG_INFO_F("*** %dth web service invocation finished\n", i);
+                    free(chunk_starts);
+                    free(chunk_sizes);
+                    
+                    LOG_DEBUG_F("*** %dth web service invocation finished\n", i);
                     
                     if (ret_ws_0 || ret_ws_1 || ret_ws_2) {
                         if (ret_ws_0) {
@@ -185,27 +186,28 @@ int run_effect(char **urls, shared_options_data_t *shared_options, effect_option
                         }
                         
                         LOG_FATAL("Can not continue execution after a web service error occurred");
+                        break;
                     }
                 }
                 
                 // Write records that passed and failed to separate files
                 if (passed_file != NULL && failed_file != NULL) {
-                    if (passed_records != NULL && passed_records->length > 0) {
+                    if (passed_records != NULL && passed_records->size > 0) {
                         write_batch(passed_records, passed_file);
                     }
-                    if (failed_records != NULL && failed_records->length > 0) {
+                    if (failed_records != NULL && failed_records->size > 0) {
                         write_batch(failed_records, failed_file);
                     }
                 }
                 
                 // Free items in both lists (not their internal data)
                 if (passed_records != input_records) {
-                    LOG_DEBUG_F("[Batch %d] %zu passed records\n", i, passed_records->length);
-                    list_free_deep(passed_records, NULL);
+                    LOG_DEBUG_F("[Batch %d] %zu passed records\n", i, passed_records->size);
+                    array_list_free(passed_records, NULL);
                 }
                 if (failed_records) {
-                    LOG_DEBUG_F("[Batch %d] %zu failed records\n", i, failed_records->length);
-                    list_free_deep(failed_records, NULL);
+                    LOG_DEBUG_F("[Batch %d] %zu failed records\n", i, failed_records->size);
+                    array_list_free(failed_records, NULL);
                 }
                 // Free batch and its contents
                 vcf_batch_free(item->data_p);
@@ -354,7 +356,7 @@ char *compose_effect_ws_request(const char *method, shared_options_data_t *optio
     return result_url;
 }
 
-int invoke_effect_ws(const char *url, list_item_t *first_item, int max_chunk_size, char *excludes) {
+int invoke_effect_ws(const char *url, vcf_record_t **records, int num_variants, char *excludes) {
     CURL *curl;
     CURLcode ret_code = CURLE_OK;
 
@@ -372,9 +374,8 @@ int invoke_effect_ws(const char *url, list_item_t *first_item, int max_chunk_siz
     LOG_DEBUG_F("[%d] WS for batch #%d\n", omp_get_thread_num(), batch_num);
     batch_num++;
     
-    list_item_t *item = first_item;
-    for (int i = 0; i < max_chunk_size && item != NULL; i++, item = item->next_p) {
-        vcf_record_t *record = item->data_p;
+    for (int i = 0; i < num_variants; i++) {
+        vcf_record_t *record = records[i];
         chr_len = strlen(record->chromosome);
         reference_len = strlen(record->reference);
         alternate_len = strlen(record->alternate);
