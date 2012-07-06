@@ -25,25 +25,6 @@
  * Number of options applicable to the whole application.
  */
 #define NUM_GLOBAL_OPTIONS	13
-    
-/*static struct option shared_options[] = {
-    // File formats accepted (range available A-H)
-    {"vcf-file",        required_argument, 0, 'A' },
-//  {"bam-file",        required_argument, 0, 'B' },
-    {"ped-file",        required_argument, 0, 'E' },
-//    {"gff-file",      required_argument, 0, 'G' },
-    
-    // IO options (range available I-O)
-    {"outdir",          required_argument, 0, 'N' },
-    {"out",             required_argument, 0, 'O' },
-    
-    // Other options (range available P-Z)
-    { "species",        required_argument, 0, 'S' },
-    { "version",        required_argument, 0, 'V' },
-    { "url",            required_argument, 0, 'U' },
-    
-    {NULL,          0, 0, 0}
-};*/
 
 typedef struct shared_options {
     struct arg_file *vcf_filename; /**< VCF file used as input. */
