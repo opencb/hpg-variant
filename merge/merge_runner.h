@@ -12,6 +12,7 @@
 #include <commons/file_utils.h>
 #include <containers/list.h>
 #include <commons/log.h>
+#include <bioformats/features/region/region.h>
 #include <bioformats/vcf/vcf_batch.h>
 #include <bioformats/vcf/vcf_filters.h>
 #include <bioformats/vcf/vcf_file.h>

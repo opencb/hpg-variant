@@ -45,7 +45,7 @@ int vcf_tool_merge(int argc, char *argv[], const char *configuration_file) {
 
     free_merge_options_data(options_data);
     free_shared_options_data(shared_options_data);
-    arg_freetable(argtable, options->num_options + shared_options->num_options + 1 - 5);
+    arg_freetable(argtable, options->num_options + shared_options->num_options + 1 - 2);
 
     return 0;
 }

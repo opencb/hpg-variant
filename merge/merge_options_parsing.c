@@ -13,6 +13,8 @@ int read_merge_configuration(const char *filename, merge_options_t *options, sha
         return ret_code;
     }
     
+    char *tmp_string;
+    
     // Read number of threads to perform the operations
     ret_code = config_lookup_int(config, "merge.num-threads", shared_options->num_threads->ival);
     if (ret_code == CONFIG_FALSE) {
@@ -40,11 +42,41 @@ int read_merge_configuration(const char *filename, merge_options_t *options, sha
     // Read number of variants per request to the web service
     ret_code = config_lookup_int(config, "merge.entries-per-thread", shared_options->entries_per_thread->ival);
     if (ret_code == CONFIG_FALSE) {
-        LOG_WARN("Variants per request not found in configuration file, must be set via command-line");
+        LOG_WARN("Entries per thread not found in configuration file, must be set via command-line");
     } else {
         LOG_INFO_F("entries-per-thread = %ld\n", *(shared_options->entries_per_thread->ival));
     }
     
+    // Read host URL
+    ret_code = config_lookup_string(config, "merge.url", &tmp_string);
+    if (ret_code == CONFIG_FALSE) {
+        LOG_WARN("Web services URL not found in configuration file, must be set via command-line");
+    } else {
+        *(shared_options->host_url->sval) = strdup(tmp_string);
+        LOG_DEBUG_F("web services host URL = %s (%zu chars)\n",
+                   *(shared_options->host_url->sval), strlen(*(shared_options->host_url->sval)));
+    }
+    
+    // Read species
+    ret_code = config_lookup_string(config, "merge.species", &tmp_string);
+    if (ret_code == CONFIG_FALSE) {
+        LOG_WARN("Species not found in configuration file, must be set via command-line");
+    } else {
+        *(shared_options->species->sval) = strdup(tmp_string);
+        LOG_DEBUG_F("species = %s (%zu chars)\n",
+                   *(shared_options->species->sval), strlen(*(shared_options->species->sval)));
+    }
+    
+    // Read version
+    ret_code = config_lookup_string(config, "merge.version", &tmp_string);
+    if (ret_code == CONFIG_FALSE) {
+        LOG_WARN("Version not found in configuration file, must be set via command-line");
+    } else {
+        *(shared_options->version->sval) = strdup(tmp_string);
+        LOG_DEBUG_F("version = %s (%zu chars)\n",
+                   *(shared_options->version->sval), strlen(*(shared_options->version->sval)));
+    }
+
     config_destroy(config);
     free(config);
 
@@ -64,7 +96,7 @@ void **parse_merge_options(int argc, char *argv[], merge_options_t *merge_option
 }
 
 void **merge_merge_options(merge_options_t *merge_options, shared_options_t *shared_options, struct arg_end *arg_end) {
-    size_t opts_size = merge_options->num_options + shared_options->num_options + 1 - 5;
+    size_t opts_size = merge_options->num_options + shared_options->num_options + 1 - 2;
     void **tool_options = malloc (opts_size * sizeof(void*));
 //     tool_options[0] = shared_options->vcf_filename;
 //     tool_options[1] = shared_options->ped_filename;
@@ -73,19 +105,19 @@ void **merge_merge_options(merge_options_t *merge_options, shared_options_t *sha
     tool_options[1] = shared_options->output_filename;
     tool_options[2] = shared_options->output_directory;
     
-//     tool_options[4] = shared_options->host_url;
-//     tool_options[5] = shared_options->version;
-//     tool_options[6] = shared_options->species;
+    tool_options[3] = shared_options->host_url;
+    tool_options[4] = shared_options->version;
+    tool_options[5] = shared_options->species;
     
-    tool_options[3] = shared_options->max_batches;
-    tool_options[4] = shared_options->batch_size;
-    tool_options[5] = shared_options->num_threads;
-    tool_options[6] = shared_options->entries_per_thread;
+    tool_options[6] = shared_options->max_batches;
+    tool_options[7] = shared_options->batch_size;
+    tool_options[8] = shared_options->num_threads;
+    tool_options[9] = shared_options->entries_per_thread;
     
-    tool_options[7] = shared_options->config_file;
-    tool_options[8] = shared_options->mmap_vcf_files;
+    tool_options[10] = shared_options->config_file;
+    tool_options[11] = shared_options->mmap_vcf_files;
     
-    tool_options[9] = arg_end;
+    tool_options[12] = arg_end;
     
     return tool_options;
 }
