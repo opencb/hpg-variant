@@ -12,7 +12,7 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
     vcf_file_t *files[options_data->num_files];
     memset(files, 0, options_data->num_files * sizeof(vcf_file_t*));
     
-    // TODO Initialize variables related to the different files
+    // Initialize variables related to the different files
     for (int i = 0; i < options_data->num_files; i++) {
         files[i] = vcf_open(options_data->input_files[i]);
         if (!files[i]) {
@@ -103,17 +103,15 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
                         continue;
                     }
                     
-//                     printf("[%d, %d] before getting element\n", omp_get_thread_num(), i);
                     items[i] = list_remove_item(read_list[i]);
-//                     printf("[%d, %d] after getting element\n", omp_get_thread_num(), i);
                     if (items[i] == NULL) {
-                        printf("[%d, %d] EOF in merge runner\n", omp_get_thread_num(), i);
+                        LOG_INFO_F("[%d] EOF found in file %s\n", omp_get_thread_num(), options_data->input_files[i]);
                         eof_found[i] = 1;
                         num_eof_found++;
                         continue;
                     }
                     
-                    printf("[%d] text batch from file %d\n", omp_get_thread_num(), i);
+//                     printf("[%d] text batch from file %d\n", omp_get_thread_num(), i);
                     
                     assert(items[i]->data_p != NULL);
                     texts[i] = items[i]->data_p;
@@ -129,6 +127,7 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
                     char *text_end = text_begin + strlen(text_begin);
                     assert(text_end != NULL);
                     
+                    // Get VCF batches from text batches
                     vcf_reader_status *status = new_vcf_reader_status(shared_options_data->batch_size, 1, 1);
                     assert(text_begin != NULL && text_end != NULL && vcf_batches != NULL && files[i] != NULL && status != NULL);
                     execute_vcf_ragel_machine(text_begin, text_end, vcf_batches, shared_options_data->batch_size, files[i], status);
@@ -136,10 +135,9 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
                     list_item_t *batch_item = list_remove_item(vcf_batches);
                     vcf_batch_t *batch = batch_item->data_p;
                     
-                    printf("[%d] vcf batch from file %d\n", omp_get_thread_num(), i);
+//                     printf("[%d] vcf batch from file %d\n", omp_get_thread_num(), i);
                     
                     // Insert records into hashtable
-                    // TODO update minimum position being a maximum of these batches
                     for (int j = 0; j < batch->size; j++) {
                         vcf_record_t *record = batch->items[j];
                         cp_list *records_in_position = cp_hashtable_get(positions_read, &(record->position));
@@ -154,20 +152,27 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
                         }
                     }
                     
-                    // TODO will fail when changing chromosome
-                    char *current_chromosome = ((vcf_record_t*) batch->items[0])->chromosome;
-                    int chrom_comparison = max_chromosome_merged == NULL ? -1 : compare_chromosomes(current_chromosome, max_chromosome_merged, 
-                                                                                                    chromosome_order, num_chromosomes);
-                    if (max_chromosome_merged == NULL || chrom_comparison <= 0) {
+                    // Update minimum position being a maximum of these batches
+                    char *current_chromosome = ((vcf_record_t*) batch->items[batch->size-1])->chromosome;
+                    long unsigned int current_position = ((vcf_record_t*) batch->items[batch->size-1])->position;
+                    
 #pragma omp critical
                     {
-                        if (max_chromosome_merged == NULL || chrom_comparison <= 0) {
-                            // Assign chromosome
+                    if (max_chromosome_merged == NULL) {
+                        // Max merged chrom:position not set, assign without any other consideration
+                        max_chromosome_merged = strdup(current_chromosome);
+                        max_position_merged = current_position;
+                    } else {
+                        int chrom_comparison = compare_chromosomes(current_chromosome, max_chromosome_merged, chromosome_order, num_chromosomes);
+                        int position_comparison = compare_positions(&current_position, &max_position_merged);
+                        
+                        // Max merged chrom:position is posterior to the last one in this batch 
+                        if (chrom_comparison <= 0 && position_comparison < 0) {
                             max_chromosome_merged = strdup(current_chromosome);
-                            // Assign position
-                            max_position_merged = MIN(max_position_merged, ((vcf_record_t*) batch->items[batch->size-1])->position);
+                            max_position_merged = current_position;
                         } else if (chrom_comparison > 0) {
                             chromosome_change = 1;
+                            LOG_DEBUG_F("Chromosome change (%s -> %s)\n", max_chromosome_merged, current_chromosome);
                         }
                     }
                     }
@@ -181,11 +186,11 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
                 }
                 }
                 
-                printf("***** Last position to potentially merge = %s:%ld\n", max_chromosome_merged, max_position_merged);
+                LOG_DEBUG_F("Last position to potentially merge = %s:%ld\n", max_chromosome_merged, max_position_merged);
                 
                 // If the data structure reaches certain size or the end of a chromosome, 
                 // merge positions prior to the last minimum registered TODO
-                if (cp_hashtable_count(positions_read) > 2000 || chromosome_change || num_eof_found == options_data->num_files) {
+                if (num_eof_found < options_data->num_files && (cp_hashtable_count(positions_read) > 2000 || chromosome_change)) {
                     long **keys = (long**) cp_hashtable_get_keys(positions_read);
                     int num_keys = cp_hashtable_count(positions_read);
                     
@@ -194,34 +199,35 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
 //                     }
                     
                     // TODO launch merge
-                    printf("***** Merging until position = %s:%ld\n", max_chromosome_merged, max_position_merged);
+//                     LOG_INFO_F("***** Merging until position = %s:%ld\n", max_chromosome_merged, max_position_merged);
                     
+                    // Free records in the table
                     for (int k = 0; k < num_keys; k++) {
-//                         printf("current position = %ld\t", *(keys[k]));
                         cp_list *records_in_position = cp_hashtable_get(positions_read, keys[k]);
                         assert(records_in_position != NULL);
-//                         printf("number of records = %ld\n", cp_list_item_count(records_in_position));
                         cp_list_iterator *iterator = cp_list_create_iterator(records_in_position, COLLECTION_LOCK_WRITE);
                         vcf_record_t *record = NULL;
-//                         while ((record = cp_list_iterator_next(iterator)) != NULL) {
+                        // Free records in a node, and whose positions are prior to the last chromosome:position to merge
                         while ((record = cp_list_iterator_curr(iterator)) != NULL) {
-                            // TODO free records
-//                             printf("Checking record %s:%ld against %s:%ld\n", record->chromosome, record->position, max_chromosome_merged, max_position_merged);
+                            /* Each node is identified by its position, but several chromosomes can coexist at the same time.
+                             * Merged records must be positioned:
+                             * - In a previous chromosome
+                             * - In the same chromosome, in a previous position
+                             */
                             if (compare_chromosomes(record->chromosome, max_chromosome_merged, 
-                                                    chromosome_order, num_chromosomes) <= 0 && 
-                                compare_positions(&(record->position), &max_position_merged) <= 0) {
-//                                 printf("Freeing record %s:%ld\n", record->chromosome, record->position);
-//                                 vcf_record_t *current = cp_list_iterator_curr(iterator);
-//                                 printf("Record pointed by iterator %s:%ld\n", current->chromosome, current->position);
+                                                    chromosome_order, num_chromosomes) < 0 ||
+                                (compare_chromosomes(record->chromosome, max_chromosome_merged, 
+                                                     chromosome_order, num_chromosomes) == 0 &&
+                                compare_positions(&(record->position), &max_position_merged) <= 0)) {
+                                LOG_DEBUG_F("Freeing record %s:%ld\n", record->chromosome, record->position);
                                 cp_list_iterator_remove(iterator);
-//                                 printf("number of records = %ld\n", cp_list_item_count(records_in_position));
                                 vcf_record_free(record);
                             }
                             
                             cp_list_iterator_next(iterator);
                         }
                         cp_list_iterator_destroy(iterator);
-                        // TODO free empty nodes
+                        // Free empty nodes (lists of records in the same position)
                         if (cp_list_item_count(records_in_position) == 0) {
                             cp_list_destroy(cp_hashtable_remove(positions_read, keys[k]));
                         }
@@ -233,41 +239,31 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
                     long **keys = (long**) cp_hashtable_get_keys(positions_read);
                     int num_keys = cp_hashtable_count(positions_read);
                     
-                    for (int i = 0; i < num_keys; i++) {
-                        if (*(keys[i]) == 19890678) { 
-                            printf("position at last batch #%d = %ld\n", i, *(keys[i]));
-                        }
-                    }
-                    
                     // TODO launch merge
-                    printf("***** Last merging\n", max_chromosome_merged, max_position_merged);
+                    LOG_DEBUG("Last merging\n");
                     
-//                     for (int k = 0; k < cp_hashtable_count(positions_read); k++) {
+                    // Free remaining records in the table
                     for (int k = 0; k < num_keys; k++) {
-//                         printf("current position = %ld\t", *(keys[k]));
                         cp_list *records_in_position = cp_hashtable_get(positions_read, keys[k]);
-                        if (*(keys[k]) == 19890678) { 
-                            printf("count of node %ld\n", *(keys[k]), cp_list_item_count(records_in_position)); 
-                        }
                         assert(records_in_position != NULL);
-//                         printf("number of records = %ld\n", cp_list_item_count(records_in_position));
                         cp_list_iterator *iterator = cp_list_create_iterator(records_in_position, COLLECTION_LOCK_WRITE);
                         vcf_record_t *record = NULL;
-//                         while ((record = cp_list_iterator_next(iterator)) != NULL) {
+                        // Free records in a node, and whose positions are prior to the last chromosome:position to merge
                         while ((record = cp_list_iterator_curr(iterator)) != NULL) {
-                            printf("Freeing record %s:%ld\n", record->chromosome, record->position);
-                            // TODO free records
+                            LOG_DEBUG_F("Freeing record %s:%ld\n", record->chromosome, record->position);
+                            // Each node is identified by its position, but several chromosomes can coexist at the same time
                             cp_list_iterator_remove(iterator);
                             vcf_record_free(record);
                             cp_list_iterator_next(iterator);
                         }
                         cp_list_iterator_destroy(iterator);
-                        // TODO free empty nodes
+                        // Free empty nodes (lists of records in the same position)
                         if (cp_list_item_count(records_in_position) == 0) {
                             cp_list_destroy(cp_hashtable_remove(positions_read, keys[k]));
                         }
                     }
                 }
+                
                 // Set variables ready for next iteration of the algorithm
                 free(max_chromosome_merged);
                 max_chromosome_merged = NULL;
@@ -275,14 +271,14 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
                 chromosome_change = 0;
             }
             
-            printf("Remaining entries = %ld\n", cp_hashtable_count(positions_read));
-            
-            long **keys = (long**) cp_hashtable_get_keys(positions_read);
-            int num_keys = cp_hashtable_count(positions_read);
-            
-            for (int i = 0; i < num_keys; i++) {
-                printf("position #%d = %ld\n", i, *(keys[i]));
-            }
+//             printf("Remaining entries = %ld\n", cp_hashtable_count(positions_read));
+//             
+//             long **keys = (long**) cp_hashtable_get_keys(positions_read);
+//             int num_keys = cp_hashtable_count(positions_read);
+//             
+//             for (int i = 0; i < num_keys; i++) {
+//                 printf("position #%d = %ld\n", i, *(keys[i]));
+//             }
                     
             free(vcf_batches);
             free(positions_read);
