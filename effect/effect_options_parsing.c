@@ -122,9 +122,10 @@ void **merge_effect_options(effect_options_t *effect_options, shared_options_t *
     tool_options[17] = shared_options->config_file;
     tool_options[18] = shared_options->mmap_vcf_files;
     
-    tool_options[19] = effect_options->excludes;
+    tool_options[19] = effect_options->no_phenotypes;
+    tool_options[20] = effect_options->excludes;
                
-    tool_options[20] = arg_end;
+    tool_options[21] = arg_end;
     
     return tool_options;
 }
