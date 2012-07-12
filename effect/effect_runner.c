@@ -166,10 +166,12 @@ int run_effect(char **urls, shared_options_data_t *shared_options, effect_option
                         LOG_DEBUG_F("[%d] WS invocation\n", omp_get_thread_num());
 //                         LOG_INFO("-- effect WS");
                         ret_ws_0 = invoke_effect_ws(urls[0], (vcf_record_t**) (passed_records->items + j), chunk_sizes[j], options_data->excludes);
-//                         LOG_INFO("-- snp WS");
-                        ret_ws_1 = invoke_phenotype_ws(urls[1], (vcf_record_t**) (passed_records->items + j), chunk_sizes[j], SNP_PHENOTYPE);
-//                         LOG_INFO("-- mutation WS");
-                        ret_ws_2 = invoke_phenotype_ws(urls[2], (vcf_record_t**) (passed_records->items + j), chunk_sizes[j], MUTATION_PHENOTYPE);
+                        if (!options_data->no_phenotypes) {
+//                             LOG_INFO("-- snp WS");
+                            ret_ws_1 = invoke_phenotype_ws(urls[1], (vcf_record_t**) (passed_records->items + j), chunk_sizes[j], SNP_PHENOTYPE);
+//                             LOG_INFO("-- mutation WS");
+                            ret_ws_2 = invoke_phenotype_ws(urls[2], (vcf_record_t**) (passed_records->items + j), chunk_sizes[j], MUTATION_PHENOTYPE);
+                        }
                     }
                     
                     free(chunk_starts);

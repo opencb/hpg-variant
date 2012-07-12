@@ -24,22 +24,24 @@
 /**
  * Number of options applicable to the effect tool.
  */
-#define NUM_EFFECT_OPTIONS  1
+#define NUM_EFFECT_OPTIONS  2
 
 typedef struct effect_options {
     int num_options;
+    
+    struct arg_lit *no_phenotypes; /**< Flag asking not to retrieve phenotypical information. */
     struct arg_str *excludes; /**< Consequence types to exclude from the query. */
 } effect_options_t;
 
 /**
  * @brief Values for the options of the effect tool.
  * 
- * This struct contains the values for all the options of the effect tool,
- * such as different parts of the web service URL or the parallelism 
- * parameters (number of threads, variants sent per request, and so on).
+ * This struct contains the options specific to the effect tool, such as configuration of web 
+ * services that retrieve phenotypical information, or the effects that will not be retrieved.
  */
 typedef struct effect_options_data {
-	char *excludes; /**< Consequence types to exclude from the query. */
+    int no_phenotypes; /**< Flag asking not to retrieve phenotypical information. */
+    char *excludes; /**< Consequence types to exclude from the query. */
 } effect_options_data_t;
 
 

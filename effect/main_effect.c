@@ -67,12 +67,14 @@ int effect(int argc, char *argv[], const char *configuration_file) {
 effect_options_t *new_effect_cli_options(void) {
     effect_options_t *options = (effect_options_t*) malloc (sizeof(effect_options_t));
     options->num_options = NUM_EFFECT_OPTIONS;
+    options->no_phenotypes = arg_lit0(NULL, "no-phenotypes", "Flag asking not to retrieve phenotypical information");
     options->excludes = arg_str0(NULL, "exclude", NULL, "Consequence types to exclude from the query");
     return options;
 }
 
 effect_options_data_t *new_effect_options_data(effect_options_t *options) {
     effect_options_data_t *options_data = (effect_options_data_t*) malloc (sizeof(effect_options_data_t));
+    options_data->no_phenotypes = options->no_phenotypes->count;
     options_data->excludes = strdup(*(options->excludes->sval));
     return options_data;
 }
