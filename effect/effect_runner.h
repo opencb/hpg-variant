@@ -85,9 +85,9 @@ char *compose_effect_ws_request(const char *method, shared_options_data_t *optio
  * Given a list of genome positions, invokes the web service that returns a list of effect or consequences 
  * of the mutations in them. A callback function in order to parse the response.
  */
-int invoke_effect_ws(const char *url, vcf_record_t **records, int num_variants, char *excludes);
+int invoke_effect_ws(const char *url, vcf_record_t **records, int num_records, char *excludes);
 
-int invoke_phenotype_ws(const char *url, list_item_t *first_item, int max_chunk_size, enum phenotype_source source);
+int invoke_phenotype_ws(const char *url, vcf_record_t **records, int num_records, enum phenotype_source source);
 
 /* **********************************************
  *              Response management             *
