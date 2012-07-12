@@ -37,7 +37,7 @@ int run_association_test(shared_options_data_t* shared_options_data, gwas_option
             // Reading
             start = omp_get_wtime();
 
-            ret_code = vcf_read_batches(read_list, shared_options_data->batch_size, file, 1);
+            ret_code = vcf_read_batches(read_list, shared_options_data->batch_size, file);
 
             stop = omp_get_wtime();
             total = stop - start;
