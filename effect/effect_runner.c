@@ -164,15 +164,18 @@ int run_effect(char **urls, shared_options_data_t *shared_options, effect_option
                     #pragma omp parallel for
                     for (int j = 0; j < num_chunks; j++) {
                         LOG_DEBUG_F("[%d] WS invocation\n", omp_get_thread_num());
+//                         LOG_INFO("-- effect WS");
                         ret_ws_0 = invoke_effect_ws(urls[0], (vcf_record_t**) (passed_records->items + j), chunk_sizes[j], options_data->excludes);
+//                         LOG_INFO("-- snp WS");
                         ret_ws_1 = invoke_phenotype_ws(urls[1], (vcf_record_t**) (passed_records->items + j), chunk_sizes[j], SNP_PHENOTYPE);
+//                         LOG_INFO("-- mutation WS");
                         ret_ws_2 = invoke_phenotype_ws(urls[2], (vcf_record_t**) (passed_records->items + j), chunk_sizes[j], MUTATION_PHENOTYPE);
                     }
                     
                     free(chunk_starts);
                     free(chunk_sizes);
                     
-                    LOG_DEBUG_F("*** %dth web service invocation finished\n", i);
+                    LOG_INFO_F("*** %dth web services invocation finished\n", i);
                     
                     if (ret_ws_0 || ret_ws_1 || ret_ws_2) {
                         if (ret_ws_0) {
@@ -356,7 +359,7 @@ char *compose_effect_ws_request(const char *method, shared_options_data_t *optio
     return result_url;
 }
 
-int invoke_effect_ws(const char *url, vcf_record_t **records, int num_variants, char *excludes) {
+int invoke_effect_ws(const char *url, vcf_record_t **records, int num_records, char *excludes) {
     CURL *curl;
     CURLcode ret_code = CURLE_OK;
 
@@ -374,7 +377,7 @@ int invoke_effect_ws(const char *url, vcf_record_t **records, int num_variants, 
     LOG_DEBUG_F("[%d] WS for batch #%d\n", omp_get_thread_num(), batch_num);
     batch_num++;
     
-    for (int i = 0; i < num_variants; i++) {
+    for (int i = 0; i < num_records; i++) {
         vcf_record_t *record = records[i];
         chr_len = strlen(record->chromosome);
         reference_len = strlen(record->reference);
@@ -598,7 +601,7 @@ static size_t write_effect_ws_results(char *contents, size_t size, size_t nmemb,
     return data_read_len;
 }
 
-int invoke_phenotype_ws(const char *url, list_item_t *first_item, int max_chunk_size, enum phenotype_source source) {
+int invoke_phenotype_ws(const char *url, vcf_record_t **records, int num_records, enum phenotype_source source) {
     CURL *curl;
     CURLcode ret_code = CURLE_OK;
 
@@ -616,9 +619,11 @@ int invoke_phenotype_ws(const char *url, list_item_t *first_item, int max_chunk_
     LOG_DEBUG_F("[%d] WS for batch #%d\n", omp_get_thread_num(), batch_num);
     batch_num++;
     
-    list_item_t *item = first_item;
-    for (int i = 0; i < max_chunk_size && item != NULL; i++, item = item->next_p) {
-        vcf_record_t *record = item->data_p;
+//     list_item_t *item = first_item;
+//     for (int i = 0; i < max_chunk_size && item != NULL; i++, item = item->next_p) {
+//         vcf_record_t *record = item->data_p;
+    for (int i = 0; i < num_records; i++) {
+        vcf_record_t *record = records[i];
         chr_len = strlen(record->chromosome);
         reference_len = strlen(record->reference);
         alternate_len = strlen(record->alternate);
@@ -677,7 +682,7 @@ static size_t write_snp_phenotype_ws_results(char *contents, size_t size, size_t
     char *output_text;
     
     
-    LOG_INFO_F("SNP phenotype WS invoked, response size = %zu bytes\n", realsize);
+    LOG_DEBUG_F("SNP phenotype WS invoked, response size = %zu bytes\n", realsize);
     
     while (data_read_len < realsize) {
         assert((snp_line + tid) != NULL);
@@ -768,7 +773,7 @@ static size_t write_mutation_phenotype_ws_results(char *contents, size_t size, s
     char *output_text;
     
     
-    LOG_INFO_F("Mutation phenotype WS invoked, response size = %zu bytes -> %s\n", realsize, data);
+    LOG_DEBUG_F("Mutation phenotype WS invoked, response size = %zu bytes -> %s\n", realsize, data);
     
     while (data_read_len < realsize) {
         assert((mutation_line + tid) != NULL);
