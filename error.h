@@ -15,10 +15,13 @@
 // Filter tool errors
 #define EMPTY_LIST_OF_FILTERS                   100
 
+// Merge tool errors
+#define MISSING_MODE_NOT_SPECIFIED              200
+
 // Stats tool errors
 
 // Split tool errors
-#define NONE_CRITERION_SPECIFIED                300
+#define NONE_CRITERION_SPECIFIED                400
 
 
 #endif

@@ -9,6 +9,8 @@
 #include <libconfig.h>
 
 #include <bioformats/vcf/vcf_file_structure.h>
+#include <bioformats/vcf/vcf_file.h>
+#include <bioformats/vcf/vcf_util.h>
 #include <commons/log.h>
 #include <commons/string_utils.h>
 #include <containers/list.h>
@@ -16,23 +18,27 @@
 #include "error.h"
 #include "global_options.h"
 
-#define NUM_MERGE_OPTIONS  1
+#define NUM_MERGE_OPTIONS  2
+
+enum missing_mode { MISSING, REFERENCE };
 
 typedef struct merge_options {
     struct arg_str *input_files;   /**< List of files used as input */
+    struct arg_str *missing_mode;   /**< How to fill a missing sample field whenever its data is missing */
     int num_options;
 } merge_options_t;
 
 typedef struct merge_options_data {
     char **input_files;   /**< List of files used as input */
+    enum missing_mode missing_mode;   /**< How to fill a missing sample field whenever its data is missing */
     int num_files;   /**< Number of files used as input */
+    
 } merge_options_data_t;
 
-
-// typedef struct {
-//     vcf_record_t *record;
-//     char *merge_name;
-// } merge_result_t;
+typedef struct {
+    vcf_record_t *record;
+    vcf_file_t *file;
+} vcf_record_file_link;
 
 
 static merge_options_t *new_merge_cli_options(void);
@@ -47,22 +53,18 @@ static merge_options_data_t *new_merge_options_data(merge_options_t *options);
  */
 static void free_merge_options_data(merge_options_data_t *options_data);
 
-// /**
-//  * Initialize a variant_merge_result_t structure mandatory fields.
-//  */
-// merge_result_t *new_merge_result(vcf_record_t *record, char *merge_name);
-// 
-// /**
-//  * Free memory associated to a variant_merge_result_t structure.
-//  */
-// void free_merge_result(merge_result_t* merge_result);
 
 
 /* ******************************
  *       Tool execution         *
  * ******************************/
 
-int merge(vcf_record_t **variants, int num_variants, list_t* output_list);
+// int merge(vcf_record_t **variants, int num_variants, list_t* output_list);
+int merge(array_list_t **records_by_position, int num_positions, vcf_file_t **files, int num_files, list_t *output_list);
+
+vcf_record_t *merge_unique_position(vcf_record_file_link *position, vcf_file_t **files, int num_files, merge_options_data_t *options);
+
+array_list_t *get_global_samples(vcf_file_t **files, int num_files);
 
 /* ******************************
  *      Options parsing         *

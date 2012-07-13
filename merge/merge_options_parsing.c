@@ -117,7 +117,9 @@ void **merge_merge_options(merge_options_t *merge_options, shared_options_t *sha
     tool_options[10] = shared_options->config_file;
     tool_options[11] = shared_options->mmap_vcf_files;
     
-    tool_options[12] = arg_end;
+    tool_options[12] = merge_options->missing_mode;
+    
+    tool_options[13] = arg_end;
     
     return tool_options;
 }
@@ -128,6 +130,12 @@ int verify_merge_options(merge_options_t *merge_options, shared_options_t *share
     if (merge_options->input_files->count == 0) {
         LOG_ERROR("Please specify the input VCF files.\n");
         return VCF_FILE_NOT_SPECIFIED;
+    }
+    
+    // Check whether the missing mode is defined
+    if (merge_options->missing_mode->count == 0) {
+        LOG_ERROR("Please specify how to fill missing samples information (mark as missing/reference).\n");
+        return MISSING_MODE_NOT_SPECIFIED;
     }
     
     return 0;
