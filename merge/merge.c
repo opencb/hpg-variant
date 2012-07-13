@@ -22,10 +22,10 @@ int merge(array_list_t **records_by_position, int num_positions, vcf_file_t **fi
     // TODO
     vcf_record_t *merged;
     for (int i = 0; i < num_positions; i++) {
-        if (records_by_position->size == 1) {
+        if (records_by_position[i]->size == 1) {
             // TODO merge position present just in one file
-            merged = merge_unique_position(records_by_position->items[0], files, num_files, options);
-        } else if (records_by_position->size > 1) {
+            merged = merge_unique_position(records_by_position[i]->items[0], files, num_files, options);
+        } else if (records_by_position[i]->size > 1) {
             // TODO merge position present in more than one file
         }
     }
@@ -59,7 +59,7 @@ vcf_record_t *merge_unique_position(vcf_record_file_link *position, vcf_file_t *
     for (int i = 0; i < num_files; i++) {
         if(!strcmp(files[i]->filename, position->file->filename)) {
             // Samples of the file where the position has been read are directly copied
-            array_list_insert_all(result->samples);
+            array_list_insert_all(input->samples->items, files[i]->num_samples, result->samples);
         } else {
             // Samples in the rest of files must be filled according to the specified format
             int sample_len = num_format_fields * 2 + 1; // Each field + ':' = 2 chars, except for GT which is 1 char more
@@ -78,13 +78,13 @@ vcf_record_t *merge_unique_position(vcf_record_file_link *position, vcf_file_t *
                         strncat(sample, "0/0", 3);
                     }
                 }
-                array_list_insert(result->samples);
+                array_list_insert(sample, result->samples);
             }
         }
     }
     
-    // TODO info must be calculated based on statistics about the new list of samples
-    result->info = strdup(input->info);
+    // INFO field must be calculated based on statistics about the new list of samples
+    result->info = recalculate_info_field(result->samples->items, result->samples->size);
     
     return result;
 }
@@ -96,4 +96,9 @@ array_list_t *get_global_samples(vcf_file_t **files, int num_files) {
         array_list_insert_all(files[i]->samples_names->items, files[i]->samples_names->size, samples);
     }
     return samples;
+}
+
+char *recalculate_info_field(char **samples, size_t num_samples) {
+    // TODO
+    return strdup(samples[0]);
 }

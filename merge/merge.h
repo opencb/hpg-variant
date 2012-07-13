@@ -60,11 +60,14 @@ static void free_merge_options_data(merge_options_data_t *options_data);
  * ******************************/
 
 // int merge(vcf_record_t **variants, int num_variants, list_t* output_list);
-int merge(array_list_t **records_by_position, int num_positions, vcf_file_t **files, int num_files, list_t *output_list);
+int merge(array_list_t **records_by_position, int num_positions, vcf_file_t **files, int num_files, merge_options_data_t *options, list_t *output_list);
 
 vcf_record_t *merge_unique_position(vcf_record_file_link *position, vcf_file_t **files, int num_files, merge_options_data_t *options);
 
 array_list_t *get_global_samples(vcf_file_t **files, int num_files);
+
+char *recalculate_info_field(char **samples, size_t num_samples);
+
 
 /* ******************************
  *      Options parsing         *
