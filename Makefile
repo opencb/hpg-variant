@@ -61,7 +61,7 @@ debug: compile-dependencies-static $(ALL_FILES)
 	cp hpg-vcf-tools.cfg bin
 	$(CC) $(CFLAGS_DEBUG) -D_XOPEN_SOURCE=600 -o bin/hpg-vcf main.o $(ALL_OBJS) $(INCLUDES_STATIC) $(LIBS_STATIC)
 
-testing: deploy
+testing: debug
 	$(CC) $(CFLAGS_DEBUG) -D_XOPEN_SOURCE=600 -o test/merge.test test/test_merge.c $(ALL_OBJS) $(INCLUDES) $(LIBS) $(LIBS_TEST)
 
 compile-dependencies:

@@ -66,8 +66,9 @@ vcf_record_t *merge_unique_position(vcf_record_file_link *position, vcf_file_t *
 
 array_list_t *get_global_samples(vcf_file_t **files, int num_files);
 
-char *recalculate_info_field(char **samples, size_t num_samples);
+char *generate_info_field(char **samples, size_t num_samples);
 
+char *get_empty_sample(int num_format_fields, int gt_pos, enum missing_mode mode);
 
 /* ******************************
  *      Options parsing         *

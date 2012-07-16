@@ -1,5 +1,5 @@
 #include "merge.h"
-
+#include <assert.h>
 
 // merge_result_t *new_merge_result(vcf_record_t *record, char *merge_name) {
 //     merge_result_t *result = (merge_result_t*) malloc (sizeof(merge_result_t));
@@ -45,6 +45,8 @@ vcf_record_t *merge_unique_position(vcf_record_file_link *position, vcf_file_t *
     result->id = strdup(input->id);
     result->reference = strdup(input->reference);
     result->alternate = strdup(input->alternate);
+    result->quality = input->quality;
+    result->filter = strdup(input->filter);
     
     result->format = strdup(input->format);
     int num_format_fields = 1;
@@ -54,39 +56,35 @@ vcf_record_t *merge_unique_position(vcf_record_file_link *position, vcf_file_t *
         }
     }
     char *format_bak = strdup(result->format);
-    int gt_pos = get_field_position_in_format("gt", format_bak);
+    int gt_pos = get_field_position_in_format("GT", format_bak);
     
+    // Create the text for empty samples
+    char *empty_sample = get_empty_sample(num_format_fields, gt_pos, options->missing_mode);
+    
+    // Fill list of samples
     for (int i = 0; i < num_files; i++) {
         if(!strcmp(files[i]->filename, position->file->filename)) {
             // Samples of the file where the position has been read are directly copied
             array_list_insert_all(input->samples->items, files[i]->num_samples, result->samples);
+            LOG_DEBUG_F("%d samples of file %s inserted\n", files[i]->num_samples, files[i]->filename);
         } else {
             // Samples in the rest of files must be filled according to the specified format
-            int sample_len = num_format_fields * 2 + 1; // Each field + ':' = 2 chars, except for GT which is 1 char more
-            char *sample[sample_len];
-            memset(sample, 0, sample_len * sizeof(char));
-            for (int j = 0; j < num_format_fields; j++) {
-                if (j > 0) {
-                    strncat(sample, ":", 1);
-                }
-                if (j != gt_pos) {
-                    strncat(sample, ".", 1);
-                } else {
-                    if (options->missing_mode == MISSING) {
-                        strncat(sample, "./.", 3);
-                    } else if (options->missing_mode == REFERENCE) {
-                        strncat(sample, "0/0", 3);
-                    }
-                }
-                array_list_insert(sample, result->samples);
+            for (int j = 0; j < files[i]->num_samples; j++) {
+                array_list_insert(strdup(empty_sample), result->samples);
             }
+            LOG_DEBUG_F("file %s\t%d empty samples inserted\n", files[i]->filename, files[i]->num_samples);
         }
     }
     
     // INFO field must be calculated based on statistics about the new list of samples
-    result->info = recalculate_info_field(result->samples->items, result->samples->size);
+    // TODO add info-fields as argument (AF, NS and so on)
+    result->info = generate_info_field(result->samples->items, result->samples->size);
     
     return result;
+}
+
+vcf_record_t *merge_shared_position(vcf_record_file_link **positions, int num_positions, vcf_file_t **files, int num_files, merge_options_data_t *options) {
+    
 }
 
 
@@ -98,7 +96,27 @@ array_list_t *get_global_samples(vcf_file_t **files, int num_files) {
     return samples;
 }
 
-char *recalculate_info_field(char **samples, size_t num_samples) {
+char *generate_info_field(char **samples, size_t num_samples) {
     // TODO
     return strdup(samples[0]);
+}
+
+char *get_empty_sample(int num_format_fields, int gt_pos, enum missing_mode mode) {
+    int sample_len = num_format_fields * 2 + 2; // Each field + ':' = 2 chars, except for GT which is 1 char more
+    char *sample = (char*) calloc (sample_len, sizeof(char));
+    for (int j = 0; j < num_format_fields; j++) {
+        if (j > 0) {
+            strncat(sample, ":", 1);
+        }
+        if (j != gt_pos) {
+            strncat(sample, ".", 1);
+        } else {
+            if (mode == MISSING) {
+                strncat(sample, "./.", 3);
+            } else if (mode == REFERENCE) {
+                strncat(sample, "0/0", 3);
+            }
+        }
+    }
+    return sample;
 }
