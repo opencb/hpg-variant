@@ -87,7 +87,10 @@ char *compose_effect_ws_request(const char *method, shared_options_data_t *optio
  */
 int invoke_effect_ws(const char *url, vcf_record_t **records, int num_records, char *excludes);
 
-int invoke_phenotype_ws(const char *url, vcf_record_t **records, int num_records, enum phenotype_source source);
+int invoke_snp_phenotype_ws(const char *url, vcf_record_t **records, int num_records);
+
+int invoke_mutation_phenotype_ws(const char *url, vcf_record_t **records, int num_records);
+
 
 /* **********************************************
  *              Response management             *
