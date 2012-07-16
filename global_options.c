@@ -93,8 +93,12 @@ shared_options_data_t* new_shared_options_data(shared_options_t* options) {
 
 void free_shared_options_data(shared_options_data_t *options_data) {
     if (options_data->vcf_filename)     { free(options_data->vcf_filename); }
+    if (options_data->ped_filename)     { free(options_data->ped_filename); }
     if (options_data->output_directory) { free(options_data->output_directory); }
     if (options_data->output_filename)  { free(options_data->output_filename); }
+    if (options_data->host_url)         { free(options_data->host_url); }
+    if (options_data->version)          { free(options_data->version); }
+    if (options_data->species)          { free(options_data->species); }
     free(options_data);
 }
 

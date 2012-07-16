@@ -514,6 +514,11 @@ static size_t write_effect_ws_results(char *contents, size_t size, size_t nmemb,
             LOG_INFO_F("[%d] Non-valid line found: '%s'\n", tid, line[tid]);
             memset(line[tid], 0, strlen(line[tid]));
             memset(output_line[tid], 0, strlen(output_line[tid]));
+            
+            for (int s = 0; s < num_substrings; s++) {
+                free(split_result[s]);
+            }
+            free(split_result);
             continue;
         }
         
