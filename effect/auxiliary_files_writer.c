@@ -30,6 +30,7 @@ void write_genes_with_variants_file(cp_hashtable *gene_list, char *output_direct
     for (int i = 0; i < num_keys; i++) {
         fprintf(file, "%s\n", keys[i]);
     }
+    free(keys);
     
     fclose(file);
 }
