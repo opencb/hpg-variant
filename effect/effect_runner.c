@@ -168,9 +168,9 @@ int run_effect(char **urls, shared_options_data_t *shared_options, effect_option
                         ret_ws_0 = invoke_effect_ws(urls[0], (vcf_record_t**) (passed_records->items + j), chunk_sizes[j], options_data->excludes);
                         if (!options_data->no_phenotypes) {
 //                             LOG_INFO("-- snp WS");
-                            ret_ws_1 = invoke_phenotype_ws(urls[1], (vcf_record_t**) (passed_records->items + j), chunk_sizes[j], SNP_PHENOTYPE);
+                            ret_ws_1 = invoke_snp_phenotype_ws(urls[1], (vcf_record_t**) (passed_records->items + j), chunk_sizes[j]);//, SNP_PHENOTYPE);
 //                             LOG_INFO("-- mutation WS");
-                            ret_ws_2 = invoke_phenotype_ws(urls[2], (vcf_record_t**) (passed_records->items + j), chunk_sizes[j], MUTATION_PHENOTYPE);
+                            ret_ws_2 = invoke_mutation_phenotype_ws(urls[2], (vcf_record_t**) (passed_records->items + j), chunk_sizes[j]);//, MUTATION_PHENOTYPE);
                         }
                     }
                     
@@ -603,7 +603,62 @@ static size_t write_effect_ws_results(char *contents, size_t size, size_t nmemb,
     return data_read_len;
 }
 
-int invoke_phenotype_ws(const char *url, vcf_record_t **records, int num_records, enum phenotype_source source) {
+int invoke_snp_phenotype_ws(const char *url, vcf_record_t **records, int num_records) {
+    CURL *curl;
+    CURLcode ret_code = CURLE_OK;
+
+    struct curl_httppost *formpost = NULL;
+    struct curl_httppost *lastptr = NULL;
+    
+    const char *output_format = "txt";
+    
+    int variants_len = 512, current_index = 0;
+    char *variants = (char*) calloc (variants_len, sizeof(char));
+    
+    int id_len, new_len_range;
+
+    LOG_DEBUG_F("[%d] WS for batch #%d\n", omp_get_thread_num(), batch_num);
+    batch_num++;
+    
+    for (int i = 0; i < num_records; i++) {
+        vcf_record_t *record = records[i];
+        if (!strcmp(".", record->id)) {
+            continue;
+        }
+        
+        id_len = strlen(record->id);
+        new_len_range = current_index + id_len + 32;
+        
+        LOG_DEBUG_F("%s:%lu:%s:%s\n", record->chromosome, record->position, record->reference, record->alternate);
+        
+        // Reallocate memory if next record won't fit
+        if (variants_len < (current_index + new_len_range + 1)) {
+            char *aux = (char*) realloc(variants, (variants_len + new_len_range + 1) * sizeof(char));
+            if (aux) { 
+                variants = aux; 
+                variants_len += new_len_range;
+            }
+        }
+        
+        // Append region info to buffer
+        strncat(variants, record->id, id_len);
+        strncat(variants, ",", 1);
+        current_index += id_len + 2;
+    }
+    
+    LOG_DEBUG_F("snps = %s\n", variants);
+    
+    char *params[CONSEQUENCE_TYPE_WS_NUM_PARAMS-1] = { "of", "snps" };
+    char *params_values[CONSEQUENCE_TYPE_WS_NUM_PARAMS-1] = { output_format, variants };
+    
+    ret_code = http_post(url, params, params_values, CONSEQUENCE_TYPE_WS_NUM_PARAMS-1, write_snp_phenotype_ws_results);
+    
+    free(variants);
+    
+    return ret_code;
+}
+
+int invoke_mutation_phenotype_ws(const char *url, vcf_record_t **records, int num_records) {
     CURL *curl;
     CURLcode ret_code = CURLE_OK;
 
@@ -621,9 +676,6 @@ int invoke_phenotype_ws(const char *url, vcf_record_t **records, int num_records
     LOG_DEBUG_F("[%d] WS for batch #%d\n", omp_get_thread_num(), batch_num);
     batch_num++;
     
-//     list_item_t *item = first_item;
-//     for (int i = 0; i < max_chunk_size && item != NULL; i++, item = item->next_p) {
-//         vcf_record_t *record = item->data_p;
     for (int i = 0; i < num_records; i++) {
         vcf_record_t *record = records[i];
         chr_len = strlen(record->chromosome);
@@ -659,11 +711,7 @@ int invoke_phenotype_ws(const char *url, vcf_record_t **records, int num_records
     char *params[CONSEQUENCE_TYPE_WS_NUM_PARAMS-1] = { "of", "variants" };
     char *params_values[CONSEQUENCE_TYPE_WS_NUM_PARAMS-1] = { output_format, variants };
     
-    if (source == SNP_PHENOTYPE) {
-        ret_code = http_post(url, params, params_values, CONSEQUENCE_TYPE_WS_NUM_PARAMS-1, write_snp_phenotype_ws_results);
-    } else if (source == MUTATION_PHENOTYPE) {
-        ret_code = http_post(url, params, params_values, CONSEQUENCE_TYPE_WS_NUM_PARAMS-1, write_mutation_phenotype_ws_results);
-    }
+    ret_code = http_post(url, params, params_values, CONSEQUENCE_TYPE_WS_NUM_PARAMS-1, write_mutation_phenotype_ws_results);
     
     free(variants);
     
