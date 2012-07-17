@@ -1,17 +1,6 @@
 #include "merge.h"
 #include <assert.h>
 
-// merge_result_t *new_merge_result(vcf_record_t *record, char *merge_name) {
-//     merge_result_t *result = (merge_result_t*) malloc (sizeof(merge_result_t));
-//     result->record = record;
-//     result->merge_name = merge_name;
-//     return result;
-// }
-// 
-// void free_merge_result(merge_result_t* merge_result) {
-//     free(merge_result->merge_name);
-//     free(merge_result);
-// }
 
 // int merge(vcf_record_t **variants, int num_variants, list_t* output_list) {
 int merge(array_list_t **records_by_position, int num_positions, vcf_file_t **files, int num_files, merge_options_data_t *options, list_t *output_list) {
@@ -85,10 +74,6 @@ vcf_record_t *merge_unique_position(vcf_record_file_link *position, vcf_file_t *
 
 vcf_record_t *merge_shared_position(vcf_record_file_link **position_in_files, int position_occurrences, 
                                     vcf_file_t **files, int num_files, merge_options_data_t *options, int *info) {
-    if (position_occurrences < 1) {
-        return NULL;
-    }
-    
     vcf_file_t *file;
     vcf_record_t *input;
     vcf_record_t *result = create_record();
@@ -139,7 +124,11 @@ vcf_record_t *merge_shared_position(vcf_record_file_link **position_in_files, in
     }
     result->quality = accum_quality / total_samples;
     
-    // TODO concatenate alternates and set their order (used later to assign samples' alleles number)
+    // Concatenate alternates and set their order (used later to assign samples' alleles number)
+    cp_hashtable *alleles_table = cp_hashtable_create(8, cp_hash_istring, strcasecmp);
+    int *allele_index = (int*) calloc (1, sizeof(int)); *allele_index = 0;
+    cp_hashtable_put(alleles_table, strdup(result->reference), allele_index);
+    
     size_t max_len = 0, concat_len = 0;
     char *alternate = NULL, *aux = NULL;
     for (int i = 0; i < position_occurrences; i++) {
@@ -149,15 +138,26 @@ vcf_record_t *merge_shared_position(vcf_record_file_link **position_in_files, in
         if (!alternate) {
             alternate = strdup(input->alternate);
             max_len = strlen(input->alternate);
+            
+            allele_index = (int*) calloc (1, sizeof(int)); *allele_index = 1;
+            cp_hashtable_put(alleles_table, strdup(alternate), allele_index);
         } else {
             if (!strstr(alternate, input->alternate)) {
                 concat_len = strlen(input->alternate);
                 aux = realloc(alternate, max_len + concat_len + 1);
                 if (aux) {
+                    // Concatenate alternate value to the existing list
                     strncat(aux, ",", 1);
                     strncat(aux, input->alternate, concat_len);
                     alternate = aux;
                     max_len += concat_len + 1;
+                    
+                    // In case the allele is not in the hashtable, insert it with a new index
+                    if (!cp_hashtable_contains(alleles_table, input->alternate)) {
+                        int cur_index = *allele_index + 1;
+                        allele_index = (int*) calloc (1, sizeof(int)); *allele_index = cur_index;
+                        cp_hashtable_put(alleles_table, strdup(alternate), allele_index);
+                    }
                 } else {
                     LOG_FATAL_F("Can't allocate memory for alternate alleles in position %s:%ld\n", 
                                 input->chromosome, input->position);
@@ -166,8 +166,51 @@ vcf_record_t *merge_shared_position(vcf_record_file_link **position_in_files, in
         }
     }
     
-    // TODO Get the union of all FORMAT fields
+    // Get the union of all FORMAT fields with their corresponding position
+    // TODO include INFO fields in FORMAT
+//     cp_hashtable *format_fields = cp_hashtable_create(16, cp_hash_int, cp_hash_compare_int);
+//     int *field_index = (int*) calloc (1, sizeof(int)); *field_index = 0;
+//     for (int i = 0; i < num_files; i++) {
+//         int num_fields;
+//         char **fields = split(files[i]->format, ":", &num_fields);
+//         for (int j = 0; j < num_fields; j++) {
+//             if (!cp_hashtable_contains(format_fields, fields[i])) {
+//                 int cur_index = *field_index + 1;
+//                 field_index = (int*) calloc (1, sizeof(int)); *field_index = cur_index;
+//                 cp_hashtable_put(alleles_table, strdup(fields[i]), field_index);
+//             }
+//         }
+//     }
+    array_list_t *format_fields = array_list_new(16, 1.2, COLLECTION_MODE_ASYNCHRONIZED);
+    format_fields->compare_fn = strcasecmp;
+    int format_text_len = 0;
+    int *field_index = (int*) calloc (1, sizeof(int)); *field_index = 0;
+    for (int i = 0; i < num_files; i++) {
+        int num_fields;
+        char **fields = split(files[i]->format, ":", &num_fields);
+        for (int j = 0; j < num_fields; j++) {
+            if (!array_list_contains(fields[i], format_fields)) {
+                array_list_insert(fields[i]);
+                format_text_len += strlen(fields[i]) + 1; // concat field + ":"
+            }
+        }
+    }
+    result->format = calloc (format_text_len + 1, sizeof(char));
+    strcat(result->format, format_fields[0]);
+    for (int i = 1; i < format_fields->size; i++) {
+        strncat(result->format, ":", 1);
+        strcat(result->format, format_fields[0]);
+    }
     
+    // TODO Generate samples using the reordered FORMAT fields and the new alleles' numerical values
+    for (int i = 0; i < num_files; i++) {
+        
+    }
+    
+    
+    array_list_free(format_fields, free);
+    cp_hashtable_destroy(alleles_table);
+    cp_hashtable_destroy(format_fields);
     
     return result;
 }
