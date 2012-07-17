@@ -83,8 +83,93 @@ vcf_record_t *merge_unique_position(vcf_record_file_link *position, vcf_file_t *
     return result;
 }
 
-vcf_record_t *merge_shared_position(vcf_record_file_link **positions, int num_positions, vcf_file_t **files, int num_files, merge_options_data_t *options) {
+vcf_record_t *merge_shared_position(vcf_record_file_link **position_in_files, int position_occurrences, 
+                                    vcf_file_t **files, int num_files, merge_options_data_t *options, int *info) {
+    if (position_occurrences < 1) {
+        return NULL;
+    }
     
+    vcf_file_t *file;
+    vcf_record_t *input;
+    vcf_record_t *result = create_record();
+    
+    // Check consistency among chromosome, position and reference
+    for (int i = 0; i < position_occurrences-1; i++) {
+        if (strcmp(position_in_files[i]->record->chromosome, position_in_files[i+1]->record->chromosome)) {
+            LOG_ERROR("Positions can't be merged: Discordant chromosome\n");
+            *info = DISCORDANT_CHROMOSOME;
+            return NULL;
+        } else if (position_in_files[i]->record->position != position_in_files[i+1]->record->position) {
+            LOG_ERROR("Positions can't be merged: Discordant position\n");
+            *info = DISCORDANT_POSITION;
+            return NULL;
+        } else if (strcmp(position_in_files[i]->record->reference, position_in_files[i+1]->record->reference)) {
+            LOG_ERROR("Positions can't be merged: Discordant reference allele\n");
+            *info = DISCORDANT_REFERENCE;
+            return NULL;
+        }
+    }
+    
+    // Once checked, copy fields that are constant in all files
+    result->chromosome = strdup(position_in_files[0]->record->chromosome);
+    result->position = position_in_files[0]->record->position;
+    result->reference = strdup(position_in_files[0]->record->reference);
+    
+    // Get first non-dot ID
+    for (int i = 0; i < position_occurrences; i++) {
+        input = position_in_files[i]->record;
+        if (strcmp(".", input->id)) {
+            result->id = strdup(input->id);
+            break;
+        }
+    }
+    if (result->id == NULL) {
+        result->id = strdup(".");
+    }
+    
+    // Calculate weighted mean of the quality
+    float accum_quality = 0.0f;
+    int total_samples = 0;
+    for (int i = 0; i < position_occurrences; i++) {
+        file = position_in_files[i]->file;
+        input = position_in_files[i]->record;
+        
+        accum_quality += input->quality * file->num_samples;
+        total_samples += file->num_samples;
+    }
+    result->quality = accum_quality / total_samples;
+    
+    // TODO concatenate alternates and set their order (used later to assign samples' alleles number)
+    size_t max_len = 0, concat_len = 0;
+    char *alternate = NULL, *aux = NULL;
+    for (int i = 0; i < position_occurrences; i++) {
+        file = position_in_files[i]->file;
+        input = position_in_files[i]->record;
+        
+        if (!alternate) {
+            alternate = strdup(input->alternate);
+            max_len = strlen(input->alternate);
+        } else {
+            if (!strstr(alternate, input->alternate)) {
+                concat_len = strlen(input->alternate);
+                aux = realloc(alternate, max_len + concat_len + 1);
+                if (aux) {
+                    strncat(aux, ",", 1);
+                    strncat(aux, input->alternate, concat_len);
+                    alternate = aux;
+                    max_len += concat_len + 1;
+                } else {
+                    LOG_FATAL_F("Can't allocate memory for alternate alleles in position %s:%ld\n", 
+                                input->chromosome, input->position);
+                }
+            }
+        }
+    }
+    
+    // TODO Get the union of all FORMAT fields
+    
+    
+    return result;
 }
 
 

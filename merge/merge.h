@@ -64,6 +64,9 @@ int merge(array_list_t **records_by_position, int num_positions, vcf_file_t **fi
 
 vcf_record_t *merge_unique_position(vcf_record_file_link *position, vcf_file_t **files, int num_files, merge_options_data_t *options);
 
+vcf_record_t *merge_shared_position(vcf_record_file_link **position_in_files, int position_occurrences, 
+                                    vcf_file_t **files, int num_files, merge_options_data_t *options, int *info);
+
 array_list_t *get_global_samples(vcf_file_t **files, int num_files);
 
 char *generate_info_field(char **samples, size_t num_samples);
