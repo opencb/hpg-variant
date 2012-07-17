@@ -164,13 +164,13 @@ int run_effect(char **urls, shared_options_data_t *shared_options, effect_option
                     #pragma omp parallel for
                     for (int j = 0; j < num_chunks; j++) {
                         LOG_DEBUG_F("[%d] WS invocation\n", omp_get_thread_num());
-//                         LOG_INFO("-- effect WS");
-                        ret_ws_0 = invoke_effect_ws(urls[0], (vcf_record_t**) (passed_records->items + j), chunk_sizes[j], options_data->excludes);
+                        LOG_DEBUG_F("[%d] -- effect WS\n", omp_get_thread_num());
+                        ret_ws_0 = invoke_effect_ws(urls[0], (vcf_record_t**) (passed_records->items + chunk_starts[j]), chunk_sizes[j], options_data->excludes);
                         if (!options_data->no_phenotypes) {
-//                             LOG_INFO("-- snp WS");
-                            ret_ws_1 = invoke_snp_phenotype_ws(urls[1], (vcf_record_t**) (passed_records->items + j), chunk_sizes[j]);//, SNP_PHENOTYPE);
-//                             LOG_INFO("-- mutation WS");
-                            ret_ws_2 = invoke_mutation_phenotype_ws(urls[2], (vcf_record_t**) (passed_records->items + j), chunk_sizes[j]);//, MUTATION_PHENOTYPE);
+                            LOG_DEBUG_F("[%d] -- snp WS\n", omp_get_thread_num());
+                            ret_ws_1 = invoke_snp_phenotype_ws(urls[1], (vcf_record_t**) (passed_records->items + chunk_starts[j]), chunk_sizes[j]);
+                            LOG_DEBUG_F("[%d] -- mutation WS\n", omp_get_thread_num());
+                            ret_ws_2 = invoke_mutation_phenotype_ws(urls[2], (vcf_record_t**) (passed_records->items + chunk_starts[j]), chunk_sizes[j]);
                         }
                     }
                     
@@ -688,7 +688,7 @@ int invoke_mutation_phenotype_ws(const char *url, vcf_record_t **records, int nu
         alternate_len = strlen(record->alternate);
         new_len_range = current_index + chr_len + reference_len + alternate_len + 32;
         
-        LOG_DEBUG_F("%s:%lu:%s:%s\n", record->chromosome, record->position, record->reference, record->alternate);
+        LOG_DEBUG_F("mutation phenotype of %s:%lu:%s:%s\n", record->chromosome, record->position, record->reference, record->alternate);
         
         // Reallocate memory if next record won't fit
         if (variants_len < (current_index + new_len_range + 1)) {
