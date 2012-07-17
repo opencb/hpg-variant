@@ -149,6 +149,14 @@ void write_result_file(shared_options_data_t *shared_options, effect_options_dat
                                         "FILE", "CONSEQUENCE_TYPE_VARIANTS", "Variants by Consequence Type", "");
     result_add_output_item(output_item, result_file);
     
+    // Add output files with phenotypic information
+    output_item = result_item_new("snp_phenotypes.txt", "snp_phenotypes.txt", "SNP phenotypes", 
+                                        "FILE", "", "Variants with phenotypic information", "");
+    result_add_output_item(output_item, result_file);
+    output_item = result_item_new("mutation_phenotypes.txt", "mutation_phenotypes.txt", "Mutations phenotypes", 
+                                        "FILE", "", "Variants with phenotypic information", "");
+    result_add_output_item(output_item, result_file);
+    
     // Write and free file
     result_file_write(result_file->filename, result_file);
     result_file_free(result_file);
