@@ -654,10 +654,11 @@ int invoke_snp_phenotype_ws(const char *url, vcf_record_t **records, int num_rec
     
     LOG_DEBUG_F("snps = %s\n", variants);
     
-    char *params[CONSEQUENCE_TYPE_WS_NUM_PARAMS-1] = { "of", "snps" };
-    char *params_values[CONSEQUENCE_TYPE_WS_NUM_PARAMS-1] = { output_format, variants };
-    
-    ret_code = http_post(url, params, params_values, CONSEQUENCE_TYPE_WS_NUM_PARAMS-1, write_snp_phenotype_ws_results);
+    if (current_index > 0) {
+        char *params[CONSEQUENCE_TYPE_WS_NUM_PARAMS-1] = { "of", "snps" };
+        char *params_values[CONSEQUENCE_TYPE_WS_NUM_PARAMS-1] = { output_format, variants };
+        ret_code = http_post(url, params, params_values, CONSEQUENCE_TYPE_WS_NUM_PARAMS-1, write_snp_phenotype_ws_results);
+    }
     
     free(variants);
     
@@ -684,6 +685,10 @@ int invoke_mutation_phenotype_ws(const char *url, vcf_record_t **records, int nu
     
     for (int i = 0; i < num_records; i++) {
         vcf_record_t *record = records[i];
+        if (strcmp(".", record->id)) {
+            continue;
+        }
+        
         chr_len = strlen(record->chromosome);
         reference_len = strlen(record->reference);
         alternate_len = strlen(record->alternate);
@@ -712,12 +717,13 @@ int invoke_mutation_phenotype_ws(const char *url, vcf_record_t **records, int nu
         current_index = strlen(variants);
     }
     
-    LOG_DEBUG_F("variants = %s\n", variants);
+    LOG_DEBUG_F("mutations = %s\n", variants);
     
-    char *params[CONSEQUENCE_TYPE_WS_NUM_PARAMS-1] = { "of", "variants" };
-    char *params_values[CONSEQUENCE_TYPE_WS_NUM_PARAMS-1] = { output_format, variants };
-    
-    ret_code = http_post(url, params, params_values, CONSEQUENCE_TYPE_WS_NUM_PARAMS-1, write_mutation_phenotype_ws_results);
+    if (current_index > 0) {
+        char *params[CONSEQUENCE_TYPE_WS_NUM_PARAMS-1] = { "of", "variants" };
+        char *params_values[CONSEQUENCE_TYPE_WS_NUM_PARAMS-1] = { output_format, variants };
+        ret_code = http_post(url, params, params_values, CONSEQUENCE_TYPE_WS_NUM_PARAMS-1, write_mutation_phenotype_ws_results);
+    }
     
     free(variants);
     
