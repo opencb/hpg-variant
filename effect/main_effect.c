@@ -43,14 +43,11 @@ int effect(int argc, char *argv[], const char *configuration_file) {
     // Step 5: Create the web service request with all the parameters
     const int num_urls = 3;
     char **urls = malloc (num_urls * sizeof(char*));
-//     char *url = compose_effect_ws_request(shared_options_data);
     urls[0] = compose_effect_ws_request("genomic/variant", "consequence_type", shared_options_data);
     urls[1] = compose_effect_ws_request("feature/snp", "phenotype", shared_options_data);
     urls[2] = compose_effect_ws_request("genomic/variant", "mutation_phenotype", shared_options_data);
 
-    for (int i = 0; i < 3; i++) {
-        printf("URL #%d = '%s'\n", i, urls[i]);
-    }
+    LOG_DEBUG_F("URL #1 = '%s'\nURL #2 = '%s'\nURL #3 = '%s'\n", urls[0], urls[1], urls[2]);
     
     // Step 6: Execute request and manage its response (as CURL request callback function)
     int result = run_effect(urls, shared_options_data, effect_options_data);
