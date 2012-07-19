@@ -71,7 +71,7 @@ int run_effect(char **urls, shared_options_data_t *global_options_data, effect_o
  * 
  * Given a list of arguments, compounds a URL to invoke a web service.
  */
-char *compose_effect_ws_request(const char *method, shared_options_data_t *options_data);
+char *compose_effect_ws_request(const char *category, const char *method, shared_options_data_t *options_data);
 
 /**
  * @brief Invokes the effect web service for a list of regions.
