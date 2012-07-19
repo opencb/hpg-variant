@@ -127,7 +127,7 @@ int run_effect(char **urls, shared_options_data_t *shared_options, effect_option
             int i = 0;
             list_item_t* item = NULL;
             
-            int ret_ws_0, ret_ws_1, ret_ws_2;
+            int ret_ws_0 = 0, ret_ws_1 = 0, ret_ws_2 = 0;
             while ((item = list_remove_item(read_list)) != NULL) {
                 if (i == 0) {
                     // Write file format, header entries and delimiter
