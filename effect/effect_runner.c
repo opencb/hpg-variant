@@ -308,14 +308,14 @@ int run_effect(char **urls, shared_options_data_t *shared_options, effect_option
 }
 
 
-char *compose_effect_ws_request(const char *method, shared_options_data_t *options_data) {
+char *compose_effect_ws_request(const char *category, const char *method, shared_options_data_t *options_data) {
     if (options_data->host_url == NULL || options_data->version == NULL || options_data->species == NULL) {
         return NULL;
     }
     
     // URL Constants
     const char *ws_root_url = "cellbase/rest/";
-    const char *ws_name_url = "genomic/variant/";//consequence_type";
+//     const char *ws_name_url = "genomic/variant/";//consequence_type";
     const char *ws_extra_params = "?header=false";
     
     // Length of URL parts
@@ -323,10 +323,10 @@ char *compose_effect_ws_request(const char *method, shared_options_data_t *optio
     const int ws_root_len = strlen(ws_root_url);
     const int version_len = strlen(options_data->version);
     const int species_len = strlen(options_data->species);
-    const int ws_name_len = strlen(ws_name_url);
+    const int ws_name_len = strlen(category);
     const int method_len = strlen(method);
     const int ws_extra_len = strlen(ws_extra_params);
-    const int result_len = host_url_len + ws_root_len + version_len + species_len + ws_name_len + method_len + ws_extra_len + 4;
+    const int result_len = host_url_len + ws_root_len + version_len + species_len + ws_name_len + method_len + ws_extra_len + 5;
     
     char *result_url = (char*) calloc (result_len, sizeof(char));
     
@@ -352,7 +352,8 @@ char *compose_effect_ws_request(const char *method, shared_options_data_t *optio
     }
     
     // Name of the web service
-    strncat(result_url, ws_name_url, ws_name_len);
+    strncat(result_url, category, ws_name_len);
+    strncat(result_url, "/", 1);
     strncat(result_url, method, method_len);
     
     // Extra arguments of the web service
