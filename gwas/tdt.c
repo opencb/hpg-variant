@@ -82,10 +82,14 @@ int tdt_test(ped_file_t *ped_file, vcf_record_t **variants, int num_variants, cp
             LOG_DEBUG_F("[%d] Alleles: Father = %d/%d\tMother = %d/%d\n", tid, father_allele1, father_allele2, mother_allele1, mother_allele2);
             // We need two genotyped parents, with at least one het
             if (father_allele1 == father_allele2 && mother_allele1 == mother_allele2) {
+                free(father_sample);
+                free(mother_sample);
                 continue;
             }
             
             if ((father_allele1 && !father_allele2) || (mother_allele1 && !mother_allele2)) {
+                free(father_sample);
+                free(mother_sample);
                 continue;
             }
 
@@ -125,6 +129,7 @@ int tdt_test(ped_file_t *ped_file, vcf_record_t **variants, int num_variants, cp
                 // Exclude mendelian errors
                 if (check_mendel(record->chromosome, father_allele1, father_allele2, mother_allele1, mother_allele2, 
                     child_allele1, child_allele2, child->sex)) {
+                    free(child_sample);
                     continue;
                 }
                 
@@ -228,7 +233,6 @@ int tdt_test(ped_file_t *ped_file, vcf_record_t **variants, int num_variants, cp
         list_insert_item(output_item, output_list);
         LOG_DEBUG_F("[%d] after adding %s:%ld\n", tid, record->chromosome, record->position);
         
-//         cur_variant = cur_variant->next_p;
     } // next variant
 
     // Free families' keys
