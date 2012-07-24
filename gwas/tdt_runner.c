@@ -6,7 +6,8 @@ int run_tdt_test(shared_options_data_t* shared_options_data, gwas_options_data_t
     list_t *vcf_batches_list = (list_t*) malloc(sizeof(list_t));
     list_init("batches", 1, shared_options_data->max_batches, vcf_batches_list);
     list_t *output_list = (list_t*) malloc (sizeof(list_t));
-    list_init("output", shared_options_data->num_threads, shared_options_data->max_batches * shared_options_data->batch_size, output_list);
+//     list_init("output", shared_options_data->num_threads, shared_options_data->max_batches * shared_options_data->batch_size, output_list);
+    list_init("output", shared_options_data->num_threads, INT_MAX, output_list);
 
     int ret_code = 0;
     double start, stop, total;
@@ -76,6 +77,9 @@ int run_tdt_test(shared_options_data_t* shared_options_data, gwas_options_data_t
             
 #pragma omp parallel num_threads(shared_options_data->num_threads) shared(initialization_done, sample_ids, filters)
             {
+            family_t **families = (family_t**) cp_hashtable_get_values(ped_file->families);
+            int num_families = get_num_families(ped_file);
+            
             int i = 0;
             list_item_t *item = NULL;
             while ((item = list_remove_item(read_list)) != NULL) {
@@ -110,12 +114,12 @@ int run_tdt_test(shared_options_data_t* shared_options_data, gwas_options_data_t
                 
                 list_item_t *batch_item = list_remove_item(vcf_batches_list);
                 vcf_batch_t *batch = batch_item->data_p;
-//                 list_t *input_records = batch;
-//                 list_t *passed_records = NULL, *failed_records = NULL;
+                
                 array_list_t *input_records = batch;
                 array_list_t *passed_records = NULL, *failed_records = NULL;
 
-                if (i % 20 == 0) {
+//                 if (i % 20 == 0) {
+                if (i % 100 == 0) {
                     LOG_INFO_F("Batch %d reached by thread %d - %zu/%zu records \n", 
                             i, omp_get_thread_num(),
                             batch->size, batch->capacity);
@@ -133,9 +137,7 @@ int run_tdt_test(shared_options_data_t* shared_options_data, gwas_options_data_t
                 // Launch TDT test over records that passed the filters
                 int num_variants = MIN(shared_options_data->batch_size, passed_records->size);
                 if (passed_records->size > 0) {
-//                     ret_code = tdt_test(ped_file, passed_records->first_p, shared_options_data->batch_size, sample_ids, output_list);
-                    ret_code = tdt_test(ped_file, (vcf_record_t**) passed_records->items, num_variants, sample_ids, output_list);
-                    
+                    ret_code = tdt_test((vcf_record_t**) passed_records->items, num_variants, families, num_families, sample_ids, output_list);
                     if (ret_code) {
                         LOG_FATAL_F("[%d] Error in execution #%d of TDT\n", omp_get_thread_num(), i);
                     }
@@ -166,9 +168,9 @@ int run_tdt_test(shared_options_data_t* shared_options_data, gwas_options_data_t
                 // Free batch and its contents
                 vcf_batch_free(batch);
                 list_item_free(batch_item);
+                free(status);
                 free(item->data_p);
                 list_item_free(item);
-                free(status);
                 
                 i++;
             }
@@ -256,10 +258,15 @@ int run_tdt_test(shared_options_data_t* shared_options_data, gwas_options_data_t
 cp_hashtable* associate_samples_and_positions(vcf_file_t* file) {
     LOG_DEBUG_F("** %zu sample names read\n", file->samples_names->size);
     array_list_t *sample_names = file->samples_names;
-    cp_hashtable *sample_ids = cp_hashtable_create(sample_names->size * 2,
-                                                   cp_hash_string,
-                                                   (cp_compare_fn) strcasecmp
-                                                  );
+    cp_hashtable *sample_ids = cp_hashtable_create_by_option(COLLECTION_MODE_NOSYNC,
+                                                             sample_names->size * 2,
+                                                             cp_hash_string,
+                                                             (cp_compare_fn) strcasecmp,
+                                                             NULL,
+                                                             NULL,
+                                                             NULL,
+                                                             NULL
+                                                            );
     
     int *index;
     char *name;

@@ -1,12 +1,8 @@
 #include "tdt.h"
 
-// int tdt_test(ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_hashtable *sample_ids, list_t *output_list) {
-int tdt_test(ped_file_t *ped_file, vcf_record_t **variants, int num_variants, cp_hashtable *sample_ids, list_t *output_list) {
+int tdt_test(vcf_record_t **variants, int num_variants, family_t **families, int num_families, cp_hashtable *sample_ids, list_t *output_list) {
     int ret_code = 0;
     int tid = omp_get_thread_num();
-    cp_hashtable *families = ped_file->families;
-    char **families_keys = (char**) cp_hashtable_get_keys(families);
-    int num_families = get_num_families(ped_file);
     int num_samples = cp_hashtable_count(sample_ids);
     
     tdt_result_t *result;
@@ -21,9 +17,6 @@ int tdt_test(ped_file_t *ped_file, vcf_record_t **variants, int num_variants, cp
     // Perform analysis for each variant
 
     vcf_record_t *record;
-//     list_item_t *cur_variant = variants;
-//     for (int i = 0; i < num_variants && cur_variant != NULL; i++) {
-//         vcf_record_t *record = (vcf_record_t*) cur_variant->data_p;
     for (int i = 0; i < num_variants; i++) {
         record = variants[i];
         LOG_DEBUG_F("[%d] Checking variant %s:%ld\n", tid, record->chromosome, record->position);
@@ -39,7 +32,7 @@ int tdt_test(ped_file_t *ped_file, vcf_record_t **variants, int num_variants, cp
         // Count over families
         family_t *family;
         for (int f = 0; f < num_families; f++) {
-            family = cp_hashtable_get(families, families_keys[f]);
+            family = families[f];
             individual_t *father = family->father;
             individual_t *mother = family->mother;
             cp_list *children = family->children;
@@ -70,8 +63,8 @@ int tdt_test(ped_file_t *ped_file, vcf_record_t **variants, int num_variants, cp
             char *mother_sample = strdup(sample_data[*mother_pos]);
             
             LOG_DEBUG_F("[%d] Samples: Father = %s\tMother = %s\n", tid, father_sample, mother_sample);
-            // If any parent's alleles can't be read or is missing, go to next family
             
+            // If any parent's alleles can't be read or is missing, go to next family
             if (get_alleles(father_sample, gt_position, &father_allele1, &father_allele2) ||
                 get_alleles(mother_sample, gt_position, &mother_allele1, &mother_allele2)) {
                 free(father_sample);
@@ -80,6 +73,7 @@ int tdt_test(ped_file_t *ped_file, vcf_record_t **variants, int num_variants, cp
             }
             
             LOG_DEBUG_F("[%d] Alleles: Father = %d/%d\tMother = %d/%d\n", tid, father_allele1, father_allele2, mother_allele1, mother_allele2);
+            
             // We need two genotyped parents, with at least one het
             if (father_allele1 == father_allele2 && mother_allele1 == mother_allele2) {
                 free(father_sample);
@@ -227,17 +221,14 @@ int tdt_test(ped_file_t *ped_file, vcf_record_t **variants, int num_variants, cp
             tdt_chisq = ((double) ((t1-t2) * (t1-t2))) / (t1+t2);
         }
         
-        LOG_DEBUG_F("[%d] before adding %s:%ld\n", tid, record->chromosome, record->position);
+//         LOG_DEBUG_F("[%d] before adding %s:%ld\n", tid, record->chromosome, record->position);
         result = tdt_result_new(record->chromosome, record->position, record->reference, record->alternate, t1, t2, tdt_chisq);
         list_item_t *output_item = list_item_new(tid, 0, result);
         list_insert_item(output_item, output_list);
-        LOG_DEBUG_F("[%d] after adding %s:%ld\n", tid, record->chromosome, record->position);
+//         LOG_DEBUG_F("[%d] after adding %s:%ld\n", tid, record->chromosome, record->position);
         
     } // next variant
 
-    // Free families' keys
-    free(families_keys);
-    
     return ret_code;
 }
 
