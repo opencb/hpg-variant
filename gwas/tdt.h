@@ -33,8 +33,7 @@ typedef struct {
     double p_value;
 } tdt_result_t;
 
-// int tdt_test(ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_hashtable *sample_ids, list_t *output_list);
-int tdt_test(ped_file_t *ped_file, vcf_record_t **variants, int num_variants, cp_hashtable *sample_ids, list_t *output_list);
+int tdt_test(vcf_record_t **variants, int num_variants, family_t **families, int num_families, cp_hashtable *sample_ids, list_t *output_list);
 
 
 tdt_result_t *tdt_result_new(char *chromosome, unsigned long int position, char *reference, char *alternate, double t1, double t2, double chi_square);
