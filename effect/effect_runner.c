@@ -198,10 +198,16 @@ int run_effect(char **urls, shared_options_data_t *shared_options, effect_option
                 // Write records that passed and failed to separate files
                 if (passed_file != NULL && failed_file != NULL) {
                     if (passed_records != NULL && passed_records->size > 0) {
-                        write_batch(passed_records, passed_file);
+                #pragma omp critical 
+                    {
+                        write_batch(failed_records, failed_file);
+                    }
                     }
                     if (failed_records != NULL && failed_records->size > 0) {
+                #pragma omp critical 
+                    {
                         write_batch(failed_records, failed_file);
+                    }
                     }
                 }
                 
