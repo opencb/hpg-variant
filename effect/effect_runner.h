@@ -30,6 +30,7 @@
 #include <commons/log.h>
 #include <commons/result.h>
 #include <commons/string_utils.h>
+#include <containers/array_list.h>
 #include <containers/list.h>
 
 #include "effect.h"
@@ -39,6 +40,8 @@
 
 #define CONSEQUENCE_TYPE_WS_NUM_PARAMS  3
 #define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
+
+enum phenotype_source { SNP_PHENOTYPE = -1, MUTATION_PHENOTYPE = -2};
 
 /**
  * @brief Performs the whole process of invocation of the effect web service and parsing of its output.
@@ -54,7 +57,7 @@
  * processed and a file for the entries associated to each consequence type is created. There is 
  * also a summary file which contains the number of entries for each of these consequence types.
  */
-int run_effect(char *url, shared_options_data_t *global_options_data, effect_options_data_t *options_data);
+int run_effect(char **urls, shared_options_data_t *global_options_data, effect_options_data_t *options_data);
 
 
 /* **********************************************
@@ -68,21 +71,25 @@ int run_effect(char *url, shared_options_data_t *global_options_data, effect_opt
  * 
  * Given a list of arguments, compounds a URL to invoke a web service.
  */
-char *compose_effect_ws_request(shared_options_data_t *options_data);
+char *compose_effect_ws_request(const char *category, const char *method, shared_options_data_t *options_data);
 
 /**
  * @brief Invokes the effect web service for a list of regions.
  * 
  * @param url URL to invoke the web service through
- * @param first_item first item of the list of regions
+ * @param records VCF records whose variant effect will be predicted
  * @param num_regions number of regions
  * @param excludes consequence types to exclude from the response
  * @return Whether the request could be successfully serviced
  * 
- * Given a list of regions, invokes the web service that returns a list of effect or consequences 
+ * Given a list of genome positions, invokes the web service that returns a list of effect or consequences 
  * of the mutations in them. A callback function in order to parse the response.
  */
-int invoke_effect_ws(const char *url, list_item_t *first_item, int num_regions, char *excludes);
+int invoke_effect_ws(const char *url, vcf_record_t **records, int num_records, char *excludes);
+
+int invoke_snp_phenotype_ws(const char *url, vcf_record_t **records, int num_records);
+
+int invoke_mutation_phenotype_ws(const char *url, vcf_record_t **records, int num_records);
 
 
 /* **********************************************
@@ -100,6 +107,10 @@ int invoke_effect_ws(const char *url, list_item_t *first_item, int num_regions, 
  * Reads the contents of the response from the effect web service
  */
 static size_t write_effect_ws_results(char *contents, size_t size, size_t nmemb, void *userdata);
+
+static size_t write_snp_phenotype_ws_results(char *contents, size_t size, size_t nmemb, void *userdata);
+
+static size_t write_mutation_phenotype_ws_results(char *contents, size_t size, size_t nmemb, void *userdata);
 
 /**
  * Writes a summary file containing the number of entries for each of the consequence types processed.

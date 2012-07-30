@@ -41,12 +41,23 @@ int effect(int argc, char *argv[], const char *configuration_file) {
     effect_options_data_t *effect_options_data = new_effect_options_data(effect_options);
 
     // Step 5: Create the web service request with all the parameters
-    char *url = compose_effect_ws_request(shared_options_data);
+    const int num_urls = 3;
+    char **urls = malloc (num_urls * sizeof(char*));
+    urls[0] = compose_effect_ws_request("genomic/variant", "consequence_type", shared_options_data);
+    urls[1] = compose_effect_ws_request("feature/snp", "phenotype", shared_options_data);
+    urls[2] = compose_effect_ws_request("genomic/variant", "mutation_phenotype", shared_options_data);
 
+    LOG_DEBUG_F("URL #1 = '%s'\nURL #2 = '%s'\nURL #3 = '%s'\n", urls[0], urls[1], urls[2]);
+    
     // Step 6: Execute request and manage its response (as CURL request callback function)
-    int result = run_effect(url, shared_options_data, effect_options_data);
+    int result = run_effect(urls, shared_options_data, effect_options_data);
 
-    free(url);
+    // Step 7: Free memory
+    for (int i = 0; i < num_urls; i++) {
+        free(urls[i]);
+    }
+    free(urls);
+    
     free_effect_options_data(effect_options_data);
     free_shared_options_data(shared_options_data);
     arg_freetable(argtable, effect_options->num_options + shared_options->num_options);
@@ -57,12 +68,14 @@ int effect(int argc, char *argv[], const char *configuration_file) {
 effect_options_t *new_effect_cli_options(void) {
     effect_options_t *options = (effect_options_t*) malloc (sizeof(effect_options_t));
     options->num_options = NUM_EFFECT_OPTIONS;
+    options->no_phenotypes = arg_lit0(NULL, "no-phenotypes", "Flag asking not to retrieve phenotypical information");
     options->excludes = arg_str0(NULL, "exclude", NULL, "Consequence types to exclude from the query");
     return options;
 }
 
 effect_options_data_t *new_effect_options_data(effect_options_t *options) {
     effect_options_data_t *options_data = (effect_options_data_t*) malloc (sizeof(effect_options_data_t));
+    options_data->no_phenotypes = options->no_phenotypes->count;
     options_data->excludes = strdup(*(options->excludes->sval));
     return options_data;
 }
