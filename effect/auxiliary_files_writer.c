@@ -30,6 +30,7 @@ void write_genes_with_variants_file(cp_hashtable *gene_list, char *output_direct
     for (int i = 0; i < num_keys; i++) {
         fprintf(file, "%s\n", keys[i]);
     }
+    free(keys);
     
     fclose(file);
 }
@@ -146,6 +147,14 @@ void write_result_file(shared_options_data_t *shared_options, effect_options_dat
     sprintf(aux_buffer, "All (%d)", total_count);
     output_item = result_item_new("all_variants.txt", "all_variants.txt", aux_buffer, 
                                         "FILE", "CONSEQUENCE_TYPE_VARIANTS", "Variants by Consequence Type", "");
+    result_add_output_item(output_item, result_file);
+    
+    // Add output files with phenotypic information
+    output_item = result_item_new("snp_phenotypes.txt", "snp_phenotypes.txt", "SNP phenotypes", 
+                                        "FILE", "", "Variants with phenotypic information", "");
+    result_add_output_item(output_item, result_file);
+    output_item = result_item_new("mutation_phenotypes.txt", "mutation_phenotypes.txt", "Mutations phenotypes", 
+                                        "FILE", "", "Variants with phenotypic information", "");
     result_add_output_item(output_item, result_file);
     
     // Write and free file

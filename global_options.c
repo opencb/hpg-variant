@@ -77,7 +77,7 @@ shared_options_data_t* new_shared_options_data(shared_options_t* options) {
         LOG_DEBUG_F("regions = %s\n", *(options->region->sval));
     } 
     if (options->region_file->count > 0) {
-        filter = create_region_exact_filter(strdup(*(options->region->sval)), 1, options_data->host_url, options_data->species, options_data->version);
+        filter = create_region_exact_filter(strdup(*(options->region_file->filename)), 1, options_data->host_url, options_data->species, options_data->version);
         options_data->chain = add_to_filter_chain(filter, options_data->chain);
         LOG_DEBUG_F("regions file = %s\n", *(options->region->sval));
     }
@@ -93,8 +93,13 @@ shared_options_data_t* new_shared_options_data(shared_options_t* options) {
 
 void free_shared_options_data(shared_options_data_t *options_data) {
     if (options_data->vcf_filename)     { free(options_data->vcf_filename); }
+    // TODO ped filename freed in ped_close
+//     if (options_data->ped_filename)     { free(options_data->ped_filename); }
     if (options_data->output_directory) { free(options_data->output_directory); }
     if (options_data->output_filename)  { free(options_data->output_filename); }
+    if (options_data->host_url)         { free(options_data->host_url); }
+    if (options_data->version)          { free(options_data->version); }
+    if (options_data->species)          { free(options_data->species); }
     free(options_data);
 }
 
