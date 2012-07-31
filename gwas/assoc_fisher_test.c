@@ -7,14 +7,15 @@ double assoc_fisher_test(int a, int b, int c, int d, double *factorial_logarithm
 
 
 
-assoc_fisher_result_t* assoc_fisher_result_new(char *chromosome, unsigned long int position, char *reference, char *alternate, 
-                                             int affected1, int affected2, int unaffected1, int unaffected2, double p_value) {
+assoc_fisher_result_t* assoc_fisher_result_new(char *chromosome, int chromosome_len, unsigned long int position, 
+                                               char *reference, int reference_len, char *alternate, int alternate_len, 
+                                               int affected1, int affected2, int unaffected1, int unaffected2, double p_value) {
     assoc_fisher_result_t *result = (assoc_fisher_result_t*) malloc (sizeof(assoc_fisher_result_t));
     
-    result->chromosome = strdup(chromosome);
+    result->chromosome = strndup(chromosome, chromosome_len);
     result->position = position;
-    result->reference = strdup(reference);
-    result->alternate = strdup(alternate);
+    result->reference = strndup(reference, reference_len);
+    result->alternate = strndup(alternate, alternate_len);
     result->affected1 = affected1;
     result->affected2 = affected2;
     result->unaffected1 = unaffected1;
