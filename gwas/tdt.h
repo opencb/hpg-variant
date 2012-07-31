@@ -36,7 +36,9 @@ typedef struct {
 int tdt_test(vcf_record_t **variants, int num_variants, family_t **families, int num_families, cp_hashtable *sample_ids, list_t *output_list);
 
 
-tdt_result_t *tdt_result_new(char *chromosome, unsigned long int position, char *reference, char *alternate, double t1, double t2, double chi_square);
+//tdt_result_t *tdt_result_new(char *chromosome, unsigned long int position, char *reference, char *alternate, double t1, double t2, double chi_square);
+tdt_result_t* tdt_result_new(char *chromosome, int chromosome_len, unsigned long int position, char *reference, int reference_len,
+                             char *alternate, int alternate_len, double t1, double t2, double chi_square);
 
 void tdt_result_free(tdt_result_t *result);
 

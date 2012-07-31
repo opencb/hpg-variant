@@ -87,7 +87,7 @@ int run_association_test(shared_options_data_t* shared_options_data, gwas_option
                 assert(text_end != NULL);
                 assert(vcf_batches_list != NULL);
                 
-                vcf_reader_status *status = new_vcf_reader_status(shared_options_data->batch_size, 1, 1);
+                vcf_reader_status *status = vcf_reader_status_new(shared_options_data->batch_size, 1, 1);
                 execute_vcf_ragel_machine(text_begin, text_end, vcf_batches_list, shared_options_data->batch_size, file, status);
                 
                 // Initialize structures needed for TDT and write headers of output files
