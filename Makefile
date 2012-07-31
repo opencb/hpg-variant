@@ -1,6 +1,6 @@
 CC = gcc
-CFLAGS = -std=c99 -O3 -march=native
-CFLAGS_DEBUG = -std=c99 -g
+CFLAGS = -std=c99 -O3 -march=native -D_XOPEN_SOURCE=600 -D_GNU_SOURCE
+CFLAGS_DEBUG = -std=c99 -g -O0 -D_XOPEN_SOURCE=600 -D_GNU_SOURCE
 
 # Source code folders
 INC_DIR = $(PWD)/include
@@ -42,21 +42,21 @@ ALL_FILES = $(HPG_VARIANT_OBJS) $(EFFECT_OBJS) $(GWAS_OBJS) $(VCF_OBJS) $(GFF_OB
 all: compile-dependencies hpg-variant
 
 deploy: compile-dependencies-static $(HPG_VARIANT_FILES)
-	$(CC) $(CFLAGS) -D_XOPEN_SOURCE=600 -c main.c $(HPG_VARIANT_FILES) $(EFFECT_FILES) $(GWAS_FILES) $(INCLUDES) $(LIBS_STATIC)
+	$(CC) $(CFLAGS) -c main.c $(HPG_VARIANT_FILES) $(EFFECT_FILES) $(GWAS_FILES) $(INCLUDES) $(LIBS_STATIC)
 	test -d bin || mkdir bin
 	cp hpg-variant.cfg bin
-	$(CC) $(CFLAGS) -D_XOPEN_SOURCE=600 -o bin/hpg-variant main.o $(ALL_FILES) $(INCLUDES_STATIC) $(LIBS_STATIC)
+	$(CC) $(CFLAGS) -o bin/hpg-variant main.o $(ALL_FILES) $(INCLUDES_STATIC) $(LIBS_STATIC)
 	
 hpg-variant: compile-dependencies $(HPG_VARIANT_FILES)
-	$(CC) $(CFLAGS_DEBUG) -D_XOPEN_SOURCE=600 -c main.c $(HPG_VARIANT_FILES) $(EFFECT_FILES) $(GWAS_FILES) $(INCLUDES) $(LIBS)
+	$(CC) $(CFLAGS_DEBUG) -c main.c $(HPG_VARIANT_FILES) $(EFFECT_FILES) $(GWAS_FILES) $(INCLUDES) $(LIBS)
 	test -d bin || mkdir bin
 	cp hpg-variant.cfg bin
-	$(CC) $(CFLAGS_DEBUG) -D_XOPEN_SOURCE=600 -o bin/$@ main.o $(ALL_FILES) $(INCLUDES) $(LIBS)
+	$(CC) $(CFLAGS_DEBUG) -o bin/$@ main.o $(ALL_FILES) $(INCLUDES) $(LIBS)
 
 testing: test/test_effect_runner.c test/test_tdt_runner.c $(ALL_FILES)
-	$(CC) $(CFLAGS_DEBUG) -D_XOPEN_SOURCE=600 -o test/effect.test test/test_effect_runner.c $(ALL_FILES) $(INCLUDES) $(LIBS) $(LIBS_TEST)
-	$(CC) $(CFLAGS_DEBUG) -D_XOPEN_SOURCE=600 -o test/tdt.test test/test_tdt_runner.c $(ALL_FILES) $(INCLUDES) $(LIBS) $(LIBS_TEST)
-	$(CC) $(CFLAGS_DEBUG) -D_XOPEN_SOURCE=600 -o test/checks_family.test test/test_checks_family.c $(ALL_FILES) $(INCLUDES) $(LIBS) $(LIBS_TEST)
+	$(CC) $(CFLAGS_DEBUG) -o test/effect.test test/test_effect_runner.c $(ALL_FILES) $(INCLUDES) $(LIBS) $(LIBS_TEST)
+	$(CC) $(CFLAGS_DEBUG) -o test/tdt.test test/test_tdt_runner.c $(ALL_FILES) $(INCLUDES) $(LIBS) $(LIBS_TEST)
+	$(CC) $(CFLAGS_DEBUG) -o test/checks_family.test test/test_checks_family.c $(ALL_FILES) $(INCLUDES) $(LIBS) $(LIBS_TEST)
 
 compile-dependencies:
 	make family.o && \
@@ -79,7 +79,7 @@ compile-dependencies-static:
 
 family.o:
 	cd $(BIOFORMATS_DIR) && \
-	$(CC) $(CFLAGS) -D_XOPEN_SOURCE=600 -c -o $(BIOFORMATS_DIR)/$@ $(BIOFORMATS_DIR)/family.c $(INCLUDES) $(LIBS)
+	$(CC) $(CFLAGS) -c -o $(BIOFORMATS_DIR)/$@ $(BIOFORMATS_DIR)/family.c $(INCLUDES) $(LIBS)
 
 clean:
 	rm -f *.o

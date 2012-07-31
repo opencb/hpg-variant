@@ -19,10 +19,10 @@ int tdt_test(vcf_record_t **variants, int num_variants, family_t **families, int
     vcf_record_t *record;
     for (int i = 0; i < num_variants; i++) {
         record = variants[i];
-        LOG_DEBUG_F("[%d] Checking variant %s:%ld\n", tid, record->chromosome, record->position);
+        LOG_DEBUG_F("[%d] Checking variant %.*s:%ld\n", tid, record->chromosome_len, record->chromosome, record->position);
         
         sample_data = (char**) record->samples->items;
-        gt_position = get_field_position_in_format("GT", record->format);
+        gt_position = get_field_position_in_format("GT", strndup(record->format, record->format_len));
     
         // Transmission counts
         int t1 = 0;
@@ -121,11 +121,14 @@ int tdt_test(vcf_record_t **variants, int num_variants, family_t **families, int
                 }
                 
                 // Exclude mendelian errors
-                if (check_mendel(record->chromosome, father_allele1, father_allele2, mother_allele1, mother_allele2, 
+                char *aux_chromosome = strndup(record->chromosome, record->chromosome_len);
+                if (check_mendel(aux_chromosome, father_allele1, father_allele2, mother_allele1, mother_allele2, 
                     child_allele1, child_allele2, child->sex)) {
                     free(child_sample);
+                    free(aux_chromosome);
                     continue;
                 }
+                free(aux_chromosome);
                 
                 
                 // We've now established: no missing genotypes
@@ -198,8 +201,8 @@ int tdt_test(vcf_record_t **variants, int num_variants, family_t **families, int
                 if (trA==2) { t2++; }
                 if (trB==2) { t2++; }
                 
-                LOG_DEBUG_F("TDT\t%s %s : %d %d - %d %d - %d %d - F %d/%d - M %d/%d - C %d/%d\n", 
-                            record->id, family->id, trA, unA, trB, unB, t1, t2, 
+                LOG_DEBUG_F("TDT\t%.*s %s : %d %d - %d %d - %d %d - F %d/%d - M %d/%d - C %d/%d\n", 
+                            record->id_len, record->id, family->id, trA, unA, trB, unB, t1, t2, 
                             father_allele1, father_allele2, mother_allele1, mother_allele2, child_allele1, child_allele2);
                 free(child_sample);
                 
@@ -222,10 +225,14 @@ int tdt_test(vcf_record_t **variants, int num_variants, family_t **families, int
         }
         
 //         LOG_DEBUG_F("[%d] before adding %s:%ld\n", tid, record->chromosome, record->position);
-        result = tdt_result_new(record->chromosome, record->position, record->reference, record->alternate, t1, t2, tdt_chisq);
+        result = tdt_result_new(record->chromosome, record->chromosome_len, 
+                                record->position, 
+                                record->reference, record->reference_len, 
+                                record->alternate, record->alternate_len,
+                                t1, t2, tdt_chisq);
         list_item_t *output_item = list_item_new(tid, 0, result);
         list_insert_item(output_item, output_list);
-//         LOG_DEBUG_F("[%d] after adding %s:%ld\n", tid, record->chromosome, record->position);
+        LOG_DEBUG_F("[%d] after adding %.*s:%ld\n", tid, record->chromosome_len, record->chromosome, record->position);
         
     } // next variant
 
@@ -233,13 +240,14 @@ int tdt_test(vcf_record_t **variants, int num_variants, family_t **families, int
 }
 
 
-tdt_result_t* tdt_result_new(char *chromosome, unsigned long int position, char *reference, char *alternate, double t1, double t2, double chi_square) {
+tdt_result_t* tdt_result_new(char *chromosome, int chromosome_len, unsigned long int position, char *reference, int reference_len, 
+                             char *alternate, int alternate_len, double t1, double t2, double chi_square) {
     tdt_result_t *result = (tdt_result_t*) malloc (sizeof(tdt_result_t));
     
-    result->chromosome = strdup(chromosome);
+    result->chromosome = strndup(chromosome, chromosome_len);
     result->position = position;
-    result->reference = strdup(reference);
-    result->alternate = strdup(alternate);
+    result->reference = strndup(reference, reference_len);
+    result->alternate = strndup(alternate, alternate_len);
     result->t1 = t1;
     result->t2 = t2;
     result->odds_ratio = (t2 == 0.0) ? NAN : ((double) t1/t2);
