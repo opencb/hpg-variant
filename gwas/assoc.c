@@ -1,13 +1,9 @@
 #include "assoc.h"
 
-// void assoc_test(enum GWAS_task test_type, ped_file_t *ped_file, list_item_t *variants, int num_variants, cp_hashtable *sample_ids, const void *opt_input, list_t *output_list) {
-void assoc_test(enum GWAS_task test_type, ped_file_t *ped_file, vcf_record_t **variants, int num_variants, 
+void assoc_test(enum GWAS_task test_type, vcf_record_t **variants, int num_variants, family_t **families, int num_families, 
                 cp_hashtable *sample_ids, const void *opt_input, list_t *output_list) {
     int ret_code = 0;
     int tid = omp_get_thread_num();
-    cp_hashtable *families = ped_file->families;
-    char **families_keys = (char**) cp_hashtable_get_keys(families);
-    int num_families = get_num_families(ped_file);
     int num_samples = cp_hashtable_count(sample_ids);
     
     char **sample_data;
@@ -23,9 +19,6 @@ void assoc_test(enum GWAS_task test_type, ped_file_t *ped_file, vcf_record_t **v
     // Perform analysis for each variant
     
     vcf_record_t *record;
-//     list_item_t *cur_variant = variants;
-//     for (int i = 0; i < num_variants && cur_variant != NULL; i++) {
-//         vcf_record_t *record = (vcf_record_t*) cur_variant->data_p;
     for (int i = 0; i < num_variants; i++) {
         record = variants[i];
         LOG_DEBUG_F("[%d] Checking variant %.*s:%ld\n", tid, record->chromosome_len, record->chromosome, record->position);
@@ -42,7 +35,7 @@ void assoc_test(enum GWAS_task test_type, ped_file_t *ped_file, vcf_record_t **v
         family_t *family;
         
         for (int f = 0; f < num_families; f++) {
-            family = cp_hashtable_get(families, families_keys[f]);
+            family = families[f];
             individual_t *father = family->father;
             individual_t *mother = family->mother;
             cp_list *children = family->children;
@@ -130,7 +123,6 @@ void assoc_test(enum GWAS_task test_type, ped_file_t *ped_file, vcf_record_t **v
             list_insert_item(output_item, output_list);
         } else if (test_type == FISHER) {
             double p_value = assoc_fisher_test(A1, A2, U1, U2, (double*) opt_input);
-//             double p_value = assoc_fisher_test(A1, U1, A2, U2, (double*) opt_input);
             assoc_fisher_result_t *result = assoc_fisher_result_new(record->chromosome, record->chromosome_len, 
                                                                     record->position, 
                                                                     record->reference, record->reference_len,
@@ -142,11 +134,8 @@ void assoc_test(enum GWAS_task test_type, ped_file_t *ped_file, vcf_record_t **v
         
         LOG_DEBUG_F("[%d] after adding %.*s:%ld\n", tid, record->chromosome_len, record->chromosome, record->position);
         
-//         cur_variant = cur_variant->next_p;
     } // next variant
 
-    // Free families' keys
-    free(families_keys);
 }
 
 
