@@ -3,13 +3,10 @@
 int run_association_test(shared_options_data_t* shared_options_data, gwas_options_data_t* options_data) {
     list_t *read_list = (list_t*) malloc(sizeof(list_t));
     list_init("text", 1, shared_options_data->max_batches, read_list);
-    list_t *vcf_batches_list = (list_t*) malloc(sizeof(list_t));
-    list_init("batches", 1, shared_options_data->max_batches, vcf_batches_list);
     list_t *output_list = (list_t*) malloc (sizeof(list_t));
-    list_init("output", shared_options_data->num_threads, shared_options_data->max_batches * shared_options_data->batch_size, output_list);
+    list_init("output", shared_options_data->num_threads, INT_MAX, output_list);
 
     int ret_code = 0;
-    double start, stop, total;
     vcf_file_t *file = vcf_open(shared_options_data->vcf_filename);
     ped_file_t *ped_file = ped_open(shared_options_data->ped_filename);
     size_t output_directory_len = strlen(shared_options_data->output_directory);
@@ -29,18 +26,18 @@ int run_association_test(shared_options_data_t* shared_options_data, gwas_option
     
     LOG_INFO("About to perform basic association test...\n");
 
-#pragma omp parallel sections private(start, stop, total) firstprivate(vcf_batches_list)
+#pragma omp parallel sections num_threads(3) private (ret_code)
     {
 #pragma omp section
         {
             LOG_DEBUG_F("Thread %d reads the VCF file\n", omp_get_thread_num());
             // Reading
-            start = omp_get_wtime();
+            double start = omp_get_wtime();
 
             ret_code = vcf_read_batches(read_list, shared_options_data->batch_size, file);
 
-            stop = omp_get_wtime();
-            total = stop - start;
+            double stop = omp_get_wtime();
+            double total = stop - start;
 
             if (ret_code) {
                 LOG_FATAL_F("Error %d while reading the file %s\n", ret_code, file->filename);
@@ -54,9 +51,8 @@ int run_association_test(shared_options_data_t* shared_options_data, gwas_option
 
 #pragma omp section
         {
-            // Enable nested parallelism and set the number of threads the user has chosen
+            // Enable nested parallelism
             omp_set_nested(1);
-            omp_set_num_threads(shared_options_data->num_threads);
             
             LOG_DEBUG_F("Thread %d processes data\n", omp_get_thread_num());
             
@@ -72,12 +68,18 @@ int run_association_test(shared_options_data_t* shared_options_data, gwas_option
             FILE *passed_file = NULL, *failed_file = NULL;
             get_output_files(shared_options_data, &passed_file, &failed_file);
     
-            start = omp_get_wtime();
+            double start = omp_get_wtime();
             
             double *factorial_logarithms = NULL;
             
 #pragma omp parallel num_threads(shared_options_data->num_threads) shared(initialization_done, sample_ids, factorial_logarithms, filters)
             {
+            family_t **families = (family_t**) cp_hashtable_get_values(ped_file->families);
+            int num_families = get_num_families(ped_file);
+            
+            list_t *vcf_batches_list = (list_t*) malloc(sizeof(list_t));
+            list_init("batches", 1, shared_options_data->max_batches, vcf_batches_list);
+             
             int i = 0;
             list_item_t *item = NULL;
             while ((item = list_remove_item(read_list)) != NULL) {
@@ -116,8 +118,7 @@ int run_association_test(shared_options_data_t* shared_options_data, gwas_option
                 
                 list_item_t *batch_item = list_remove_item(vcf_batches_list);
                 vcf_batch_t *batch = batch_item->data_p;
-//                 list_t *input_records = batch;
-//                 list_t *passed_records = NULL, *failed_records = NULL;
+                
                 array_list_t *input_records = batch;
                 array_list_t *passed_records = NULL, *failed_records = NULL;
 
@@ -130,8 +131,6 @@ int run_association_test(shared_options_data_t* shared_options_data, gwas_option
                 if (filters == NULL) {
                     passed_records = input_records;
                 } else {
-//                     failed_records = (list_t*) malloc(sizeof(list_t));
-//                     list_init("failed_records", 1, INT_MAX, failed_records);
                     failed_records = array_list_new(input_records->size + 1, 1, COLLECTION_MODE_ASYNCHRONIZED);
                     passed_records = run_filter_chain(input_records, failed_records, filters, num_filters);
                 }
@@ -140,12 +139,13 @@ int run_association_test(shared_options_data_t* shared_options_data, gwas_option
                 int num_variants = MIN(shared_options_data->batch_size, passed_records->size);
                 if (passed_records->size > 0) {
                     LOG_DEBUG_F("[%d] Test execution\n", omp_get_thread_num());
+                    // TODO is this if neccessary? factorial_logarithms will be null in chi-square
                     if (options_data->task == ASSOCIATION_BASIC) {
-//                         assoc_test(options_data->task, ped_file, passed_records->first_p, shared_options_data->batch_size, sample_ids, NULL, output_list);
-                        assoc_test(options_data->task, ped_file, (vcf_record_t**) passed_records->items, num_variants, sample_ids, NULL, output_list);
+                        assoc_test(options_data->task, (vcf_record_t**) passed_records->items, num_variants, 
+                                   families, num_families, sample_ids, NULL, output_list);
                     } else if (options_data->task == FISHER) {
-//                         assoc_test(options_data->task, ped_file, passed_records->first_p, shared_options_data->batch_size, sample_ids, factorial_logarithms, output_list);
-                        assoc_test(options_data->task, ped_file, (vcf_record_t**) passed_records->items, num_variants, sample_ids, factorial_logarithms, output_list);
+                        assoc_test(options_data->task, (vcf_record_t**) passed_records->items, num_variants, 
+                                   families, num_families, sample_ids, factorial_logarithms, output_list);
                     }
                 }
                 
@@ -168,17 +168,14 @@ int run_association_test(shared_options_data_t* shared_options_data, gwas_option
                 // Free items in both lists (not their internal data)
                 if (passed_records != input_records) {
                     LOG_DEBUG_F("[Batch %d] %zu passed records\n", i, passed_records->size);
-//                     list_free_deep(passed_records, NULL);
                     array_list_free(passed_records, NULL);
                 }
                 if (failed_records) {
                     LOG_DEBUG_F("[Batch %d] %zu failed records\n", i, failed_records->size);
-//                     list_free_deep(failed_records, NULL);
                     array_list_free(failed_records, NULL);
                 }
                 
                 // Free batch and its contents
-//                 free(status);
                 vcf_reader_status_free(status);
                 vcf_batch_free(batch);
                 list_item_free(batch_item);
@@ -189,9 +186,8 @@ int run_association_test(shared_options_data_t* shared_options_data, gwas_option
             }  
             }
 
-            stop = omp_get_wtime();
-
-            total = stop - start;
+            double stop = omp_get_wtime();
+            double total = stop - start;
 
             LOG_INFO_F("[%d] Time elapsed = %f s\n", omp_get_thread_num(), total);
             LOG_INFO_F("[%d] Time elapsed = %e ms\n", omp_get_thread_num(), total*1000);
@@ -235,7 +231,7 @@ int run_association_test(shared_options_data_t* shared_options_data, gwas_option
             free(filename);
             free(path);
             
-            start = omp_get_wtime();
+            double start = omp_get_wtime();
             
             // Write data: header + one line per variant
             list_item_t* item = NULL;
@@ -282,9 +278,8 @@ int run_association_test(shared_options_data_t* shared_options_data, gwas_option
             
             fclose(fd);
             
-            stop = omp_get_wtime();
-
-            total = stop - start;
+            double stop = omp_get_wtime();
+            double total = stop - start;
 
             LOG_INFO_F("[%dW] Time elapsed = %f s\n", omp_get_thread_num(), total);
             LOG_INFO_F("[%dW] Time elapsed = %e ms\n", omp_get_thread_num(), total*1000);

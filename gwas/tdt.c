@@ -196,10 +196,15 @@ int tdt_test(vcf_record_t **variants, int num_variants, family_t **families, int
 //                 }
                 
                 // Increment transmission counts
+//                 if (trA==1) { t1++; }
+//                 if (trB==1) { t1++; }
+//                 if (trA==2) { t2++; }
+//                 if (trB==2) { t2++; }
                 if (trA==1) { t1++; }
+                else if (trA==2) { t2++; }
+                
                 if (trB==1) { t1++; }
-                if (trA==2) { t2++; }
-                if (trB==2) { t2++; }
+                else if (trB==2) { t2++; }
                 
                 LOG_DEBUG_F("TDT\t%.*s %s : %d %d - %d %d - %d %d - F %d/%d - M %d/%d - C %d/%d\n", 
                             record->id_len, record->id, family->id, trA, unA, trB, unB, t1, t2, 
