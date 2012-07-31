@@ -3,14 +3,10 @@
 int run_tdt_test(shared_options_data_t* shared_options_data, gwas_options_data_t* options_data) {
     list_t *read_list = (list_t*) malloc(sizeof(list_t));
     list_init("text", 1, shared_options_data->max_batches, read_list);
-//     list_t *vcf_batches_list = (list_t*) malloc(sizeof(list_t));
-//     list_init("batches", 1, shared_options_data->max_batches, vcf_batches_list);
     list_t *output_list = (list_t*) malloc (sizeof(list_t));
-//     list_init("output", shared_options_data->num_threads, shared_options_data->max_batches * shared_options_data->batch_size, output_list);
     list_init("output", shared_options_data->num_threads, INT_MAX, output_list);
 
     int ret_code = 0;
-//     double start, stop, total;
     vcf_file_t *file = vcf_open(shared_options_data->vcf_filename);
     ped_file_t *ped_file = ped_open(shared_options_data->ped_filename);
     size_t output_directory_len = strlen(shared_options_data->output_directory);
@@ -30,7 +26,6 @@ int run_tdt_test(shared_options_data_t* shared_options_data, gwas_options_data_t
     
     LOG_INFO("About to perform TDT test...\n");
 
-// #pragma omp parallel sections private(start, stop, total) firstprivate(vcf_batches_list)
 #pragma omp parallel sections num_threads(3) private (ret_code)
     {
 #pragma omp section
@@ -61,10 +56,8 @@ int run_tdt_test(shared_options_data_t* shared_options_data, gwas_options_data_t
             printf("Level %d: number of threads in the team - %d\n", 10, omp_get_num_threads());
             double *res = calloc (shared_options_data->num_threads, sizeof(double));
             
-            
-            // Enable nested parallelism and set the number of threads the user has chosen
+            // Enable nested parallelism
             omp_set_nested(1);
-//             omp_set_num_threads(shared_options_data->num_threads);
             
             LOG_DEBUG_F("Thread %d processes data\n", omp_get_thread_num());
             
@@ -101,27 +94,22 @@ int run_tdt_test(shared_options_data_t* shared_options_data, gwas_options_data_t
 //                 }
                 
 //                 double start_batch, end_batch;
-// //                 start_batch = omp_get_wtime();
+//                 start_batch = omp_get_wtime();
                 
                 char *text_begin = (char*) item->data_p;
                 size_t len = strlen(text_begin);
                 char *text_end_batch = text_begin + len;
                 
-//                 printf("Batch = %.*s\n", 50, text_begin);
-                
-//                 printf("WT%d start_batch %c (%zu)\n", omp_get_thread_num(), text_begin[20], len);
-                
                 assert(text_end_batch != NULL);
-//                 assert(vcf_batches_list != NULL);
-//                 
+                
 //                 start_batch = omp_get_wtime();
-//                 
+                
                 vcf_reader_status *status = vcf_reader_status_new(shared_options_data->batch_size, 1, 1);
                 ret_code = execute_vcf_ragel_machine(text_begin, text_end_batch, vcf_batches_list, shared_options_data->batch_size, file, status);
                 if (ret_code > 0) {
                     LOG_FATAL_F("Error %d while parsing the file %s\n", ret_code, file->filename);
                 }
-//                 
+                
 //                 end_batch = omp_get_wtime();
 //                 printf("WT%d end_batch ragel\t%f s\n", omp_get_thread_num(), end_batch - start_batch);
                 
@@ -156,7 +144,6 @@ int run_tdt_test(shared_options_data_t* shared_options_data, gwas_options_data_t
                 array_list_t *input_records = batch;
                 array_list_t *passed_records = NULL, *failed_records = NULL;
 
-//                 if (i % 20 == 0) {
                 if (i % 100 == 0) {
                     LOG_INFO_F("Batch %d reached by thread %d - %zu/%zu records \n", 
                             i, omp_get_thread_num(),
@@ -166,8 +153,6 @@ int run_tdt_test(shared_options_data_t* shared_options_data, gwas_options_data_t
                 if (filters == NULL) {
                     passed_records = input_records;
                 } else {
-//                     failed_records = (list_t*) malloc(sizeof(list_t));
-//                     list_init("failed_records", 1, INT_MAX, failed_records);
                     failed_records = array_list_new(input_records->size + 1, 1, COLLECTION_MODE_ASYNCHRONIZED);
                     passed_records = run_filter_chain(input_records, failed_records, filters, num_filters);
                 }
@@ -194,17 +179,14 @@ int run_tdt_test(shared_options_data_t* shared_options_data, gwas_options_data_t
                 // Free items in both lists (not their internal data)
                 if (passed_records != input_records) {
                     LOG_DEBUG_F("[Batch %d] %zu passed records\n", i, passed_records->size);
-//                     list_free_deep(passed_records, NULL);
                     array_list_free(passed_records, NULL);
                 }
                 if (failed_records) {
                     LOG_DEBUG_F("[Batch %d] %zu failed records\n", i, failed_records->size);
-//                     list_free_deep(failed_records, NULL);
                     array_list_free(failed_records, NULL);
                 }
                 
                 // Free batch and its contents
-//                 free(status);
                 vcf_reader_status_free(status);
                 vcf_batch_free(batch);
                 list_item_free(batch_item);
