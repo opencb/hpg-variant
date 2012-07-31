@@ -28,7 +28,7 @@ void assoc_test(enum GWAS_task test_type, ped_file_t *ped_file, vcf_record_t **v
 //         vcf_record_t *record = (vcf_record_t*) cur_variant->data_p;
     for (int i = 0; i < num_variants; i++) {
         record = variants[i];
-        LOG_DEBUG_F("[%d] Checking variant %s:%ld\n", tid, record->chromosome, record->position);
+        LOG_DEBUG_F("[%d] Checking variant %.*s:%ld\n", tid, record->chromosome_len, record->chromosome, record->position);
         
         A1 = 0; A2 = 0;
         U1 = 0; U2 = 0;
@@ -36,7 +36,7 @@ void assoc_test(enum GWAS_task test_type, ped_file_t *ped_file, vcf_record_t **v
         num_analyzed = 0;
 
         sample_data = (char**) record->samples->items;
-        gt_position = get_field_position_in_format("GT", record->format);
+        gt_position = get_field_position_in_format("GT", strndup(record->format, record->format_len));
     
         // Count over families
         family_t *family;
@@ -117,26 +117,30 @@ void assoc_test(enum GWAS_task test_type, ped_file_t *ped_file, vcf_record_t **v
         // the statistics
         
         
-        LOG_DEBUG_F("[%d] before adding %s:%ld\n", tid, record->chromosome, record->position);
+        LOG_DEBUG_F("[%d] before adding %.*s:%ld\n", tid, record->chromosome_len, record->chromosome, record->position);
         
         if (test_type == ASSOCIATION_BASIC) {
             double assoc_basic_chisq = assoc_basic_test(A1, U1, A2, U2);
-            assoc_basic_result_t *result = assoc_basic_result_new(record->chromosome, record->position, 
-                                                                  record->reference, record->alternate, 
+            assoc_basic_result_t *result = assoc_basic_result_new(record->chromosome, record->chromosome_len, 
+                                                                  record->position, 
+                                                                  record->reference, record->reference_len,
+                                                                  record->alternate, record->alternate_len,
                                                                   A1, A2, U1, U2, assoc_basic_chisq);
             list_item_t *output_item = list_item_new(tid, 0, result);
             list_insert_item(output_item, output_list);
         } else if (test_type == FISHER) {
             double p_value = assoc_fisher_test(A1, A2, U1, U2, (double*) opt_input);
 //             double p_value = assoc_fisher_test(A1, U1, A2, U2, (double*) opt_input);
-            assoc_fisher_result_t *result = assoc_fisher_result_new(record->chromosome, record->position, 
-                                                                  record->reference, record->alternate, 
-                                                                  A1, A2, U1, U2, p_value);
+            assoc_fisher_result_t *result = assoc_fisher_result_new(record->chromosome, record->chromosome_len, 
+                                                                    record->position, 
+                                                                    record->reference, record->reference_len,
+                                                                    record->alternate, record->alternate_len,
+                                                                    A1, A2, U1, U2, p_value);
             list_item_t *output_item = list_item_new(tid, 0, result);
             list_insert_item(output_item, output_list);
         }
         
-        LOG_DEBUG_F("[%d] after adding %s:%ld\n", tid, record->chromosome, record->position);
+        LOG_DEBUG_F("[%d] after adding %.*s:%ld\n", tid, record->chromosome_len, record->chromosome, record->position);
         
 //         cur_variant = cur_variant->next_p;
     } // next variant
@@ -151,7 +155,7 @@ void assoc_count_individual(individual_t *individual, vcf_record_t *record, int 
     int A1 = 0, A2 = 0, A0 = 0;
     int U1 = 0, U2 = 0, U0 = 0;
     
-    if (!strcmp("X", record->chromosome)) {
+    if (!strncmp("X", record->chromosome, record->chromosome_len)) {
         if (individual->condition == AFFECTED) { // if affected 
             if (!allele1 && !allele2) {
                 A1++;

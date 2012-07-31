@@ -121,7 +121,7 @@ int run_association_test(shared_options_data_t* shared_options_data, gwas_option
                 array_list_t *input_records = batch;
                 array_list_t *passed_records = NULL, *failed_records = NULL;
 
-                if (i % 20 == 0) {
+                if (i % 100 == 0) {
                     LOG_INFO_F("Batch %d reached by thread %d - %zu/%zu records \n", 
                             i, omp_get_thread_num(),
                             batch->size, batch->capacity);
@@ -178,11 +178,12 @@ int run_association_test(shared_options_data_t* shared_options_data, gwas_option
                 }
                 
                 // Free batch and its contents
+//                 free(status);
+                vcf_reader_status_free(status);
                 vcf_batch_free(batch);
                 list_item_free(batch_item);
                 free(item->data_p);
                 list_item_free(item);
-                free(status);
                 
                 i++;
             }  
@@ -289,7 +290,7 @@ int run_association_test(shared_options_data_t* shared_options_data, gwas_option
             LOG_INFO_F("[%dW] Time elapsed = %e ms\n", omp_get_thread_num(), total*1000);
         }
     }
-    
+   
     free(read_list);
     free(output_list);
     vcf_close(file);
