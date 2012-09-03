@@ -32,7 +32,7 @@ int run_tdt_test(shared_options_data_t* shared_options_data, gwas_options_data_t
         {
             printf("Level %d: number of threads in the team - %d\n", 0, omp_get_num_threads());
             
-//             LOG_DEBUG_F("Thread %d reads the VCF file\n", omp_get_thread_num());
+//  //           LOG_DEBUG_F("Thread %d reads the VCF file\n", omp_get_thread_num());
             // Reading
             double start = omp_get_wtime();
 
@@ -59,7 +59,7 @@ int run_tdt_test(shared_options_data_t* shared_options_data, gwas_options_data_t
             // Enable nested parallelism
             omp_set_nested(1);
             
-            LOG_DEBUG_F("Thread %d processes data\n", omp_get_thread_num());
+ //           LOG_DEBUG_F("Thread %d processes data\n", omp_get_thread_num());
             
             volatile int initialization_done = 0;
             cp_hashtable *sample_ids = NULL;
@@ -178,11 +178,11 @@ int run_tdt_test(shared_options_data_t* shared_options_data, gwas_options_data_t
                 
                 // Free items in both lists (not their internal data)
                 if (passed_records != input_records) {
-                    LOG_DEBUG_F("[Batch %d] %zu passed records\n", i, passed_records->size);
+         //           LOG_DEBUG_F("[Batch %d] %zu passed records\n", i, passed_records->size);
                     array_list_free(passed_records, NULL);
                 }
                 if (failed_records) {
-                    LOG_DEBUG_F("[Batch %d] %zu failed records\n", i, failed_records->size);
+         //           LOG_DEBUG_F("[Batch %d] %zu failed records\n", i, failed_records->size);
                     array_list_free(failed_records, NULL);
                 }
                 
