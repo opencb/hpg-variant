@@ -37,7 +37,7 @@ int tdt_test(vcf_record_t **variants, int num_variants, family_t **families, int
             individual_t *mother = family->mother;
             cp_list *children = family->children;
 
-            LOG_DEBUG_F("[%d] Checking suitability of family %s\n", tid, family->id);
+//           LOG_DEBUG_F("[%d] Checking suitability of family %s\n", tid, family->id);
             
             if (father == NULL || mother == NULL) {
                 continue;
@@ -45,24 +45,24 @@ int tdt_test(vcf_record_t **variants, int num_variants, family_t **families, int
 
             int *father_pos = cp_hashtable_get(sample_ids, father->id);
             if (father_pos != NULL) {
-                LOG_DEBUG_F("[%d] Father %s is in position %d\n", tid, father->id, *father_pos);
+    //           LOG_DEBUG_F("[%d] Father %s is in position %d\n", tid, father->id, *father_pos);
             } else {
-                LOG_DEBUG_F("[%d] Father %s is not positioned\n", tid, father->id);
+    //           LOG_DEBUG_F("[%d] Father %s is not positioned\n", tid, father->id);
                 continue;
             }
             
             int *mother_pos = cp_hashtable_get(sample_ids, mother->id);
             if (mother_pos != NULL) {
-                LOG_DEBUG_F("[%d] Mother %s is in position %d\n", tid, mother->id, *mother_pos);
+    //           LOG_DEBUG_F("[%d] Mother %s is in position %d\n", tid, mother->id, *mother_pos);
             } else {
-                LOG_DEBUG_F("[%d] Mother %s is not positioned\n", tid, mother->id);
+    //           LOG_DEBUG_F("[%d] Mother %s is not positioned\n", tid, mother->id);
                 continue;
             }
             
             char *father_sample = strdup(sample_data[*father_pos]);
             char *mother_sample = strdup(sample_data[*mother_pos]);
             
-            LOG_DEBUG_F("[%d] Samples: Father = %s\tMother = %s\n", tid, father_sample, mother_sample);
+//           LOG_DEBUG_F("[%d] Samples: Father = %s\tMother = %s\n", tid, father_sample, mother_sample);
             
             // If any parent's alleles can't be read or is missing, go to next family
             if (get_alleles(father_sample, gt_position, &father_allele1, &father_allele2) ||
@@ -72,7 +72,7 @@ int tdt_test(vcf_record_t **variants, int num_variants, family_t **families, int
                 continue;
             }
             
-            LOG_DEBUG_F("[%d] Alleles: Father = %d/%d\tMother = %d/%d\n", tid, father_allele1, father_allele2, mother_allele1, mother_allele2);
+//           LOG_DEBUG_F("[%d] Alleles: Father = %d/%d\tMother = %d/%d\n", tid, father_allele1, father_allele2, mother_allele1, mother_allele2);
             
             // We need two genotyped parents, with at least one het
             if (father_allele1 == father_allele2 && mother_allele1 == mother_allele2) {
@@ -87,7 +87,7 @@ int tdt_test(vcf_record_t **variants, int num_variants, family_t **families, int
                 continue;
             }
 
-            LOG_DEBUG_F("[%d] Proceeding to analyse family %s...\n", tid, family->id);
+//           LOG_DEBUG_F("[%d] Proceeding to analyse family %s...\n", tid, family->id);
 
             
             int trA = 0;  // transmitted allele from first het parent
@@ -105,14 +105,14 @@ int tdt_test(vcf_record_t **variants, int num_variants, family_t **families, int
                 
                 int *child_pos = cp_hashtable_get(sample_ids, child->id);
                 if (child_pos != NULL) {
-                    LOG_DEBUG_F("[%d] Child %s is in position %d\n", tid, child->id, *child_pos);
+        //           LOG_DEBUG_F("[%d] Child %s is in position %d\n", tid, child->id, *child_pos);
                 } else {
-                    LOG_DEBUG_F("[%d] Child %s is not positioned\n", tid, child->id);
+        //           LOG_DEBUG_F("[%d] Child %s is not positioned\n", tid, child->id);
                     continue;
                 }
                 
                 char *child_sample = strdup(sample_data[*child_pos]);
-                LOG_DEBUG_F("[%d] Samples: Child = %s\n", tid, child_sample);
+    //           LOG_DEBUG_F("[%d] Samples: Child = %s\n", tid, child_sample);
                 
                 // Skip if offspring has missing genotype
                 if (get_alleles(child_sample, gt_position, &child_allele1, &child_allele2)) {
@@ -206,9 +206,9 @@ int tdt_test(vcf_record_t **variants, int num_variants, family_t **families, int
                 if (trB==1) { t1++; }
                 else if (trB==2) { t2++; }
                 
-                LOG_DEBUG_F("TDT\t%.*s %s : %d %d - %d %d - %d %d - F %d/%d - M %d/%d - C %d/%d\n", 
-                            record->id_len, record->id, family->id, trA, unA, trB, unB, t1, t2, 
-                            father_allele1, father_allele2, mother_allele1, mother_allele2, child_allele1, child_allele2);
+//     //           LOG_DEBUG_F("TDT\t%.*s %s : %d %d - %d %d - %d %d - F %d/%d - M %d/%d - C %d/%d\n", 
+//                             record->id_len, record->id, family->id, trA, unA, trB, unB, t1, t2, 
+//                             father_allele1, father_allele2, mother_allele1, mother_allele2, child_allele1, child_allele2);
                 free(child_sample);
                 
             } // next offspring in family
@@ -237,7 +237,7 @@ int tdt_test(vcf_record_t **variants, int num_variants, family_t **families, int
                                 t1, t2, tdt_chisq);
         list_item_t *output_item = list_item_new(tid, 0, result);
         list_insert_item(output_item, output_list);
-        LOG_DEBUG_F("[%d] after adding %.*s:%ld\n", tid, record->chromosome_len, record->chromosome, record->position);
+//         LOG_DEBUG_F("[%d] after adding %.*s:%ld\n", tid, record->chromosome_len, record->chromosome, record->position);
         
     } // next variant
 
