@@ -72,7 +72,8 @@ int run_association_test(shared_options_data_t* shared_options_data, gwas_option
             
             double *factorial_logarithms = NULL;
             
-#pragma omp parallel num_threads(shared_options_data->num_threads) shared(initialization_done, sample_ids, factorial_logarithms, filters)
+// #pragma omp parallel num_threads(shared_options_data->num_threads) shared(initialization_done, sample_ids, factorial_logarithms, filters)
+#pragma omp parallel num_threads(shared_options_data->num_threads) shared(initialization_done, factorial_logarithms, filters)
             {
             family_t **families = (family_t**) cp_hashtable_get_values(ped_file->families);
             int num_families = get_num_families(ped_file);
@@ -94,12 +95,13 @@ int run_association_test(shared_options_data_t* shared_options_data, gwas_option
                 
                 // Initialize structures needed for TDT and write headers of output files
                 if (!initialization_done) {
+                    sample_ids = associate_samples_and_positions(file);
 # pragma omp critical
                 {
                     // Guarantee that just one thread performs this operation
                     if (!initialization_done) {
                         // Create map to associate the position of individuals in the list of samples defined in the VCF file
-                        sample_ids = associate_samples_and_positions(file);
+//                         sample_ids = associate_samples_and_positions(file);
                         
                         // Write file format, header entries and delimiter
                         if (passed_file != NULL) { vcf_write_to_file(file, passed_file); }
@@ -138,15 +140,15 @@ int run_association_test(shared_options_data_t* shared_options_data, gwas_option
                 // Launch TDT test over records that passed the filters
                 int num_variants = MIN(shared_options_data->batch_size, passed_records->size);
                 if (passed_records->size > 0) {
-                    LOG_DEBUG_F("[%d] Test execution\n", omp_get_thread_num());
+//                     LOG_DEBUG_F("[%d] Test execution\n", omp_get_thread_num());
                     // TODO is this if neccessary? factorial_logarithms will be null in chi-square
-                    if (options_data->task == ASSOCIATION_BASIC) {
-                        assoc_test(options_data->task, (vcf_record_t**) passed_records->items, num_variants, 
-                                   families, num_families, sample_ids, NULL, output_list);
-                    } else if (options_data->task == FISHER) {
+//                     if (options_data->task == ASSOCIATION_BASIC) {
+//                         assoc_test(options_data->task, (vcf_record_t**) passed_records->items, num_variants, 
+//                                    families, num_families, sample_ids, NULL, output_list);
+//                     } else if (options_data->task == FISHER) {
                         assoc_test(options_data->task, (vcf_record_t**) passed_records->items, num_variants, 
                                    families, num_families, sample_ids, factorial_logarithms, output_list);
-                    }
+//                     }
                 }
                 
                 // Write records that passed and failed to separate files
@@ -167,11 +169,11 @@ int run_association_test(shared_options_data_t* shared_options_data, gwas_option
                 
                 // Free items in both lists (not their internal data)
                 if (passed_records != input_records) {
-                    LOG_DEBUG_F("[Batch %d] %zu passed records\n", i, passed_records->size);
+//                     LOG_DEBUG_F("[Batch %d] %zu passed records\n", i, passed_records->size);
                     array_list_free(passed_records, NULL);
                 }
                 if (failed_records) {
-                    LOG_DEBUG_F("[Batch %d] %zu failed records\n", i, failed_records->size);
+//                     LOG_DEBUG_F("[Batch %d] %zu failed records\n", i, failed_records->size);
                     array_list_free(failed_records, NULL);
                 }
                 

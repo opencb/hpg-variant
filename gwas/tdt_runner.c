@@ -88,17 +88,12 @@ int run_tdt_test(shared_options_data_t* shared_options_data, gwas_options_data_t
             int i = 0;
             list_item_t *item = NULL;
             while ((item = list_remove_item(read_list)) != NULL) {
-                // TODO this loop provides good speed-up
-//                 for (int i = 0; i < 100000; i++) {
-//                     res[omp_get_thread_num()] += cos(i);
-//                 }
                 
 //                 double start_batch, end_batch;
 //                 start_batch = omp_get_wtime();
                 
                 char *text_begin = (char*) item->data_p;
-                size_t len = strlen(text_begin);
-                char *text_end_batch = text_begin + len;
+                char *text_end_batch = text_begin + strlen(text_begin);
                 
                 assert(text_end_batch != NULL);
                 
@@ -169,10 +164,16 @@ int run_tdt_test(shared_options_data_t* shared_options_data, gwas_options_data_t
                 // Write records that passed and failed to separate files
                 if (passed_file != NULL && failed_file != NULL) {
                     if (passed_records != NULL && passed_records->size > 0) {
+                #pragma omp critical 
+                    {
                         write_batch(passed_records, passed_file);
                     }
+                    }
                     if (failed_records != NULL && failed_records->size > 0) {
+                #pragma omp critical 
+                    {
                         write_batch(failed_records, failed_file);
+                    }
                     }
                 }
                 
@@ -205,15 +206,15 @@ int run_tdt_test(shared_options_data_t* shared_options_data, gwas_options_data_t
             LOG_INFO_F("[%d] Time elapsed = %f s\n", omp_get_thread_num(), stop - start);
             LOG_INFO_F("[%d] Time elapsed = %e ms\n", omp_get_thread_num(), (stop - start) * 1000);
 
-//             // Free resources
-//             if (sample_ids) { cp_hashtable_destroy(sample_ids); }
-//             
-//             // Free filters
-//             for (int i = 0; i < num_filters; i++) {
-//                 filter_t *filter = filters[i];
-//                 filter->free_func(filter);
-//             }
-//             free(filters);
+            // Free resources
+            if (sample_ids) { cp_hashtable_destroy(sample_ids); }
+            
+            // Free filters
+            for (int i = 0; i < num_filters; i++) {
+                filter_t *filter = filters[i];
+                filter->free_func(filter);
+            }
+            free(filters);
             
             // Decrease list writers count
             for (int i = 0; i < shared_options_data->num_threads; i++) {
