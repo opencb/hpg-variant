@@ -21,7 +21,7 @@ void assoc_test(enum GWAS_task test_type, vcf_record_t **variants, int num_varia
     vcf_record_t *record;
     for (int i = 0; i < num_variants; i++) {
         record = variants[i];
-        LOG_DEBUG_F("[%d] Checking variant %.*s:%ld\n", tid, record->chromosome_len, record->chromosome, record->position);
+//         LOG_DEBUG_F("[%d] Checking variant %.*s:%ld\n", tid, record->chromosome_len, record->chromosome, record->position);
         
         A1 = 0; A2 = 0;
         U1 = 0; U2 = 0;
@@ -40,17 +40,20 @@ void assoc_test(enum GWAS_task test_type, vcf_record_t **variants, int num_varia
             individual_t *mother = family->mother;
             cp_list *children = family->children;
 
-            LOG_DEBUG_F("Read = %d\tAnalyzed = %d\n", num_read, num_analyzed);
-            LOG_DEBUG_F("Family = %d (%s)\n", f, family->id);
+//             LOG_DEBUG_F("Read = %d\tAnalyzed = %d\n", num_read, num_analyzed);
+//             LOG_DEBUG_F("Family = %d (%s)\n", f, family->id);
             
             // Perform test with father
             if (father != NULL && father->condition != MISSING) {
                 num_read++;
                 int *father_pos = cp_hashtable_get(sample_ids, father->id);
-                if (father_pos != NULL) {
-                    LOG_DEBUG_F("[%d] Father %s is in position %d\n", tid, father->id, *father_pos);
-                } else {
-                    LOG_DEBUG_F("[%d] Father %s is not positioned\n", tid, father->id);
+//                 if (father_pos != NULL) {
+//                     LOG_DEBUG_F("[%d] Father %s is in position %d\n", tid, father->id, *father_pos);
+//                 } else {
+//                     LOG_DEBUG_F("[%d] Father %s is not positioned\n", tid, father->id);
+//                     continue;
+//                 }
+                if (!father_pos) {
                     continue;
                 }
                 
@@ -66,10 +69,13 @@ void assoc_test(enum GWAS_task test_type, vcf_record_t **variants, int num_varia
             if (mother != NULL && mother->condition != MISSING) {
                 num_read++;
                 int *mother_pos = cp_hashtable_get(sample_ids, mother->id);
-                if (mother_pos != NULL) {
-                    LOG_DEBUG_F("[%d] Mother %s is in position %d\n", tid, mother->id, *mother_pos);
-                } else {
-                    LOG_DEBUG_F("[%d] Mother %s is not positioned\n", tid, mother->id);
+//                 if (mother_pos != NULL) {
+//                     LOG_DEBUG_F("[%d] Mother %s is in position %d\n", tid, mother->id, *mother_pos);
+//                 } else {
+//                     LOG_DEBUG_F("[%d] Mother %s is not positioned\n", tid, mother->id);
+//                     continue;
+//                 }
+                if (!mother_pos) {
                     continue;
                 }
                 
@@ -86,10 +92,13 @@ void assoc_test(enum GWAS_task test_type, vcf_record_t **variants, int num_varia
             individual_t *child = NULL;
             while ((child = cp_list_iterator_next(children_iterator)) != NULL) {
                 int *child_pos = cp_hashtable_get(sample_ids, child->id);
-                if (child_pos != NULL) {
-                    LOG_DEBUG_F("[%d] Child %s is in position %d\n", tid, child->id, *child_pos);
-                } else {
-                    LOG_DEBUG_F("[%d] Child %s is not positioned\n", tid, child->id);
+//                 if (child_pos != NULL) {
+//                     LOG_DEBUG_F("[%d] Child %s is in position %d\n", tid, child->id, *child_pos);
+//                 } else {
+//                     LOG_DEBUG_F("[%d] Child %s is not positioned\n", tid, child->id);
+//                     continue;
+//                 }
+                if (!child_pos) {
                     continue;
                 }
                 
@@ -110,7 +119,7 @@ void assoc_test(enum GWAS_task test_type, vcf_record_t **variants, int num_varia
         // the statistics
         
         
-        LOG_DEBUG_F("[%d] before adding %.*s:%ld\n", tid, record->chromosome_len, record->chromosome, record->position);
+//         LOG_DEBUG_F("[%d] before adding %.*s:%ld\n", tid, record->chromosome_len, record->chromosome, record->position);
         
         if (test_type == ASSOCIATION_BASIC) {
             double assoc_basic_chisq = assoc_basic_test(A1, U1, A2, U2);
@@ -132,7 +141,7 @@ void assoc_test(enum GWAS_task test_type, vcf_record_t **variants, int num_varia
             list_insert_item(output_item, output_list);
         }
         
-        LOG_DEBUG_F("[%d] after adding %.*s:%ld\n", tid, record->chromosome_len, record->chromosome, record->position);
+//         LOG_DEBUG_F("[%d] after adding %.*s:%ld\n", tid, record->chromosome_len, record->chromosome, record->position);
         
     } // next variant
 
