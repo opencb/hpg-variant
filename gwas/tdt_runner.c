@@ -136,13 +136,13 @@ int run_tdt_test(shared_options_data_t* shared_options_data, gwas_options_data_t
 //                 end_batch = omp_get_wtime();
 //                 printf("WT%d end_batch batch\t%f s\n", omp_get_thread_num(), end_batch - start_batch);
                 
-                array_list_t *input_records = batch;
+                array_list_t *input_records = batch->records;
                 array_list_t *passed_records = NULL, *failed_records = NULL;
 
                 if (i % 100 == 0) {
                     LOG_INFO_F("Batch %d reached by thread %d - %zu/%zu records \n", 
                             i, omp_get_thread_num(),
-                            batch->size, batch->capacity);
+                            batch->records->size, batch->records->capacity);
                 }
 
                 if (filters == NULL) {
@@ -155,6 +155,7 @@ int run_tdt_test(shared_options_data_t* shared_options_data, gwas_options_data_t
                 // Launch TDT test over records that passed the filters
                 int num_variants = MIN(shared_options_data->batch_size, passed_records->size);
                 if (passed_records->size > 0) {
+//                     printf("[%d] first chromosome pos = %lu\n", omp_get_thread_num(), ((vcf_record_t*) passed_records->items[0])->position);
                     ret_code = tdt_test((vcf_record_t**) passed_records->items, num_variants, families, num_families, sample_ids, output_list);
                     if (ret_code) {
                         LOG_FATAL_F("[%d] Error in execution #%d of TDT\n", omp_get_thread_num(), i);
@@ -166,13 +167,19 @@ int run_tdt_test(shared_options_data_t* shared_options_data, gwas_options_data_t
                     if (passed_records != NULL && passed_records->size > 0) {
                 #pragma omp critical 
                     {
-                        write_batch(passed_records, passed_file);
+                        for (int r = 0; r < passed_records->size; r++) {
+                            write_record(passed_records->items[r], passed_file);
+                        }
+//                         write_batch(passed_records, passed_file);
                     }
                     }
                     if (failed_records != NULL && failed_records->size > 0) {
                 #pragma omp critical 
                     {
-                        write_batch(failed_records, failed_file);
+                        for (int r = 0; r < passed_records->size; r++) {
+                            write_record(failed_records->items[r], failed_file);
+                        }
+//                         write_batch(failed_records, failed_file);
                     }
                     }
                 }
@@ -191,7 +198,7 @@ int run_tdt_test(shared_options_data_t* shared_options_data, gwas_options_data_t
                 vcf_reader_status_free(status);
                 vcf_batch_free(batch);
                 list_item_free(batch_item);
-                free(item->data_p);
+//                 free(item->data_p);
                 list_item_free(item);
                 
                 i++;
