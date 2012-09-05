@@ -121,13 +121,13 @@ int run_association_test(shared_options_data_t* shared_options_data, gwas_option
                 list_item_t *batch_item = list_remove_item(vcf_batches_list);
                 vcf_batch_t *batch = batch_item->data_p;
                 
-                array_list_t *input_records = batch;
+                array_list_t *input_records = batch->records;
                 array_list_t *passed_records = NULL, *failed_records = NULL;
 
                 if (i % 100 == 0) {
                     LOG_INFO_F("Batch %d reached by thread %d - %zu/%zu records \n", 
                             i, omp_get_thread_num(),
-                            batch->size, batch->capacity);
+                            batch->records->size, batch->records->capacity);
                 }
 
                 if (filters == NULL) {
@@ -156,13 +156,19 @@ int run_association_test(shared_options_data_t* shared_options_data, gwas_option
                     if (passed_records != NULL && passed_records->size > 0) {
                 #pragma omp critical 
                     {
-                        write_batch(passed_records, passed_file);
+                        for (int r = 0; r < passed_records->size; r++) {
+                            write_record(passed_records->items[r], passed_file);
+                        }
+//                         write_batch(passed_records, passed_file);
                     }
                     }
                     if (failed_records != NULL && failed_records->size > 0) {
                 #pragma omp critical 
                     {
-                        write_batch(failed_records, failed_file);
+                        for (int r = 0; r < passed_records->size; r++) {
+                            write_record(failed_records->items[r], failed_file);
+                        }
+//                         write_batch(failed_records, failed_file);
                     }
                     }
                 }
@@ -181,7 +187,7 @@ int run_association_test(shared_options_data_t* shared_options_data, gwas_option
                 vcf_reader_status_free(status);
                 vcf_batch_free(batch);
                 list_item_free(batch_item);
-                free(item->data_p);
+//                 free(item->data_p);
                 list_item_free(item);
                 
                 i++;

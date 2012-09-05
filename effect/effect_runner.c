@@ -137,13 +137,16 @@ int run_effect(char **urls, shared_options_data_t *shared_options, effect_option
                     LOG_DEBUG("VCF header written\n");
                 }
                 vcf_batch_t *batch = (vcf_batch_t*) item->data_p;
-                array_list_t *input_records = batch;
+                
+                assert(batch);
+                
+                array_list_t *input_records = batch->records;
                 array_list_t *passed_records = NULL, *failed_records = NULL;
 
                 if (i % 20 == 0) {
                     LOG_INFO_F("Batch %d reached by thread %d - %zu/%zu records \n", 
                             i, omp_get_thread_num(),
-                            batch->size, batch->capacity);
+                            batch->records->size, batch->records->capacity);
                 }
 
                 if (filters == NULL) {
@@ -160,11 +163,17 @@ int run_effect(char **urls, shared_options_data_t *shared_options, effect_option
                     int *chunk_sizes;
                     int *chunk_starts = create_chunks(passed_records->size, shared_options->entries_per_thread, &num_chunks, &chunk_sizes);
                     
+                    assert(batch->text != NULL);
+//                     printf("batch loaded = '%.*s'\n", 50, batch->text);
+//                     printf("batch text len = %zu\n", strlen(batch->text));
+                    
                     // OpenMP: Launch a thread for each range
                     #pragma omp parallel for
                     for (int j = 0; j < num_chunks; j++) {
                         LOG_DEBUG_F("[%d] WS invocation\n", omp_get_thread_num());
                         LOG_DEBUG_F("[%d] -- effect WS\n", omp_get_thread_num());
+//                         printf("batch loaded = '%.*s'\n", 50, batch->text);
+//                         printf("[%d] first chromosome pos = %lu\n", omp_get_thread_num(), ((vcf_record_t*) (passed_records->items + chunk_starts[j])[0])->position);
                         ret_ws_0 = invoke_effect_ws(urls[0], (vcf_record_t**) (passed_records->items + chunk_starts[j]), chunk_sizes[j], options_data->excludes);
                         if (!options_data->no_phenotypes) {
                             LOG_DEBUG_F("[%d] -- snp WS\n", omp_get_thread_num());
@@ -200,13 +209,19 @@ int run_effect(char **urls, shared_options_data_t *shared_options, effect_option
                     if (passed_records != NULL && passed_records->size > 0) {
                 #pragma omp critical 
                     {
-                        write_batch(failed_records, failed_file);
+                        for (int r = 0; r < passed_records->size; r++) {
+                            write_record(passed_records->items[r], passed_file);
+                        }
+//                         write_batch(passed_records, passed_file);
                     }
                     }
                     if (failed_records != NULL && failed_records->size > 0) {
                 #pragma omp critical 
                     {
-                        write_batch(failed_records, failed_file);
+                        for (int r = 0; r < passed_records->size; r++) {
+                            write_record(failed_records->items[r], failed_file);
+                        }
+//                         write_batch(failed_records, failed_file);
                     }
                     }
                 }
@@ -221,7 +236,8 @@ int run_effect(char **urls, shared_options_data_t *shared_options, effect_option
                     array_list_free(failed_records, NULL);
                 }
                 // Free batch and its contents
-                vcf_batch_free(item->data_p);
+//                 vcf_batch_free(item->data_p);
+                vcf_batch_free(batch);
                 list_item_free(item);
                 
                 i++;
@@ -388,12 +404,10 @@ int invoke_effect_ws(const char *url, vcf_record_t **records, int num_records, c
     
     for (int i = 0; i < num_records; i++) {
         vcf_record_t *record = records[i];
-        chr_len = strlen(record->chromosome);
-        reference_len = strlen(record->reference);
-        alternate_len = strlen(record->alternate);
+        chr_len = record->chromosome_len;
+        reference_len = record->reference_len;
+        alternate_len = record->alternate_len;
         new_len_range = current_index + chr_len + reference_len + alternate_len + 32;
-        
-        LOG_DEBUG_F("%s:%lu:%s:%s\n", record->chromosome, record->position, record->reference, record->alternate);
         
         // Reallocate memory if next record won't fit
         if (variants_len < (current_index + new_len_range + 1)) {
@@ -401,10 +415,13 @@ int invoke_effect_ws(const char *url, vcf_record_t **records, int num_records, c
             if (aux) { 
                 variants = aux; 
                 variants_len += new_len_range;
+            } else {
+                LOG_FATAL("Not enough memory for composing URL request\n");
             }
         }
         
         // Append region info to buffer
+//         printf("record chromosome = %.*s\n", record->chromosome_len, record->chromosome);
         strncat(variants, record->chromosome, chr_len);
         strncat(variants, ":", 1);
         current_index += chr_len + 1;
@@ -416,8 +433,8 @@ int invoke_effect_ws(const char *url, vcf_record_t **records, int num_records, c
         current_index = strlen(variants);
     }
     
-    LOG_DEBUG_F("variants = %s\n", variants);
-    LOG_DEBUG_F("excludes = %s\n", excludes);
+//     LOG_INFO_F("variants = %.*s\n", 100, variants);
+//     LOG_DEBUG_F("excludes = %s\n", excludes);
     
     char *params[CONSEQUENCE_TYPE_WS_NUM_PARAMS] = { "of", "variants", "exclude" };
     char *params_values[CONSEQUENCE_TYPE_WS_NUM_PARAMS] = { output_format, variants, excludes };
@@ -461,8 +478,8 @@ static size_t write_effect_ws_results(char *contents, size_t size, size_t nmemb,
         
         // If the line[tid] is too long for the current buffers, reallocate a little more than the needed memory
         if (strlen(line[tid]) + next_line_len + 1 > max_line_size[tid]) {
-            LOG_DEBUG_F("Line too long (%d elements, but %zu needed) in batch #%d\n", 
-                        max_line_size[tid], strlen(line[tid]) + next_line_len, batch_num);
+//             LOG_DEBUG_F("Line too long (%d elements, but %zu needed) in batch #%d\n", 
+//                         max_line_size[tid], strlen(line[tid]) + next_line_len, batch_num);
 //             char *out_buf = (char*) calloc (next_line_len+1, sizeof(char));
 //             snprintf(out_buf, next_line_len, "%s", data);
 //             LOG_INFO_F("[%d] too big data is: '%s'\n", tid, out_buf);
@@ -480,11 +497,10 @@ static size_t write_effect_ws_results(char *contents, size_t size, size_t nmemb,
             line[tid] = aux_1;
             output_line[tid] = aux_2;
             max_line_size[tid] += next_line_len + 1;
-            LOG_DEBUG_F("[%d] buffers realloc'd (%d)\n", tid, max_line_size[tid]);
+//             LOG_DEBUG_F("[%d] buffers realloc'd (%d)\n", tid, max_line_size[tid]);
         }
         
-        LOG_DEBUG_F("[%d] position = %d, read = %d, max_size = %zu\n", 
-                    i, next_line_len, data_read_len, realsize);
+//         LOG_DEBUG_F("[%d] position = %d, read = %d, max_size = %zu\n", i, next_line_len, data_read_len, realsize);
         
         if (data_read_len + next_line_len >= realsize) {
             // Save current state (line[tid] partially read)
@@ -492,7 +508,7 @@ static size_t write_effect_ws_results(char *contents, size_t size, size_t nmemb,
             chomp(line[tid]);
             line[tid][strlen(line[tid])] = '\0';
             premature_end = 1;
-            LOG_DEBUG_F("widow line[tid] = '%s'\n", line[tid]);
+//             LOG_DEBUG_F("widow line[tid] = '%s'\n", line[tid]);
             data_read_len = realsize;
             break;
         }
@@ -500,17 +516,18 @@ static size_t write_effect_ws_results(char *contents, size_t size, size_t nmemb,
         strncat(line[tid], data, next_line_len);
         strncat(output_line[tid], line[tid], strlen(line[tid]));
      
-        LOG_DEBUG_F("[%d] copy to buffer (%zu)\n", tid, strlen(line[tid]));
+//         LOG_DEBUG_F("[%d] copy to buffer (%zu)\n", tid, strlen(line[tid]));
     
         int num_substrings;
         char *copy_buf = strdup(line[tid]);
+//         char *copy_buf = strdup(trim(line[tid]));
         char **split_result = split(copy_buf, "\t", &num_substrings);
         free(copy_buf);
         
         // Find consequence type name (always after SO field)
         *SO_found = 0;
         if (num_substrings == 25) {
-            LOG_DEBUG_F("gene = %s\tSO = %d\tCT = %s\n", split_result[17], atoi(split_result[18] + 3), split_result[19]);
+//             LOG_DEBUG_F("gene = %s\tSO = %d\tCT = %s\n", split_result[17], atoi(split_result[18] + 3), split_result[19]);
             if (!cp_hashtable_contains(gene_list, split_result[17])) {
                 cp_hashtable_put(gene_list, strdup(split_result[17]), NULL);
             }
@@ -518,14 +535,21 @@ static size_t write_effect_ws_results(char *contents, size_t size, size_t nmemb,
            memset(tmp_consequence_type, 0, 128 * sizeof(char));
            strncat(tmp_consequence_type, split_result[19], strlen(split_result[19]));
         } else {
-            LOG_INFO_F("[%d] Non-valid line found: '%s'\n", tid, line[tid]);
+            LOG_INFO_F("[%d] Non-valid line found (%d fields): '%s'\n", tid, num_substrings, line[tid]);
             memset(line[tid], 0, strlen(line[tid]));
             memset(output_line[tid], 0, strlen(output_line[tid]));
             
+// #pragma omp critical
+//             {
+//             printf("********\n");
+//             LOG_INFO_F("[%d] Non-valid line found (%d fields): '%s'\n", tid, num_substrings, line[tid]);
             for (int s = 0; s < num_substrings; s++) {
+//                 printf("%s^", split_result[s]);
                 free(split_result[s]);
             }
+//             printf("********\n\n");
             free(split_result);
+//             }
             continue;
         }
         
@@ -535,13 +559,13 @@ static size_t write_effect_ws_results(char *contents, size_t size, size_t nmemb,
         free(split_result);
         
         if (!*SO_found) { // SO:000000 is not valid
-            LOG_DEBUG_F("[%d] Non-valid SO found (0)\n", tid);
+            LOG_INFO_F("[%d] Non-valid SO found (0)\n", tid);
             memset(line[tid], 0, strlen(line[tid]));
             memset(output_line[tid], 0, strlen(output_line[tid]));
             continue;
         }
 
-        LOG_DEBUG_F("[%d] SO found = %d\n", tid, *SO_found);
+//         LOG_DEBUG_F("[%d] SO found = %d\n", tid, *SO_found);
         size_t consequence_type_len = strlen(tmp_consequence_type);
      
         // If file does not exist, create its descriptor and summary counter
@@ -583,17 +607,17 @@ static size_t write_effect_ws_results(char *contents, size_t size, size_t nmemb,
                     count = (int*) malloc (sizeof(int));
                     *count = 0;
                     cp_hashtable_put(summary_count, consequence_type, count);
-                    LOG_DEBUG_F("[%d] Initialized summary count for %s\n", tmp_consequence_type);
+//                     LOG_DEBUG_F("[%d] Initialized summary count for %s\n", tmp_consequence_type);
                 }
                 // Increment counter for summary
                 (*count)++;
             }
             
-            LOG_DEBUG_F("[%d] before writing %s\n", tid, tmp_consequence_type);
+//             LOG_DEBUG_F("[%d] before writing %s\n", tid, tmp_consequence_type);
             output_text = strdup(output_line[tid]);
             list_item_t *output_item = list_item_new(tid, *SO_found, output_text);
             list_insert_item(output_item, output_list);
-            LOG_DEBUG_F("[%d] after writing %s\n", tid, tmp_consequence_type);
+//             LOG_DEBUG_F("[%d] after writing %s\n", tid, tmp_consequence_type);
         }
         
         data += next_line_len+1;
@@ -629,7 +653,7 @@ int invoke_snp_phenotype_ws(const char *url, vcf_record_t **records, int num_rec
     
     int id_len, new_len_range;
 
-    LOG_DEBUG_F("[%d] WS for batch #%d\n", omp_get_thread_num(), batch_num);
+//     LOG_DEBUG_F("[%d] WS for batch #%d\n", omp_get_thread_num(), batch_num);
     batch_num++;
     
     for (int i = 0; i < num_records; i++) {
@@ -638,10 +662,10 @@ int invoke_snp_phenotype_ws(const char *url, vcf_record_t **records, int num_rec
             continue;
         }
         
-        id_len = strlen(record->id);
+        id_len = record->id_len;//strlen(record->id);
         new_len_range = current_index + id_len + 32;
         
-        LOG_DEBUG_F("%s:%lu:%s:%s\n", record->chromosome, record->position, record->reference, record->alternate);
+//         LOG_DEBUG_F("%s:%lu:%s:%s\n", record->chromosome, record->position, record->reference, record->alternate);
         
         // Reallocate memory if next record won't fit
         if (variants_len < (current_index + new_len_range + 1)) {
@@ -695,12 +719,12 @@ int invoke_mutation_phenotype_ws(const char *url, vcf_record_t **records, int nu
             continue;
         }
         
-        chr_len = strlen(record->chromosome);
-        reference_len = strlen(record->reference);
-        alternate_len = strlen(record->alternate);
+        chr_len = record->chromosome_len;//strlen(record->chromosome);
+        reference_len = record->reference_len;//strlen(record->reference);
+        alternate_len = record->alternate_len;//strlen(record->alternate);
         new_len_range = current_index + chr_len + reference_len + alternate_len + 32;
         
-        LOG_DEBUG_F("mutation phenotype of %s:%lu:%s:%s\n", record->chromosome, record->position, record->reference, record->alternate);
+//         LOG_DEBUG_F("mutation phenotype of %s:%lu:%s:%s\n", record->chromosome, record->position, record->reference, record->alternate);
         
         // Reallocate memory if next record won't fit
         if (variants_len < (current_index + new_len_range + 1)) {
@@ -750,20 +774,20 @@ static size_t write_snp_phenotype_ws_results(char *contents, size_t size, size_t
     char *output_text;
     
     
-    LOG_DEBUG_F("SNP phenotype WS invoked, response size = %zu bytes\n", realsize);
+//     LOG_DEBUG_F("SNP phenotype WS invoked, response size = %zu bytes\n", realsize);
     
     while (data_read_len < realsize) {
         assert((snp_line + tid) != NULL);
         assert((snp_max_line_size + tid) != NULL);
         
-        LOG_DEBUG_F("[%d] loop iteration #%d\n", tid, i);
+//         LOG_DEBUG_F("[%d] loop iteration #%d\n", tid, i);
         // Get length of data to copy
         next_line_len = strcspn(data, "\n");
         
         // If the snp_line[tid] is too long for the current buffers, reallocate a little more than the needed memory
         if (strlen(snp_line[tid]) + next_line_len + 1 > snp_max_line_size[tid]) {
-            LOG_DEBUG_F("Line too long (%d elements, but %zu needed) in batch #%d\n", 
-                        snp_max_line_size[tid], strlen(snp_line[tid]) + next_line_len, batch_num);
+//             LOG_DEBUG_F("Line too long (%d elements, but %zu needed) in batch #%d\n", 
+//                         snp_max_line_size[tid], strlen(snp_line[tid]) + next_line_len, batch_num);
 //             char *out_buf = (char*) calloc (next_line_len+1, sizeof(char));
 //             snprintf(out_buf, next_line_len, "%s", data);
 //             LOG_INFO_F("[%d] too big data is: '%s'\n", tid, out_buf);
@@ -781,11 +805,10 @@ static size_t write_snp_phenotype_ws_results(char *contents, size_t size, size_t
             snp_line[tid] = aux_1;
             snp_output_line[tid] = aux_2;
             snp_max_line_size[tid] += next_line_len + 1;
-            LOG_DEBUG_F("[%d] buffers realloc'd (%d)\n", tid, snp_max_line_size[tid]);
+//             LOG_DEBUG_F("[%d] buffers realloc'd (%d)\n", tid, snp_max_line_size[tid]);
         }
         
-        LOG_DEBUG_F("[%d] position = %d, read = %d, max_size = %zu\n", 
-                    i, next_line_len, data_read_len, realsize);
+//         LOG_DEBUG_F("[%d] position = %d, read = %d, max_size = %zu\n", i, next_line_len, data_read_len, realsize);
         
         if (data_read_len + next_line_len >= realsize) {
             // Save current state (snp_line[tid] partially read)
@@ -793,7 +816,7 @@ static size_t write_snp_phenotype_ws_results(char *contents, size_t size, size_t
             chomp(snp_line[tid]);
             snp_line[tid][strlen(snp_line[tid])] = '\0';
             premature_end = 1;
-            LOG_DEBUG_F("widow snp_line[tid] = '%s'\n", snp_line[tid]);
+//             LOG_DEBUG_F("widow snp_line[tid] = '%s'\n", snp_line[tid]);
             data_read_len = realsize;
             break;
         }
@@ -801,13 +824,13 @@ static size_t write_snp_phenotype_ws_results(char *contents, size_t size, size_t
         strncat(snp_line[tid], data, next_line_len);
         strncat(snp_output_line[tid], snp_line[tid], strlen(snp_line[tid]));
      
-        LOG_DEBUG_F("[%d] copy to buffer (%zu)\n", tid, strlen(snp_line[tid]));
+//         LOG_DEBUG_F("[%d] copy to buffer (%zu)\n", tid, strlen(snp_line[tid]));
     
-        LOG_DEBUG_F("[%d] before writing snp phenotype\n", tid);
+//         LOG_DEBUG_F("[%d] before writing snp phenotype\n", tid);
         output_text = strdup(snp_output_line[tid]);
         list_item_t *output_item = list_item_new(tid, SNP_PHENOTYPE, output_text);
         list_insert_item(output_item, output_list);
-        LOG_DEBUG_F("[%d] after writing snp phenotype\n", tid);
+//         LOG_DEBUG_F("[%d] after writing snp phenotype\n", tid);
             
         data += next_line_len+1;
         data_read_len += next_line_len+1;
@@ -841,20 +864,20 @@ static size_t write_mutation_phenotype_ws_results(char *contents, size_t size, s
     char *output_text;
     
     
-    LOG_DEBUG_F("Mutation phenotype WS invoked, response size = %zu bytes -> %s\n", realsize, data);
+//     LOG_DEBUG_F("Mutation phenotype WS invoked, response size = %zu bytes -> %s\n", realsize, data);
     
     while (data_read_len < realsize) {
         assert((mutation_line + tid) != NULL);
         assert((mutation_max_line_size + tid) != NULL);
         
-        LOG_DEBUG_F("[%d] loop iteration #%d\n", tid, i);
+//         LOG_DEBUG_F("[%d] loop iteration #%d\n", tid, i);
         // Get length of data to copy
         next_line_len = strcspn(data, "\n");
         
         // If the mutation_line[tid] is too long for the current buffers, reallocate a little more than the needed memory
         if (strlen(mutation_line[tid]) + next_line_len + 1 > mutation_max_line_size[tid]) {
-            LOG_DEBUG_F("Line too long (%d elements, but %zu needed) in batch #%d\n", 
-                        mutation_max_line_size[tid], strlen(mutation_line[tid]) + next_line_len, batch_num);
+//             LOG_DEBUG_F("Line too long (%d elements, but %zu needed) in batch #%d\n", 
+//                         mutation_max_line_size[tid], strlen(mutation_line[tid]) + next_line_len, batch_num);
 //             char *out_buf = (char*) calloc (next_line_len+1, sizeof(char));
 //             snprintf(out_buf, next_line_len, "%s", data);
 //             LOG_INFO_F("[%d] too big data is: '%s'\n", tid, out_buf);
@@ -872,11 +895,10 @@ static size_t write_mutation_phenotype_ws_results(char *contents, size_t size, s
             mutation_line[tid] = aux_1;
             mutation_output_line[tid] = aux_2;
             mutation_max_line_size[tid] += next_line_len + 1;
-            LOG_DEBUG_F("[%d] buffers realloc'd (%d)\n", tid, mutation_max_line_size[tid]);
+//             LOG_DEBUG_F("[%d] buffers realloc'd (%d)\n", tid, mutation_max_line_size[tid]);
         }
         
-        LOG_DEBUG_F("[%d] position = %d, read = %d, max_size = %zu\n", 
-                    i, next_line_len, data_read_len, realsize);
+//         LOG_DEBUG_F("[%d] position = %d, read = %d, max_size = %zu\n", i, next_line_len, data_read_len, realsize);
         
         if (data_read_len + next_line_len >= realsize) {
             // Save current state (mutation_line[tid] partially read)
@@ -884,7 +906,7 @@ static size_t write_mutation_phenotype_ws_results(char *contents, size_t size, s
             chomp(mutation_line[tid]);
             mutation_line[tid][strlen(mutation_line[tid])] = '\0';
             premature_end = 1;
-            LOG_DEBUG_F("widow mutation_line[tid] = '%s'\n", mutation_line[tid]);
+//             LOG_DEBUG_F("widow mutation_line[tid] = '%s'\n", mutation_line[tid]);
             data_read_len = realsize;
             break;
         }
@@ -892,13 +914,13 @@ static size_t write_mutation_phenotype_ws_results(char *contents, size_t size, s
         strncat(mutation_line[tid], data, next_line_len);
         strncat(mutation_output_line[tid], mutation_line[tid], strlen(mutation_line[tid]));
      
-        LOG_DEBUG_F("[%d] copy to buffer (%zu)\n", tid, strlen(mutation_line[tid]));
+//         LOG_DEBUG_F("[%d] copy to buffer (%zu)\n", tid, strlen(mutation_line[tid]));
     
-        LOG_DEBUG_F("[%d] before writing mutation phenotype\n", tid);
+//         LOG_DEBUG_F("[%d] before writing mutation phenotype\n", tid);
         output_text = strdup(mutation_output_line[tid]);
         list_item_t *output_item = list_item_new(tid, MUTATION_PHENOTYPE, output_text);
         list_insert_item(output_item, output_list);
-        LOG_DEBUG_F("[%d] after writing mutation phenotype\n", tid);
+//         LOG_DEBUG_F("[%d] after writing mutation phenotype\n", tid);
             
         data += next_line_len+1;
         data_read_len += next_line_len+1;
