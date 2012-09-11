@@ -7,6 +7,7 @@
 
 #define VCF_FILE_NOT_SPECIFIED                  10
 #define PED_FILE_NOT_SPECIFIED                  11
+#define BATCH_SIZE_NOT_SPECIFIED                20
 
 // Effect tool errors
 #define EFFECT_HOST_URL_NOT_SPECIFIED           100

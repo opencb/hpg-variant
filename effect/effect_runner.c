@@ -90,7 +90,7 @@ int run_effect(char **urls, shared_options_data_t *shared_options, effect_option
             // Reading
             start = omp_get_wtime();
 
-            ret_code = vcf_parse_batches(read_list, shared_options->batch_size, file, 0);
+            ret_code = vcf_parse_batches(read_list, shared_options->batch_lines, file, 0);
 
             stop = omp_get_wtime();
             total = stop - start;
@@ -945,7 +945,7 @@ int initialize_ws_output(shared_options_data_t *shared_options, effect_options_d
     
     // Initialize output text list
     output_list = (list_t*) malloc (sizeof(list_t));
-    list_init("output", num_threads, shared_options->max_batches * shared_options->batch_size, output_list);
+    list_init("output", num_threads, shared_options->max_batches * shared_options->batch_lines, output_list);
     
     // Initialize collections of file descriptors
     output_files = cp_hashtable_create_by_option(COLLECTION_MODE_DEEP,
