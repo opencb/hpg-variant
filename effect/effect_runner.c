@@ -41,7 +41,6 @@ int run_effect(char **urls, shared_options_data_t *shared_options, effect_option
     int ret_code = 0;
     double start, stop, total;
     vcf_file_t *file = vcf_open(shared_options->vcf_filename);
-    
     if (!file) {
         LOG_FATAL("VCF file does not exist!\n");
     }

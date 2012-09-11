@@ -8,7 +8,15 @@ int run_tdt_test(shared_options_data_t* shared_options_data, gwas_options_data_t
 
     int ret_code = 0;
     vcf_file_t *file = vcf_open(shared_options_data->vcf_filename);
+    if (!file) {
+        LOG_FATAL("VCF file does not exist!\n");
+    }
+    
     ped_file_t *ped_file = ped_open(shared_options_data->ped_filename);
+    if (!ped_file) {
+        LOG_FATAL("PED file does not exist!\n");
+    }
+    
     size_t output_directory_len = strlen(shared_options_data->output_directory);
     
     LOG_INFO("About to read PED file...\n");
