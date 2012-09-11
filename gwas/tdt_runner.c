@@ -40,12 +40,16 @@ int run_tdt_test(shared_options_data_t* shared_options_data, gwas_options_data_t
         {
             printf("Level %d: number of threads in the team - %d\n", 0, omp_get_num_threads());
             
-//  //           LOG_DEBUG_F("Thread %d reads the VCF file\n", omp_get_thread_num());
+ //           LOG_DEBUG_F("Thread %d reads the VCF file\n", omp_get_thread_num());
             // Reading
             double start = omp_get_wtime();
 
             ret_code = 0;
-            ret_code = vcf_read_batches(read_list, shared_options_data->batch_size, file);
+            if (shared_options_data->batch_bytes > 0) {
+                ret_code = vcf_read_batches_in_bytes(read_list, shared_options_data->batch_bytes, file);
+            } else if (shared_options_data->batch_lines > 0) {
+                ret_code = vcf_read_batches(read_list, shared_options_data->batch_lines, file);
+            }
 
             double stop = omp_get_wtime();
 
@@ -107,8 +111,15 @@ int run_tdt_test(shared_options_data_t* shared_options_data, gwas_options_data_t
                 
 //                 start_batch = omp_get_wtime();
                 
-                vcf_reader_status *status = vcf_reader_status_new(shared_options_data->batch_size, 1, 1);
-                ret_code = execute_vcf_ragel_machine(text_begin, text_end_batch, vcf_batches_list, shared_options_data->batch_size, file, status);
+                vcf_reader_status *status = vcf_reader_status_new(shared_options_data->batch_lines, 1, 1);
+                
+                if (shared_options_data->batch_bytes > 0) {
+                    ret_code = execute_vcf_ragel_machine(text_begin, text_end_batch, vcf_batches_list, 0, file, status);
+                } else if (shared_options_data->batch_lines > 0) {
+                    ret_code = execute_vcf_ragel_machine(text_begin, text_end_batch, vcf_batches_list, shared_options_data->batch_lines, file, status);
+                }
+                
+//                 ret_code = execute_vcf_ragel_machine(text_begin, text_end_batch, vcf_batches_list, shared_options_data->batch_lines, file, status);
                 if (ret_code > 0) {
                     LOG_FATAL_F("Error %d while parsing the file %s\n", ret_code, file->filename);
                 }
@@ -161,10 +172,9 @@ int run_tdt_test(shared_options_data_t* shared_options_data, gwas_options_data_t
                 }
 
                 // Launch TDT test over records that passed the filters
-                int num_variants = MIN(shared_options_data->batch_size, passed_records->size);
                 if (passed_records->size > 0) {
 //                     printf("[%d] first chromosome pos = %lu\n", omp_get_thread_num(), ((vcf_record_t*) passed_records->items[0])->position);
-                    ret_code = tdt_test((vcf_record_t**) passed_records->items, num_variants, families, num_families, sample_ids, output_list);
+                    ret_code = tdt_test((vcf_record_t**) passed_records->items, passed_records->size, families, num_families, sample_ids, output_list);
                     if (ret_code) {
                         LOG_FATAL_F("[%d] Error in execution #%d of TDT\n", omp_get_thread_num(), i);
                     }

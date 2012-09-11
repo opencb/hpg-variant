@@ -31,13 +31,15 @@ int read_gwas_configuration(const char *filename, gwas_options_t *gwas_options, 
         LOG_DEBUG_F("max-batches = %ld\n", *(shared_options->max_batches->ival));
     }
     
-    // Read size of every batch read
-    ret_code = config_lookup_int(config, "gwas.batch-size", shared_options->batch_size->ival);
+    // Read size of a batch (in lines or bytes)
+    ret_code = config_lookup_int(config, "gwas.batch-lines", shared_options->batch_lines->ival);
+    ret_code |= config_lookup_int(config, "gwas.batch-bytes", shared_options->batch_bytes->ival);
     if (ret_code == CONFIG_FALSE) {
-        LOG_WARN("Batch size not found in configuration file, must be set via command-line");
-    } else {
-        LOG_DEBUG_F("batch-size = %ld\n", *(shared_options->batch_size->ival));
-    }
+        LOG_WARN("Neither batch lines nor bytes found in configuration file, must be set via command-line");
+    } 
+//     else {
+//         LOG_INFO_F("batch-lines = %ld\n", *(shared_options->batch_lines->ival));
+//     }
     
     // Read host URL
     ret_code = config_lookup_string(config, "gwas.url", &tmp_string);
@@ -100,25 +102,26 @@ void **merge_gwas_options(gwas_options_t *gwas_options, shared_options_t *shared
     tool_options[6] = shared_options->species;
     
     tool_options[7] = shared_options->max_batches;
-    tool_options[8] = shared_options->batch_size;
-    tool_options[9] = shared_options->num_threads;
-    tool_options[10] = shared_options->entries_per_thread;
+    tool_options[8] = shared_options->batch_lines;
+    tool_options[9] = shared_options->batch_bytes;
+    tool_options[10] = shared_options->num_threads;
+    tool_options[11] = shared_options->entries_per_thread;
     
-    tool_options[11] = shared_options->num_alleles;
-    tool_options[12] = shared_options->coverage;
-    tool_options[13] = shared_options->quality;
-    tool_options[14] = shared_options->region;
-    tool_options[15] = shared_options->region_file;
-    tool_options[16] = shared_options->snp;
+    tool_options[12] = shared_options->num_alleles;
+    tool_options[13] = shared_options->coverage;
+    tool_options[14] = shared_options->quality;
+    tool_options[15] = shared_options->region;
+    tool_options[16] = shared_options->region_file;
+    tool_options[17] = shared_options->snp;
     
-    tool_options[17] = shared_options->config_file;
-    tool_options[18] = shared_options->mmap_vcf_files;
+    tool_options[18] = shared_options->config_file;
+    tool_options[19] = shared_options->mmap_vcf_files;
     
-    tool_options[19] = gwas_options->assoc;
-    tool_options[20] = gwas_options->fisher;
-    tool_options[21] = gwas_options->tdt;
+    tool_options[20] = gwas_options->assoc;
+    tool_options[21] = gwas_options->fisher;
+    tool_options[22] = gwas_options->tdt;
                
-    tool_options[22] = arg_end;
+    tool_options[23] = arg_end;
     
     return tool_options;
 }
@@ -148,6 +151,18 @@ int verify_gwas_options(gwas_options_t *gwas_options, shared_options_t *shared_o
     if (shared_options->ped_filename->filename == NULL || strlen(*(shared_options->ped_filename->filename)) == 0) {
         LOG_ERROR("Please specify the input PED file.\n");
         return PED_FILE_NOT_SPECIFIED;
+    }
+    
+    // Checker whether batch lines or bytes are defined
+    if (*(shared_options->batch_lines->ival) == 0 && *(shared_options->batch_bytes->ival) == 0) {
+        LOG_ERROR("Please specify the size of the reading batches (in lines or bytes).\n");
+        return BATCH_SIZE_NOT_SPECIFIED;
+    }
+    
+    // Checker if both batch lines or bytes are defined
+    if (*(shared_options->batch_lines->ival) > 0 && *(shared_options->batch_bytes->ival) > 0) {
+        LOG_WARN("The size of reading batches has been specified both in lines and bytes. The size in bytes will be used.\n");
+        return 0;
     }
     
     return 0;
