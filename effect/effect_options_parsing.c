@@ -31,13 +31,15 @@ int read_effect_configuration(const char *filename, effect_options_t *effect_opt
         LOG_DEBUG_F("max-batches = %ld\n", *(shared_options->max_batches->ival));
     }
     
-    // Read size of every batch read
-    ret_code = config_lookup_int(config, "effect.batch-size", shared_options->batch_size->ival);
+    // Read size of a batch (in lines or bytes)
+    ret_code = config_lookup_int(config, "effect.batch-lines", shared_options->batch_lines->ival);
+    ret_code |= config_lookup_int(config, "effect.batch-bytes", shared_options->batch_bytes->ival);
     if (ret_code == CONFIG_FALSE) {
-        LOG_WARN("Batch size not found in configuration file, must be set via command-line");
-    } else {
-        LOG_DEBUG_F("batch-size = %ld\n", *(shared_options->batch_size->ival));
-    }
+        LOG_WARN("Neither batch lines nor bytes found in configuration file, must be set via command-line");
+    } 
+    /*else {
+        LOG_DEBUG_F("batch-lines = %ld\n", *(shared_options->batch_size->ival));
+    }*/
     
     // Read number of variants per request to the web service
     ret_code = config_lookup_int(config, "effect.entries-per-thread", shared_options->entries_per_thread->ival);
@@ -108,24 +110,25 @@ void **merge_effect_options(effect_options_t *effect_options, shared_options_t *
     tool_options[6] = shared_options->species;
     
     tool_options[7] = shared_options->max_batches;
-    tool_options[8] = shared_options->batch_size;
-    tool_options[9] = shared_options->num_threads;
-    tool_options[10] = shared_options->entries_per_thread;
+    tool_options[8] = shared_options->batch_lines;
+    tool_options[9] = shared_options->batch_lines;
+    tool_options[10] = shared_options->num_threads;
+    tool_options[11] = shared_options->entries_per_thread;
     
-    tool_options[11] = shared_options->num_alleles;
-    tool_options[12] = shared_options->coverage;
-    tool_options[13] = shared_options->quality;
-    tool_options[14] = shared_options->region;
-    tool_options[15] = shared_options->region_file;
-    tool_options[16] = shared_options->snp;
+    tool_options[12] = shared_options->num_alleles;
+    tool_options[13] = shared_options->coverage;
+    tool_options[14] = shared_options->quality;
+    tool_options[15] = shared_options->region;
+    tool_options[16] = shared_options->region_file;
+    tool_options[17] = shared_options->snp;
     
-    tool_options[17] = shared_options->config_file;
-    tool_options[18] = shared_options->mmap_vcf_files;
+    tool_options[18] = shared_options->config_file;
+    tool_options[19] = shared_options->mmap_vcf_files;
     
-    tool_options[19] = effect_options->no_phenotypes;
-    tool_options[20] = effect_options->excludes;
+    tool_options[20] = effect_options->no_phenotypes;
+    tool_options[21] = effect_options->excludes;
                
-    tool_options[21] = arg_end;
+    tool_options[22] = arg_end;
     
     return tool_options;
 }

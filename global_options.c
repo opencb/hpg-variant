@@ -13,7 +13,8 @@ shared_options_t *new_shared_cli_options(void) {
     options_data->species = arg_str0(NULL, "species", NULL, "Species whose genome is taken as reference");
     
     options_data->max_batches = arg_int0(NULL, "num-batches", NULL, "Maximum number of batches stored at the same time");
-    options_data->batch_size = arg_int0(NULL, "batch-size", NULL, "Maximum size of a batch");
+    options_data->batch_lines = arg_int0(NULL, "batch-lines", NULL, "Maximum number of lines in a batch");
+    options_data->batch_bytes = arg_int0(NULL, "batch-bytes", NULL, "Maximum number of bytes in a batch");
     options_data->num_threads = arg_int0(NULL, "num-threads", NULL, "Number of threads when a task is perform in parallel");
     options_data->entries_per_thread = arg_int0(NULL, "entries-per-thread", NULL, "Number of entries in a batch each thread processes");
     
@@ -46,7 +47,8 @@ shared_options_data_t* new_shared_options_data(shared_options_t* options) {
     options_data->species = strdup(*(options->species->sval));
     
     options_data->max_batches = *(options->max_batches->ival);
-    options_data->batch_size = *(options->batch_size->ival);
+    options_data->batch_lines = *(options->batch_lines->ival);
+    options_data->batch_bytes = *(options->batch_bytes->ival);
     options_data->num_threads = *(options->num_threads->ival);
     options_data->entries_per_thread = *(options->entries_per_thread->ival);
     

@@ -24,7 +24,7 @@
 /**
  * Number of options applicable to the whole application.
  */
-#define NUM_GLOBAL_OPTIONS  19
+#define NUM_GLOBAL_OPTIONS  20
 
 typedef struct shared_options {
     struct arg_file *vcf_filename; /**< VCF file used as input. */
@@ -37,7 +37,8 @@ typedef struct shared_options {
     struct arg_str *species; /**< Species whose genome is taken as reference. */
     
     struct arg_int *max_batches; /**< Maximum number of batches stored at the same time. */
-    struct arg_int *batch_size; /**< Maximum size of a batch. */
+    struct arg_int *batch_lines; /**< Maximum size of a batch (in lines). */
+    struct arg_int *batch_bytes; /**< Maximum size of a batch (in bytes). */
     struct arg_int *num_threads; /**< Number of threads when a task is perform in parallel. */
     struct arg_int *entries_per_thread; /**< Number of entries in a batch each thread processes. */
     
@@ -74,7 +75,8 @@ typedef struct shared_options_data {
     char *species; /**< Species whose genome is taken as reference. */
     
     int max_batches; /**< Maximum number of batches stored at the same time. */
-    int batch_size; /**< Maximum size of a batch. */
+    int batch_lines; /**< Maximum size of a batch (in lines). */
+    int batch_bytes; /**< Maximum size of a batch (in bytes). */
     int num_threads; /**< Number of threads when a task is perform in parallel. */
     int entries_per_thread; /**< Number of entries in a batch each thread processes. */
     
