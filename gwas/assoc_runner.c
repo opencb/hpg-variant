@@ -104,7 +104,11 @@ int run_association_test(shared_options_data_t* shared_options_data, gwas_option
                 assert(vcf_batches_list != NULL);
                 
                 vcf_reader_status *status = vcf_reader_status_new(shared_options_data->batch_lines, 1, 1);
-                execute_vcf_ragel_machine(text_begin, text_end, vcf_batches_list, shared_options_data->batch_lines, file, status);
+                if (shared_options_data->batch_bytes > 0) {
+                    ret_code = execute_vcf_ragel_machine(text_begin, text_end, vcf_batches_list, 0, file, status);
+                } else if (shared_options_data->batch_lines > 0) {
+                    ret_code = execute_vcf_ragel_machine(text_begin, text_end, vcf_batches_list, shared_options_data->batch_lines, file, status);
+                }
                 
                 // Initialize structures needed for TDT and write headers of output files
                 if (!initialization_done) {
@@ -151,15 +155,15 @@ int run_association_test(shared_options_data_t* shared_options_data, gwas_option
                 }
 
                 // Launch TDT test over records that passed the filters
-                int num_variants = MIN(shared_options_data->batch_lines, passed_records->size);
+//                 int num_variants = MIN(shared_options_data->batch_lines, passed_records->size);
                 if (passed_records->size > 0) {
 //                     LOG_DEBUG_F("[%d] Test execution\n", omp_get_thread_num());
                     // TODO is this if neccessary? factorial_logarithms will be null in chi-square
 //                     if (options_data->task == ASSOCIATION_BASIC) {
-//                         assoc_test(options_data->task, (vcf_record_t**) passed_records->items, num_variants, 
+//                         assoc_test(options_data->task, (vcf_record_t**) passed_records->items, passed_records->size, 
 //                                    families, num_families, sample_ids, NULL, output_list);
 //                     } else if (options_data->task == FISHER) {
-                        assoc_test(options_data->task, (vcf_record_t**) passed_records->items, num_variants, 
+                        assoc_test(options_data->task, (vcf_record_t**) passed_records->items, passed_records->size, 
                                    families, num_families, sample_ids, factorial_logarithms, output_list);
 //                     }
                 }
