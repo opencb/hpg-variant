@@ -111,7 +111,7 @@ void **merge_effect_options(effect_options_t *effect_options, shared_options_t *
     
     tool_options[7] = shared_options->max_batches;
     tool_options[8] = shared_options->batch_lines;
-    tool_options[9] = shared_options->batch_lines;
+    tool_options[9] = shared_options->batch_bytes;
     tool_options[10] = shared_options->num_threads;
     tool_options[11] = shared_options->entries_per_thread;
     
@@ -159,5 +159,17 @@ int verify_effect_options(effect_options_t *effect_options, shared_options_t *sh
         return EFFECT_SPECIES_NOT_SPECIFIED;
     }
 
+    // Checker whether batch lines or bytes are defined
+    if (*(shared_options->batch_lines->ival) == 0 && *(shared_options->batch_bytes->ival) == 0) {
+        LOG_ERROR("Please specify the size of the reading batches (in lines or bytes).\n");
+        return BATCH_SIZE_NOT_SPECIFIED;
+    }
+    
+    // Checker if both batch lines or bytes are defined
+    if (*(shared_options->batch_lines->ival) > 0 && *(shared_options->batch_bytes->ival) > 0) {
+        LOG_WARN("The size of reading batches has been specified both in lines and bytes. The size in bytes will be used.\n");
+        return 0;
+    }
+    
     return 0;
 }
