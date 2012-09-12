@@ -90,7 +90,11 @@ int run_effect(char **urls, shared_options_data_t *shared_options, effect_option
             // Reading
             start = omp_get_wtime();
 
-            ret_code = vcf_parse_batches(read_list, shared_options->batch_lines, file, 0);
+            if (shared_options->batch_bytes > 0) {
+                ret_code = vcf_parse_batches_in_bytes(read_list, shared_options->batch_bytes, file, 0);
+            } else if (shared_options->batch_lines > 0) {
+                ret_code = vcf_parse_batches(read_list, shared_options->batch_lines, file, 0);
+            }
 
             stop = omp_get_wtime();
             total = stop - start;
@@ -142,11 +146,11 @@ int run_effect(char **urls, shared_options_data_t *shared_options, effect_option
                 array_list_t *input_records = batch->records;
                 array_list_t *passed_records = NULL, *failed_records = NULL;
 
-                if (i % 20 == 0) {
+//                 if (i % 10 == 0) {
                     LOG_INFO_F("Batch %d reached by thread %d - %zu/%zu records \n", 
                             i, omp_get_thread_num(),
                             batch->records->size, batch->records->capacity);
-                }
+//                 }
 
                 if (filters == NULL) {
                     passed_records = input_records;
@@ -185,7 +189,7 @@ int run_effect(char **urls, shared_options_data_t *shared_options, effect_option
                     free(chunk_starts);
                     free(chunk_sizes);
                     
-                    LOG_INFO_F("*** %dth web services invocation finished\n", i);
+                    LOG_DEBUG_F("*** %dth web services invocation finished\n", i);
                     
                     if (ret_ws_0 || ret_ws_1 || ret_ws_2) {
                         if (ret_ws_0) {
