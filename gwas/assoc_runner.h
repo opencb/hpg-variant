@@ -12,7 +12,8 @@
 #include <bioformats/family.h>
 #include <bioformats/ped/ped_file.h>
 #include <bioformats/ped/ped_file_structure.h>
-#include <bioformats/vcf/vcf_batch.h>
+// #include <bioformats/vcf/vcf_batch.h>
+#include <bioformats/vcf/vcf_file_structure.h>
 #include <bioformats/vcf/vcf_file.h>
 #include <bioformats/vcf/vcf_filters.h>
 #include <bioformats/vcf/vcf_reader.h>
