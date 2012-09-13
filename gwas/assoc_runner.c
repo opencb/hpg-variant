@@ -7,7 +7,7 @@ int run_association_test(shared_options_data_t* shared_options_data, gwas_option
     list_init("output", shared_options_data->num_threads, INT_MAX, output_list);
 
     int ret_code = 0;
-    vcf_file_t *file = vcf_open(shared_options_data->vcf_filename);
+    vcf_file_t *file = vcf_open(shared_options_data->vcf_filename, shared_options_data->max_batches);
     if (!file) {
         LOG_FATAL("VCF file does not exist!\n");
     }
@@ -91,9 +91,6 @@ int run_association_test(shared_options_data_t* shared_options_data, gwas_option
             family_t **families = (family_t**) cp_hashtable_get_values(ped_file->families);
             int num_families = get_num_families(ped_file);
             
-            list_t *vcf_batches_list = (list_t*) malloc(sizeof(list_t));
-            list_init("batches", 1, shared_options_data->max_batches, vcf_batches_list);
-             
             int i = 0;
             list_item_t *item = NULL;
             while ((item = list_remove_item(read_list)) != NULL) {
@@ -101,13 +98,12 @@ int run_association_test(shared_options_data_t* shared_options_data, gwas_option
                 char *text_end = text_begin + strlen(text_begin);
                 
                 assert(text_end != NULL);
-                assert(vcf_batches_list != NULL);
                 
                 vcf_reader_status *status = vcf_reader_status_new(shared_options_data->batch_lines, 1, 1);
                 if (shared_options_data->batch_bytes > 0) {
-                    ret_code = execute_vcf_ragel_machine(text_begin, text_end, vcf_batches_list, 0, file, status);
+                    ret_code = execute_vcf_ragel_machine(text_begin, text_end, NULL, 0, file, status);
                 } else if (shared_options_data->batch_lines > 0) {
-                    ret_code = execute_vcf_ragel_machine(text_begin, text_end, vcf_batches_list, shared_options_data->batch_lines, file, status);
+                    ret_code = execute_vcf_ragel_machine(text_begin, text_end, NULL, shared_options_data->batch_lines, file, status);
                 }
                 
                 // Initialize structures needed for TDT and write headers of output files
@@ -121,13 +117,14 @@ int run_association_test(shared_options_data_t* shared_options_data, gwas_option
 //                         sample_ids = associate_samples_and_positions(file);
                         
                         // Write file format, header entries and delimiter
-                        if (passed_file != NULL) { vcf_write_to_file(file, passed_file); }
-                        if (failed_file != NULL) { vcf_write_to_file(file, failed_file); }
+                        if (passed_file != NULL) { write_vcf_file(file, passed_file); }
+                        if (failed_file != NULL) { write_vcf_file(file, failed_file); }
                         
                         LOG_DEBUG("VCF header written\n");
                         
                         if (options_data->task == FISHER) {
-                            factorial_logarithms = init_logarithm_array(file->num_samples * 10);
+//                             factorial_logarithms = init_logarithm_array(file->num_samples * 10);
+                            factorial_logarithms = init_logarithm_array(get_num_vcf_samples(file) * 10);
                         }
                         
                         initialization_done = 1;
@@ -135,9 +132,7 @@ int run_association_test(shared_options_data_t* shared_options_data, gwas_option
                 }
                 }
                 
-                list_item_t *batch_item = list_remove_item(vcf_batches_list);
-                vcf_batch_t *batch = batch_item->data_p;
-                
+                vcf_batch_t *batch = fetch_vcf_batch(file);
                 array_list_t *input_records = batch->records;
                 array_list_t *passed_records = NULL, *failed_records = NULL;
 
@@ -174,7 +169,7 @@ int run_association_test(shared_options_data_t* shared_options_data, gwas_option
                 #pragma omp critical 
                     {
                         for (int r = 0; r < passed_records->size; r++) {
-                            write_record(passed_records->items[r], passed_file);
+                            write_vcf_record(passed_records->items[r], passed_file);
                         }
 //                         write_batch(passed_records, passed_file);
                     }
@@ -183,7 +178,7 @@ int run_association_test(shared_options_data_t* shared_options_data, gwas_option
                 #pragma omp critical 
                     {
                         for (int r = 0; r < passed_records->size; r++) {
-                            write_record(failed_records->items[r], failed_file);
+                            write_vcf_record(failed_records->items[r], failed_file);
                         }
 //                         write_batch(failed_records, failed_file);
                     }
@@ -203,12 +198,12 @@ int run_association_test(shared_options_data_t* shared_options_data, gwas_option
                 // Free batch and its contents
                 vcf_reader_status_free(status);
                 vcf_batch_free(batch);
-                list_item_free(batch_item);
-//                 free(item->data_p);
                 list_item_free(item);
                 
                 i++;
             }  
+            
+            list_decr_writers(file->record_batches);
             }
 
             double stop = omp_get_wtime();
