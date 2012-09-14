@@ -100,7 +100,7 @@ int run_tdt_test(shared_options_data_t* shared_options_data, gwas_options_data_t
                 
 //                 double start_batch, end_batch;
 //                 start_batch = omp_get_wtime();
-                
+
                 char *text_begin = (char*) item->data_p;
                 char *text_end_batch = text_begin + strlen(text_begin);
                 
@@ -108,15 +108,13 @@ int run_tdt_test(shared_options_data_t* shared_options_data, gwas_options_data_t
                 
 //                 start_batch = omp_get_wtime();
                 
-                vcf_reader_status *status = vcf_reader_status_new(shared_options_data->batch_lines, 1, 1);
-                
+                vcf_reader_status *status = vcf_reader_status_new(shared_options_data->batch_lines, 1);
                 if (shared_options_data->batch_bytes > 0) {
-                    ret_code = execute_vcf_ragel_machine(text_begin, text_end_batch, NULL, 0, file, status);
+                    ret_code = execute_vcf_ragel_machine(text_begin, text_end_batch, 0, file, status);
                 } else if (shared_options_data->batch_lines > 0) {
-                    ret_code = execute_vcf_ragel_machine(text_begin, text_end_batch, NULL, shared_options_data->batch_lines, file, status);
+                    ret_code = execute_vcf_ragel_machine(text_begin, text_end_batch, shared_options_data->batch_lines, file, status);
                 }
                 
-//                 ret_code = execute_vcf_ragel_machine(text_begin, text_end_batch, vcf_batches_list, shared_options_data->batch_lines, file, status);
                 if (ret_code > 0) {
                     LOG_FATAL_F("Error %d while parsing the file %s\n", ret_code, file->filename);
                 }
@@ -134,8 +132,8 @@ int run_tdt_test(shared_options_data_t* shared_options_data, gwas_options_data_t
                         sample_ids = associate_samples_and_positions(file);
                         
                         // Write file format, header entries and delimiter
-                        if (passed_file != NULL) { write_vcf_file(file, passed_file); }
-                        if (failed_file != NULL) { write_vcf_file(file, failed_file); }
+                        if (passed_file != NULL) { write_vcf_header(file, passed_file); }
+                        if (failed_file != NULL) { write_vcf_header(file, failed_file); }
                         
                         LOG_DEBUG("VCF header written\n");
                         
