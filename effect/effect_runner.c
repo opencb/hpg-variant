@@ -103,7 +103,7 @@ int run_effect(char **urls, shared_options_data_t *shared_options, effect_option
             LOG_INFO_F("[%dR] Time elapsed = %f s\n", omp_get_thread_num(), total);
             LOG_INFO_F("[%dR] Time elapsed = %e ms\n", omp_get_thread_num(), total*1000);
 
-            list_decr_writers(file->record_batches);
+            notify_end_reading(file);
         }
         
 #pragma omp section
@@ -142,11 +142,11 @@ int run_effect(char **urls, shared_options_data_t *shared_options, effect_option
                 array_list_t *input_records = batch->records;
                 array_list_t *passed_records = NULL, *failed_records = NULL;
 
-                if (i % 10 == 0) {
+//                 if (i % 10 == 0) {
                     LOG_INFO_F("Batch %d reached by thread %d - %zu/%zu records \n", 
                             i, omp_get_thread_num(),
                             batch->records->size, batch->records->capacity);
-                }
+//                 }
 
                 if (filters == NULL) {
                     passed_records = input_records;
