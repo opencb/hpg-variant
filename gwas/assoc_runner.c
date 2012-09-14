@@ -99,11 +99,11 @@ int run_association_test(shared_options_data_t* shared_options_data, gwas_option
                 
                 assert(text_end != NULL);
                 
-                vcf_reader_status *status = vcf_reader_status_new(shared_options_data->batch_lines, 1, 1);
+                vcf_reader_status *status = vcf_reader_status_new(shared_options_data->batch_lines, 1);
                 if (shared_options_data->batch_bytes > 0) {
-                    ret_code = execute_vcf_ragel_machine(text_begin, text_end, NULL, 0, file, status);
+                    ret_code = execute_vcf_ragel_machine(text_begin, text_end, 0, file, status);
                 } else if (shared_options_data->batch_lines > 0) {
-                    ret_code = execute_vcf_ragel_machine(text_begin, text_end, NULL, shared_options_data->batch_lines, file, status);
+                    ret_code = execute_vcf_ragel_machine(text_begin, text_end, shared_options_data->batch_lines, file, status);
                 }
                 
                 // Initialize structures needed for TDT and write headers of output files
@@ -117,8 +117,8 @@ int run_association_test(shared_options_data_t* shared_options_data, gwas_option
 //                         sample_ids = associate_samples_and_positions(file);
                         
                         // Write file format, header entries and delimiter
-                        if (passed_file != NULL) { write_vcf_file(file, passed_file); }
-                        if (failed_file != NULL) { write_vcf_file(file, failed_file); }
+                        if (passed_file != NULL) { write_vcf_header(file, passed_file); }
+                        if (failed_file != NULL) { write_vcf_header(file, failed_file); }
                         
                         LOG_DEBUG("VCF header written\n");
                         
