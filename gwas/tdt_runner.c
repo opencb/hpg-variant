@@ -110,9 +110,9 @@ int run_tdt_test(shared_options_data_t* shared_options_data, gwas_options_data_t
                 
                 vcf_reader_status *status = vcf_reader_status_new(shared_options_data->batch_lines, 1);
                 if (shared_options_data->batch_bytes > 0) {
-                    ret_code = execute_vcf_ragel_machine(text_begin, text_end_batch, 0, file, status);
+                    ret_code = run_vcf_parser(text_begin, text_end_batch, 0, file, status);
                 } else if (shared_options_data->batch_lines > 0) {
-                    ret_code = execute_vcf_ragel_machine(text_begin, text_end_batch, shared_options_data->batch_lines, file, status);
+                    ret_code = run_vcf_parser(text_begin, text_end_batch, shared_options_data->batch_lines, file, status);
                 }
                 
                 if (ret_code > 0) {

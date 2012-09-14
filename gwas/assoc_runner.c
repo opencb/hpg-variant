@@ -101,9 +101,9 @@ int run_association_test(shared_options_data_t* shared_options_data, gwas_option
                 
                 vcf_reader_status *status = vcf_reader_status_new(shared_options_data->batch_lines, 1);
                 if (shared_options_data->batch_bytes > 0) {
-                    ret_code = execute_vcf_ragel_machine(text_begin, text_end, 0, file, status);
+                    ret_code = run_vcf_parser(text_begin, text_end, 0, file, status);
                 } else if (shared_options_data->batch_lines > 0) {
-                    ret_code = execute_vcf_ragel_machine(text_begin, text_end, shared_options_data->batch_lines, file, status);
+                    ret_code = run_vcf_parser(text_begin, text_end, shared_options_data->batch_lines, file, status);
                 }
                 
                 // Initialize structures needed for TDT and write headers of output files
