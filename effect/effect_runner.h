@@ -21,7 +21,8 @@
 #include <curl/curl.h>
 #include <omp.h>
 
-#include <bioformats/vcf/vcf_batch.h>
+// #include <bioformats/vcf/vcf_batch.h>
+#include <bioformats/vcf/vcf_file_structure.h>
 #include <bioformats/vcf/vcf_file.h>
 #include <bioformats/vcf/vcf_filters.h>
 #include <bioformats/vcf/vcf_write.h>

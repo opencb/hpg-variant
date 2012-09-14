@@ -35,12 +35,11 @@ static int batch_num;
 
 
 int run_effect(char **urls, shared_options_data_t *shared_options, effect_options_data_t *options_data) {
-    list_t *read_list = (list_t*) malloc(sizeof(list_t));
-    list_init("batches", 1, shared_options->max_batches, read_list);
-
+//     list_t *read_list = (list_t*) malloc(sizeof(list_t));
+//     list_init("batches", 1, shared_options->max_batches, read_list);
     int ret_code = 0;
     double start, stop, total;
-    vcf_file_t *file = vcf_open(shared_options->vcf_filename);
+    vcf_file_t *file = vcf_open(shared_options->vcf_filename, shared_options->max_batches);
     if (!file) {
         LOG_FATAL("VCF file does not exist!\n");
     }
@@ -91,9 +90,9 @@ int run_effect(char **urls, shared_options_data_t *shared_options, effect_option
             start = omp_get_wtime();
 
             if (shared_options->batch_bytes > 0) {
-                ret_code = vcf_parse_batches_in_bytes(read_list, shared_options->batch_bytes, file, 0);
+                ret_code = vcf_parse_batches_in_bytes(NULL, shared_options->batch_bytes, file, 0);
             } else if (shared_options->batch_lines > 0) {
-                ret_code = vcf_parse_batches(read_list, shared_options->batch_lines, file, 0);
+                ret_code = vcf_parse_batches(NULL, shared_options->batch_lines, file, 0);
             }
 
             stop = omp_get_wtime();
@@ -106,7 +105,8 @@ int run_effect(char **urls, shared_options_data_t *shared_options, effect_option
             LOG_INFO_F("[%dR] Time elapsed = %f s\n", omp_get_thread_num(), total);
             LOG_INFO_F("[%dR] Time elapsed = %e ms\n", omp_get_thread_num(), total*1000);
 
-            list_decr_writers(read_list);
+            list_decr_writers(file->record_batches);
+//             list_decr_writers(read_list);
         }
         
 #pragma omp section
@@ -128,20 +128,22 @@ int run_effect(char **urls, shared_options_data_t *shared_options, effect_option
             start = omp_get_wtime();
 
             int i = 0;
-            list_item_t* item = NULL;
+//             list_item_t* item = NULL;
+            vcf_batch_t *batch = NULL;
             
             int ret_ws_0 = 0, ret_ws_1 = 0, ret_ws_2 = 0;
-            while ((item = list_remove_item(read_list)) != NULL) {
+//             while ((item = list_remove_item(read_list)) != NULL) {
+            while ((batch = fetch_vcf_batch(file)) != NULL) {
                 if (i == 0) {
                     // Write file format, header entries and delimiter
-                    if (passed_file != NULL) { vcf_write_to_file(file, passed_file); }
-                    if (failed_file != NULL) { vcf_write_to_file(file, failed_file); }
+                    if (passed_file != NULL) { write_vcf_file(file, passed_file); }
+                    if (failed_file != NULL) { write_vcf_file(file, failed_file); }
                     
                     LOG_DEBUG("VCF header written\n");
                 }
-                vcf_batch_t *batch = (vcf_batch_t*) item->data_p;
+//                 vcf_batch_t *batch = (vcf_batch_t*) item->data_p;
                 
-                assert(batch);
+//                 assert(batch);
                 
                 array_list_t *input_records = batch->records;
                 array_list_t *passed_records = NULL, *failed_records = NULL;
@@ -213,7 +215,7 @@ int run_effect(char **urls, shared_options_data_t *shared_options, effect_option
                 #pragma omp critical 
                     {
                         for (int r = 0; r < passed_records->size; r++) {
-                            write_record(passed_records->items[r], passed_file);
+                            write_vcf_record(passed_records->items[r], passed_file);
                         }
 //                         write_batch(passed_records, passed_file);
                     }
@@ -222,7 +224,7 @@ int run_effect(char **urls, shared_options_data_t *shared_options, effect_option
                 #pragma omp critical 
                     {
                         for (int r = 0; r < passed_records->size; r++) {
-                            write_record(failed_records->items[r], failed_file);
+                            write_vcf_record(failed_records->items[r], failed_file);
                         }
 //                         write_batch(failed_records, failed_file);
                     }
@@ -241,7 +243,7 @@ int run_effect(char **urls, shared_options_data_t *shared_options, effect_option
                 // Free batch and its contents
 //                 vcf_batch_free(item->data_p);
                 vcf_batch_free(batch);
-                list_item_free(item);
+//                 list_item_free(item);
                 
                 i++;
             }
@@ -322,7 +324,7 @@ int run_effect(char **urls, shared_options_data_t *shared_options, effect_option
     write_result_file(shared_options, options_data, summary_count, output_directory);
 
     ret_code = free_ws_output(shared_options->num_threads);
-    free(read_list);
+//     free(read_list);
     free(output_list);
     vcf_close(file);
     
