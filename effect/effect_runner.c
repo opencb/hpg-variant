@@ -35,8 +35,6 @@ static int batch_num;
 
 
 int run_effect(char **urls, shared_options_data_t *shared_options, effect_options_data_t *options_data) {
-//     list_t *read_list = (list_t*) malloc(sizeof(list_t));
-//     list_init("batches", 1, shared_options->max_batches, read_list);
     int ret_code = 0;
     double start, stop, total;
     vcf_file_t *file = vcf_open(shared_options->vcf_filename, shared_options->max_batches);
@@ -90,9 +88,9 @@ int run_effect(char **urls, shared_options_data_t *shared_options, effect_option
             start = omp_get_wtime();
 
             if (shared_options->batch_bytes > 0) {
-                ret_code = vcf_parse_batches_in_bytes(NULL, shared_options->batch_bytes, file, 0);
+                ret_code = vcf_parse_batches_in_bytes(shared_options->batch_bytes, file, 0);
             } else if (shared_options->batch_lines > 0) {
-                ret_code = vcf_parse_batches(NULL, shared_options->batch_lines, file, 0);
+                ret_code = vcf_parse_batches(shared_options->batch_lines, file, 0);
             }
 
             stop = omp_get_wtime();
@@ -106,7 +104,6 @@ int run_effect(char **urls, shared_options_data_t *shared_options, effect_option
             LOG_INFO_F("[%dR] Time elapsed = %e ms\n", omp_get_thread_num(), total*1000);
 
             list_decr_writers(file->record_batches);
-//             list_decr_writers(read_list);
         }
         
 #pragma omp section
@@ -128,31 +125,28 @@ int run_effect(char **urls, shared_options_data_t *shared_options, effect_option
             start = omp_get_wtime();
 
             int i = 0;
-//             list_item_t* item = NULL;
             vcf_batch_t *batch = NULL;
             
             int ret_ws_0 = 0, ret_ws_1 = 0, ret_ws_2 = 0;
-//             while ((item = list_remove_item(read_list)) != NULL) {
             while ((batch = fetch_vcf_batch(file)) != NULL) {
                 if (i == 0) {
                     // Write file format, header entries and delimiter
-                    if (passed_file != NULL) { write_vcf_file(file, passed_file); }
-                    if (failed_file != NULL) { write_vcf_file(file, failed_file); }
+                    if (passed_file != NULL) { write_vcf_header(file, passed_file); }
+                    if (failed_file != NULL) { write_vcf_header(file, failed_file); }
                     
                     LOG_DEBUG("VCF header written\n");
                 }
-//                 vcf_batch_t *batch = (vcf_batch_t*) item->data_p;
                 
-//                 assert(batch);
-                
+//                     printf("batch loaded = '%.*s'\n", 50, batch->text);
+//                     printf("batch text len = %zu\n", strlen(batch->text));
                 array_list_t *input_records = batch->records;
                 array_list_t *passed_records = NULL, *failed_records = NULL;
 
-//                 if (i % 10 == 0) {
+                if (i % 10 == 0) {
                     LOG_INFO_F("Batch %d reached by thread %d - %zu/%zu records \n", 
                             i, omp_get_thread_num(),
                             batch->records->size, batch->records->capacity);
-//                 }
+                }
 
                 if (filters == NULL) {
                     passed_records = input_records;
@@ -168,9 +162,6 @@ int run_effect(char **urls, shared_options_data_t *shared_options, effect_option
                     int *chunk_sizes;
                     int *chunk_starts = create_chunks(passed_records->size, shared_options->entries_per_thread, &num_chunks, &chunk_sizes);
                     
-                    assert(batch->text != NULL);
-//                     printf("batch loaded = '%.*s'\n", 50, batch->text);
-//                     printf("batch text len = %zu\n", strlen(batch->text));
                     
                     // OpenMP: Launch a thread for each range
                     #pragma omp parallel for
@@ -241,9 +232,7 @@ int run_effect(char **urls, shared_options_data_t *shared_options, effect_option
                     array_list_free(failed_records, NULL);
                 }
                 // Free batch and its contents
-//                 vcf_batch_free(item->data_p);
                 vcf_batch_free(batch);
-//                 list_item_free(item);
                 
                 i++;
             }
