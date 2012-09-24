@@ -5,24 +5,28 @@ CFLAGS_DEBUG = -std=c99 -g
 # Source code folders
 INC_DIR = $(PWD)/include
 LIBS_DIR = $(PWD)/libs
-CONTAINERS_DIR = $(LIBS_DIR)/containers
-COMMONS_DIR = $(LIBS_DIR)/commons
-BIOFORMATS_DIR = $(LIBS_DIR)/bioformats
+LIBS_DIR = $(PWD)/libs
+BIOINFO_LIBS_DIR = $(LIBS_DIR)/bioinfo-libs
+COMMON_LIBS_DIR = $(LIBS_DIR)/common-libs
+
+CONTAINERS_DIR = $(COMMON_LIBS_DIR)/containers
+COMMONS_DIR = $(COMMON_LIBS_DIR)/commons
+BIOFORMATS_DIR = $(BIOINFO_LIBS_DIR)/bioformats
 
 # Include and libs folders
-INCLUDES = -I . -I $(LIBS_DIR) -I $(INC_DIR)
+INCLUDES = -I . -I $(LIBS_DIR) -I $(BIOINFO_LIBS_DIR) -I $(COMMON_LIBS_DIR)  -I $(INC_DIR)
 LIBS = -L/usr/lib/x86_64-linux-gnu -lconfig -lcprops -fopenmp -lm -lcurl -Wl,-Bsymbolic-functions -largtable2
 LIBS_TEST = -lcheck
 
-INCLUDES_STATIC = -I . -I $(LIBS_DIR) -I $(INC_DIR)
-LIBS_STATIC = -Llibs -L/usr/lib/x86_64-linux-gnu -lconfig -lcprops -fopenmp -lm -lcurl -Wl,-Bsymbolic-functions -largtable2
+INCLUDES_STATIC = -I . -I $(LIBS_DIR) -I $(BIOINFO_LIBS_DIR) -I $(COMMON_LIBS_DIR)  -I $(INC_DIR)
+LIBS_STATIC = -L$(LIBS_DIR) -L/usr/lib/x86_64-linux-gnu -lconfig -lcprops -fopenmp -lm -lcurl -Wl,-Bsymbolic-functions -largtable2
 
 # Source files dependencies
 VCF_OBJS = $(BIOFORMATS_DIR)/vcf/vcf_*.o
 GFF_OBJS = $(BIOFORMATS_DIR)/gff/gff_*.o
 MISC_OBJS = $(COMMONS_DIR)/file_utils.o $(COMMONS_DIR)/http_utils.o $(COMMONS_DIR)/log.o $(COMMONS_DIR)/string_utils.o \
 	$(CONTAINERS_DIR)/list.o $(CONTAINERS_DIR)/array_list.o \
-	$(CONTAINERS_DIR)/region_table.o $(CONTAINERS_DIR)/region_table_utils.o $(BIOFORMATS_DIR)/features/region/region.o
+	$(BIOFORMATS_DIR)/features/region/region.o $(BIOFORMATS_DIR)/features/region/region_table.o $(BIOFORMATS_DIR)/features/region/region_table_utils.o
 
 # Project source files
 FILTER_FILES = filter/main_filter.c filter/filter_runner.c filter/filter_options_parsing.c
@@ -52,22 +56,30 @@ deploy: compile-dependencies-static $(VCF_TOOLS_FILES)
 	$(CC) $(CFLAGS_DEBUG) -D_XOPEN_SOURCE=600 -o bin/hpg-vcf main.o $(VCF_TOOLS_OBJS) $(INCLUDES_STATIC) $(LIBS_STATIC)
 
 compile-dependencies:
+	make family.o && \
 	cd $(COMMONS_DIR) && make compile &&  \
 	cd $(CONTAINERS_DIR) && make compile &&  \
-	cd $(BIOFORMATS_DIR)/features/region && make region.o &&  \
+	cd $(BIOFORMATS_DIR)/features/region && make &&  \
 	cd $(BIOFORMATS_DIR)/gff && make compile &&  \
 	cd $(BIOFORMATS_DIR)/vcf && make compile
 
 compile-dependencies-static:
 	cd $(COMMONS_DIR) && make compile &&  \
 	cd $(CONTAINERS_DIR) && make compile-static &&  \
-	cd $(BIOFORMATS_DIR)/features/region && make region.o &&  \
+	cd $(BIOFORMATS_DIR)/features/region && make &&  \
 	cd $(BIOFORMATS_DIR)/gff && make compile-static &&  \
 	cd $(BIOFORMATS_DIR)/vcf && make compile-static
+
+family.o:
+	cd $(BIOFORMATS_DIR) && \
+	$(CC) $(CFLAGS) -c -o $(BIOFORMATS_DIR)/$@ $(BIOFORMATS_DIR)/family.c $(INCLUDES) $(LIBS)
 
 clean:
 	rm -f *.o
 	rm -f $(CONTAINERS_DIR)/*.o
 	rm -f $(COMMONS_DIR)/*.o
+	rm -f $(BIOFORMATS_DIR)/vcf/*.o
+	rm -f $(BIOFORMATS_DIR)/gff/*.o
+	rm -f $(BIOFORMATS_DIR)/ped/*.o
 	rm -f $(BIOFORMATS_DIR)/features/region/*.o
 	rm -rf bin

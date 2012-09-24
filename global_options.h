@@ -11,7 +11,6 @@
 
 #include <stdlib.h>
 #include <string.h>
-//#include <getopt.h>
 
 #include <argtable2.h>
 #include <libconfig.h>
@@ -24,26 +23,7 @@
 /**
  * Number of options applicable to the whole application.
  */
-#define NUM_GLOBAL_OPTIONS	13
-    
-/*static struct option shared_options[] = {
-    // File formats accepted (range available A-H)
-    {"vcf-file",        required_argument, 0, 'A' },
-//  {"bam-file",        required_argument, 0, 'B' },
-    {"ped-file",        required_argument, 0, 'E' },
-//    {"gff-file",      required_argument, 0, 'G' },
-    
-    // IO options (range available I-O)
-    {"outdir",          required_argument, 0, 'N' },
-    {"out",             required_argument, 0, 'O' },
-    
-    // Other options (range available P-Z)
-    { "species",        required_argument, 0, 'S' },
-    { "version",        required_argument, 0, 'V' },
-    { "url",            required_argument, 0, 'U' },
-    
-    {NULL,          0, 0, 0}
-};*/
+#define NUM_GLOBAL_OPTIONS	14
 
 typedef struct shared_options {
     struct arg_file *vcf_filename; /**< VCF file used as input. */
@@ -56,7 +36,8 @@ typedef struct shared_options {
     struct arg_str *species; /**< Species whose genome is taken as reference. */
 
     struct arg_int *max_batches; /**< Maximum number of batches stored at the same time. */
-    struct arg_int *batch_size; /**< Maximum size of a batch. */
+    struct arg_int *batch_lines; /**< Maximum size of a batch (in lines). */
+    struct arg_int *batch_bytes; /**< Maximum size of a batch (in bytes). */
     struct arg_int *num_threads; /**< Number of threads when a task is perform in parallel. */
     struct arg_int *entries_per_thread; /**< Number of entries in a batch each thread processes. */
 
@@ -82,14 +63,15 @@ typedef struct shared_options_data
     char *output_directory; /**< Directory where the output files will be stored. */
     char *output_filename; /**< Filename template for the main output file. */
     
-    char *host_url;
-    char *version;
-    char *species;
-
-    int max_batches;
-    int batch_size;
-    int num_threads;
-    int entries_per_thread;
+    char *host_url; /**< URL of the host where the web services run. */
+    char *version; /**< Version of the WS to query. */
+    char *species; /**< Species whose genome is taken as reference. */
+    
+    int max_batches; /**< Maximum number of batches stored at the same time. */
+    int batch_lines; /**< Maximum size of a batch (in lines). */
+    int batch_bytes; /**< Maximum size of a batch (in bytes). */
+    int num_threads; /**< Number of threads when a task is perform in parallel. */
+    int entries_per_thread; /**< Number of entries in a batch each thread processes. */
 } shared_options_data_t;
 
 /**

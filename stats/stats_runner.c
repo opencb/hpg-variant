@@ -1,15 +1,16 @@
 #include "stats.h"
 
 int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *options_data) {
-    list_t *read_list = (list_t*) malloc(sizeof(list_t));
-    list_init("batches", 1, shared_options_data->max_batches, read_list);
+//     list_t *read_list = (list_t*) malloc(sizeof(list_t));
+//     list_init("batches", 1, shared_options_data->max_batches, read_list);
     list_t *output_list = (list_t*) malloc (sizeof(list_t));
-    list_init("output", shared_options_data->num_threads, MIN(10, shared_options_data->max_batches) * shared_options_data->batch_size, output_list);
-    file_stats_t *file_stats = new_file_stats();
+    list_init("output", shared_options_data->num_threads, MIN(10, shared_options_data->max_batches) * shared_options_data->batch_lines, output_list);
+//     file_stats_t *file_stats = new_file_stats();
+    file_stats_t *file_stats = file_stats_new();
 
     int ret_code;
     double start, stop, total;
-    vcf_file_t *file = vcf_open(shared_options_data->vcf_filename);
+    vcf_file_t *file = vcf_open(shared_options_data->vcf_filename, shared_options_data->max_batches);
     
     if (!file) {
         LOG_FATAL("VCF file does not exist!\n");
@@ -28,7 +29,11 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
             // Reading
             start = omp_get_wtime();
 
-            ret_code = vcf_parse_batches(read_list, shared_options_data->batch_size, file, 1);
+            if (shared_options_data->batch_bytes > 0) {
+                ret_code = vcf_parse_batches_in_bytes(shared_options_data->batch_bytes, file, 1);
+            } else if (shared_options_data->batch_lines > 0) {
+                ret_code = vcf_parse_batches(shared_options_data->batch_lines, file, 1);
+            }
 
             stop = omp_get_wtime();
             total = stop - start;
@@ -38,7 +43,8 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
             LOG_INFO_F("[%dR] Time elapsed = %f s\n", omp_get_thread_num(), total);
             LOG_INFO_F("[%dR] Time elapsed = %e ms\n", omp_get_thread_num(), total*1000);
 
-            list_decr_writers(read_list);
+            notify_end_reading(file);
+//             list_decr_writers(read_list);
         }
         
 #pragma omp section
@@ -52,30 +58,27 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
             start = omp_get_wtime();
             
             int i = 0;
-            list_item_t* item = NULL;
-            while ((item = list_remove_item(read_list)) != NULL) {
-                vcf_batch_t *batch = (vcf_batch_t*) item->data_p;
-                array_list_t *input_records = batch;
-
+            vcf_batch_t *batch = NULL;
+            while ((batch = fetch_vcf_batch(file)) != NULL) {
+//             list_item_t* item = NULL;
+//             while ((item = list_remove_item(read_list)) != NULL) {
+//                 vcf_batch_t *batch = (vcf_batch_t*) item->data_p;
+                array_list_t *input_records = batch->records;
                 if (i % 50 == 0) {
                     LOG_INFO_F("Batch %d reached by thread %d - %zu/%zu records \n", 
                                 i, omp_get_thread_num(),
-                                batch->size, batch->capacity);
+                                batch->records->size, batch->records->capacity);
                 }
 
                 // Divide the list of passed records in ranges of size defined in config file
                 int num_chunks;
                 int *chunk_sizes;
                 int *chunk_starts = create_chunks(input_records->size, shared_options_data->entries_per_thread, &num_chunks, &chunk_sizes);
-//                 int max_chunk_size = shared_options_data->entries_per_thread;
-//                 int num_chunks;
-//                 list_item_t **chunk_starts = create_chunks(input_records, max_chunk_size, &num_chunks);
                 
                 // OpenMP: Launch a thread for each range
                 #pragma omp parallel for
                 for (int j = 0; j < num_chunks; j++) {
                     LOG_DEBUG_F("[%d] Stats invocation\n", omp_get_thread_num());
-//                     ret_code = get_variants_stats(chunk_starts[j], max_chunk_size, output_list, file_stats);
                     ret_code = get_variants_stats((vcf_record_t**) (input_records->items + chunk_starts[j]), 
                                                   chunk_sizes[j], 
                                                   output_list,
@@ -84,8 +87,9 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
                 if (i % 25 == 0) { LOG_INFO_F("*** %dth stats invocation finished\n", i); }
                 
                 free(chunk_starts);
-                vcf_batch_free(item->data_p);
-                list_item_free(item);
+                vcf_batch_free(batch);
+//                 vcf_batch_free(item->data_p);
+//                 list_item_free(item);
                 
                 i++;
             }
@@ -205,7 +209,7 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
                        );
                 
                 // Free resources
-                free_variant_stats(stats);
+                variant_stats_free(stats);
                 list_item_free(item);
             }
             
@@ -237,7 +241,7 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
     
     vcf_close(file);
     free(file_stats);
-    free(read_list);
+//     free(read_list);
     free(output_list);
     
     return 0;

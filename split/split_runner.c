@@ -2,10 +2,10 @@
 
 
 int run_split(shared_options_data_t *shared_options_data, split_options_data_t *options_data) {
-    list_t *read_list = (list_t*) malloc(sizeof(list_t));
-    list_init("batches", 1, shared_options_data->max_batches, read_list);
+//     list_t *read_list = (list_t*) malloc(sizeof(list_t));
+//     list_init("batches", 1, shared_options_data->max_batches, read_list);
     list_t *output_list = (list_t*) malloc (sizeof(list_t));
-    list_init("output", shared_options_data->num_threads, MIN(10, shared_options_data->max_batches) * shared_options_data->batch_size, output_list);
+    list_init("output", shared_options_data->num_threads, MIN(10, shared_options_data->max_batches) * shared_options_data->batch_lines, output_list);
 //     cp_hashtable **output_files = (cp_hashtable**) malloc (sizeof(cp_hashtable*));
 //     initialize_output(output_files);
     cp_hashtable *output_files = cp_hashtable_create_by_option(COLLECTION_MODE_DEEP,
@@ -20,7 +20,7 @@ int run_split(shared_options_data_t *shared_options_data, split_options_data_t *
     
     int ret_code = 0;
     double start, stop, total;
-    vcf_file_t *file = vcf_open(shared_options_data->vcf_filename);
+    vcf_file_t *file = vcf_open(shared_options_data->vcf_filename, shared_options_data->max_batches);
     
     if (!file) {
         LOG_FATAL("VCF file does not exist!\n");
@@ -39,7 +39,13 @@ int run_split(shared_options_data_t *shared_options_data, split_options_data_t *
             // Reading
             start = omp_get_wtime();
 
-            ret_code = vcf_parse_batches(read_list, shared_options_data->batch_size, file, 1);
+            if (shared_options_data->batch_bytes > 0) {
+                ret_code = vcf_parse_batches_in_bytes(shared_options_data->batch_bytes, file, 1);
+            } else if (shared_options_data->batch_lines > 0) {
+                ret_code = vcf_parse_batches(shared_options_data->batch_lines, file, 1);
+            }
+
+//             ret_code = vcf_parse_batches(read_list, shared_options_data->batch_lines, file, 1);
 
             stop = omp_get_wtime();
             total = stop - start;
@@ -51,7 +57,8 @@ int run_split(shared_options_data_t *shared_options_data, split_options_data_t *
             LOG_INFO_F("[%dR] Time elapsed = %f s\n", omp_get_thread_num(), total);
             LOG_INFO_F("[%dR] Time elapsed = %e ms\n", omp_get_thread_num(), total*1000);
 
-            list_decr_writers(read_list);
+            notify_end_reading(file);
+//             list_decr_writers(read_list);
         }
         
 #pragma omp section
@@ -65,15 +72,17 @@ int run_split(shared_options_data_t *shared_options_data, split_options_data_t *
             start = omp_get_wtime();
 
             int i = 0;
-            list_item_t* item = NULL;
-            while ((item = list_remove_item(read_list)) != NULL) {
-                vcf_batch_t *batch = (vcf_batch_t*) item->data_p;
-                array_list_t *input_records = batch;
+//             list_item_t* item = NULL;
+//             while ((item = list_remove_item(read_list)) != NULL) {
+            vcf_batch_t *batch = NULL;
+            while ((batch = fetch_vcf_batch(file)) != NULL) {
+//                 vcf_batch_t *batch = (vcf_batch_t*) item->data_p;
+                array_list_t *input_records = batch->records;
 
                 if (i % 100 == 0) {
                     LOG_INFO_F("Batch %d reached by thread %d - %zu/%zu records \n", 
                                 i, omp_get_thread_num(),
-                                batch->size, batch->capacity);
+                                batch->records->size, batch->records->capacity);
                 }
 
                 // Divide the list of passed records in ranges of size defined in config file
@@ -89,7 +98,6 @@ int run_split(shared_options_data_t *shared_options_data, split_options_data_t *
                         ret_code = split_by_chromosome((vcf_record_t**) (input_records->items + chunk_starts[j]), 
                                                        chunk_sizes[j],
                                                        output_list);
-//                         ret_code = split_by_chromosome(input_records->first_p, input_records->length, output_list);
                     } else if (options_data->criterion == GENE) {
                         ret_code = 0;
                     }
@@ -98,8 +106,8 @@ int run_split(shared_options_data_t *shared_options_data, split_options_data_t *
                 
                 free(chunk_starts);
                 // Can't free batch contents because they will be written to file by another thread
-                free(item->data_p);
-                list_item_free(item);
+//                 free(item->data_p);
+//                 list_item_free(item);
                 
                 i++;
             }
@@ -148,11 +156,11 @@ int run_split(shared_options_data_t *shared_options_data, split_options_data_t *
                     split_fd = fopen(split_filename, "w");
                     cp_hashtable_put(output_files, split->split_name, split_fd);
                     
-                    vcf_write_to_file(file, split_fd);
+                    write_vcf_file(file, split_fd);
                 }
                 
                 // TODO write line into the file
-                write_record(split->record, split_fd);
+                write_vcf_record(split->record, split_fd);
                 vcf_record_free(split->record);
             }
             
@@ -166,7 +174,7 @@ int run_split(shared_options_data_t *shared_options_data, split_options_data_t *
     }
 
     free_output(output_files);
-    free(read_list);
+//     free(read_list);
     free(output_list);
     vcf_close(file);
     
