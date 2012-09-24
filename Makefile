@@ -5,24 +5,27 @@ CFLAGS_DEBUG = -std=c99 -g -O0 -D_XOPEN_SOURCE=600 -D_GNU_SOURCE
 # Source code folders
 INC_DIR = $(PWD)/include
 LIBS_DIR = $(PWD)/libs
-CONTAINERS_DIR = $(LIBS_DIR)/containers
-COMMONS_DIR = $(LIBS_DIR)/commons
-BIOFORMATS_DIR = $(LIBS_DIR)/bioformats
+BIOINFO_LIBS_DIR = $(LIBS_DIR)/bioinfo-libs
+COMMON_LIBS_DIR = $(LIBS_DIR)/common-libs
+
+CONTAINERS_DIR = $(COMMON_LIBS_DIR)/containers
+COMMONS_DIR = $(COMMON_LIBS_DIR)/commons
+BIOFORMATS_DIR = $(BIOINFO_LIBS_DIR)/bioformats
 MATH_DIR = $(LIBS_DIR)/math
 
 # Include and libs folders
-INCLUDES = -I . -I $(LIBS_DIR) -I $(INC_DIR) -I /usr/include/libxml2 -I/usr/local/include
+INCLUDES = -I . -I $(LIBS_DIR) -I $(BIOINFO_LIBS_DIR) -I $(COMMON_LIBS_DIR) -I $(INC_DIR) -I /usr/include/libxml2 -I/usr/local/include
 LIBS = -L/usr/lib/x86_64-linux-gnu -lcurl -Wl,-Bsymbolic-functions -lconfig -lcprops -fopenmp -lm -lxml2 -lgsl -lgslcblas -largtable2
 LIBS_TEST = -lcheck
 
-INCLUDES_STATIC = -I . -I $(LIBS_DIR) -I $(INC_DIR) -I /usr/include/libxml2 -I/usr/local/include
+INCLUDES_STATIC = -I . -I $(LIBS_DIR) -I $(BIOINFO_LIBS_DIR) -I $(COMMON_LIBS_DIR) -I $(INC_DIR) -I /usr/include/libxml2 -I/usr/local/include
 LIBS_STATIC = -L$(LIBS_DIR) -L/usr/lib/x86_64-linux-gnu -lcurl -Wl,-Bsymbolic-functions -lconfig -lcprops -fopenmp -lm -lxml2 -lgsl -lgslcblas -largtable2
 
 # Source files dependencies
 VCF_OBJS = $(BIOFORMATS_DIR)/vcf/vcf_*.o
 GFF_OBJS = $(BIOFORMATS_DIR)/gff/gff_*.o
 PED_OBJS = $(BIOFORMATS_DIR)/ped/ped_*.o
-REGION_TABLE_OBJS = $(BIOFORMATS_DIR)/features/region/region.o $(CONTAINERS_DIR)/region_table.o $(CONTAINERS_DIR)/region_table_utils.o
+REGION_TABLE_OBJS = $(BIOFORMATS_DIR)/features/region/region.o $(BIOFORMATS_DIR)/features/region/region_table.o $(BIOFORMATS_DIR)/features/region/region_table_utils.o
 MISC_OBJS = $(COMMONS_DIR)/file_utils.o $(COMMONS_DIR)/string_utils.o $(COMMONS_DIR)/http_utils.o $(COMMONS_DIR)/log.o $(COMMONS_DIR)/result.o \
 	$(CONTAINERS_DIR)/array_list.o $(CONTAINERS_DIR)/list.o $(BIOFORMATS_DIR)/family.o $(MATH_DIR)/fisher.o
 
@@ -62,8 +65,8 @@ compile-dependencies:
 	make family.o && \
 	cd $(MATH_DIR) && make compile &&  \
 	cd $(COMMONS_DIR) && make compile &&  \
-	cd $(CONTAINERS_DIR) && make compile &&  \
-	cd $(BIOFORMATS_DIR)/features/region && make region.o &&  \
+	cd $(CONTAINERS_DIR) && make &&  \
+	cd $(BIOFORMATS_DIR)/features/region && make &&  \
 	cd $(BIOFORMATS_DIR)/gff && make compile &&  \
 	cd $(BIOFORMATS_DIR)/ped && make compile &&  \
 	cd $(BIOFORMATS_DIR)/vcf && make compile
@@ -71,8 +74,8 @@ compile-dependencies:
 compile-dependencies-static:
 	cd $(MATH_DIR) && make compile &&  \
 	cd $(COMMONS_DIR) && make compile &&  \
-	cd $(CONTAINERS_DIR) && make compile-static &&  \
-	cd $(BIOFORMATS_DIR)/features/region && make region.o &&  \
+	cd $(CONTAINERS_DIR) && make &&  \
+	cd $(BIOFORMATS_DIR)/features/region && make &&  \
 	cd $(BIOFORMATS_DIR)/gff && make compile-static &&  \
 	cd $(BIOFORMATS_DIR)/ped && make compile-static &&  \
 	cd $(BIOFORMATS_DIR)/vcf && make compile-static
