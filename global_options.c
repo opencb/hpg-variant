@@ -54,32 +54,32 @@ shared_options_data_t* new_shared_options_data(shared_options_t* options) {
     
     filter_t *filter;
     if (options->num_alleles->count > 0) {
-        filter = create_num_alleles_filter(*(options->num_alleles->ival));
+        filter = num_alleles_filter_new(*(options->num_alleles->ival));
         options_data->chain = add_to_filter_chain(filter, options_data->chain);
         LOG_DEBUG_F("number of alleles filter = %d\n", *(options->num_alleles->ival));
     }
     if (options->coverage->count > 0) {
-        filter = create_coverage_filter(*(options->coverage->ival));
+        filter = coverage_filter_new(*(options->coverage->ival));
         options_data->chain = add_to_filter_chain(filter, options_data->chain);
         LOG_DEBUG_F("minimum coverage filter = %d\n", *(options->coverage->ival));
     }
     if (options->quality->count > 0) {
-        filter = create_quality_filter(*(options->quality->ival));
+        filter = quality_filter_new(*(options->quality->ival));
         options_data->chain = add_to_filter_chain(filter, options_data->chain);
         LOG_DEBUG_F("minimum quality filter = %d\n", *(options->quality->ival));
     }
     if (options->snp->count > 0) {
-        filter = create_snp_filter(strdup(*(options->snp->sval)));
+        filter = snp_filter_new(strdup(*(options->snp->sval)));
         options_data->chain = add_to_filter_chain(filter, options_data->chain);
         LOG_DEBUG_F("snp filter to %s SNPs\n", *(options->snp->sval));
     }
     if (options->region->count > 0) {
-        filter = create_region_exact_filter(strdup(*(options->region->sval)), 0, options_data->host_url, options_data->species, options_data->version);
+        filter = region_exact_filter_new(strdup(*(options->region->sval)), 0, options_data->host_url, options_data->species, options_data->version);
         options_data->chain = add_to_filter_chain(filter, options_data->chain);
         LOG_DEBUG_F("regions = %s\n", *(options->region->sval));
     } 
     if (options->region_file->count > 0) {
-        filter = create_region_exact_filter(strdup(*(options->region_file->filename)), 1, options_data->host_url, options_data->species, options_data->version);
+        filter = region_exact_filter_new(strdup(*(options->region_file->filename)), 1, options_data->host_url, options_data->species, options_data->version);
         options_data->chain = add_to_filter_chain(filter, options_data->chain);
         LOG_DEBUG_F("regions file = %s\n", *(options->region->sval));
     }
