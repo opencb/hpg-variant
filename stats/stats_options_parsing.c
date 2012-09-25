@@ -8,7 +8,6 @@ int read_stats_configuration(const char *filename, stats_options_t *options, sha
     
     config_t *config = (config_t*) calloc (1, sizeof(config_t));
     int ret_code = config_read_file(config, filename);
-    printf("** 0.5\n");
     if (ret_code == CONFIG_FALSE) {
         LOG_ERROR_F("config file error: %s\n", config_error_text(config));
         return ret_code;

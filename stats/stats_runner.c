@@ -60,10 +60,6 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
             int i = 0;
             vcf_batch_t *batch = NULL;
             while ((batch = fetch_vcf_batch(file)) != NULL) {
-//             list_item_t* item = NULL;
-//             while ((item = list_remove_item(read_list)) != NULL) {
-//                 vcf_batch_t *batch = (vcf_batch_t*) item->data_p;
-                array_list_t *input_records = batch->records;
                 if (i % 50 == 0) {
                     LOG_INFO_F("Batch %d reached by thread %d - %zu/%zu records \n", 
                                 i, omp_get_thread_num(),
@@ -73,6 +69,7 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
                 // Divide the list of passed records in ranges of size defined in config file
                 int num_chunks;
                 int *chunk_sizes;
+                array_list_t *input_records = batch->records;
                 int *chunk_starts = create_chunks(input_records->size, shared_options_data->entries_per_thread, &num_chunks, &chunk_sizes);
                 
                 // OpenMP: Launch a thread for each range
@@ -84,12 +81,9 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
                                                   output_list,
                                                   file_stats);
                 }
-                if (i % 25 == 0) { LOG_INFO_F("*** %dth stats invocation finished\n", i); }
                 
                 free(chunk_starts);
                 vcf_batch_free(batch);
-//                 vcf_batch_free(item->data_p);
-//                 list_item_free(item);
                 
                 i++;
             }

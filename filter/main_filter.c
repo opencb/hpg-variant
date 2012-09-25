@@ -114,7 +114,9 @@ filter_options_data_t *new_filter_options_data(filter_options_t *options, shared
 }
 
 void free_filter_options_data(filter_options_data_t *options_data) {
-    if (options_data->chain) { free_filter_chain(options_data->chain); };
+    if (options_data->chain) {
+        free_filter_chain(options_data->chain);
+    };
     free(options_data);
 }
 

@@ -50,10 +50,10 @@ hpg-vcf: compile-dependencies $(VCF_TOOLS_FILES)
 	$(CC) $(CFLAGS_DEBUG) -D_XOPEN_SOURCE=600 -o bin/$@ main.o $(VCF_TOOLS_OBJS) $(INCLUDES) $(LIBS)
 
 deploy: compile-dependencies-static $(VCF_TOOLS_FILES)
-	$(CC) $(CFLAGS_DEBUG) -D_XOPEN_SOURCE=600 -c main.c $(VCF_TOOLS_FILES) $(INCLUDES_STATIC) $(LIBS_STATIC)
+	$(CC) $(CFLAGS) -D_XOPEN_SOURCE=600 -c main.c $(VCF_TOOLS_FILES) $(INCLUDES_STATIC) $(LIBS_STATIC)
 	test -d bin || mkdir bin
 	cp hpg-vcf-tools.cfg bin
-	$(CC) $(CFLAGS_DEBUG) -D_XOPEN_SOURCE=600 -o bin/hpg-vcf main.o $(VCF_TOOLS_OBJS) $(INCLUDES_STATIC) $(LIBS_STATIC)
+	$(CC) $(CFLAGS) -D_XOPEN_SOURCE=600 -o bin/hpg-vcf main.o $(VCF_TOOLS_OBJS) $(INCLUDES_STATIC) $(LIBS_STATIC)
 
 compile-dependencies:
 	make family.o && \

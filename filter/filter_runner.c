@@ -82,8 +82,8 @@ int run_filter(shared_options_data_t *shared_options_data, filter_options_data_t
             while ((batch = fetch_vcf_batch(file)) != NULL) {
                 if (i == 0) {
                     // Write file format, header entries and delimiter
-                    write_vcf_file(file, passed_file);
-                    write_vcf_file(file, failed_file);
+                    write_vcf_header(file, passed_file);
+                    write_vcf_header(file, failed_file);
 
                     LOG_DEBUG("VCF header written created\n");
                 }
@@ -120,7 +120,7 @@ int run_filter(shared_options_data_t *shared_options_data, filter_options_data_t
                     LOG_DEBUG_F("[batch %d] %zu failed records\n", i, failed_records->size);
                 #pragma omp critical 
                     {
-                        for (int r = 0; r < passed_records->size; r++) {
+                        for (int r = 0; r < failed_records->size; r++) {
                             write_vcf_record(failed_records->items[r], failed_file);
                         }
 //                         write_batch(failed_records, failed_file);
@@ -152,7 +152,7 @@ int run_filter(shared_options_data_t *shared_options_data, filter_options_data_t
             if (passed_file) { fclose(passed_file); }
             if (failed_file) { fclose(failed_file); }
             
-            free(filters);
+            free_filters(filters, num_filters);
         }
     }
     

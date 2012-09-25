@@ -45,7 +45,7 @@ int vcf_tool_split(int argc, char *argv[], const char *configuration_file) {
 
     free_split_options_data(options_data);
     free_shared_options_data(shared_options_data);
-    arg_freetable(argtable, options->num_options + shared_options->num_options);
+    arg_freetable(argtable, options->num_options + shared_options->num_options - 3);
 
     return 0;
 }

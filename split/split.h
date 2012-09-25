@@ -62,7 +62,6 @@ void free_split_result(split_result_t* split_result);
  *       Tool execution         *
  * ******************************/
 
-// int split_by_chromosome(list_item_t* variants, int num_variants, list_t* output_list);
 int split_by_chromosome(vcf_record_t **variants, int num_variants, list_t* output_list);
 
 /* ******************************
