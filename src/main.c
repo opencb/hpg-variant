@@ -14,9 +14,9 @@ int main(int argc, char *argv[]) {
         exit_code = vcf_tool_filter(argc - 1, argv + 1, config);
         
     } else if (strcmp(tool, "merge") == 0) {
-        exit_code = vcf_tool_merge(argc - 1, argv + 1, config);
-//         fprintf(stderr, "%s tool not yet implemented\n", tool);
-//         exit_code = NOT_IMPLEMENTED_TOOL;
+//         exit_code = vcf_tool_merge(argc - 1, argv + 1, config);
+        fprintf(stderr, "%s tool not yet implemented\n", tool);
+        exit_code = NOT_IMPLEMENTED_TOOL;
         
     } else if (strcmp(tool, "split") == 0) {
         exit_code = vcf_tool_split(argc - 1, argv + 1, config);

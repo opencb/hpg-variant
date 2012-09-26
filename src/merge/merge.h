@@ -1,6 +1,7 @@
 #ifndef VCF_TOOLS_MERGE_H
 #define VCF_TOOLS_MERGE_H
 
+#include <assert.h>
 #include <getopt.h>
 #include <stdlib.h>
 #include <string.h>

@@ -104,14 +104,24 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
                     }
                     
                     items[i] = list_remove_item(read_list[i]);
-                    if (items[i] == NULL) {
+                    if (items[i] == NULL || !strcmp(items[i]->data_p, "")) {
                         LOG_INFO_F("[%d] EOF found in file %s\n", omp_get_thread_num(), options_data->input_files[i]);
                         eof_found[i] = 1;
                         num_eof_found++;
+                        
+                        if(items[i] != NULL && !strcmp(items[i]->data_p, "")) {
+                            free(items[i]->data_p);
+                            list_item_free(items[i]);
+                            LOG_DEBUG_F("[%d] Text batch freed\n", omp_get_thread_num());
+                        } else {
+                            LOG_DEBUG_F("[%d] No need to free text batch\n", omp_get_thread_num());
+                        }
+                        
                         continue;
                     }
                     
 //                     printf("[%d] text batch from file %d\n", omp_get_thread_num(), i);
+//                     printf("[%d] contents = '%s'\n", texts[i]);
                     
                     assert(items[i]->data_p != NULL);
                     texts[i] = items[i]->data_p;

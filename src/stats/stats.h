@@ -9,7 +9,7 @@
 #include <libconfig.h>
 #include <omp.h>
 
-#include <bioformats/vcf/vcf_batch.h>
+#include <bioformats/vcf/vcf_file_structure.h>
 #include <bioformats/vcf/vcf_file.h>
 #include <bioformats/vcf/vcf_stats.h>
 #include <commons/file_utils.h>

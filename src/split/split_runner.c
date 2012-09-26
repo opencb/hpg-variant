@@ -2,25 +2,21 @@
 
 
 int run_split(shared_options_data_t *shared_options_data, split_options_data_t *options_data) {
-    list_t *read_list = (list_t*) malloc(sizeof(list_t));
-    list_init("batches", 1, shared_options_data->max_batches, read_list);
     list_t *output_list = (list_t*) malloc (sizeof(list_t));
-    list_init("output", shared_options_data->num_threads, MIN(10, shared_options_data->max_batches) * shared_options_data->batch_size, output_list);
-//     cp_hashtable **output_files = (cp_hashtable**) malloc (sizeof(cp_hashtable*));
-//     initialize_output(output_files);
+    list_init("output", shared_options_data->num_threads, MIN(10, shared_options_data->max_batches) * shared_options_data->batch_lines, output_list);
     cp_hashtable *output_files = cp_hashtable_create_by_option(COLLECTION_MODE_DEEP,
-                                                 50,
-                                                 cp_hash_istring,
-                                                 (cp_compare_fn) strcasecmp,
-                                                 NULL,
-                                                 (cp_destructor_fn) free_file_key,
-                                                 NULL,
-                                                 (cp_destructor_fn) free_file_descriptor
-                                                );
+                                                               50,
+                                                               cp_hash_istring,
+                                                               (cp_compare_fn) strcasecmp,
+                                                               NULL,
+                                                               (cp_destructor_fn) free_file_key,
+                                                               NULL,
+                                                               (cp_destructor_fn) free_file_descriptor
+                                                              );
     
     int ret_code = 0;
     double start, stop, total;
-    vcf_file_t *file = vcf_open(shared_options_data->vcf_filename);
+    vcf_file_t *file = vcf_open(shared_options_data->vcf_filename, shared_options_data->max_batches);
     
     if (!file) {
         LOG_FATAL("VCF file does not exist!\n");
@@ -39,7 +35,11 @@ int run_split(shared_options_data_t *shared_options_data, split_options_data_t *
             // Reading
             start = omp_get_wtime();
 
-            ret_code = vcf_parse_batches(read_list, shared_options_data->batch_size, file, 1);
+            if (shared_options_data->batch_bytes > 0) {
+                ret_code = vcf_parse_batches_in_bytes(shared_options_data->batch_bytes, file, 1);
+            } else if (shared_options_data->batch_lines > 0) {
+                ret_code = vcf_parse_batches(shared_options_data->batch_lines, file, 1);
+            }
 
             stop = omp_get_wtime();
             total = stop - start;
@@ -51,7 +51,7 @@ int run_split(shared_options_data_t *shared_options_data, split_options_data_t *
             LOG_INFO_F("[%dR] Time elapsed = %f s\n", omp_get_thread_num(), total);
             LOG_INFO_F("[%dR] Time elapsed = %e ms\n", omp_get_thread_num(), total*1000);
 
-            list_decr_writers(read_list);
+            notify_end_reading(file);
         }
         
 #pragma omp section
@@ -65,15 +65,17 @@ int run_split(shared_options_data_t *shared_options_data, split_options_data_t *
             start = omp_get_wtime();
 
             int i = 0;
-            list_item_t* item = NULL;
-            while ((item = list_remove_item(read_list)) != NULL) {
-                vcf_batch_t *batch = (vcf_batch_t*) item->data_p;
-                array_list_t *input_records = batch;
+//             list_item_t* item = NULL;
+//             while ((item = list_remove_item(read_list)) != NULL) {
+            vcf_batch_t *batch = NULL;
+            while ((batch = fetch_vcf_batch(file)) != NULL) {
+//                 vcf_batch_t *batch = (vcf_batch_t*) item->data_p;
+                array_list_t *input_records = batch->records;
 
-                if (i % 100 == 0) {
+                if (i % 50 == 0) {
                     LOG_INFO_F("Batch %d reached by thread %d - %zu/%zu records \n", 
                                 i, omp_get_thread_num(),
-                                batch->size, batch->capacity);
+                                batch->records->size, batch->records->capacity);
                 }
 
                 // Divide the list of passed records in ranges of size defined in config file
@@ -89,7 +91,6 @@ int run_split(shared_options_data_t *shared_options_data, split_options_data_t *
                         ret_code = split_by_chromosome((vcf_record_t**) (input_records->items + chunk_starts[j]), 
                                                        chunk_sizes[j],
                                                        output_list);
-//                         ret_code = split_by_chromosome(input_records->first_p, input_records->length, output_list);
                     } else if (options_data->criterion == GENE) {
                         ret_code = 0;
                     }
@@ -97,9 +98,11 @@ int run_split(shared_options_data_t *shared_options_data, split_options_data_t *
 //                 if (i % 50 == 0) { LOG_INFO_F("*** %dth split invocation finished\n", i); }
                 
                 free(chunk_starts);
+                free(chunk_sizes);
                 // Can't free batch contents because they will be written to file by another thread
-                free(item->data_p);
-                list_item_free(item);
+//                 free(item->data_p);
+//                 list_item_free(item);
+                vcf_batch_free(batch);
                 
                 i++;
             }
@@ -127,33 +130,39 @@ int run_split(shared_options_data_t *shared_options_data, split_options_data_t *
             int dirname_len = strlen(shared_options_data->output_directory);
             
             list_item_t* item = NULL;
-            split_result_t *split;
+            split_result_t *result;
             FILE *split_fd = NULL;
             char split_filename[1024];
             char input_filename[256];
             get_filename_from_path(shared_options_data->vcf_filename, input_filename);
             
             while ((item = list_remove_item(output_list)) != NULL) {
-                split = item->data_p;
+                result = item->data_p;
                 
                 memset(split_filename, 0, 1024 * sizeof(char));
-                sprintf(split_filename, "%s/%s_%s", shared_options_data->output_directory, split->split_name, input_filename);
+//                 printf("outdir     = %s\n", shared_options_data->output_directory);
+//                 printf("split name = %s\n", split->split_name);
+//                 printf("input name = %s\n", input_filename);
+                sprintf(split_filename, "%s/%s_%s", shared_options_data->output_directory, result->split_name, input_filename);
 //                 sprintf(split_filename, "%s/%s.vcf", shared_options_data->output_directory, split->split_name, shared_options_data->vcf_filename);
                 
 //                 printf("Split filename = '%s'\n", split_filename);
                 
-                split_fd = cp_hashtable_get(output_files, split->split_name);
+                split_fd = cp_hashtable_get(output_files, result->split_name);
                 if (!split_fd) {
-                    // TODO If its the first line to write into the file, create file and include the header
+                    // If this is the first line to be written to the file, create the file descriptor...
                     split_fd = fopen(split_filename, "w");
-                    cp_hashtable_put(output_files, split->split_name, split_fd);
-                    
-                    vcf_write_to_file(file, split_fd);
+                    cp_hashtable_put(output_files, strdup(result->split_name), split_fd);
+                    // ...and insert the header
+                    write_vcf_header(file, split_fd);
                 }
                 
-                // TODO write line into the file
-                write_record(split->record, split_fd);
-                vcf_record_free(split->record);
+                // Write line into the file
+                write_vcf_record(result->record, split_fd);
+                vcf_record_free_deep(result->record);
+                
+                free_split_result(result);
+                list_item_free(item);
             }
             
             stop = omp_get_wtime();
@@ -166,7 +175,6 @@ int run_split(shared_options_data_t *shared_options_data, split_options_data_t *
     }
 
     free_output(output_files);
-    free(read_list);
     free(output_list);
     vcf_close(file);
     

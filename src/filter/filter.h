@@ -9,9 +9,9 @@
 #include <libconfig.h>
 #include <omp.h>
 
-#include <bioformats/vcf/vcf_batch.h>
-#include <bioformats/vcf/vcf_filters.h>
+#include <bioformats/vcf/vcf_file_structure.h>
 #include <bioformats/vcf/vcf_file.h>
+#include <bioformats/vcf/vcf_filters.h>
 #include <bioformats/vcf/vcf_write.h>
 #include <commons/file_utils.h>
 #include <commons/log.h>
@@ -19,6 +19,7 @@
 
 #include "error.h"
 #include "global_options.h"
+#include "hpg_vcf_tools_utils.h"
 
 #define NUM_FILTER_OPTIONS  6
 

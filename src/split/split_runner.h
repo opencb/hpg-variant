@@ -9,9 +9,10 @@
 #include <commons/file_utils.h>
 #include <containers/list.h>
 #include <commons/log.h>
-#include <bioformats/vcf/vcf_batch.h>
-#include <bioformats/vcf/vcf_filters.h>
+// #include <bioformats/vcf/vcf_batch.h>
+#include <bioformats/vcf/vcf_file_structure.h>
 #include <bioformats/vcf/vcf_file.h>
+#include <bioformats/vcf/vcf_filters.h>
 
 #include "hpg_vcf_tools_utils.h"
 #include "split.h"

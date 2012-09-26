@@ -5,7 +5,7 @@
 
 #include <bioformats/vcf/vcf_file.h>
 
-#include "../merge/merge.h"
+#include "merge/merge.h"
 
 
 Suite *create_test_suite(void);
@@ -26,20 +26,20 @@ void setup_merge_process(void) {
     files[0] = calloc (1, sizeof(vcf_file_t));
     files[0]->filename = "input0.vcf";
     files[0]->samples_names = array_list_new(10, 1.5, COLLECTION_MODE_SYNCHRONIZED);
-    add_sample_name("S01", files[0]);
-    add_sample_name("S02", files[0]);
+    add_vcf_sample_name("S01", 3, files[0]);
+    add_vcf_sample_name("S02", 3, files[0]);
     
     files[1] = calloc (1, sizeof(vcf_file_t));
     files[1]->filename = "input1.vcf";
     files[1]->samples_names = array_list_new(10, 1.5, COLLECTION_MODE_SYNCHRONIZED);
-    add_sample_name("S11", files[1]);
-    add_sample_name("S12", files[1]);
-    add_sample_name("S13", files[1]);
+    add_vcf_sample_name("S11", 3, files[1]);
+    add_vcf_sample_name("S12", 3, files[1]);
+    add_vcf_sample_name("S13", 3, files[1]);
     
     files[2] = calloc (1, sizeof(vcf_file_t));
     files[2]->filename = "input2.vcf";
     files[2]->samples_names = array_list_new(10, 1.5, COLLECTION_MODE_SYNCHRONIZED);
-    add_sample_name("S21", files[2]);
+    add_vcf_sample_name("S21", 3, files[2]);
 }
 
 void teardown_merge_process(void) {
@@ -55,19 +55,26 @@ START_TEST (merge_position_in_one_file) {
     vcf_record_file_link position;
     position.file = files[1];
     
-    vcf_record_t *input = create_record();
+    vcf_record_t *input = vcf_record_new();
     input->chromosome = "1";
-    input->position = 11111111111;
+    input->chromosome_len = strlen(input->chromosome);
+    input->position = 21111111111;
     input->id = "rs123456";
+    input->id_len = strlen(input->id);
     input->reference = "A";
+    input->reference_len = strlen(input->reference);
     input->alternate = "T";
+    input->alternate_len = strlen(input->alternate);
     input->quality = 20;
     input->filter = "PASS";
+    input->filter_len = strlen(input->filter);
     input->info = "NS=3;DP=14;AF=0.5;DB;H2";
+    input->info_len = strlen(input->info);
     input->format = "GT:GQ:DP:HQ";
-    add_record_sample("1/1:20:40:30", input);
-    add_record_sample("0/1:10:60:50", input);
-    add_record_sample("0/0:30:50:70", input);
+    input->format_len = strlen(input->format);
+    add_vcf_record_sample("1/1:20:40:30", 12, input);
+    add_vcf_record_sample("0/1:10:60:50", 12, input);
+    add_vcf_record_sample("0/0:30:50:70", 12, input);
     position.record = input;
     
     vcf_record_t *result = merge_unique_position(&position, files, 3, options);
@@ -89,6 +96,8 @@ START_TEST (merge_position_in_one_file) {
     fail_if(strcmp(result->samples->items[3], "0/1:10:60:50"), "Sample 3 must be 0/1:10:60:50");
     fail_if(strcmp(result->samples->items[4], "0/0:30:50:70"), "Sample 4 must be 0/0:30:50:70");
     fail_if(strcmp(result->samples->items[5], "./.:.:.:."), "Sample 5 must be empty");
+    
+    write_vcf_record(input, stdout);
 }
 END_TEST
 
