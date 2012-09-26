@@ -18,26 +18,6 @@
  * along with hpg-variant. If not, see <http://www.gnu.org/licenses/>.
  */
 
-/*
- * Copyright (c) 2012 Cristina Yenyxe Gonzalez Garcia
- * Copyright (c) 2012 Ignacio Medina (CGI-CIPF)
- *
- * This file is part of hpg-variant.
- *
- * hpg-variant is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * hpg-variant is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with hpg-variant. If not, see <http://www.gnu.org/licenses/>.
- */
-
 #include "hardy_weinberg.h"
 
 // TODO individuals must be founders
@@ -82,12 +62,11 @@ int hardy_weinberg_test(vcf_record_t **variants, int num_variants, individual_t 
         if (copy_buf) {
             free(copy_buf);
         }
-            
-        char **alternates = split(copy_buf, ",", &num_alternates);
+        
         int num_alleles = num_alternates + 1;
-        int genotypes_count = (int*) calloc (num_alleles * num_alleles, sizeof(int));
-        int genotypes_count_affected = (int*) calloc (num_alleles * num_alleles, sizeof(int));
-        int genotypes_count_unaffected = (int*) calloc (num_alleles * num_alleles, sizeof(int));
+        int *genotypes_count = (int*) calloc (num_alleles * num_alleles, sizeof(int));
+        int *genotypes_count_affected = (int*) calloc (num_alleles * num_alleles, sizeof(int));
+        int *genotypes_count_unaffected = (int*) calloc (num_alleles * num_alleles, sizeof(int));
         
         // Count over individuals
         for (int j = 0; j < num_individuals; j++) {
@@ -315,8 +294,8 @@ int hardy_weinberg_test(vcf_record_t **variants, int num_variants, individual_t 
 //                                 record->reference, record->reference_len, 
 //                                 record->alternate, record->alternate_len,
 //                                 t1, t2, tdt_chisq);
-        list_item_t *output_item = list_item_new(tid, 0, result);
-        list_insert_item(output_item, output_list);
+//         list_item_t *output_item = list_item_new(tid, 0, result);
+//         list_insert_item(output_item, output_list);
 //         LOG_DEBUG_F("[%d] after adding %.*s:%ld\n", tid, record->chromosome_len, record->chromosome, record->position);
         
     } // next variant
@@ -350,7 +329,7 @@ int hardy_weinberg_test(vcf_record_t **variants, int num_variants, individual_t 
 // }
 
 individual_t **get_founders_from_families(family_t **families, int num_families, int *num_individuals) {
-    individual_t *individuals = (individual_t*) calloc (num_families * 2, sizeof(individual_t));
+    individual_t **individuals = (individual_t**) calloc (num_families * 2, sizeof(individual_t*));
     family_t *family;
     int cur_ind = 0;
     

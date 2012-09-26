@@ -5,6 +5,7 @@ CFLAGS_DEBUG = -std=c99 -g -O0 -D_XOPEN_SOURCE=600 -D_GNU_SOURCE
 # Source code folders
 INC_DIR = $(PWD)/include
 LIBS_DIR = $(PWD)/libs
+SRC_DIR = $(PWD)/src
 BIOINFO_LIBS_DIR = $(LIBS_DIR)/bioinfo-libs
 COMMON_LIBS_DIR = $(LIBS_DIR)/common-libs
 
@@ -14,11 +15,11 @@ BIOFORMATS_DIR = $(BIOINFO_LIBS_DIR)/bioformats
 MATH_DIR = $(LIBS_DIR)/math
 
 # Include and libs folders
-INCLUDES = -I . -I $(LIBS_DIR) -I $(BIOINFO_LIBS_DIR) -I $(COMMON_LIBS_DIR) -I $(INC_DIR) -I /usr/include/libxml2 -I/usr/local/include
+INCLUDES = -I $(SRC_DIR) -I $(LIBS_DIR) -I $(BIOINFO_LIBS_DIR) -I $(COMMON_LIBS_DIR) -I $(INC_DIR) -I /usr/include/libxml2 -I/usr/local/include
 LIBS = -L/usr/lib/x86_64-linux-gnu -lcurl -Wl,-Bsymbolic-functions -lconfig -lcprops -fopenmp -lm -lxml2 -lgsl -lgslcblas -largtable2
 LIBS_TEST = -lcheck
 
-INCLUDES_STATIC = -I . -I $(LIBS_DIR) -I $(BIOINFO_LIBS_DIR) -I $(COMMON_LIBS_DIR) -I $(INC_DIR) -I /usr/include/libxml2 -I/usr/local/include
+INCLUDES_STATIC = -I $(SRC_DIR) -I $(LIBS_DIR) -I $(BIOINFO_LIBS_DIR) -I $(COMMON_LIBS_DIR) -I $(INC_DIR) -I /usr/include/libxml2 -I/usr/local/include
 LIBS_STATIC = -L$(LIBS_DIR) -L/usr/lib/x86_64-linux-gnu -lcurl -Wl,-Bsymbolic-functions -lconfig -lcprops -fopenmp -lm -lxml2 -lgsl -lgslcblas -largtable2
 
 # Source files dependencies
@@ -30,9 +31,12 @@ MISC_OBJS = $(COMMONS_DIR)/file_utils.o $(COMMONS_DIR)/string_utils.o $(COMMONS_
 	$(CONTAINERS_DIR)/array_list.o $(CONTAINERS_DIR)/list.o $(BIOFORMATS_DIR)/family.o $(MATH_DIR)/fisher.o
 
 # Project source files
-EFFECT_FILES = effect/main_effect.c effect/effect_options_parsing.c effect/effect_runner.c effect/auxiliary_files_writer.c
-GWAS_FILES = gwas/main_gwas.c gwas/gwas_options_parsing.c gwas/tdt.c gwas/tdt_runner.c gwas/assoc.c gwas/assoc_basic_test.c gwas/assoc_fisher_test.c gwas/assoc_runner.c gwas/checks_family.c
-HPG_VARIANT_FILES = global_options.c hpg_variant_utils.c
+EFFECT_FILES = $(SRC_DIR)/effect/*.c
+GWAS_FILES = $(SRC_DIR)/gwas/*.c
+HPG_VARIANT_FILES = $(SRC_DIR)/global_options.c $(SRC_DIR)/hpg_variant_utils.c
+# EFFECT_FILES = effect/main_effect.c effect/effect_options_parsing.c effect/effect_runner.c effect/auxiliary_files_writer.c
+# GWAS_FILES = gwas/main_gwas.c gwas/gwas_options_parsing.c gwas/tdt.c gwas/tdt_runner.c gwas/assoc.c gwas/assoc_basic_test.c gwas/assoc_fisher_test.c gwas/assoc_runner.c gwas/checks_family.c
+# HPG_VARIANT_FILES = global_options.c hpg_variant_utils.c
 
 # Project object files
 EFFECT_OBJS = main_effect.o effect_options_parsing.o effect_runner.o auxiliary_files_writer.o
@@ -45,13 +49,13 @@ ALL_FILES = $(HPG_VARIANT_OBJS) $(EFFECT_OBJS) $(GWAS_OBJS) $(VCF_OBJS) $(GFF_OB
 all: compile-dependencies hpg-variant
 
 deploy: compile-dependencies-static $(HPG_VARIANT_FILES)
-	$(CC) $(CFLAGS) -c main.c $(HPG_VARIANT_FILES) $(EFFECT_FILES) $(GWAS_FILES) $(INCLUDES) $(LIBS_STATIC)
+	$(CC) $(CFLAGS) -c $(SRC_DIR)/main.c $(HPG_VARIANT_FILES) $(EFFECT_FILES) $(GWAS_FILES) $(INCLUDES) $(LIBS_STATIC)
 	test -d bin || mkdir bin
 	cp hpg-variant.cfg bin
 	$(CC) $(CFLAGS) -o bin/hpg-variant main.o $(ALL_FILES) $(INCLUDES_STATIC) $(LIBS_STATIC)
 	
 hpg-variant: compile-dependencies $(HPG_VARIANT_FILES)
-	$(CC) $(CFLAGS_DEBUG) -c main.c $(HPG_VARIANT_FILES) $(EFFECT_FILES) $(GWAS_FILES) $(INCLUDES) $(LIBS)
+	$(CC) $(CFLAGS_DEBUG) -c $(SRC_DIR)/main.c $(HPG_VARIANT_FILES) $(EFFECT_FILES) $(GWAS_FILES) $(INCLUDES) $(LIBS)
 	test -d bin || mkdir bin
 	cp hpg-variant.cfg bin
 	$(CC) $(CFLAGS_DEBUG) -o bin/$@ main.o $(ALL_FILES) $(INCLUDES) $(LIBS)
