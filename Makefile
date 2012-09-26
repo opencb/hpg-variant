@@ -5,7 +5,7 @@ CFLAGS_DEBUG = -std=c99 -g
 # Source code folders
 INC_DIR = $(PWD)/include
 LIBS_DIR = $(PWD)/libs
-LIBS_DIR = $(PWD)/libs
+SRC_DIR = $(PWD)/src
 BIOINFO_LIBS_DIR = $(LIBS_DIR)/bioinfo-libs
 COMMON_LIBS_DIR = $(LIBS_DIR)/common-libs
 
@@ -14,11 +14,11 @@ COMMONS_DIR = $(COMMON_LIBS_DIR)/commons
 BIOFORMATS_DIR = $(BIOINFO_LIBS_DIR)/bioformats
 
 # Include and libs folders
-INCLUDES = -I . -I $(LIBS_DIR) -I $(BIOINFO_LIBS_DIR) -I $(COMMON_LIBS_DIR)  -I $(INC_DIR)
+INCLUDES = -I $(SRC_DIR) -I $(LIBS_DIR) -I $(BIOINFO_LIBS_DIR) -I $(COMMON_LIBS_DIR)  -I $(INC_DIR)
 LIBS = -L/usr/lib/x86_64-linux-gnu -lconfig -lcprops -fopenmp -lm -lcurl -Wl,-Bsymbolic-functions -largtable2
 LIBS_TEST = -lcheck
 
-INCLUDES_STATIC = -I . -I $(LIBS_DIR) -I $(BIOINFO_LIBS_DIR) -I $(COMMON_LIBS_DIR)  -I $(INC_DIR)
+INCLUDES_STATIC = -I $(SRC_DIR) -I $(LIBS_DIR) -I $(BIOINFO_LIBS_DIR) -I $(COMMON_LIBS_DIR)  -I $(INC_DIR)
 LIBS_STATIC = -L$(LIBS_DIR) -L/usr/lib/x86_64-linux-gnu -lconfig -lcprops -fopenmp -lm -lcurl -Wl,-Bsymbolic-functions -largtable2
 
 # Source files dependencies
@@ -29,31 +29,26 @@ MISC_OBJS = $(COMMONS_DIR)/file_utils.o $(COMMONS_DIR)/http_utils.o $(COMMONS_DI
 	$(BIOFORMATS_DIR)/features/region/region.o $(BIOFORMATS_DIR)/features/region/region_table.o $(BIOFORMATS_DIR)/features/region/region_table_utils.o
 
 # Project source files
-FILTER_FILES = filter/main_filter.c filter/filter_runner.c filter/filter_options_parsing.c
-SPLIT_FILES = split/main_split.c split/split.c split/split_runner.c split/split_options_parsing.c
-STATS_FILES = stats/main_stats.c stats/stats_runner.c stats/stats_options_parsing.c
-VCF_TOOLS_FILES = global_options.c hpg_vcf_tools_utils.c $(FILTER_FILES) $(SPLIT_FILES) $(STATS_FILES)
+VCF_TOOLS_FILES = $(SRC_DIR)/global_options.c $(SRC_DIR)/hpg_vcf_tools_utils.c $(SRC_DIR)/filter/*.c $(SRC_DIR)/split/*.c $(SRC_DIR)/stats/*.c
 
 # Project object files
-FILTER_OBJS = main_filter.o filter_runner.o filter_options_parsing.o
-SPLIT_OBJS = main_split.o split.o split_runner.o split_options_parsing.o
-STATS_OBJS = main_stats.o stats_runner.o stats_options_parsing.o
-VCF_TOOLS_OBJS = global_options.o hpg_vcf_tools_utils.o $(FILTER_OBJS) $(SPLIT_OBJS) $(STATS_OBJS) $(VCF_OBJS) $(GFF_OBJS) $(MISC_OBJS)
+VCF_TOOLS_OBJS = *.o
+ALL_OBJS = $(VCF_TOOLS_OBJS) $(VCF_OBJS) $(GFF_OBJS) $(MISC_OBJS)
 
 # Targets
 all: compile-dependencies hpg-vcf
 
 hpg-vcf: compile-dependencies $(VCF_TOOLS_FILES)
-	$(CC) $(CFLAGS_DEBUG) -D_XOPEN_SOURCE=600 -c main.c $(VCF_TOOLS_FILES) $(INCLUDES) $(LIBS)
+	$(CC) $(CFLAGS_DEBUG) -D_XOPEN_SOURCE=600 -c $(SRC_DIR)/main.c $(VCF_TOOLS_FILES) $(INCLUDES) $(LIBS)
 	test -d bin || mkdir bin
 	cp hpg-vcf-tools.cfg bin
-	$(CC) $(CFLAGS_DEBUG) -D_XOPEN_SOURCE=600 -o bin/$@ main.o $(VCF_TOOLS_OBJS) $(INCLUDES) $(LIBS)
+	$(CC) $(CFLAGS_DEBUG) -D_XOPEN_SOURCE=600 -o bin/$@ $(ALL_OBJS) $(INCLUDES) $(LIBS)
 
 deploy: compile-dependencies-static $(VCF_TOOLS_FILES)
-	$(CC) $(CFLAGS) -D_XOPEN_SOURCE=600 -c main.c $(VCF_TOOLS_FILES) $(INCLUDES_STATIC) $(LIBS_STATIC)
+	$(CC) $(CFLAGS) -D_XOPEN_SOURCE=600 -c $(SRC_DIR)/main.c $(VCF_TOOLS_FILES) $(INCLUDES_STATIC) $(LIBS_STATIC)
 	test -d bin || mkdir bin
 	cp hpg-vcf-tools.cfg bin
-	$(CC) $(CFLAGS) -D_XOPEN_SOURCE=600 -o bin/hpg-vcf main.o $(VCF_TOOLS_OBJS) $(INCLUDES_STATIC) $(LIBS_STATIC)
+	$(CC) $(CFLAGS) -D_XOPEN_SOURCE=600 -o bin/hpg-vcf $(ALL_OBJS) $(INCLUDES_STATIC) $(LIBS_STATIC)
 
 compile-dependencies:
 	make family.o && \
@@ -65,7 +60,7 @@ compile-dependencies:
 
 compile-dependencies-static:
 	cd $(COMMONS_DIR) && make compile &&  \
-	cd $(CONTAINERS_DIR) && make compile-static &&  \
+	cd $(CONTAINERS_DIR) && make &&  \
 	cd $(BIOFORMATS_DIR)/features/region && make &&  \
 	cd $(BIOFORMATS_DIR)/gff && make compile-static &&  \
 	cd $(BIOFORMATS_DIR)/vcf && make compile-static
