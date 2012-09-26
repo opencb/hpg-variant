@@ -31,39 +31,31 @@ MISC_OBJS = $(COMMONS_DIR)/file_utils.o $(COMMONS_DIR)/string_utils.o $(COMMONS_
 	$(CONTAINERS_DIR)/array_list.o $(CONTAINERS_DIR)/list.o $(BIOFORMATS_DIR)/family.o $(MATH_DIR)/fisher.o
 
 # Project source files
-EFFECT_FILES = $(SRC_DIR)/effect/*.c
-GWAS_FILES = $(SRC_DIR)/gwas/*.c
-HPG_VARIANT_FILES = $(SRC_DIR)/global_options.c $(SRC_DIR)/hpg_variant_utils.c
-# EFFECT_FILES = effect/main_effect.c effect/effect_options_parsing.c effect/effect_runner.c effect/auxiliary_files_writer.c
-# GWAS_FILES = gwas/main_gwas.c gwas/gwas_options_parsing.c gwas/tdt.c gwas/tdt_runner.c gwas/assoc.c gwas/assoc_basic_test.c gwas/assoc_fisher_test.c gwas/assoc_runner.c gwas/checks_family.c
-# HPG_VARIANT_FILES = global_options.c hpg_variant_utils.c
+HPG_VARIANT_FILES = $(SRC_DIR)/global_options.c $(SRC_DIR)/hpg_variant_utils.c $(SRC_DIR)/effect/*.c $(SRC_DIR)/gwas/*.c
 
 # Project object files
-EFFECT_OBJS = main_effect.o effect_options_parsing.o effect_runner.o auxiliary_files_writer.o
-GWAS_OBJS = main_gwas.o gwas_options_parsing.o tdt.o tdt_runner.o assoc.o assoc_basic_test.o assoc_fisher_test.o assoc_runner.o checks_family.o
-HPG_VARIANT_OBJS = global_options.o hpg_variant_utils.o
-
-ALL_FILES = $(HPG_VARIANT_OBJS) $(EFFECT_OBJS) $(GWAS_OBJS) $(VCF_OBJS) $(GFF_OBJS) $(PED_OBJS) $(REGION_TABLE_OBJS) $(MISC_OBJS)
+HPG_VARIANT_OBJS = *.o
+ALL_OBJS = $(HPG_VARIANT_OBJS) $(VCF_OBJS) $(GFF_OBJS) $(PED_OBJS) $(REGION_TABLE_OBJS) $(MISC_OBJS)
 
 # Targets
 all: compile-dependencies hpg-variant
 
 deploy: compile-dependencies-static $(HPG_VARIANT_FILES)
-	$(CC) $(CFLAGS) -c $(SRC_DIR)/main.c $(HPG_VARIANT_FILES) $(EFFECT_FILES) $(GWAS_FILES) $(INCLUDES) $(LIBS_STATIC)
+	$(CC) $(CFLAGS) -c $(SRC_DIR)/main.c $(HPG_VARIANT_FILES) $(INCLUDES) $(LIBS_STATIC)
 	test -d bin || mkdir bin
 	cp hpg-variant.cfg bin
-	$(CC) $(CFLAGS) -o bin/hpg-variant main.o $(ALL_FILES) $(INCLUDES_STATIC) $(LIBS_STATIC)
+	$(CC) $(CFLAGS) -o bin/hpg-variant $(ALL_OBJS) $(INCLUDES_STATIC) $(LIBS_STATIC)
 	
 hpg-variant: compile-dependencies $(HPG_VARIANT_FILES)
-	$(CC) $(CFLAGS_DEBUG) -c $(SRC_DIR)/main.c $(HPG_VARIANT_FILES) $(EFFECT_FILES) $(GWAS_FILES) $(INCLUDES) $(LIBS)
+	$(CC) $(CFLAGS_DEBUG) -c $(SRC_DIR)/main.c $(HPG_VARIANT_FILES) $(INCLUDES) $(LIBS)
 	test -d bin || mkdir bin
 	cp hpg-variant.cfg bin
-	$(CC) $(CFLAGS_DEBUG) -o bin/$@ main.o $(ALL_FILES) $(INCLUDES) $(LIBS)
+	$(CC) $(CFLAGS_DEBUG) -o bin/$@ $(ALL_OBJS) $(INCLUDES) $(LIBS)
 
-testing: test/test_effect_runner.c test/test_tdt_runner.c $(ALL_FILES)
-	$(CC) $(CFLAGS_DEBUG) -o test/effect.test test/test_effect_runner.c $(ALL_FILES) $(INCLUDES) $(LIBS) $(LIBS_TEST)
-	$(CC) $(CFLAGS_DEBUG) -o test/tdt.test test/test_tdt_runner.c $(ALL_FILES) $(INCLUDES) $(LIBS) $(LIBS_TEST)
-	$(CC) $(CFLAGS_DEBUG) -o test/checks_family.test test/test_checks_family.c $(ALL_FILES) $(INCLUDES) $(LIBS) $(LIBS_TEST)
+testing: test/test_effect_runner.c test/test_tdt_runner.c $(ALL_OBJS)
+	$(CC) $(CFLAGS_DEBUG) -o test/effect.test test/test_effect_runner.c $(ALL_OBJS) $(INCLUDES) $(LIBS) $(LIBS_TEST)
+	$(CC) $(CFLAGS_DEBUG) -o test/tdt.test test/test_tdt_runner.c $(ALL_OBJS) $(INCLUDES) $(LIBS) $(LIBS_TEST)
+	$(CC) $(CFLAGS_DEBUG) -o test/checks_family.test test/test_checks_family.c $(ALL_OBJS) $(INCLUDES) $(LIBS) $(LIBS_TEST)
 
 compile-dependencies:
 	make family.o && \
