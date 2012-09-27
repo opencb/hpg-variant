@@ -219,6 +219,7 @@ char* merge_id_field(vcf_record_file_link** position_in_files, int position_occu
     return result;
 }
 
+
 char* merge_alternate_field(vcf_record_file_link** position_in_files, int position_occurrences, cp_hashtable* alleles_table) {
     vcf_file_t *file;
     vcf_record_t *input;
@@ -269,6 +270,7 @@ char* merge_alternate_field(vcf_record_file_link** position_in_files, int positi
     return alternates;
 }
 
+
 float merge_quality_field(vcf_record_file_link** position_in_files, int position_occurrences) {
     vcf_file_t *file;
     vcf_record_t *input;
@@ -297,16 +299,66 @@ float merge_quality_field(vcf_record_file_link** position_in_files, int position
     return result;
 }
 
+
+char* merge_filter_field(vcf_record_file_link** position_in_files, int position_occurrences) {
+    char *result;   
+    vcf_record_t *input;
+    int filter_text_len = 0;
+    array_list_t *failed_filters = array_list_new(8, 1.2, COLLECTION_MODE_ASYNCHRONIZED);
+    failed_filters->compare_fn = strcasecmp;
+    int *field_index = (int*) calloc (1, sizeof(int)); *field_index = 0;
+    
+    // Flags
+    int pass_found = 0;
+    int miss_found = 0;
+    
+    // Register all failed filters
+    for (int i = 0; i < position_occurrences; i++) {
+        input = position_in_files[i]->record;
+        
+        if (!strncmp(input->filter, "PASS", input->filter_len)) {
+            pass_found = 1;
+        } else if (!strncmp(input->filter, ".", input->filter_len)) {
+            miss_found = 1;
+        } else {
+            char *filter = strndup(input->filter, input->filter_len);
+            if (!array_list_contains(filter, failed_filters)) {
+                array_list_insert(filter, failed_filters);
+                filter_text_len += strlen(filter) + 1; // concat field + ","
+            }
+        }
+    }
+    
+    // Should there be any failed filters, write them as result
+    if (failed_filters->size > 0) {
+        result = calloc (filter_text_len + 1, sizeof(char));
+        strcat(result, (char*) array_list_get(0, failed_filters));
+        for (int i = 1; i < failed_filters->size; i++) {
+            strncat(result, ",", 1);
+            strcat(result, (char*) array_list_get(i, failed_filters));
+        }
+    } else {
+        if (pass_found) {
+            result = strndup("PASS", 4);
+        } else {
+            result = strndup(".", 1);
+        }
+    }
+    
+    return result;
+}
+
+
 char *merge_info_field(char **samples, size_t num_samples) {
     // TODO
     return strdup(samples[0]);
 }
 
+
 char* merge_format_field(vcf_record_file_link** position_in_files, int position_occurrences, array_list_t* format_fields) {
     char *result;   
     vcf_record_t *input;
     int format_text_len = 0;
-    int *field_index = (int*) calloc (1, sizeof(int)); *field_index = 0;
     
     // Split FORMAT of the input record and register the non-previously inserted ones
     for (int i = 0; i < position_occurrences; i++) {

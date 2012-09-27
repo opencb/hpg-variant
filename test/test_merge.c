@@ -216,7 +216,42 @@ START_TEST (merge_quality_test) {
 END_TEST
 
 START_TEST (merge_filter_test) {
+    vcf_record_t *input[4];
+    input[0] = create_example_record_0();
+    input[1] = create_example_record_1();
+    input[2] = create_example_record_2();
+    input[3] = create_example_record_3();
     
+    vcf_record_file_link **links = calloc (4, sizeof(vcf_record_file_link*));
+    for (int i = 0; i < 4; i++) {
+        links[i] = malloc(sizeof(vcf_record_file_link));
+        links[i]->file = files[i];
+        links[i]->record = input[i];
+    }
+    
+    // Merge (0,1,2,3) = STD_FILTER,q10
+    fail_if(strcmp(merge_filter_field(links, 4), "STD_FILTER,q10"), "After merging (0,1,2,3), the filter must be STD_FILTER,q10");
+    
+    // Merge (0,1,3) = STD_FILTER
+    links[0]->record = input[0];
+    links[1]->record = input[1];
+    links[2]->record = input[3];
+    fail_if(strcmp(merge_filter_field(links, 3), "STD_FILTER"), "After merging (0,1,3), the filter must be STD_FILTER");
+    
+    // Merge (0,3) = PASS
+    links[0]->record = input[0];
+    links[1]->record = input[3];
+    fail_if(strcmp(merge_filter_field(links, 2), "PASS"), "After merging (0,3), the filter must be PASS");
+    
+    // Merge (1,2) = STD_FILTER,q10
+    links[0]->record = input[1];
+    links[1]->record = input[2];
+    fail_if(strcmp(merge_filter_field(links, 2), "STD_FILTER,q10"), "After merging (1,2), the filter must be STD_FILTER,q10");
+    
+    // Merge (2,1) = q10,STD_FILTER
+    links[0]->record = input[2];
+    links[1]->record = input[1];
+    fail_if(strcmp(merge_filter_field(links, 2), "q10,STD_FILTER"), "After merging (2,1), the filter must be q10,STD_FILTER");
 }
 END_TEST
 
@@ -378,7 +413,7 @@ vcf_record_t *create_example_record_1() {
     input->alternate = "G";
     input->alternate_len = strlen(input->alternate);
     input->quality = 30;
-    input->filter = ".";
+    input->filter = "STD_FILTER";
     input->filter_len = strlen(input->filter);
     input->info = "DP=10;NS=4;AF=0.5;H2";
     input->info_len = strlen(input->info);
@@ -403,7 +438,7 @@ vcf_record_t *create_example_record_2() {
     input->alternate = "CT";
     input->alternate_len = strlen(input->alternate);
     input->quality = 10;
-    input->filter = "PASS";
+    input->filter = "q10";
     input->filter_len = strlen(input->filter);
     input->info = "AF=0.5;NS=3;DP=14;DB;H2";
     input->info_len = strlen(input->info);
@@ -426,7 +461,7 @@ vcf_record_t *create_example_record_3() {
     input->alternate = "T";
     input->alternate_len = strlen(input->alternate);
     input->quality = -1;
-    input->filter = "PASS";
+    input->filter = ".";
     input->filter_len = strlen(input->filter);
     input->info = "DB;H2";
     input->info_len = strlen(input->info);

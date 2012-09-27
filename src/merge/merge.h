@@ -75,7 +75,7 @@ float merge_quality_field(vcf_record_file_link **position_in_files, int position
 
 char *merge_alternate_field(vcf_record_file_link **position_in_files, int position_occurrences, cp_hashtable *alleles_table);
 
-char *merge_filter_field();
+char *merge_filter_field(vcf_record_file_link **position_in_files, int position_occurrences);
 
 char *merge_info_field(char **samples, size_t num_samples);
 
