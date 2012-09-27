@@ -303,24 +303,22 @@ char *merge_info_field(char **samples, size_t num_samples) {
 }
 
 char* merge_format_field(vcf_record_file_link** position_in_files, int position_occurrences, array_list_t* format_fields) {
-    char *result;
+    char *result;   
+    vcf_record_t *input;
     int format_text_len = 0;
     int *field_index = (int*) calloc (1, sizeof(int)); *field_index = 0;
-    // TODO doesn't work, must be checked against a record of each file
-//     for (int i = 0; i < num_files; i++) {
-//         int num_fields;
-//         char **fields = split(strndup(files[i]->format, files[i]->format_len), ":", &num_fields);
-//         for (int j = 0; j < num_fields; j++) {
-//             if (!array_list_contains(fields[j], format_fields)) {
-//                 array_list_insert(fields[j], format_fields);
-//                 format_text_len += strlen(fields[j]) + 1; // concat field + ":"
-//             }
-//         }
-//     }
     
-    vcf_record_t *input;
+    // Split FORMAT of the input record and register the non-previously inserted ones
     for (int i = 0; i < position_occurrences; i++) {
         input = position_in_files[i]->record;
+        int num_fields;
+        char **fields = split(strndup(input->format, input->format_len), ":", &num_fields);
+        for (int j = 0; j < num_fields; j++) {
+            if (!array_list_contains(fields[j], format_fields)) {
+                array_list_insert(fields[j], format_fields);
+                format_text_len += strlen(fields[j]) + 1; // concat field + ":"
+            }
+        }
     }
     
     result = calloc (format_text_len + 1, sizeof(char));

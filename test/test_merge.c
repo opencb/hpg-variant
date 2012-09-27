@@ -226,6 +226,67 @@ START_TEST (merge_info_test) {
 END_TEST
 
 START_TEST (merge_format_test) {
+    vcf_record_t *input[4];
+    input[0] = create_example_record_0();
+    input[1] = create_example_record_1();
+    input[2] = create_example_record_2();
+    input[3] = create_example_record_3();
+    
+    vcf_record_file_link **links = calloc (4, sizeof(vcf_record_file_link*));
+    for (int i = 0; i < 4; i++) {
+        links[i] = malloc(sizeof(vcf_record_file_link));
+        links[i]->file = files[i];
+        links[i]->record = input[i];
+    }
+    
+    array_list_t *format_fields = array_list_new(8, 1.2, COLLECTION_MODE_ASYNCHRONIZED);
+    format_fields->compare_fn = strcasecmp;
+    
+    // Merge (0,1,2,3) -> GT:GQ:DP:HQ:RD
+    fail_if(strcmp(merge_format_field(links, 4, format_fields), "GT:GQ:DP:HQ:RD"), "After merging (0,1,2,3), the format must be GT:GQ:DP:HQ:RD");
+    fail_if(strcmp(format_fields->items[0], "GT"), "After merging (0,1,2,3), field #0 in format must be GT");
+    fail_if(strcmp(format_fields->items[1], "GQ"), "After merging (0,1,2,3), field #1 in format must be GQ");
+    fail_if(strcmp(format_fields->items[2], "DP"), "After merging (0,1,2,3), field #2 in format must be DP");
+    fail_if(strcmp(format_fields->items[3], "HQ"), "After merging (0,1,2,3), field #3 in format must be HQ");
+    fail_if(strcmp(format_fields->items[4], "RD"), "After merging (0,1,2,3), field #4 in format must be RD");
+    array_list_clear(format_fields, free);
+    
+    // Merge (1,2,3) -> GT:RD:HQ:GQ
+    links[0]->record = input[1];
+    links[1]->record = input[2];
+    links[2]->record = input[3];
+    fail_if(strcmp(merge_format_field(links, 3, format_fields), "GT:RD:HQ:GQ"), "After merging (1,2,3), the format must be GT:RD:HQ:GQ");
+    fail_if(strcmp(format_fields->items[0], "GT"), "After merging (1,2,3), field #0 in format must be GT");
+    fail_if(strcmp(format_fields->items[1], "RD"), "After merging (1,2,3), field #1 in format must be RD");
+    fail_if(strcmp(format_fields->items[2], "HQ"), "After merging (1,2,3), field #2 in format must be HQ");
+    fail_if(strcmp(format_fields->items[3], "GQ"), "After merging (1,2,3), field #3 in format must be GQ");
+    array_list_clear(format_fields, free);
+    
+    // Merge (1,3) -> GT:RD
+    links[0]->record = input[1];
+    links[1]->record = input[3];
+    fail_if(strcmp(merge_format_field(links, 2, format_fields), "GT:RD"), "After merging (1,3), the format must be GT:RD");
+    fail_if(strcmp(format_fields->items[0], "GT"), "After merging (1,3), field #0 in format must be GT");
+    fail_if(strcmp(format_fields->items[1], "RD"), "After merging (1,3), field #1 in format must be RD");
+    array_list_clear(format_fields, free);
+    
+    // Merge (3,1) -> GT:RD
+    links[0]->record = input[3];
+    links[1]->record = input[1];
+    fail_if(strcmp(merge_format_field(links, 2, format_fields), "GT:RD"), "After merging (3,1), the format must be GT:RD");
+    fail_if(strcmp(format_fields->items[0], "GT"), "After merging (3,1), field #0 in format must be GT");
+    fail_if(strcmp(format_fields->items[1], "RD"), "After merging (3,1), field #1 in format must be RD");
+    array_list_clear(format_fields, free);
+    
+    // Merge (2,1) -> RD:HQ:GT:GQ
+    links[0]->record = input[2];
+    links[1]->record = input[1];
+    fail_if(strcmp(merge_format_field(links, 2, format_fields), "RD:HQ:GT:GQ"), "After merging (2,1), the format must be RD:HQ:GT:GQ");
+    fail_if(strcmp(format_fields->items[0], "RD"), "After merging (2,1), field #0 in format must be RD");
+    fail_if(strcmp(format_fields->items[1], "HQ"), "After merging (2,1), field #1 in format must be HQ");
+    fail_if(strcmp(format_fields->items[2], "GT"), "After merging (2,1), field #2 in format must be GT");
+    fail_if(strcmp(format_fields->items[3], "GQ"), "After merging (2,1), field #3 in format must be GQ");
+    array_list_clear(format_fields, free);
     
 }
 END_TEST
@@ -321,7 +382,7 @@ vcf_record_t *create_example_record_1() {
     input->filter_len = strlen(input->filter);
     input->info = "DP=10;NS=4;AF=0.5;H2";
     input->info_len = strlen(input->info);
-    input->format = "GT:DP";
+    input->format = "GT:RD";
     input->format_len = strlen(input->format);
     add_vcf_record_sample("1/1:40", 6, input);
     add_vcf_record_sample("0/1:60", 6, input);
@@ -346,9 +407,9 @@ vcf_record_t *create_example_record_2() {
     input->filter_len = strlen(input->filter);
     input->info = "AF=0.5;NS=3;DP=14;DB;H2";
     input->info_len = strlen(input->info);
-    input->format = "DP:HQ:GT:GQ";
+    input->format = "RD:HQ:GT:GQ";
     input->format_len = strlen(input->format);
-    add_vcf_record_sample("1/1:20:40:30", 12, input);
+    add_vcf_record_sample("20:40:1/1:30", 12, input);
     
     return input;
 }
