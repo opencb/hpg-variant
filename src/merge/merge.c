@@ -27,15 +27,15 @@ int merge(array_list_t **records_by_position, int num_positions, vcf_file_t **fi
 vcf_record_t *merge_unique_position(vcf_record_file_link *position, vcf_file_t **files, int num_files, merge_options_data_t *options) {
     vcf_record_t *input = position->record;
     vcf_record_t *result = vcf_record_new();
-    result->chromosome = strdup(input->chromosome);
-    result->position = input->position;
-    result->id = strdup(input->id);
-    result->reference = strdup(input->reference);
-    result->alternate = strdup(input->alternate);
-    result->quality = input->quality;
-    result->filter = strdup(input->filter);
+    set_vcf_record_chromosome(input->chromosome, input->chromosome_len, result);
+    set_vcf_record_position(input->position, result);
+    set_vcf_record_id(input->id, input->id_len, result);
+    set_vcf_record_reference(input->reference, input->reference_len, result);
+    set_vcf_record_alternate(input->alternate, input->alternate_len, result);
+    set_vcf_record_quality(input->quality, result);
+    set_vcf_record_filter(input->filter, input->filter_len, result);
+    set_vcf_record_format(input->format, input->format_len, result);
     
-    result->format = strdup(input->format);
     int num_format_fields = 1;
     for (int i = 0; i < strlen(result->format); i++) {
         if (result->format[i] == ':') {
@@ -97,9 +97,9 @@ vcf_record_t *merge_shared_position(vcf_record_file_link **position_in_files, in
     }
     
     // Once checked, copy constant fields
-    result->chromosome = strndup(position_in_files[0]->record->chromosome, position_in_files[0]->record->chromosome_len);
-    result->position = position_in_files[0]->record->position;
-    result->reference = strndup(position_in_files[0]->record->reference, position_in_files[0]->record->reference_len);
+    set_vcf_record_chromosome(position_in_files[0]->record->chromosome, position_in_files[0]->record->chromosome_len, result);
+    set_vcf_record_position(position_in_files[0]->record->position, result);
+    set_vcf_record_reference(position_in_files[0]->record->reference, position_in_files[0]->record->reference_len, result);
     
     // Get first non-dot ID
     // TODO what can we do when having several ID?
@@ -219,31 +219,6 @@ char* merge_id_field(vcf_record_file_link** position_in_files, int position_occu
     return result;
 }
 
-float merge_quality_field(vcf_record_file_link** position_in_files, int position_occurrences) {
-    vcf_file_t *file;
-    vcf_record_t *input;
-    float accum_quality = 0.0f;
-    int total_samples = 0;
-    int file_num_samples;
-    float result;
-    
-    for (int i = 0; i < position_occurrences; i++) {
-        file = position_in_files[i]->file;
-        input = position_in_files[i]->record;
-        file_num_samples = get_num_vcf_samples(file);
-        
-        accum_quality += input->quality * file_num_samples;
-        total_samples += file_num_samples;
-    }
-    if (total_samples > 0) {
-        result = accum_quality / total_samples;
-    } else {
-        result = -1;
-    }
-    
-    return result;
-}
-
 char* merge_alternate_field(vcf_record_file_link** position_in_files, int position_occurrences, cp_hashtable* alleles_table) {
     vcf_file_t *file;
     vcf_record_t *input;
@@ -294,6 +269,33 @@ char* merge_alternate_field(vcf_record_file_link** position_in_files, int positi
     return alternates;
 }
 
+float merge_quality_field(vcf_record_file_link** position_in_files, int position_occurrences) {
+    vcf_file_t *file;
+    vcf_record_t *input;
+    float accum_quality = 0.0f;
+    int total_samples = 0;
+    int file_num_samples;
+    float result;
+    
+    for (int i = 0; i < position_occurrences; i++) {
+        file = position_in_files[i]->file;
+        input = position_in_files[i]->record;
+        file_num_samples = get_num_vcf_samples(file);
+        
+        if (input->quality > 0) {
+            accum_quality += input->quality * file_num_samples;
+        }
+        total_samples += file_num_samples;
+    }
+    
+    if (total_samples > 0) {
+        result = accum_quality / total_samples;
+    } else {
+        result = -1;
+    }
+    
+    return result;
+}
 
 char *merge_info_field(char **samples, size_t num_samples) {
     // TODO
@@ -315,6 +317,12 @@ char* merge_format_field(vcf_record_file_link** position_in_files, int position_
 //             }
 //         }
 //     }
+    
+    vcf_record_t *input;
+    for (int i = 0; i < position_occurrences; i++) {
+        input = position_in_files[i]->record;
+    }
+    
     result = calloc (format_text_len + 1, sizeof(char));
     strcat(result, (char*) array_list_get(0, format_fields));
     for (int i = 1; i < format_fields->size; i++) {

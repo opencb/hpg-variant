@@ -33,6 +33,7 @@ void setup_merge_process(void) {
     files[0]->samples_names = array_list_new(10, 1.5, COLLECTION_MODE_SYNCHRONIZED);
     add_vcf_sample_name("S01", 3, files[0]);
     add_vcf_sample_name("S02", 3, files[0]);
+    add_vcf_sample_name("S03", 3, files[0]);
     
     files[1] = calloc (1, sizeof(vcf_file_t));
     files[1]->filename = "input1.vcf";
@@ -71,24 +72,26 @@ START_TEST (merge_position_in_one_file) {
     vcf_record_t *result = merge_unique_position(&position, files, 3, options);
     
     fail_if(result == NULL, "A VCF record must be returned after merging");
-    fail_if(strcmp(result->chromosome, input->chromosome), "After merging a position present only in a file, the chromosome must stay the same");
+    fail_if(strncmp(input->chromosome, result->chromosome, input->chromosome_len), "After merging a position present only in a file, the chromosome must stay the same");
     fail_if(result->position != input->position, "After merging a position present only in a file, the position must stay the same");
-    fail_if(strcmp(result->id, input->id), "After merging a position present only in a file, the ID must stay the same");
-    fail_if(strcmp(result->reference, input->reference), "After merging a position present only in a file, the reference must stay the same");
-    fail_if(strcmp(result->alternate, input->alternate), "After merging a position present only in a file, the alternate must stay the same");
+    fail_if(strncmp(input->id, result->id, input->id_len), "After merging a position present only in a file, the ID must stay the same");
+    fail_if(strncmp(input->reference, result->reference, input->reference_len), "After merging a position present only in a file, the reference must stay the same");
+    fail_if(strncmp(input->alternate, result->alternate, input->alternate_len), "After merging a position present only in a file, the alternate must stay the same");
     fail_if(result->quality != input->quality, "After merging a position present only in a file, the quality must stay the same");
-    fail_if(strcmp(result->filter, input->filter), "After merging a position present only in a file, the filter must stay the same");
-    fail_if(strcmp(result->format, input->format), "After merging a position present only in a file, the format must stay the same");
+    fail_if(strncmp(input->filter, result->filter, input->filter_len), "After merging a position present only in a file, the filter must stay the same");
+    fail_if(strncmp(input->format, result->format, input->format_len), "After merging a position present only in a file, the format must stay the same");
     
-    fail_if(result->samples->size != 6, "There must be 6 samples in the resulting record");
+    fail_if(result->samples->size != 7, "There must be 7 samples in the resulting record");
     fail_if(strcmp(result->samples->items[0], "./.:.:.:."), "Sample 0 must be empty");
     fail_if(strcmp(result->samples->items[1], "./.:.:.:."), "Sample 1 must be empty");
-    fail_if(strcmp(result->samples->items[2], "1/1:20:40:30"), "Sample 2 must be 1/1:20:40:30");
-    fail_if(strcmp(result->samples->items[3], "0/1:10:60:50"), "Sample 3 must be 0/1:10:60:50");
-    fail_if(strcmp(result->samples->items[4], "0/0:30:50:70"), "Sample 4 must be 0/0:30:50:70");
-    fail_if(strcmp(result->samples->items[5], "./.:.:.:."), "Sample 5 must be empty");
+    fail_if(strcmp(result->samples->items[2], "./.:.:.:."), "Sample 2 must be empty");
+    fail_if(strcmp(result->samples->items[3], "1/1:20:40:30"), "Sample 3 must be 1/1:20:40:30");
+    fail_if(strcmp(result->samples->items[4], "0/1:10:60:50"), "Sample 4 must be 0/1:10:60:50");
+    fail_if(strcmp(result->samples->items[5], "0/0:30:50:70"), "Sample 5 must be 0/0:30:50:70");
+    fail_if(strcmp(result->samples->items[6], "./.:.:.:."), "Sample 6 must be empty");
     
     write_vcf_record(input, stdout);
+    write_vcf_record(result, stdout);
 }
 END_TEST
 
@@ -175,7 +178,40 @@ START_TEST (merge_alternate_test) {
 END_TEST
 
 START_TEST (merge_quality_test) {
+    vcf_record_t *input[4];
+    input[0] = create_example_record_0();
+    input[1] = create_example_record_1();
+    input[2] = create_example_record_2();
+    input[3] = create_example_record_3();
     
+    vcf_record_file_link **links = calloc (4, sizeof(vcf_record_file_link*));
+    for (int i = 0; i < 4; i++) {
+        links[i] = malloc(sizeof(vcf_record_file_link));
+        links[i]->file = files[i];
+        links[i]->record = input[i];
+    }
+    
+    // Merge (0,1,2,3) = (20*3,30*3,10*1,.*2) -> ~17.778
+    fail_if(merge_quality_field(links, 4) - 17.778 > 0.1, "After merging (0,1,2,3), the quality must be ~17.778");
+    
+    // Merge (0,1,2) = (20*3,30*3,10*1) -> ~22.857
+    fail_if(merge_quality_field(links, 3) - 22.857 > 0.1, "After merging (0,1,2), the quality must be ~22.857");
+    
+    // Merge (0,1) = (20*3,30*3) -> 25
+    fail_if(merge_quality_field(links, 2) - 25 > 0.1, "After merging (0,1), the quality must be 25");
+    
+    // Merge (0,1,3) = (20*3,30*3,.*2) -> 18.75
+    links[0]->record = input[0];
+    links[1]->record = input[1];
+    links[2]->file   = files[3];
+    links[2]->record = input[3];
+    fail_if(merge_quality_field(links, 3) - 18.75 > 0.1, "After merging (0,1,3), the quality must be 18.75");
+    
+    // Merge (0,3) = (20*3,.*2) -> 12
+    links[0]->record = input[0];
+    links[1]->file   = files[3];
+    links[1]->record = input[3];
+    fail_if(merge_quality_field(links, 2) - 12 > 0.1, "After merging (0,3), the quality must be 12");
 }
 END_TEST
 
@@ -305,7 +341,7 @@ vcf_record_t *create_example_record_2() {
     input->reference_len = strlen(input->reference);
     input->alternate = "CT";
     input->alternate_len = strlen(input->alternate);
-    input->quality = 20;
+    input->quality = 10;
     input->filter = "PASS";
     input->filter_len = strlen(input->filter);
     input->info = "AF=0.5;NS=3;DP=14;DB;H2";
@@ -313,8 +349,6 @@ vcf_record_t *create_example_record_2() {
     input->format = "DP:HQ:GT:GQ";
     input->format_len = strlen(input->format);
     add_vcf_record_sample("1/1:20:40:30", 12, input);
-    add_vcf_record_sample("0/1:10:60:50", 12, input);
-    add_vcf_record_sample("0/0:30:50:70", 12, input);
     
     return input;
 }
@@ -330,7 +364,7 @@ vcf_record_t *create_example_record_3() {
     input->reference_len = strlen(input->reference);
     input->alternate = "T";
     input->alternate_len = strlen(input->alternate);
-    input->quality = 20;
+    input->quality = -1;
     input->filter = "PASS";
     input->filter_len = strlen(input->filter);
     input->info = "DB;H2";
@@ -339,7 +373,6 @@ vcf_record_t *create_example_record_3() {
     input->format_len = strlen(input->format);
     add_vcf_record_sample("1/1", 3, input);
     add_vcf_record_sample("0/1", 3, input);
-    add_vcf_record_sample("0/0", 3, input);
     
     return input;
 }
