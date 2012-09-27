@@ -268,7 +268,7 @@ char* merge_alternate_field(vcf_record_file_link** position_in_files, int positi
             allele_index = (int*) calloc (1, sizeof(int)); *allele_index = 1;
             cp_hashtable_put(alleles_table, strndup(cur_alternate, input->alternate_len), allele_index);
         } else {
-            if (!strstr(alternates, cur_alternate)) {
+            if (!cp_hashtable_contains(alleles_table, cur_alternate)) {
                 concat_len = input->alternate_len;
                 aux = realloc(alternates, max_len + concat_len + 1);
                 if (aux) {

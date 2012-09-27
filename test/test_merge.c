@@ -16,7 +16,7 @@ vcf_record_t *create_example_record_1();
 vcf_record_t *create_example_record_2();
 vcf_record_t *create_example_record_3();
 
-vcf_file_t *files[3];
+vcf_file_t *files[4];
 merge_options_data_t *options;
 
 
@@ -45,6 +45,12 @@ void setup_merge_process(void) {
     files[2]->filename = "input2.vcf";
     files[2]->samples_names = array_list_new(10, 1.5, COLLECTION_MODE_SYNCHRONIZED);
     add_vcf_sample_name("S21", 3, files[2]);
+    
+    files[3] = calloc (1, sizeof(vcf_file_t));
+    files[3]->filename = "input3.vcf";
+    files[3]->samples_names = array_list_new(10, 1.5, COLLECTION_MODE_SYNCHRONIZED);
+    add_vcf_sample_name("S31", 3, files[3]);
+    add_vcf_sample_name("S32", 3, files[3]);
 }
 
 void teardown_merge_process(void) {
@@ -93,11 +99,14 @@ START_TEST (merge_id_test) {
     input[2] = create_example_record_2();
     input[3] = create_example_record_3();
     
-    // Merge (rs123456, ".", rs654321) -> rs123456
     vcf_record_file_link **links = calloc (3, sizeof(vcf_record_file_link*));
     for (int i = 0; i < 3; i++) {
         links[i] = malloc(sizeof(vcf_record_file_link));
         links[i]->file = files[i];
+    }
+    
+    // Merge (rs123456, ".", rs654321) -> rs123456
+    for (int i = 0; i < 3; i++) {
         links[i]->record = input[i];
         assert(links[i]->record->id);
     }
@@ -120,7 +129,48 @@ START_TEST (merge_id_test) {
 END_TEST
 
 START_TEST (merge_alternate_test) {
+    vcf_record_t *input[4];
+    input[0] = create_example_record_0();
+    input[1] = create_example_record_1();
+    input[2] = create_example_record_2();
+    input[3] = create_example_record_3();
     
+    vcf_record_file_link **links = calloc (4, sizeof(vcf_record_file_link*));
+    for (int i = 0; i < 4; i++) {
+        links[i] = malloc(sizeof(vcf_record_file_link));
+        links[i]->file = files[i];
+        links[i]->record = input[i];
+    }
+    
+    cp_hashtable *alleles_table = cp_hashtable_create(8, cp_hash_istring, (cp_compare_fn) strcasecmp);
+    
+    // Merge (0,1,2,3) = (T,G,CT,T) -> "T,G,CT"
+    fail_if(strcmp(merge_alternate_field(links, 4, alleles_table), "T,G,CT"), "After merging (0,1,2,3), the alternate must be 'T,G,CT'");
+    cp_hashtable_remove_all(alleles_table);
+    
+    // Merge (0,1,2) = (T,G,CT) -> "T,G,CT"
+    fail_if(strcmp(merge_alternate_field(links, 3, alleles_table), "T,G,CT"), "After merging (0,1,2), the alternate must be 'T,G,CT'");
+    cp_hashtable_remove_all(alleles_table);
+    
+    // Merge (0,1,3) = (T,G,T) -> "T,G"
+    links[0]->record = input[0];
+    links[1]->record = input[1];
+    links[2]->record = input[3];
+    fail_if(strcmp(merge_alternate_field(links, 3, alleles_table), "T,G"), "After merging (0,1,3), the alternate must be 'T,G'");
+    cp_hashtable_remove_all(alleles_table);
+    
+    // Merge (1,2,3) = (G,CT,T) -> "G,CT,T"
+    links[0]->record = input[1];
+    links[1]->record = input[2];
+    links[2]->record = input[3];
+    fail_if(strcmp(merge_alternate_field(links, 3, alleles_table), "G,CT,T"), "After merging (1,2,3), the alternate must be 'G,CT,T'");
+    cp_hashtable_remove_all(alleles_table);
+    
+    // Merge (0,3) = (T,T) -> "T"
+    links[0]->record = input[0];
+    links[1]->record = input[3];
+    fail_if(strcmp(merge_alternate_field(links, 2, alleles_table), "T"), "After merging (0,3), the alternate must be 'T'");
+    cp_hashtable_remove_all(alleles_table);
 }
 END_TEST
 
@@ -253,7 +303,7 @@ vcf_record_t *create_example_record_2() {
     input->id_len = strlen(input->id);
     input->reference = "A";
     input->reference_len = strlen(input->reference);
-    input->alternate = "T";
+    input->alternate = "CT";
     input->alternate_len = strlen(input->alternate);
     input->quality = 20;
     input->filter = "PASS";
