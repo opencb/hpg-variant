@@ -1,6 +1,6 @@
 CC = gcc
-CFLAGS = -std=c99 -O3
-CFLAGS_DEBUG = -std=c99 -g
+CFLAGS = -std=c99 -O3 -D_XOPEN_SOURCE=600 -D_GNU_SOURCE
+CFLAGS_DEBUG = -std=c99 -g -D_XOPEN_SOURCE=600 -D_GNU_SOURCE
 
 # Source code folders
 INC_DIR = $(PWD)/include
@@ -39,21 +39,19 @@ ALL_OBJS = $(VCF_TOOLS_OBJS) $(VCF_OBJS) $(GFF_OBJS) $(MISC_OBJS)
 all: compile-dependencies hpg-vcf
 
 hpg-vcf: compile-dependencies $(VCF_TOOLS_FILES)
-	$(CC) $(CFLAGS_DEBUG) -D_XOPEN_SOURCE=600 -c $(SRC_DIR)/main.c $(VCF_TOOLS_FILES) $(INCLUDES) $(LIBS)
+	$(CC) $(CFLAGS_DEBUG) -c $(SRC_DIR)/main.c $(VCF_TOOLS_FILES) $(INCLUDES) $(LIBS)
 	test -d bin || mkdir bin
 	cp hpg-vcf-tools.cfg bin
-	$(CC) $(CFLAGS_DEBUG) -D_XOPEN_SOURCE=600 -o bin/$@ $(ALL_OBJS) $(INCLUDES) $(LIBS)
+	$(CC) $(CFLAGS_DEBUG) -o bin/$@ $(ALL_OBJS) $(INCLUDES) $(LIBS)
 
 deploy: compile-dependencies-static $(VCF_TOOLS_FILES)
-	$(CC) $(CFLAGS) -D_XOPEN_SOURCE=600 -c $(SRC_DIR)/main.c $(VCF_TOOLS_FILES) $(INCLUDES_STATIC) $(LIBS_STATIC)
+	$(CC) $(CFLAGS) -c $(SRC_DIR)/main.c $(VCF_TOOLS_FILES) $(INCLUDES_STATIC) $(LIBS_STATIC)
 	test -d bin || mkdir bin
 	cp hpg-vcf-tools.cfg bin
-	$(CC) $(CFLAGS) -D_XOPEN_SOURCE=600 -o bin/hpg-vcf $(ALL_OBJS) $(INCLUDES_STATIC) $(LIBS_STATIC)
+	$(CC) $(CFLAGS) -o bin/hpg-vcf $(ALL_OBJS) $(INCLUDES_STATIC) $(LIBS_STATIC)
 
 test: hpg-vcf
-# 	TEST_OBJS = `echo $(ALL_OBJS) | sed s/main.o//g`
-	$(CC) $(CFLAGS) -D_XOPEN_SOURCE=600 -o test/merge.test test/test_merge.c $(VCF_TOOLS_FILES) $(VCF_OBJS) $(GFF_OBJS) $(MISC_OBJS) $(INCLUDES) $(LIBS) $(LIBS_TEST)
-# 	$(CC) $(CFLAGS) -D_XOPEN_SOURCE=600 -o test/merge.test test/test_merge.o $(TEST_OBJS) $(INCLUDES) $(LIBS) $(LIBS_TEST)
+	$(CC) $(CFLAGS_DEBUG) -o test/merge.test test/test_merge.c $(VCF_TOOLS_FILES) $(VCF_OBJS) $(GFF_OBJS) $(MISC_OBJS) $(INCLUDES) $(LIBS) $(LIBS_TEST)
 
 compile-dependencies:
 	make family.o && \

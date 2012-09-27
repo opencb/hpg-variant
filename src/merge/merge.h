@@ -2,7 +2,7 @@
 #define VCF_TOOLS_MERGE_H
 
 #include <assert.h>
-#include <getopt.h>
+#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -68,11 +68,24 @@ vcf_record_t *merge_unique_position(vcf_record_file_link *position, vcf_file_t *
 vcf_record_t *merge_shared_position(vcf_record_file_link **position_in_files, int position_occurrences, 
                                     vcf_file_t **files, int num_files, merge_options_data_t *options, int *info);
 
+
+char *merge_id_field(vcf_record_file_link **position_in_files, int position_occurrences);
+
+float merge_quality_field(vcf_record_file_link **position_in_files, int position_occurrences);
+
+char *merge_alternate_field(vcf_record_file_link **position_in_files, int position_occurrences, cp_hashtable *alleles_table);
+
+char *merge_filter_field();
+
+char *merge_info_field(char **samples, size_t num_samples);
+
+char *merge_format_field(vcf_record_file_link **position_in_files, int position_occurrences, array_list_t *format_fields);
+
+
 array_list_t *get_global_samples(vcf_file_t **files, int num_files);
 
-char *generate_info_field(char **samples, size_t num_samples);
-
 char *get_empty_sample(int num_format_fields, int gt_pos, enum missing_mode mode);
+
 
 /* ******************************
  *      Options parsing         *
