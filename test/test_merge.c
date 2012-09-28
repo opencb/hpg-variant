@@ -229,8 +229,8 @@ START_TEST (merge_filter_test) {
         links[i]->record = input[i];
     }
     
-    // Merge (0,1,2,3) = STD_FILTER,q10
-    fail_if(strcmp(merge_filter_field(links, 4), "STD_FILTER,q10"), "After merging (0,1,2,3), the filter must be STD_FILTER,q10");
+    // Merge (0,1,2,3) = STD_FILTER;q10
+    fail_if(strcmp(merge_filter_field(links, 4), "STD_FILTER;q10"), "After merging (0,1,2,3), the filter must be STD_FILTER,q10");
     
     // Merge (0,1,3) = STD_FILTER
     links[0]->record = input[0];
@@ -243,15 +243,15 @@ START_TEST (merge_filter_test) {
     links[1]->record = input[3];
     fail_if(strcmp(merge_filter_field(links, 2), "PASS"), "After merging (0,3), the filter must be PASS");
     
-    // Merge (1,2) = STD_FILTER,q10
+    // Merge (1,2) = STD_FILTER;q10
     links[0]->record = input[1];
     links[1]->record = input[2];
-    fail_if(strcmp(merge_filter_field(links, 2), "STD_FILTER,q10"), "After merging (1,2), the filter must be STD_FILTER,q10");
+    fail_if(strcmp(merge_filter_field(links, 2), "STD_FILTER;q10"), "After merging (1,2), the filter must be STD_FILTER,q10");
     
-    // Merge (2,1) = q10,STD_FILTER
+    // Merge (2,1) = q10;STD_FILTER
     links[0]->record = input[2];
     links[1]->record = input[1];
-    fail_if(strcmp(merge_filter_field(links, 2), "q10,STD_FILTER"), "After merging (2,1), the filter must be q10,STD_FILTER");
+    fail_if(strcmp(merge_filter_field(links, 2), "q10;STD_FILTER"), "After merging (2,1), the filter must be q10,STD_FILTER");
 }
 END_TEST
 
@@ -340,6 +340,9 @@ START_TEST (merge_samples_test) {
         links[i]->record = input[i];
     }
     
+    printf("The coordinates of incorrect samples will be presented as (file,index in file)\n");
+    
+    // Merge samples of position in all files
     cp_hashtable *alleles_table = cp_hashtable_create(8, cp_hash_istring, (cp_compare_fn) strcasecmp);
     merge_alternate_field(links, 4, alleles_table);
     
@@ -354,11 +357,10 @@ START_TEST (merge_samples_test) {
     char *empty_sample = get_empty_sample(format_fields->size, gt_pos, MISSING);
     
     array_list_t *samples = merge_samples(links, 4, files, 4, gt_pos, alleles_table, format_fields, format_indices, empty_sample);
-    printf("Samples:\n--------------\n");
+    printf("Samples:\n");
     array_list_print(samples);
     printf("\n------------------------\n");
     
-    printf("The coordinates of the incorrect samples will be presented as (file,index in file)\n");
     fail_if(strcmp(array_list_get(0, samples), "1/1:20:40:30:."), "Sample (0,0) must be 1/1:20:40:30:.");
     fail_if(strcmp(array_list_get(1, samples), "0/1:10:60:50:."), "Sample (0,1) must be 0/1:10:60:50:.");
     fail_if(strcmp(array_list_get(2, samples), "0/0:30:50:70:."), "Sample (0,2) must be 0/0:30:50:70:.");
@@ -371,6 +373,82 @@ START_TEST (merge_samples_test) {
     
     fail_if(strcmp(array_list_get(7, samples), "1/1:.:.:.:."), "Sample (3,0) must be 1/1:.:.:.:.");
     fail_if(strcmp(array_list_get(8, samples), "0/1:.:.:.:."), "Sample (3,1) must be 0/1:.:.:.:.");
+    
+    
+    // Merge samples of position only in files (0,2)
+    links[0]->file = files[0];
+    links[0]->record = input[0];
+    links[1]->file = files[2];
+    links[1]->record = input[2];
+    
+    alleles_table = cp_hashtable_create(8, cp_hash_istring, (cp_compare_fn) strcasecmp);
+    merge_alternate_field(links, 2, alleles_table);
+    
+    format_fields = array_list_new(8, 1.2, COLLECTION_MODE_ASYNCHRONIZED);
+    format_fields->compare_fn = strcasecmp;
+    format = merge_format_field(links, 2, format_fields);
+    
+    format_indices = get_format_indices_per_file(links, 2, files, 4, format_fields);
+    
+    format_bak = strdup(format);
+    gt_pos = get_field_position_in_format("GT", format_bak);
+    empty_sample = get_empty_sample(format_fields->size, gt_pos, REFERENCE);
+    
+    samples = merge_samples(links, 2, files, 4, gt_pos, alleles_table, format_fields, format_indices, empty_sample);
+    printf("Samples in (0,2):\n");
+    array_list_print(samples);
+    printf("\n------------------------\n");
+    
+    fail_if(strcmp(array_list_get(0, samples), "1/1:20:40:30:."), "Sample (0,0) must be 1/1:20:40:30:.");
+    fail_if(strcmp(array_list_get(1, samples), "0/1:10:60:50:."), "Sample (0,1) must be 0/1:10:60:50:.");
+    fail_if(strcmp(array_list_get(2, samples), "0/0:30:50:70:."), "Sample (0,2) must be 0/0:30:50:70:.");
+    
+    fail_if(strcmp(array_list_get(3, samples), "0/0:.:.:.:."), "Sample (1,0) must be 0/0:.:.:.:.");
+    fail_if(strcmp(array_list_get(4, samples), "0/0:.:.:.:."), "Sample (1,1) must be 0/0:.:.:.:.");
+    fail_if(strcmp(array_list_get(5, samples), "0/0:.:.:.:."), "Sample (1,2) must be 0/0:.:.:.:.");
+    
+    fail_if(strcmp(array_list_get(6, samples), "2/2:30:.:40:20"), "Sample (2,0) must be 2/2:30:.:40:20");
+    
+    fail_if(strcmp(array_list_get(7, samples), "0/0:.:.:.:."), "Sample (3,0) must be 0/0:.:.:.:.");
+    fail_if(strcmp(array_list_get(8, samples), "0/0:.:.:.:."), "Sample (3,1) must be 0/0:.:.:.:.");
+    
+    
+    // Merge samples of position only in files (2,0)
+    links[0]->file = files[2];
+    links[0]->record = input[2];
+    links[1]->file = files[0];
+    links[1]->record = input[0];
+    
+    alleles_table = cp_hashtable_create(8, cp_hash_istring, (cp_compare_fn) strcasecmp);
+    merge_alternate_field(links, 2, alleles_table);
+    
+    format_fields = array_list_new(8, 1.2, COLLECTION_MODE_ASYNCHRONIZED);
+    format_fields->compare_fn = strcasecmp;
+    format = merge_format_field(links, 2, format_fields);
+    
+    format_indices = get_format_indices_per_file(links, 2, files, 4, format_fields);
+    
+    format_bak = strdup(format);
+    gt_pos = get_field_position_in_format("GT", format_bak);
+    empty_sample = get_empty_sample(format_fields->size, gt_pos, MISSING);
+    
+    samples = merge_samples(links, 2, files, 4, gt_pos, alleles_table, format_fields, format_indices, empty_sample);
+    printf("Samples in (2,0):\n");
+    array_list_print(samples);
+    printf("\n------------------------\n");
+    
+    fail_if(strcmp(array_list_get(0, samples), ".:30:2/2:20:40"), "Sample (0,0) must be .:30:2/2:20:40");
+    fail_if(strcmp(array_list_get(1, samples), ".:50:0/2:10:60"), "Sample (0,1) must be .:50:0/2:10:60");
+    fail_if(strcmp(array_list_get(2, samples), ".:70:0/0:30:50"), "Sample (0,2) must be .:70:0/0:30:50");
+    
+    fail_if(strcmp(array_list_get(3, samples), ".:.:./.:.:."), "Sample (1,0) must be .:.:./.:.:.");
+    fail_if(strcmp(array_list_get(4, samples), ".:.:./.:.:."), "Sample (1,1) must be .:.:./.:.:.");
+    fail_if(strcmp(array_list_get(5, samples), ".:.:./.:.:."), "Sample (1,2) must be .:.:./.:.:.");
+    
+    fail_if(strcmp(array_list_get(6, samples), "20:40:1/1:30:."), "Sample (2,0) must be 20:40:1/1:30:.");
+    
+    fail_if(strcmp(array_list_get(7, samples), ".:.:./.:.:."), "Sample (3,0) must be .:.:./.:.:.");
+    fail_if(strcmp(array_list_get(8, samples), ".:.:./.:.:."), "Sample (3,1) must be .:.:./.:.:.");
 }
 END_TEST
 
@@ -396,7 +474,7 @@ START_TEST (get_format_indices_per_file_test) {
     // Get from position in all files
     int file_idx;
     int *indices = get_format_indices_per_file(links, 4, files, 4, format_fields);
-    printf("The coordinates of the incorrect format indices will be presented as (file,index in file)\n");
+    printf("The coordinates of incorrect format indices will be presented as (file,index in file)\n");
     
 //     printf("------------\n");
 //     for (int i = 0; i < 20; i++) {
@@ -497,9 +575,13 @@ int main (int argc, char *argv) {
 
 Suite *create_test_suite(void)
 {
-    TCase *tc_merge = tcase_create("Merge position in one file");
-    tcase_add_checked_fixture(tc_merge, setup_merge_process, teardown_merge_process);
-    tcase_add_test(tc_merge, merge_position_in_one_file);
+    TCase *tc_unique = tcase_create("Merge position in one file");
+    tcase_add_checked_fixture(tc_unique, setup_merge_process, teardown_merge_process);
+    tcase_add_test(tc_unique, merge_position_in_one_file);
+    
+    TCase *tc_auxiliary = tcase_create("Auxiliary functions");
+    tcase_add_checked_fixture(tc_auxiliary, setup_merge_process, teardown_merge_process);
+    tcase_add_test(tc_auxiliary, get_format_indices_per_file_test);
     
     TCase *tc_repeated = tcase_create("Merge position in several files");
     tcase_add_checked_fixture(tc_repeated, setup_merge_process, teardown_merge_process);
@@ -511,15 +593,11 @@ Suite *create_test_suite(void)
     tcase_add_test(tc_repeated, merge_format_test);
     tcase_add_test(tc_repeated, merge_samples_test);
     
-    TCase *tc_auxiliary = tcase_create("Auxiliary functions");
-    tcase_add_checked_fixture(tc_auxiliary, setup_merge_process, teardown_merge_process);
-    tcase_add_test(tc_auxiliary, get_format_indices_per_file_test);
-    
     // Add test cases to a test suite
     Suite *fs = suite_create("Check for hpg-vcf/merge");
-    suite_add_tcase(fs, tc_merge);
-    suite_add_tcase(fs, tc_repeated);
+    suite_add_tcase(fs, tc_unique);
     suite_add_tcase(fs, tc_auxiliary);
+    suite_add_tcase(fs, tc_repeated);
     
     return fs;
 }
