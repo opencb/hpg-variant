@@ -120,21 +120,9 @@ vcf_record_t *merge_shared_position(vcf_record_file_link **position_in_files, in
     format_fields->compare_fn = strcasecmp;
     result->format = merge_format_field(position_in_files, position_occurrences, format_fields);
     
-    // TODO Get indexes for the format in each file
+    // Get indexes for the format in each file
     // TODO Illustrate with an example
-    size_t *format_indices = (int**) calloc (num_files, sizeof(int*));
-    size_t *file_format_indices;
-    int num_fields;
-    for (int i = 0; i < num_files; i++) {
-        file_format_indices = (size_t*) malloc (format_fields->size * sizeof(size_t));
-        char **file_fields = split(strndup(files[i]->format, files[i]->format_len), ":", &num_fields);
-        for (int j = 0; j < format_fields->size; j++) {
-            size_t idx = array_list_index_of(array_list_get(j, format_fields), file_fields);
-            file_format_indices[j] = (idx < ULONG_MAX) ? idx : -1;
-        }
-        format_indices[i] = file_format_indices;
-    }
-    
+    int *format_indices = get_format_indices_per_file(position_in_files, position_occurrences, files, num_files, format_fields);    
     
     // Create the text for empty samples
     char *format_bak = strdup(result->format);
@@ -383,10 +371,60 @@ char* merge_format_field(vcf_record_file_link** position_in_files, int position_
     return result;
 }
 
+array_list_t* merge_samples(vcf_record_file_link** position_in_files, int position_occurrences, 
+                            cp_hashtable* alleles_table, array_list_t* format_fields) {
+    // TODO
+}
+
 
 /* ******************************
  *      Auxiliary functions     *
  * ******************************/
+
+int *get_format_indices_per_file(vcf_record_file_link **position_in_files, int position_occurrences, 
+                                    vcf_file_t **files, int num_files, array_list_t *format_fields) {
+    int *indices = malloc (format_fields->size * num_files * sizeof(size_t));
+    int in_file = 0;
+    vcf_record_t *record;
+    char *split_format;
+    for (int i = 0; i < num_files; i++) {
+        in_file = 0;
+        
+        for (int j = 0; j < position_occurrences; j++) {
+            // If the position is in this file, then get the record format
+            assert(files[i]);
+            assert(position_in_files[j]);
+            if (!strcmp(position_in_files[j]->file->filename, files[i]->filename)) {
+                in_file = 1;
+                record = position_in_files[j]->record;
+                int num_fields;
+                char **fields = split(strndup(record->format, record->format_len), ":", &num_fields);
+                
+                for (int k = 0; k < format_fields->size; k++) {
+                    indices[i*format_fields->size + k] = -1;
+                    
+                    for (int m = 0; m < num_fields; m++) {
+                        if (!strcmp(array_list_get(k, format_fields), fields[m])) {
+                            indices[i*format_fields->size + k] = m;
+                            break;
+                        }
+                    }
+                }
+                
+                break;
+            }
+        }
+        
+        // If the position is not in the file, set all positions as -1
+        if (!in_file) {
+            for (int k = 0; k < format_fields->size; k++) {
+                indices[i*format_fields->size + k] = -1;
+            }
+        }
+    }
+    
+    return indices;
+}
 
 array_list_t *get_global_samples(vcf_file_t **files, int num_files) {
     array_list_t *samples = array_list_new(get_num_vcf_samples(files[0]) * 2, 2, COLLECTION_MODE_ASYNCHRONIZED);

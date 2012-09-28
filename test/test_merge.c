@@ -332,6 +332,111 @@ START_TEST (merge_samples_test) {
 END_TEST
 
 
+START_TEST (get_format_indices_per_file_test) {
+    vcf_record_t *input[4];
+    input[0] = create_example_record_0();
+    input[1] = create_example_record_1();
+    input[2] = create_example_record_2();
+    input[3] = create_example_record_3();
+    
+    vcf_record_file_link **links = calloc (4, sizeof(vcf_record_file_link*));
+    for (int i = 0; i < 4; i++) {
+        links[i] = malloc(sizeof(vcf_record_file_link));
+        links[i]->file = files[i];
+        links[i]->record = input[i];
+    }
+    
+    array_list_t *format_fields = array_list_new(8, 1.2, COLLECTION_MODE_ASYNCHRONIZED);
+    format_fields->compare_fn = strcasecmp;
+    char *format = merge_format_field(links, 4, format_fields);
+    
+    // Get from position in all files
+    int file_idx;
+    int *indices = get_format_indices_per_file(links, 4, files, 4, format_fields);
+    printf("The coordinates of the incorrect results will be presented as (file,index in file)\n");
+    
+//     printf("------------\n");
+//     for (int i = 0; i < 20; i++) {
+//         printf("%d ", indices[i]);
+//     }
+//     printf("------------\n");
+    
+    file_idx = 0;
+    fail_if(indices[file_idx*5 + 0] != 0, "(0,0) must be 0");
+    fail_if(indices[file_idx*5 + 1] != 1, "(0,1) must be 1");
+    fail_if(indices[file_idx*5 + 2] != 2, "(0,2) must be 2");
+    fail_if(indices[file_idx*5 + 3] != 3, "(0,3) must be 3");
+    fail_if(indices[file_idx*5 + 4] != -1, "(0,4) must be -1");
+    
+    file_idx = 1;
+    fail_if(indices[file_idx*5 + 0] != 0, "(1,0) must be 0");
+    fail_if(indices[file_idx*5 + 1] != -1, "(1,1) must be -1");
+    fail_if(indices[file_idx*5 + 2] != -1, "(1,2) must be -1");
+    fail_if(indices[file_idx*5 + 3] != -1, "(1,3) must be -1");
+    fail_if(indices[file_idx*5 + 4] != 1, "(1,4) must be 1");
+    
+    file_idx = 2;
+    fail_if(indices[file_idx*5 + 0] != 2, "(2,0) must be 2");
+    fail_if(indices[file_idx*5 + 1] != 3, "(2,1) must be 3");
+    fail_if(indices[file_idx*5 + 2] != -1, "(2,2) must be -1");
+    fail_if(indices[file_idx*5 + 3] != 1, "(2,3) must be 1");
+    fail_if(indices[file_idx*5 + 4] != 0, "(2,4) must be 0");
+    
+    file_idx = 3;
+    fail_if(indices[file_idx*5 + 0] != 0, "(3,0) must be 0");
+    fail_if(indices[file_idx*5 + 1] != -1, "(3,1) must be -1");
+    fail_if(indices[file_idx*5 + 2] != -1, "(3,2) must be -1");
+    fail_if(indices[file_idx*5 + 3] != -1, "(3,3) must be -1");
+    fail_if(indices[file_idx*5 + 4] != -1, "(3,4) must be -1");
+    
+    free(indices);
+    
+    // Get from position only in files 0,2
+    links[0]->file = files[0];
+    links[0]->record = input[0];
+    links[1]->file = files[2];
+    links[1]->record = input[2];
+    indices = get_format_indices_per_file(links, 2, files, 4, format_fields);
+    
+//     printf("------------\n");
+//     for (int i = 0; i < 20; i++) {
+//         printf("%d ", indices[i]);
+//     }
+//     printf("------------\n");
+    
+    file_idx = 0;
+    fail_if(indices[file_idx*5 + 0] != 0, "(0,0) must be 0");
+    fail_if(indices[file_idx*5 + 1] != 1, "(0,1) must be 1");
+    fail_if(indices[file_idx*5 + 2] != 2, "(0,2) must be 2");
+    fail_if(indices[file_idx*5 + 3] != 3, "(0,3) must be 3");
+    fail_if(indices[file_idx*5 + 4] != -1, "(0,4) must be -1");
+    
+    file_idx = 1;
+    fail_if(indices[file_idx*5 + 0] != -1, "(1,0) must be -1");
+    fail_if(indices[file_idx*5 + 1] != -1, "(1,1) must be -1");
+    fail_if(indices[file_idx*5 + 2] != -1, "(1,2) must be -1");
+    fail_if(indices[file_idx*5 + 3] != -1, "(1,3) must be -1");
+    fail_if(indices[file_idx*5 + 4] != -1, "(1,4) must be -1");
+    
+    file_idx = 2;
+    fail_if(indices[file_idx*5 + 0] != 2, "(2,0) must be 2");
+    fail_if(indices[file_idx*5 + 1] != 3, "(2,1) must be 3");
+    fail_if(indices[file_idx*5 + 2] != -1, "(2,2) must be -1");
+    fail_if(indices[file_idx*5 + 3] != 1, "(2,3) must be 1");
+    fail_if(indices[file_idx*5 + 4] != 0, "(2,4) must be 0");
+    
+    file_idx = 3;
+    fail_if(indices[file_idx*5 + 0] != -1, "(3,0) must be -1");
+    fail_if(indices[file_idx*5 + 1] != -1, "(3,1) must be -1");
+    fail_if(indices[file_idx*5 + 2] != -1, "(3,2) must be -1");
+    fail_if(indices[file_idx*5 + 3] != -1, "(3,3) must be -1");
+    fail_if(indices[file_idx*5 + 4] != -1, "(3,4) must be -1");
+    
+    free(indices);
+}
+END_TEST
+
+
 /* ******************************
  *      Main entry point        *
  * ******************************/
@@ -355,18 +460,23 @@ Suite *create_test_suite(void)
     
     TCase *tc_repeated = tcase_create("Merge position in several files");
     tcase_add_checked_fixture(tc_repeated, setup_merge_process, teardown_merge_process);
-    tcase_add_test(tc_merge, merge_id_test);
-    tcase_add_test(tc_merge, merge_alternate_test);
-    tcase_add_test(tc_merge, merge_quality_test);
-    tcase_add_test(tc_merge, merge_filter_test);
-    tcase_add_test(tc_merge, merge_info_test);
-    tcase_add_test(tc_merge, merge_format_test);
-    tcase_add_test(tc_merge, merge_samples_test);
+    tcase_add_test(tc_repeated, merge_id_test);
+    tcase_add_test(tc_repeated, merge_alternate_test);
+    tcase_add_test(tc_repeated, merge_quality_test);
+    tcase_add_test(tc_repeated, merge_filter_test);
+    tcase_add_test(tc_repeated, merge_info_test);
+    tcase_add_test(tc_repeated, merge_format_test);
+    tcase_add_test(tc_repeated, merge_samples_test);
+    
+    TCase *tc_auxiliary = tcase_create("Auxiliary functions");
+    tcase_add_checked_fixture(tc_auxiliary, setup_merge_process, teardown_merge_process);
+    tcase_add_test(tc_auxiliary, get_format_indices_per_file_test);
     
     // Add test cases to a test suite
     Suite *fs = suite_create("Check for hpg-vcf/merge");
     suite_add_tcase(fs, tc_merge);
     suite_add_tcase(fs, tc_repeated);
+    suite_add_tcase(fs, tc_auxiliary);
     
     return fs;
 }
