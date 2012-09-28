@@ -327,7 +327,50 @@ START_TEST (merge_format_test) {
 END_TEST
 
 START_TEST (merge_samples_test) {
+    vcf_record_t *input[4];
+    input[0] = create_example_record_0();
+    input[1] = create_example_record_1();
+    input[2] = create_example_record_2();
+    input[3] = create_example_record_3();
     
+    vcf_record_file_link **links = calloc (4, sizeof(vcf_record_file_link*));
+    for (int i = 0; i < 4; i++) {
+        links[i] = malloc(sizeof(vcf_record_file_link));
+        links[i]->file = files[i];
+        links[i]->record = input[i];
+    }
+    
+    cp_hashtable *alleles_table = cp_hashtable_create(8, cp_hash_istring, (cp_compare_fn) strcasecmp);
+    merge_alternate_field(links, 4, alleles_table);
+    
+    array_list_t *format_fields = array_list_new(8, 1.2, COLLECTION_MODE_ASYNCHRONIZED);
+    format_fields->compare_fn = strcasecmp;
+    char *format = merge_format_field(links, 4, format_fields);
+    
+    int *format_indices = get_format_indices_per_file(links, 4, files, 4, format_fields);
+    
+    char *format_bak = strdup(format);
+    int gt_pos = get_field_position_in_format("GT", format_bak);
+    char *empty_sample = get_empty_sample(format_fields->size, gt_pos, MISSING);
+    
+    array_list_t *samples = merge_samples(links, 4, files, 4, gt_pos, alleles_table, format_fields, format_indices, empty_sample);
+    printf("Samples:\n--------------\n");
+    array_list_print(samples);
+    printf("\n------------------------\n");
+    
+    printf("The coordinates of the incorrect samples will be presented as (file,index in file)\n");
+    fail_if(strcmp(array_list_get(0, samples), "1/1:20:40:30:."), "Sample (0,0) must be 1/1:20:40:30:.");
+    fail_if(strcmp(array_list_get(1, samples), "0/1:10:60:50:."), "Sample (0,1) must be 0/1:10:60:50:.");
+    fail_if(strcmp(array_list_get(2, samples), "0/0:30:50:70:."), "Sample (0,2) must be 0/0:30:50:70:.");
+    
+    fail_if(strcmp(array_list_get(3, samples), "1/1:.:.:.:40"), "Sample (1,0) must be 1/1:.:.:.:40");
+    fail_if(strcmp(array_list_get(4, samples), "0/1:.:.:.:60"), "Sample (1,1) must be 0/1:.:.:.:60");
+    fail_if(strcmp(array_list_get(5, samples), "0/0:.:.:.:50"), "Sample (1,2) must be 0/0:.:.:.:50");
+    
+    fail_if(strcmp(array_list_get(6, samples), "1/1:30:.:40:20"), "Sample (2,0) must be 1/1:30:.:40:20");
+    
+    fail_if(strcmp(array_list_get(7, samples), "1/1:.:.:.:."), "Sample (3,0) must be 1/1:.:.:.:.");
+    fail_if(strcmp(array_list_get(8, samples), "0/1:.:.:.:."), "Sample (3,1) must be 0/1:.:.:.:.");
 }
 END_TEST
 
@@ -353,7 +396,7 @@ START_TEST (get_format_indices_per_file_test) {
     // Get from position in all files
     int file_idx;
     int *indices = get_format_indices_per_file(links, 4, files, 4, format_fields);
-    printf("The coordinates of the incorrect results will be presented as (file,index in file)\n");
+    printf("The coordinates of the incorrect format indices will be presented as (file,index in file)\n");
     
 //     printf("------------\n");
 //     for (int i = 0; i < 20; i++) {

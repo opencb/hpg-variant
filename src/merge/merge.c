@@ -3,8 +3,8 @@
 // int merge(vcf_record_t **variants, int num_variants, list_t* output_list) {
 int merge(array_list_t **records_by_position, int num_positions, vcf_file_t **files, int num_files, merge_options_data_t *options, list_t *output_list) {
     // TODO get samples list, sorted by file (as provided as input)
-    array_list_t *samples = get_global_samples(files, num_files);
-    array_list_print(samples);
+//     array_list_t *samples = get_global_samples(files, num_files);
+//     array_list_print(samples);
     
     // TODO
     vcf_record_t *merged;
@@ -14,12 +14,17 @@ int merge(array_list_t **records_by_position, int num_positions, vcf_file_t **fi
             merged = merge_unique_position(records_by_position[i]->items[0], files, num_files, options);
         } else if (records_by_position[i]->size > 1) {
             // TODO merge position present in more than one file
+            int info;
+            merged = merge_shared_position((vcf_record_file_link**) records_by_position[i], num_positions, files, num_files, options, &info);
         }
+        
+        list_item_t *item = list_item_new(1, 1, merged);
+        list_insert_item(item, output_list);
     }
     
     printf("Merging %d variants...\n", num_positions);
     
-    array_list_free(samples, free);
+//     array_list_free(samples, free);
     
     return 0;
 }
@@ -122,63 +127,23 @@ vcf_record_t *merge_shared_position(vcf_record_file_link **position_in_files, in
     
     // Get indexes for the format in each file
     // TODO Illustrate with an example
-    int *format_indices = get_format_indices_per_file(position_in_files, position_occurrences, files, num_files, format_fields);    
+    int *format_indices = get_format_indices_per_file(position_in_files, position_occurrences, files, num_files, format_fields);
     
     // Create the text for empty samples
     char *format_bak = strdup(result->format);
     int gt_pos = get_field_position_in_format("GT", format_bak);
     char *empty_sample = get_empty_sample(format_fields->size, gt_pos, options->missing_mode);
-    size_t empty_sample_len = strlen(empty_sample);
+//     size_t empty_sample_len = strlen(empty_sample);
     printf("empty sample = %s\n", empty_sample);
     
-    
     // TODO Generate samples using the reordered FORMAT fields and the new alleles' numerical values
-    for (int i = 0; i < num_files; i++) {
-        vcf_record_file_link *link = NULL;
-        for (int j = 0; j < position_occurrences; j++) {
-            if (position_in_files[j]->file == files[i]) {
-                link = position_in_files[j];
-                break;
-            }
-        }
-        
-        if (link) {
-            vcf_record_t *record = link->record;
-            int num_sample_fields;
-            char sample[256];
-            for (int j = 0; j < get_num_vcf_samples(files[i]); j++) {
-                memset(sample, 0, 256 * sizeof(char));
-                char **split_sample = split(array_list_get(j, record->samples), ":", &num_sample_fields);
-                for (int k = 0; k < format_fields->size; k++) {
-                    if (k == gt_pos) {
-                        // TODO manage genotype (now it copies contents)
-                        size_t idx = format_indices[k];
-                        strcat(sample, split_sample[idx]);
-                    } else {
-                        size_t idx = format_indices[k];
-                        strcat(sample, split_sample[idx]);
-                    }
-                    
-                    if (k < format_fields - 1) {
-                        strncat(sample, ":", 1);
-                    }
-                }
-                
-                printf("sample = %s\n", sample);
-            }
-            
-        } else {
-            // If the file has no samples in that position, fill with empty samples
-            for (int j = 0; j < get_num_vcf_samples(files[i]); j++) {
-                add_vcf_record_sample(empty_sample, empty_sample_len, result);
-            }
-        }
-    }
+    array_list_free(result->samples, NULL);
+    result->samples = merge_samples(position_in_files, position_occurrences, files, num_files, 
+                                    gt_pos, alleles_table, format_fields, format_indices, empty_sample);
     
     
     array_list_free(format_fields, free);
     cp_hashtable_destroy(alleles_table);
-//     cp_hashtable_destroy(format_fields);
     
     return result;
 }
@@ -371,9 +336,73 @@ char* merge_format_field(vcf_record_file_link** position_in_files, int position_
     return result;
 }
 
-array_list_t* merge_samples(vcf_record_file_link** position_in_files, int position_occurrences, 
-                            cp_hashtable* alleles_table, array_list_t* format_fields) {
-    // TODO
+array_list_t* merge_samples(vcf_record_file_link** position_in_files, int position_occurrences, vcf_file_t **files, int num_files, 
+                            int gt_pos, cp_hashtable* alleles_table, array_list_t* format_fields, int *format_indices, char *empty_sample) {
+    int empty_sample_len = strlen(empty_sample);
+    array_list_t *result = array_list_new(num_files * 2, 1.5, COLLECTION_MODE_ASYNCHRONIZED);
+    
+    for (int i = 0; i < num_files; i++) {
+        vcf_record_file_link *link = NULL;
+        for (int j = 0; j < position_occurrences; j++) {
+            if (!strcmp(position_in_files[j]->file->filename, files[i]->filename)) {
+                link = position_in_files[j];
+                break;
+            }
+        }
+        
+        if (link) {
+            vcf_record_t *record = link->record;
+            int num_sample_fields;
+            char sample[1024];
+            int len;
+            for (int j = 0; j < get_num_vcf_samples(files[i]); j++) {
+                memset(sample, 0, 256 * sizeof(char));
+                len = 0;
+                
+                char **split_sample = split(array_list_get(j, record->samples), ":", &num_sample_fields);
+                for (int k = 0; k < format_fields->size; k++) {
+                    int idx = format_indices[i*format_fields->size + k];
+//                     printf("k = %d\tidx = %d\n", k, format_indices[i*format_fields->size + k]);
+                    if (idx < 0) {  // Missing
+                        if (k == gt_pos) {
+                            strncat(sample, "./.", 3);
+                            len += 3;
+                        } else {
+                            strncat(sample, ".", 1);
+                            len += 1;
+                        }
+                    } else {    // Not-missing
+                        if (k == gt_pos) {
+                            // TODO manage genotype (now it copies contents)
+                            strcat(sample, split_sample[idx]);
+                            len += strlen(split_sample[idx]);
+                        } else {
+                            strcat(sample, split_sample[idx]);
+                            len += strlen(split_sample[idx]);
+                        }
+                    }
+                    
+                    
+                    if (k < format_fields->size - 1) {
+                        strncat(sample, ":", 1);
+                        len += 1;
+                    }
+                }
+                
+                sample[len] = '\0';
+//                 printf("sample = %s\n", sample);
+                array_list_insert(strndup(sample, len), result);
+            }
+            
+        } else {
+            // If the file has no samples in that position, fill with empty samples
+            for (int j = 0; j < get_num_vcf_samples(files[i]); j++) {
+                array_list_insert(strndup(empty_sample, empty_sample_len), result);
+            }
+        }
+    }
+    
+    return result;
 }
 
 
