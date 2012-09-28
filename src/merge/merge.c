@@ -362,7 +362,7 @@ array_list_t* merge_samples(vcf_record_file_link** position_in_files, int positi
                 memset(sample, 0, 256 * sizeof(char));
                 len = 0;
                 
-                char **split_sample = split(array_list_get(j, record->samples), ":", &num_sample_fields);
+                char **split_sample = split(strdup(array_list_get(j, record->samples)), ":", &num_sample_fields);
                 for (int k = 0; k < format_fields->size; k++) {
                     int idx = format_indices[i*format_fields->size + k];
 //                     printf("k = %d\tidx = %d\n", k, format_indices[i*format_fields->size + k]);
@@ -410,6 +410,7 @@ array_list_t* merge_samples(vcf_record_file_link** position_in_files, int positi
                                 len++;
                             }
                         } else {
+//                             printf("sample = %s\n", array_list_get(j, record->samples));
                             strcat(sample, split_sample[idx]);
                             len += strlen(split_sample[idx]);
                         }
