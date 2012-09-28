@@ -179,7 +179,8 @@ char* merge_alternate_field(vcf_record_file_link** position_in_files, int positi
     size_t max_len = 0, concat_len = 0;
     char *alternates = NULL, *cur_alternate = NULL, *aux = NULL;
     
-    int *allele_index = (int*) calloc (1, sizeof(int)); *allele_index = 0;
+    int cur_index = 0;
+    int *allele_index = (int*) calloc (1, sizeof(int)); *allele_index = cur_index;
     cp_hashtable_put(alleles_table,
                      strndup(position_in_files[0]->record->reference, position_in_files[0]->record->reference_len), 
                      allele_index);
@@ -188,14 +189,16 @@ char* merge_alternate_field(vcf_record_file_link** position_in_files, int positi
         file = position_in_files[i]->file;
         input = position_in_files[i]->record;
         
+        // TODO it doesn't work for multiallelic variants!
         cur_alternate = strndup(input->alternate, input->alternate_len);
         
         if (!alternates) {
-            alternates = cur_alternate;
+            alternates = strndup(cur_alternate, input->alternate_len);
             max_len = input->alternate_len;
             
-            allele_index = (int*) calloc (1, sizeof(int)); *allele_index = 1;
-            cp_hashtable_put(alleles_table, strndup(cur_alternate, input->alternate_len), allele_index);
+            allele_index = (int*) calloc (1, sizeof(int));
+            *allele_index = ++cur_index;
+            cp_hashtable_put(alleles_table, cur_alternate, allele_index);
         } else {
             if (!cp_hashtable_contains(alleles_table, cur_alternate)) {
                 concat_len = input->alternate_len;
@@ -208,10 +211,9 @@ char* merge_alternate_field(vcf_record_file_link** position_in_files, int positi
                     max_len += concat_len + 1;
                     
                     // In case the allele is not in the hashtable, insert it with a new index
-//                     if (!cp_hashtable_contains(alleles_table, cur_alternate)) {
-                        allele_index = (int*) calloc (1, sizeof(int)); (*allele_index)++;
-                        cp_hashtable_put(alleles_table, cur_alternate, allele_index);
-//                     }
+                    allele_index = (int*) calloc (1, sizeof(int));
+                    *allele_index = ++cur_index;
+                    cp_hashtable_put(alleles_table, cur_alternate, allele_index);
                 } else {
                     LOG_FATAL_F("Can't allocate memory for alternate alleles in position %s:%ld\n", 
                                 input->chromosome, input->position);
@@ -340,6 +342,7 @@ array_list_t* merge_samples(vcf_record_file_link** position_in_files, int positi
                             int gt_pos, cp_hashtable* alleles_table, array_list_t* format_fields, int *format_indices, char *empty_sample) {
     int empty_sample_len = strlen(empty_sample);
     array_list_t *result = array_list_new(num_files * 2, 1.5, COLLECTION_MODE_ASYNCHRONIZED);
+    int aux_idx;
     
     for (int i = 0; i < num_files; i++) {
         vcf_record_file_link *link = NULL;
@@ -369,13 +372,43 @@ array_list_t* merge_samples(vcf_record_file_link** position_in_files, int positi
                             len += 3;
                         } else {
                             strncat(sample, ".", 1);
-                            len += 1;
+                            len++;
                         }
                     } else {    // Not-missing
                         if (k == gt_pos) {
-                            // TODO manage genotype (now it copies contents)
-                            strcat(sample, split_sample[idx]);
-                            len += strlen(split_sample[idx]);
+                            // Manage genotypes (in multiallelic variants, allele indices must be recalculated)
+                            int allele1, allele2;
+                            int allele_ret = get_alleles(strdup(split_sample[idx]), 0, &allele1, &allele2);
+                            if (allele_ret == 3) {
+                                strncat(sample, "./.", 3);
+                                len += 3;
+                            } else {
+                                if (allele1 < 0) {
+                                    strncat(sample, ".", 1);
+                                } else if (allele1 == 0) {
+                                    strncat(sample, "0", 1);
+                                } else {
+//                                     printf("alternate = %.*s\nidx = %d\n", 
+//                                            record->alternate_len, record->alternate, 
+//                                            *((int*) cp_hashtable_get(alleles_table, record->alternate)));
+                                    aux_idx = *((int*) cp_hashtable_get(alleles_table, record->alternate));
+                                    sprintf(sample + len, "%d", aux_idx);
+                                }
+                                len++;
+                                
+                                strncat(sample, split_sample[idx] + 1, 1);
+                                len++;
+                                
+                                if (allele2 < 0) {
+                                    strncat(sample, ".", 1);
+                                } else if (allele2 == 0) {
+                                    strncat(sample, "0", 1);
+                                } else {
+                                    aux_idx = *((int*) cp_hashtable_get(alleles_table, record->alternate));
+                                    sprintf(sample + len, "%d", aux_idx);
+                                }
+                                len++;
+                            }
                         } else {
                             strcat(sample, split_sample[idx]);
                             len += strlen(split_sample[idx]);

@@ -363,11 +363,11 @@ START_TEST (merge_samples_test) {
     fail_if(strcmp(array_list_get(1, samples), "0/1:10:60:50:."), "Sample (0,1) must be 0/1:10:60:50:.");
     fail_if(strcmp(array_list_get(2, samples), "0/0:30:50:70:."), "Sample (0,2) must be 0/0:30:50:70:.");
     
-    fail_if(strcmp(array_list_get(3, samples), "1/1:.:.:.:40"), "Sample (1,0) must be 1/1:.:.:.:40");
-    fail_if(strcmp(array_list_get(4, samples), "0/1:.:.:.:60"), "Sample (1,1) must be 0/1:.:.:.:60");
+    fail_if(strcmp(array_list_get(3, samples), "2/2:.:.:.:40"), "Sample (1,0) must be 2/2:.:.:.:40");
+    fail_if(strcmp(array_list_get(4, samples), "0/2:.:.:.:60"), "Sample (1,1) must be 0/2:.:.:.:60");
     fail_if(strcmp(array_list_get(5, samples), "0/0:.:.:.:50"), "Sample (1,2) must be 0/0:.:.:.:50");
     
-    fail_if(strcmp(array_list_get(6, samples), "1/1:30:.:40:20"), "Sample (2,0) must be 1/1:30:.:40:20");
+    fail_if(strcmp(array_list_get(6, samples), "3/3:30:.:40:20"), "Sample (2,0) must be 3/3:30:.:40:20");
     
     fail_if(strcmp(array_list_get(7, samples), "1/1:.:.:.:."), "Sample (3,0) must be 1/1:.:.:.:.");
     fail_if(strcmp(array_list_get(8, samples), "0/1:.:.:.:."), "Sample (3,1) must be 0/1:.:.:.:.");
