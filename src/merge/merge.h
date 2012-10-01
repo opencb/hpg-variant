@@ -3,6 +3,7 @@
 
 #include <assert.h>
 #include <limits.h>
+#include <math.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -11,6 +12,7 @@
 
 #include <bioformats/vcf/vcf_file_structure.h>
 #include <bioformats/vcf/vcf_file.h>
+#include <bioformats/vcf/vcf_stats.h>
 #include <bioformats/vcf/vcf_util.h>
 #include <commons/log.h>
 #include <commons/string_utils.h>
@@ -30,9 +32,13 @@ typedef struct merge_options {
 } merge_options_t;
 
 typedef struct merge_options_data {
-    char **input_files;   /**< List of files used as input */
+    char **input_files;     /**< List of files used as input */
+    char **info_fields;     /**< List of attributes of the new INFO fields generated */
+    
+    int num_files;          /**< Number of files used as input */
+    int num_info_fields;    /**< Number of attributes of the new INFO fields generated */ 
+    
     enum missing_mode missing_mode;   /**< How to fill a missing sample field whenever its data is missing */
-    int num_files;   /**< Number of files used as input */
     
 } merge_options_data_t;
 
@@ -76,7 +82,8 @@ char *merge_alternate_field(vcf_record_file_link **position_in_files, int positi
 
 char *merge_filter_field(vcf_record_file_link **position_in_files, int position_occurrences);
 
-char *merge_info_field(char **samples, size_t num_samples);
+char *merge_info_field(char **info_fields, int num_fields, vcf_record_file_link **position_in_files, int position_occurrences, 
+                       vcf_record_t *output_record, cp_hashtable *alleles, char *empty_sample);
 
 char *merge_format_field(vcf_record_file_link **position_in_files, int position_occurrences, array_list_t *format_fields);
 

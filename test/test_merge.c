@@ -27,6 +27,9 @@ merge_options_data_t *options;
 void setup_merge_process(void) {
     options = calloc(1, sizeof(merge_options_data_t));
     options->missing_mode = MISSING;
+    options->num_info_fields = 1;
+    options->info_fields = malloc (sizeof(char*));
+    options->info_fields[0] = "DP";
     
     files[0] = calloc (1, sizeof(vcf_file_t));
     files[0]->filename = "input0.vcf";
@@ -255,11 +258,6 @@ START_TEST (merge_filter_test) {
 }
 END_TEST
 
-START_TEST (merge_info_test) {
-    
-}
-END_TEST
-
 START_TEST (merge_format_test) {
     vcf_record_t *input[4];
     input[0] = create_example_record_0();
@@ -452,6 +450,87 @@ START_TEST (merge_samples_test) {
 }
 END_TEST
 
+START_TEST (merge_info_test) {
+    vcf_record_t *input[4];
+    input[0] = create_example_record_0();
+    input[1] = create_example_record_1();
+    input[2] = create_example_record_2();
+    input[3] = create_example_record_3();
+    
+    vcf_record_t *result = vcf_record_new();
+    
+    vcf_record_file_link **links = calloc (4, sizeof(vcf_record_file_link*));
+    for (int i = 0; i < 4; i++) {
+        links[i] = malloc(sizeof(vcf_record_file_link));
+        links[i]->file = files[i];
+        links[i]->record = input[i];
+    }
+    
+    result->id = strndup(input[0]->id, input[0]->id_len);
+    result->filter = strndup(input[0]->filter, input[0]->filter_len);
+    
+    result->quality = merge_quality_field(links, 4);
+    
+    cp_hashtable *alleles_table = cp_hashtable_create(8, cp_hash_istring, (cp_compare_fn) strcasecmp);
+    result->alternate = merge_alternate_field(links, 4, alleles_table);
+    result->alternate_len = strlen(result->alternate);
+    
+    array_list_t *format_fields = array_list_new(8, 1.2, COLLECTION_MODE_ASYNCHRONIZED);
+    format_fields->compare_fn = strcasecmp;
+    result->format = merge_format_field(links, 4, format_fields);
+    result->format_len = strlen(result->format);
+    
+    int *format_indices = get_format_indices_per_file(links, 4, files, 4, format_fields);
+    
+    char *format_bak = strndup(result->format, result->format_len);
+    int gt_pos = get_field_position_in_format("GT", format_bak);
+    char *empty_sample = get_empty_sample(format_fields->size, gt_pos, MISSING);
+    
+    result->samples = merge_samples(links, 4, files, 4, gt_pos, alleles_table, format_fields, format_indices, empty_sample);
+    
+    int num_info_fields = 13;
+    options->info_fields = malloc (num_info_fields * sizeof(char*));
+    options->info_fields[0] = "AC";
+    options->info_fields[1] = "AF";
+    options->info_fields[2] = "AN";
+    options->info_fields[3] = "DB";
+    options->info_fields[4] = "DP";
+    options->info_fields[5] = "H2";
+    options->info_fields[6] = "H3";
+    options->info_fields[7] = "MQ";
+    options->info_fields[8] = "MQ0";
+    options->info_fields[9] = "QD";
+    options->info_fields[10] = "SOMATIC";
+    options->info_fields[11] = "VALIDATED";
+    options->info_fields[12] = "NS";
+    
+    char *info = merge_info_field(options->info_fields, num_info_fields, links, 4, result, alleles_table, empty_sample);
+    
+    printf("info = %s\n", info);
+    
+    fail_if(!strstr(info, "DB"), "INFO/DB must be present");
+    fail_if(!strstr(info, "H2"), "INFO/H2 must be present");
+    fail_if(strstr(info, "H3"), "INFO/H3 must not be present");
+    fail_if(strstr(info, "SOMATIC"), "INFO/SOMATIC must not be present");
+    fail_if(strstr(info, "VALIDATED"), "INFO/VALIDATED must not be present");
+    
+    char **split_info = split(info, ";", &num_info_fields);
+    
+    fail_if(strcmp(split_info[0], "AC=6,3,2"), "INFO/AC value must be 6,3,2");
+    fail_if(strcmp(split_info[1], "AF=0.545,0.273,0.182"), "INFO/AC value must be 0.545,0.273,0.182");
+    fail_if(strcmp(split_info[2], "AN=4"), "INFO/AN value must be 4");
+    fail_if(strcmp(split_info[3], "DB"), "INFO/DB must have no value");
+    fail_if(strcmp(split_info[4], "DP=150"), "INFO/DP value must be 150");
+    fail_if(strcmp(split_info[5], "H2"), "INFO/H2 must have no value");
+    fail_if(strcmp(split_info[6], "MQ=15.986"), "INFO/MQ value must be 15.986"); // sqrt( (10^2+20^2+30^2+30^2) / 9 )
+    fail_if(strcmp(split_info[7], "MQ0=5"), "INFO/MQ0 value must be 5");
+    fail_if(strcmp(split_info[8], "QD=0.119"), "INFO/QD value must be 0.119"); // QUAL = (20*3+30*3+10)/9, DP = 150, QD = 0.119
+    fail_if(strcmp(split_info[9], "NS=9"), "INFO/NS value must be 9");
+    
+}
+END_TEST
+
+
 
 START_TEST (get_format_indices_per_file_test) {
     vcf_record_t *input[4];
@@ -589,9 +668,9 @@ Suite *create_test_suite(void)
     tcase_add_test(tc_repeated, merge_alternate_test);
     tcase_add_test(tc_repeated, merge_quality_test);
     tcase_add_test(tc_repeated, merge_filter_test);
-    tcase_add_test(tc_repeated, merge_info_test);
     tcase_add_test(tc_repeated, merge_format_test);
     tcase_add_test(tc_repeated, merge_samples_test);
+    tcase_add_test(tc_repeated, merge_info_test);
     
     // Add test cases to a test suite
     Suite *fs = suite_create("Check for hpg-vcf/merge");
@@ -671,7 +750,7 @@ vcf_record_t *create_example_record_2() {
     input->quality = 10;
     input->filter = "q10";
     input->filter_len = strlen(input->filter);
-    input->info = "AF=0.5;NS=3;DP=14;DB;H2";
+    input->info = "AF=0.5;NS=3;DP=14;DB";
     input->info_len = strlen(input->info);
     input->format = "RD:HQ:GT:GQ";
     input->format_len = strlen(input->format);
