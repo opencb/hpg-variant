@@ -2,21 +2,11 @@
 
 // int merge(vcf_record_t **variants, int num_variants, list_t* output_list) {
 int merge(array_list_t **records_by_position, int num_positions, vcf_file_t **files, int num_files, merge_options_data_t *options, list_t *output_list) {
-    // TODO get samples list, sorted by file (as provided as input)
-//     array_list_t *samples = get_global_samples(files, num_files);
-//     array_list_print(samples);
-    
     // TODO
+        int info;
     vcf_record_t *merged;
     for (int i = 0; i < num_positions; i++) {
-        if (records_by_position[i]->size == 1) {
-            // TODO merge position present just in one file
-            merged = merge_unique_position(records_by_position[i]->items[0], files, num_files, options);
-        } else if (records_by_position[i]->size > 1) {
-            // TODO merge position present in more than one file
-            int info;
-            merged = merge_shared_position((vcf_record_file_link**) records_by_position[i], num_positions, files, num_files, options, &info);
-        }
+        merged = merge_position(records_by_position[i]->items, records_by_position[i]->size, files, num_files, options, &info);
         
         list_item_t *item = list_item_new(1, 1, merged);
         list_insert_item(item, output_list);
@@ -24,65 +14,11 @@ int merge(array_list_t **records_by_position, int num_positions, vcf_file_t **fi
     
     printf("Merging %d variants...\n", num_positions);
     
-//     array_list_free(samples, free);
-    
     return 0;
 }
 
-vcf_record_t *merge_unique_position(vcf_record_file_link *position, vcf_file_t **files, int num_files, merge_options_data_t *options) {
-    vcf_record_t *input = position->record;
-    vcf_record_t *result = vcf_record_new();
-    set_vcf_record_chromosome(input->chromosome, input->chromosome_len, result);
-    set_vcf_record_position(input->position, result);
-    set_vcf_record_id(input->id, input->id_len, result);
-    set_vcf_record_reference(input->reference, input->reference_len, result);
-    set_vcf_record_alternate(input->alternate, input->alternate_len, result);
-    set_vcf_record_quality(input->quality, result);
-    set_vcf_record_filter(input->filter, input->filter_len, result);
-    set_vcf_record_format(input->format, input->format_len, result);
-    
-    int num_format_fields = 1;
-//     for (int i = 0; i < strlen(result->format); i++) {
-    for (int i = 0; i < result->format_len; i++) {
-        if (result->format[i] == ':') {
-            num_format_fields++;
-        }
-    }
-    char *format_bak = strndup(result->format, result->format_len);
-    int gt_pos = get_field_position_in_format("GT", format_bak);
-    
-    // Create the text for empty samples
-    char *empty_sample = get_empty_sample(num_format_fields, gt_pos, options->missing_mode);
-    
-    // Fill list of samples
-    for (int i = 0; i < num_files; i++) {
-        int file_num_samples = get_num_vcf_samples(files[i]);
-        if(!strcmp(files[i]->filename, position->file->filename)) {
-            // Samples of the file where the position has been read are directly copied
-            array_list_insert_all(input->samples->items, file_num_samples, result->samples);
-            LOG_DEBUG_F("%d samples of file %s inserted\n", file_num_samples, files[i]->filename);
-        } else {
-            // Samples in the rest of files are empty and must be filled according to the specified format
-            for (int j = 0; j < file_num_samples; j++) {
-                array_list_insert(strdup(empty_sample), result->samples);
-            }
-            LOG_DEBUG_F("file %s\t%d empty samples inserted\n", files[i]->filename, file_num_samples);
-        }
-    }
-    
-    // INFO field must be calculated based on statistics about the new list of samples
-    // TODO add info-fields as argument (AF, NS and so on)
-    cp_hashtable *alleles_table = cp_hashtable_create(6, cp_hash_istring, (cp_compare_fn) strcasecmp);
-    char *alternate = merge_alternate_field(&position, 1, alleles_table);
-    free(alternate);
-    
-    result->info = merge_info_field(options->info_fields, options->num_info_fields, &position, 1, result, alleles_table, empty_sample);
-    
-    return result;
-}
-
-vcf_record_t *merge_shared_position(vcf_record_file_link **position_in_files, int position_occurrences, 
-                                    vcf_file_t **files, int num_files, merge_options_data_t *options, int *info) {
+vcf_record_t *merge_position(vcf_record_file_link **position_in_files, int position_occurrences, 
+                             vcf_file_t **files, int num_files, merge_options_data_t *options, int *err_code) {
     vcf_file_t *file;
     vcf_record_t *input;
     vcf_record_t *result = vcf_record_new();
@@ -93,15 +29,15 @@ vcf_record_t *merge_shared_position(vcf_record_file_link **position_in_files, in
         assert(position_in_files[i+1]);
         if (strncmp(position_in_files[i]->record->chromosome, position_in_files[i+1]->record->chromosome, position_in_files[i]->record->chromosome_len)) {
             LOG_ERROR("Positions can't be merged: Discordant chromosome\n");
-            *info = DISCORDANT_CHROMOSOME;
+            *err_code = DISCORDANT_CHROMOSOME;
             return NULL;
         } else if (position_in_files[i]->record->position != position_in_files[i+1]->record->position) {
             LOG_ERROR("Positions can't be merged: Discordant position\n");
-            *info = DISCORDANT_POSITION;
+            *err_code = DISCORDANT_POSITION;
             return NULL;
         } else if (strncmp(position_in_files[i]->record->reference, position_in_files[i+1]->record->reference, position_in_files[i]->record->reference_len)) {
             LOG_ERROR("Positions can't be merged: Discordant reference allele\n");
-            *info = DISCORDANT_REFERENCE;
+            *err_code = DISCORDANT_REFERENCE;
             return NULL;
         }
     }
@@ -113,23 +49,27 @@ vcf_record_t *merge_shared_position(vcf_record_file_link **position_in_files, in
     
     // Get first non-dot ID
     // TODO what can we do when having several ID?
-    result->id = merge_id_field(position_in_files, position_occurrences);
-    result->id_len = strlen(result->id);
+    char *id = merge_id_field(position_in_files, position_occurrences);
+    set_vcf_record_id(id, strlen(id), result);
     
     // Calculate weighted mean of the quality
-    result->quality = merge_quality_field(position_in_files, position_occurrences);
+    set_vcf_record_quality(merge_quality_field(position_in_files, position_occurrences), result);
     
     // Concatenate alternates and set their order (used later to assign samples' alleles number)
     cp_hashtable *alleles_table = cp_hashtable_create(8, cp_hash_istring, (cp_compare_fn) strcasecmp);
-    result->alternate = merge_alternate_field(position_in_files, position_occurrences, alleles_table);
-    result->alternate_len = strlen(result->alternate);
+    char *alternate = merge_alternate_field(position_in_files, position_occurrences, alleles_table);
+    set_vcf_record_alternate(alternate, strlen(alternate), result);
+    
+    // Concatenate failed filters
+    char *filter = merge_filter_field(position_in_files, position_occurrences);
+    set_vcf_record_filter(filter, strlen(filter), result);
     
     // Get the union of all FORMAT fields with their corresponding position
-    // TODO include INFO fields in FORMAT
+    // TODO include INFO and FILTER fields in FORMAT
     array_list_t *format_fields = array_list_new(16, 1.2, COLLECTION_MODE_ASYNCHRONIZED);
     format_fields->compare_fn = strcasecmp;
-    result->format = merge_format_field(position_in_files, position_occurrences, format_fields);
-    result->format_len = strlen(result->format);
+    char *format = merge_format_field(position_in_files, position_occurrences, options, format_fields);
+    set_vcf_record_format(format, strlen(format), result);
     
     // Get indexes for the format in each file
     // TODO Illustrate with an example
@@ -138,18 +78,18 @@ vcf_record_t *merge_shared_position(vcf_record_file_link **position_in_files, in
     // Create the text for empty samples
     char *format_bak = strndup(result->format, result->format_len);
     int gt_pos = get_field_position_in_format("GT", format_bak);
-    char *empty_sample = get_empty_sample(format_fields->size, gt_pos, options->missing_mode);
-//     size_t empty_sample_len = strlen(empty_sample);
+    char *empty_sample = get_empty_sample(format_fields->size, gt_pos, options);
     printf("empty sample = %s\n", empty_sample);
     
     // Generate samples using the reordered FORMAT fields and the new alleles' numerical values
     array_list_free(result->samples, NULL);
-    result->samples = merge_samples(position_in_files, position_occurrences, files, num_files, 
-                                    gt_pos, alleles_table, format_fields, format_indices, empty_sample);
+    result->samples = merge_samples(position_in_files, position_occurrences, files, num_files, gt_pos, alleles_table, 
+                                    format_fields, format_indices, empty_sample, options);
     
-    // TODO merge INFO field
-    result->info = merge_info_field(options->info_fields, options->num_info_fields, position_in_files, position_occurrences, 
-                                    result, alleles_table, empty_sample);
+    // Merge INFO field
+    char *info = merge_info_field(position_in_files, position_occurrences, options->info_fields, options->num_info_fields,
+                                  result, alleles_table, empty_sample);
+    set_vcf_record_info(info, strlen(info), result);
     
     array_list_free(format_fields, free);
     cp_hashtable_destroy(alleles_table);
@@ -315,7 +255,7 @@ char* merge_filter_field(vcf_record_file_link** position_in_files, int position_
 }
 
 
-char *merge_info_field(char **info_fields, int num_fields, vcf_record_file_link **position_in_files, int position_occurrences, 
+char *merge_info_field(vcf_record_file_link **position_in_files, int position_occurrences, char **info_fields, int num_fields,
                        vcf_record_t *output_record, cp_hashtable *alleles, char *empty_sample) {
     size_t len = 0;
     size_t max_len = 128;
@@ -509,7 +449,7 @@ char *merge_info_field(char **info_fields, int num_fields, vcf_record_file_link 
 }
 
 
-char* merge_format_field(vcf_record_file_link** position_in_files, int position_occurrences, array_list_t* format_fields) {
+char* merge_format_field(vcf_record_file_link** position_in_files, int position_occurrences, merge_options_data_t *options, array_list_t* format_fields) {
     char *result;   
     vcf_record_t *input;
     int format_text_len = 0;
@@ -527,6 +467,13 @@ char* merge_format_field(vcf_record_file_link** position_in_files, int position_
         }
     }
     
+    if (options->copy_filter) {
+        format_text_len += 3;
+    }
+    if (options->copy_info) {
+        format_text_len += 3;
+    }
+    
     result = calloc (format_text_len + 1, sizeof(char));
     strcat(result, (char*) array_list_get(0, format_fields));
     for (int i = 1; i < format_fields->size; i++) {
@@ -534,11 +481,20 @@ char* merge_format_field(vcf_record_file_link** position_in_files, int position_
         strcat(result, (char*) array_list_get(i, format_fields));
     }
     
+    if (options->copy_filter) {
+        strncat(result, "FT:", 3);
+    }
+    if (options->copy_info) {
+        strncat(result, "IN:", 3);
+    }
+    
+    
     return result;
 }
 
 array_list_t* merge_samples(vcf_record_file_link** position_in_files, int position_occurrences, vcf_file_t **files, int num_files, 
-                            int gt_pos, cp_hashtable* alleles_table, array_list_t* format_fields, int *format_indices, char *empty_sample) {
+                            int gt_pos, cp_hashtable* alleles_table, array_list_t* format_fields, int *format_indices, char *empty_sample,
+                            merge_options_data_t *options) {
     int empty_sample_len = strlen(empty_sample);
     array_list_t *result = array_list_new(num_files * 2, 1.5, COLLECTION_MODE_ASYNCHRONIZED);
     int aux_idx;
@@ -696,7 +652,8 @@ array_list_t *get_global_samples(vcf_file_t **files, int num_files) {
     return samples;
 }
 
-char *get_empty_sample(int num_format_fields, int gt_pos, enum missing_mode mode) {
+char *get_empty_sample(int num_format_fields, int gt_pos, merge_options_data_t *options) {
+    assert(options);
     int sample_len = num_format_fields * 2 + 2; // Each field + ':' = 2 chars, except for GT which is 1 char more
     char *sample = (char*) calloc (sample_len, sizeof(char));
     for (int j = 0; j < num_format_fields; j++) {
@@ -706,9 +663,9 @@ char *get_empty_sample(int num_format_fields, int gt_pos, enum missing_mode mode
         if (j != gt_pos) {
             strncat(sample, ".", 1);
         } else {
-            if (mode == MISSING) {
+            if (options->missing_mode == MISSING) {
                 strncat(sample, "./.", 3);
-            } else if (mode == REFERENCE) {
+            } else if (options->missing_mode == REFERENCE) {
                 strncat(sample, "0/0", 3);
             }
         }

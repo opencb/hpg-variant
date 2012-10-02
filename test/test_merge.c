@@ -30,6 +30,8 @@ void setup_merge_process(void) {
     options->num_info_fields = 1;
     options->info_fields = malloc (sizeof(char*));
     options->info_fields[0] = "DP";
+    options->copy_filter = 0;
+    options->copy_info = 0;
     
     files[0] = calloc (1, sizeof(vcf_file_t));
     files[0]->filename = "input0.vcf";
@@ -67,12 +69,14 @@ void teardown_merge_process(void) {
  * ******************************/
 
 START_TEST (merge_position_in_one_file) {
-    vcf_record_t *input;
-    vcf_record_file_link position;
-    position.file = files[1];
-    position.record = input = create_example_record_0();
+    vcf_record_file_link **links = calloc (1, sizeof(vcf_record_file_link*));
+    links[0] = malloc(sizeof(vcf_record_file_link));
+    links[0]->file = files[1];
+    links[0]->record = create_example_record_0();
     
-    vcf_record_t *result = merge_unique_position(&position, files, 3, options);
+    int err_code;
+    vcf_record_t *input = links[0]->record;
+    vcf_record_t *result = merge_position(links, 1, files, 3, options, &err_code);
     
     fail_if(result == NULL, "A VCF record must be returned after merging");
     fail_if(strncmp(input->chromosome, result->chromosome, input->chromosome_len), "After merging a position present only in a file, the chromosome must stay the same");
@@ -81,6 +85,10 @@ START_TEST (merge_position_in_one_file) {
     fail_if(strncmp(input->reference, result->reference, input->reference_len), "After merging a position present only in a file, the reference must stay the same");
     fail_if(strncmp(input->alternate, result->alternate, input->alternate_len), "After merging a position present only in a file, the alternate must stay the same");
     fail_if(result->quality != input->quality, "After merging a position present only in a file, the quality must stay the same");
+    
+    assert(input->filter);
+    assert(result->filter);
+    
     fail_if(strncmp(input->filter, result->filter, input->filter_len), "After merging a position present only in a file, the filter must stay the same");
     fail_if(strncmp(input->format, result->format, input->format_len), "After merging a position present only in a file, the format must stay the same");
     
@@ -276,7 +284,7 @@ START_TEST (merge_format_test) {
     format_fields->compare_fn = strcasecmp;
     
     // Merge (0,1,2,3) -> GT:GQ:DP:HQ:RD
-    fail_if(strcmp(merge_format_field(links, 4, format_fields), "GT:GQ:DP:HQ:RD"), "After merging (0,1,2,3), the format must be GT:GQ:DP:HQ:RD");
+    fail_if(strcmp(merge_format_field(links, 4, options, format_fields), "GT:GQ:DP:HQ:RD"), "After merging (0,1,2,3), the format must be GT:GQ:DP:HQ:RD");
     fail_if(strcmp(format_fields->items[0], "GT"), "After merging (0,1,2,3), field #0 in format must be GT");
     fail_if(strcmp(format_fields->items[1], "GQ"), "After merging (0,1,2,3), field #1 in format must be GQ");
     fail_if(strcmp(format_fields->items[2], "DP"), "After merging (0,1,2,3), field #2 in format must be DP");
@@ -288,7 +296,7 @@ START_TEST (merge_format_test) {
     links[0]->record = input[1];
     links[1]->record = input[2];
     links[2]->record = input[3];
-    fail_if(strcmp(merge_format_field(links, 3, format_fields), "GT:RD:HQ:GQ"), "After merging (1,2,3), the format must be GT:RD:HQ:GQ");
+    fail_if(strcmp(merge_format_field(links, 3, options, format_fields), "GT:RD:HQ:GQ"), "After merging (1,2,3), the format must be GT:RD:HQ:GQ");
     fail_if(strcmp(format_fields->items[0], "GT"), "After merging (1,2,3), field #0 in format must be GT");
     fail_if(strcmp(format_fields->items[1], "RD"), "After merging (1,2,3), field #1 in format must be RD");
     fail_if(strcmp(format_fields->items[2], "HQ"), "After merging (1,2,3), field #2 in format must be HQ");
@@ -298,7 +306,7 @@ START_TEST (merge_format_test) {
     // Merge (1,3) -> GT:RD
     links[0]->record = input[1];
     links[1]->record = input[3];
-    fail_if(strcmp(merge_format_field(links, 2, format_fields), "GT:RD"), "After merging (1,3), the format must be GT:RD");
+    fail_if(strcmp(merge_format_field(links, 2, options, format_fields), "GT:RD"), "After merging (1,3), the format must be GT:RD");
     fail_if(strcmp(format_fields->items[0], "GT"), "After merging (1,3), field #0 in format must be GT");
     fail_if(strcmp(format_fields->items[1], "RD"), "After merging (1,3), field #1 in format must be RD");
     array_list_clear(format_fields, free);
@@ -306,7 +314,7 @@ START_TEST (merge_format_test) {
     // Merge (3,1) -> GT:RD
     links[0]->record = input[3];
     links[1]->record = input[1];
-    fail_if(strcmp(merge_format_field(links, 2, format_fields), "GT:RD"), "After merging (3,1), the format must be GT:RD");
+    fail_if(strcmp(merge_format_field(links, 2, options, format_fields), "GT:RD"), "After merging (3,1), the format must be GT:RD");
     fail_if(strcmp(format_fields->items[0], "GT"), "After merging (3,1), field #0 in format must be GT");
     fail_if(strcmp(format_fields->items[1], "RD"), "After merging (3,1), field #1 in format must be RD");
     array_list_clear(format_fields, free);
@@ -314,7 +322,7 @@ START_TEST (merge_format_test) {
     // Merge (2,1) -> RD:HQ:GT:GQ
     links[0]->record = input[2];
     links[1]->record = input[1];
-    fail_if(strcmp(merge_format_field(links, 2, format_fields), "RD:HQ:GT:GQ"), "After merging (2,1), the format must be RD:HQ:GT:GQ");
+    fail_if(strcmp(merge_format_field(links, 2, options, format_fields), "RD:HQ:GT:GQ"), "After merging (2,1), the format must be RD:HQ:GT:GQ");
     fail_if(strcmp(format_fields->items[0], "RD"), "After merging (2,1), field #0 in format must be RD");
     fail_if(strcmp(format_fields->items[1], "HQ"), "After merging (2,1), field #1 in format must be HQ");
     fail_if(strcmp(format_fields->items[2], "GT"), "After merging (2,1), field #2 in format must be GT");
@@ -346,15 +354,16 @@ START_TEST (merge_samples_test) {
     
     array_list_t *format_fields = array_list_new(8, 1.2, COLLECTION_MODE_ASYNCHRONIZED);
     format_fields->compare_fn = strcasecmp;
-    char *format = merge_format_field(links, 4, format_fields);
+    char *format = merge_format_field(links, 4, options, format_fields);
     
     int *format_indices = get_format_indices_per_file(links, 4, files, 4, format_fields);
     
     char *format_bak = strdup(format);
     int gt_pos = get_field_position_in_format("GT", format_bak);
-    char *empty_sample = get_empty_sample(format_fields->size, gt_pos, MISSING);
+    options->missing_mode = MISSING;
+    char *empty_sample = get_empty_sample(format_fields->size, gt_pos, options);
     
-    array_list_t *samples = merge_samples(links, 4, files, 4, gt_pos, alleles_table, format_fields, format_indices, empty_sample);
+    array_list_t *samples = merge_samples(links, 4, files, 4, gt_pos, alleles_table, format_fields, format_indices, empty_sample, options);
     printf("Samples:\n");
     array_list_print(samples);
     printf("\n------------------------\n");
@@ -384,15 +393,16 @@ START_TEST (merge_samples_test) {
     
     format_fields = array_list_new(8, 1.2, COLLECTION_MODE_ASYNCHRONIZED);
     format_fields->compare_fn = strcasecmp;
-    format = merge_format_field(links, 2, format_fields);
+    format = merge_format_field(links, 2, options, format_fields);
     
     format_indices = get_format_indices_per_file(links, 2, files, 4, format_fields);
     
     format_bak = strdup(format);
     gt_pos = get_field_position_in_format("GT", format_bak);
-    empty_sample = get_empty_sample(format_fields->size, gt_pos, REFERENCE);
+    options->missing_mode = REFERENCE;
+    empty_sample = get_empty_sample(format_fields->size, gt_pos, options);
     
-    samples = merge_samples(links, 2, files, 4, gt_pos, alleles_table, format_fields, format_indices, empty_sample);
+    samples = merge_samples(links, 2, files, 4, gt_pos, alleles_table, format_fields, format_indices, empty_sample, options);
     printf("Samples in (0,2):\n");
     array_list_print(samples);
     printf("\n------------------------\n");
@@ -422,15 +432,16 @@ START_TEST (merge_samples_test) {
     
     format_fields = array_list_new(8, 1.2, COLLECTION_MODE_ASYNCHRONIZED);
     format_fields->compare_fn = strcasecmp;
-    format = merge_format_field(links, 2, format_fields);
+    format = merge_format_field(links, 2, options, format_fields);
     
     format_indices = get_format_indices_per_file(links, 2, files, 4, format_fields);
     
     format_bak = strdup(format);
     gt_pos = get_field_position_in_format("GT", format_bak);
-    empty_sample = get_empty_sample(format_fields->size, gt_pos, MISSING);
+    options->missing_mode = MISSING;
+    empty_sample = get_empty_sample(format_fields->size, gt_pos, options);
     
-    samples = merge_samples(links, 2, files, 4, gt_pos, alleles_table, format_fields, format_indices, empty_sample);
+    samples = merge_samples(links, 2, files, 4, gt_pos, alleles_table, format_fields, format_indices, empty_sample, options);
     printf("Samples in (2,0):\n");
     array_list_print(samples);
     printf("\n------------------------\n");
@@ -466,10 +477,13 @@ START_TEST (merge_info_test) {
         links[i]->record = input[i];
     }
     
-    result->id = strndup(input[0]->id, input[0]->id_len);
-    result->filter = strndup(input[0]->filter, input[0]->filter_len);
-    
-    result->quality = merge_quality_field(links, 4);
+    set_vcf_record_id(input[0]->id, input[0]->id_len, result);
+    set_vcf_record_filter(input[0]->filter, input[0]->filter_len, result);
+    set_vcf_record_quality(merge_quality_field(links, 4), result);
+//     result->id = strndup(input[0]->id, input[0]->id_len);
+//     result->filter = strndup(input[0]->filter, input[0]->filter_len);
+//     
+//     result->quality = merge_quality_field(links, 4);
     
     cp_hashtable *alleles_table = cp_hashtable_create(8, cp_hash_istring, (cp_compare_fn) strcasecmp);
     result->alternate = merge_alternate_field(links, 4, alleles_table);
@@ -477,16 +491,17 @@ START_TEST (merge_info_test) {
     
     array_list_t *format_fields = array_list_new(8, 1.2, COLLECTION_MODE_ASYNCHRONIZED);
     format_fields->compare_fn = strcasecmp;
-    result->format = merge_format_field(links, 4, format_fields);
+    result->format = merge_format_field(links, 4, options, format_fields);
     result->format_len = strlen(result->format);
     
     int *format_indices = get_format_indices_per_file(links, 4, files, 4, format_fields);
     
     char *format_bak = strndup(result->format, result->format_len);
     int gt_pos = get_field_position_in_format("GT", format_bak);
-    char *empty_sample = get_empty_sample(format_fields->size, gt_pos, MISSING);
+    options->missing_mode = MISSING;
+    char *empty_sample = get_empty_sample(format_fields->size, gt_pos, options);
     
-    result->samples = merge_samples(links, 4, files, 4, gt_pos, alleles_table, format_fields, format_indices, empty_sample);
+    result->samples = merge_samples(links, 4, files, 4, gt_pos, alleles_table, format_fields, format_indices, empty_sample, options);
     
     int num_info_fields = 13;
     options->info_fields = malloc (num_info_fields * sizeof(char*));
@@ -504,7 +519,7 @@ START_TEST (merge_info_test) {
     options->info_fields[11] = "VALIDATED";
     options->info_fields[12] = "NS";
     
-    char *info = merge_info_field(options->info_fields, num_info_fields, links, 4, result, alleles_table, empty_sample);
+    char *info = merge_info_field(links, 4, options->info_fields, num_info_fields, result, alleles_table, empty_sample);
     
     printf("info = %s\n", info);
     
@@ -548,7 +563,7 @@ START_TEST (get_format_indices_per_file_test) {
     
     array_list_t *format_fields = array_list_new(8, 1.2, COLLECTION_MODE_ASYNCHRONIZED);
     format_fields->compare_fn = strcasecmp;
-    char *format = merge_format_field(links, 4, format_fields);
+    char *format = merge_format_field(links, 4, options, format_fields);
     
     // Get from position in all files
     int file_idx;

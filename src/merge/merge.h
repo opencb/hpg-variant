@@ -26,8 +26,11 @@
 enum missing_mode { MISSING, REFERENCE };
 
 typedef struct merge_options {
-    struct arg_str *input_files;   /**< List of files used as input */
+    struct arg_str *input_files;    /**< List of files used as input */
     struct arg_str *missing_mode;   /**< How to fill a missing sample field whenever its data is missing */
+    
+    struct arg_lit *copy_filter;    /**< Whether to copy the contents of the original FILTER field into the samples */
+    struct arg_lit *copy_info;      /**< Whether to copy the contents of the original INFO field into the samples */
     int num_options;
 } merge_options_t;
 
@@ -37,6 +40,9 @@ typedef struct merge_options_data {
     
     int num_files;          /**< Number of files used as input */
     int num_info_fields;    /**< Number of attributes of the new INFO fields generated */ 
+    
+    int copy_filter;        /**< Whether to copy the contents of the original FILTER field into the samples */
+    int copy_info;          /**< Whether to copy the contents of the original INFO field into the samples */
     
     enum missing_mode missing_mode;   /**< How to fill a missing sample field whenever its data is missing */
     
@@ -68,10 +74,8 @@ static void free_merge_options_data(merge_options_data_t *options_data);
 
 int merge(array_list_t **records_by_position, int num_positions, vcf_file_t **files, int num_files, merge_options_data_t *options, list_t *output_list);
 
-vcf_record_t *merge_unique_position(vcf_record_file_link *position, vcf_file_t **files, int num_files, merge_options_data_t *options);
-
-vcf_record_t *merge_shared_position(vcf_record_file_link **position_in_files, int position_occurrences, 
-                                    vcf_file_t **files, int num_files, merge_options_data_t *options, int *info);
+vcf_record_t *merge_position(vcf_record_file_link **position_in_files, int position_occurrences,
+                             vcf_file_t **files, int num_files, merge_options_data_t *options, int *err_code);
 
 
 char *merge_id_field(vcf_record_file_link **position_in_files, int position_occurrences);
@@ -82,22 +86,23 @@ char *merge_alternate_field(vcf_record_file_link **position_in_files, int positi
 
 char *merge_filter_field(vcf_record_file_link **position_in_files, int position_occurrences);
 
-char *merge_info_field(char **info_fields, int num_fields, vcf_record_file_link **position_in_files, int position_occurrences, 
+char *merge_info_field(vcf_record_file_link **position_in_files, int position_occurrences, char **info_fields, int num_fields,
                        vcf_record_t *output_record, cp_hashtable *alleles, char *empty_sample);
 
-char *merge_format_field(vcf_record_file_link **position_in_files, int position_occurrences, array_list_t *format_fields);
+char *merge_format_field(vcf_record_file_link **position_in_files, int position_occurrences, merge_options_data_t *options, array_list_t *format_fields);
 
 array_list_t *merge_samples(vcf_record_file_link **position_in_files, int position_occurrences, vcf_file_t **files, int num_files, 
-                            int gt_pos, cp_hashtable *alleles_table, array_list_t *format_fields, int *format_indices, char *empty_sample);
+                            int gt_pos, cp_hashtable *alleles_table, array_list_t *format_fields, int *format_indices, char *empty_sample, 
+                            merge_options_data_t *options);
 
 
 
 int *get_format_indices_per_file(vcf_record_file_link **position_in_files, int position_occurrences, 
-                                    vcf_file_t **files, int num_files, array_list_t *format_fields);
+                                 vcf_file_t **files, int num_files, array_list_t *format_fields);
 
 array_list_t *get_global_samples(vcf_file_t **files, int num_files);
 
-char *get_empty_sample(int num_format_fields, int gt_pos, enum missing_mode mode);
+char *get_empty_sample(int num_format_fields, int gt_pos, merge_options_data_t *options);
 
 
 /* ******************************
