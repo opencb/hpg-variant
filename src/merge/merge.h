@@ -92,8 +92,8 @@ char *merge_info_field(vcf_record_file_link **position_in_files, int position_oc
 char *merge_format_field(vcf_record_file_link **position_in_files, int position_occurrences, merge_options_data_t *options, array_list_t *format_fields);
 
 array_list_t *merge_samples(vcf_record_file_link **position_in_files, int position_occurrences, vcf_file_t **files, int num_files, 
-                            int gt_pos, cp_hashtable *alleles_table, array_list_t *format_fields, int *format_indices, char *empty_sample, 
-                            merge_options_data_t *options);
+                            cp_hashtable *alleles_table, array_list_t *format_fields, int *format_indices, char *empty_sample, 
+                            int gt_pos, int filter_pos, int info_pos, merge_options_data_t *options);
 
 
 

@@ -358,12 +358,13 @@ START_TEST (merge_samples_test) {
     
     int *format_indices = get_format_indices_per_file(links, 4, files, 4, format_fields);
     
-    char *format_bak = strdup(format);
-    int gt_pos = get_field_position_in_format("GT", format_bak);
+    int gt_pos = get_field_position_in_format("GT", strdup(format));
+    int filter_pos = get_field_position_in_format("SFT", strdup(format));
+    int info_pos = get_field_position_in_format("IN", strdup(format));
     options->missing_mode = MISSING;
     char *empty_sample = get_empty_sample(format_fields->size, gt_pos, options);
     
-    array_list_t *samples = merge_samples(links, 4, files, 4, gt_pos, alleles_table, format_fields, format_indices, empty_sample, options);
+    array_list_t *samples = merge_samples(links, 4, files, 4, alleles_table, format_fields, format_indices, empty_sample, gt_pos, filter_pos, info_pos, options);
     printf("Samples:\n");
     array_list_print(samples);
     printf("\n------------------------\n");
@@ -397,12 +398,13 @@ START_TEST (merge_samples_test) {
     
     format_indices = get_format_indices_per_file(links, 2, files, 4, format_fields);
     
-    format_bak = strdup(format);
-    gt_pos = get_field_position_in_format("GT", format_bak);
+    gt_pos = get_field_position_in_format("GT", strdup(format));
+    filter_pos = get_field_position_in_format("SFT", strdup(format));
+    info_pos = get_field_position_in_format("IN", strdup(format));
     options->missing_mode = REFERENCE;
     empty_sample = get_empty_sample(format_fields->size, gt_pos, options);
     
-    samples = merge_samples(links, 2, files, 4, gt_pos, alleles_table, format_fields, format_indices, empty_sample, options);
+    samples = merge_samples(links, 2, files, 4, alleles_table, format_fields, format_indices, empty_sample, gt_pos, filter_pos, info_pos, options);
     printf("Samples in (0,2):\n");
     array_list_print(samples);
     printf("\n------------------------\n");
@@ -436,12 +438,13 @@ START_TEST (merge_samples_test) {
     
     format_indices = get_format_indices_per_file(links, 2, files, 4, format_fields);
     
-    format_bak = strdup(format);
-    gt_pos = get_field_position_in_format("GT", format_bak);
+    gt_pos = get_field_position_in_format("GT", strdup(format));
+    filter_pos = get_field_position_in_format("SFT", strdup(format));
+    info_pos = get_field_position_in_format("IN", strdup(format));
     options->missing_mode = MISSING;
     empty_sample = get_empty_sample(format_fields->size, gt_pos, options);
     
-    samples = merge_samples(links, 2, files, 4, gt_pos, alleles_table, format_fields, format_indices, empty_sample, options);
+    samples = merge_samples(links, 2, files, 4, alleles_table, format_fields, format_indices, empty_sample, gt_pos, filter_pos, info_pos, options);
     printf("Samples in (2,0):\n");
     array_list_print(samples);
     printf("\n------------------------\n");
@@ -480,28 +483,25 @@ START_TEST (merge_info_test) {
     set_vcf_record_id(input[0]->id, input[0]->id_len, result);
     set_vcf_record_filter(input[0]->filter, input[0]->filter_len, result);
     set_vcf_record_quality(merge_quality_field(links, 4), result);
-//     result->id = strndup(input[0]->id, input[0]->id_len);
-//     result->filter = strndup(input[0]->filter, input[0]->filter_len);
-//     
-//     result->quality = merge_quality_field(links, 4);
     
     cp_hashtable *alleles_table = cp_hashtable_create(8, cp_hash_istring, (cp_compare_fn) strcasecmp);
-    result->alternate = merge_alternate_field(links, 4, alleles_table);
-    result->alternate_len = strlen(result->alternate);
+    char *alternate = merge_alternate_field(links, 4, alleles_table);
+    set_vcf_record_alternate(alternate, strlen(alternate), result);
     
     array_list_t *format_fields = array_list_new(8, 1.2, COLLECTION_MODE_ASYNCHRONIZED);
     format_fields->compare_fn = strcasecmp;
-    result->format = merge_format_field(links, 4, options, format_fields);
-    result->format_len = strlen(result->format);
+    char *format = merge_format_field(links, 4, options, format_fields);
+    set_vcf_record_format(format, strlen(format), result);
     
     int *format_indices = get_format_indices_per_file(links, 4, files, 4, format_fields);
     
-    char *format_bak = strndup(result->format, result->format_len);
-    int gt_pos = get_field_position_in_format("GT", format_bak);
+    int gt_pos = get_field_position_in_format("GT", strndup(result->format, result->format_len));
+    int filter_pos = get_field_position_in_format("SFT", strndup(result->format, result->format_len));
+    int info_pos = get_field_position_in_format("IN", strndup(result->format, result->format_len));
     options->missing_mode = MISSING;
     char *empty_sample = get_empty_sample(format_fields->size, gt_pos, options);
     
-    result->samples = merge_samples(links, 4, files, 4, gt_pos, alleles_table, format_fields, format_indices, empty_sample, options);
+    result->samples = merge_samples(links, 4, files, 4, alleles_table, format_fields, format_indices, empty_sample, gt_pos, filter_pos, info_pos, options);
     
     int num_info_fields = 13;
     options->info_fields = malloc (num_info_fields * sizeof(char*));
@@ -545,6 +545,184 @@ START_TEST (merge_info_test) {
 }
 END_TEST
 
+START_TEST (add_filter_test) {
+    vcf_record_t *input[4];
+    input[0] = create_example_record_0();
+    input[1] = create_example_record_1();
+    input[2] = create_example_record_2();
+    input[3] = create_example_record_3();
+    
+    vcf_record_t *result = vcf_record_new();
+    
+    vcf_record_file_link **links = calloc (4, sizeof(vcf_record_file_link*));
+    for (int i = 0; i < 4; i++) {
+        links[i] = malloc(sizeof(vcf_record_file_link));
+        links[i]->file = files[i];
+        links[i]->record = input[i];
+    }
+    
+    set_vcf_record_id(input[0]->id, input[0]->id_len, result);
+    set_vcf_record_filter(input[0]->filter, input[0]->filter_len, result);
+    set_vcf_record_quality(merge_quality_field(links, 4), result);
+    
+    cp_hashtable *alleles_table = cp_hashtable_create(8, cp_hash_istring, (cp_compare_fn) strcasecmp);
+    char *alternate = merge_alternate_field(links, 4, alleles_table);
+    set_vcf_record_alternate(alternate, strlen(alternate), result);
+    
+    array_list_t *format_fields = array_list_new(8, 1.2, COLLECTION_MODE_ASYNCHRONIZED);
+    format_fields->compare_fn = strcasecmp;
+    
+    // Insert FILTER
+    options->copy_filter = 1;
+    options->copy_info = 0;
+    char *format = merge_format_field(links, 4, options, format_fields);
+    fail_if(strcmp(format, "GT:GQ:DP:HQ:RD:SFT"), "Format with filter must be GT:GQ:DP:HQ:RD:SFT");
+    set_vcf_record_format(format, strlen(format), result);
+    
+    int *format_indices = get_format_indices_per_file(links, 4, files, 4, format_fields);
+    
+    int gt_pos = get_field_position_in_format("GT", strndup(result->format, result->format_len));
+    int filter_pos = get_field_position_in_format("SFT", strndup(result->format, result->format_len));
+    int info_pos = get_field_position_in_format("IN", strndup(result->format, result->format_len));
+    options->missing_mode = MISSING;
+    char *empty_sample = get_empty_sample(format_fields->size, gt_pos, options);
+    
+    array_list_t* samples = merge_samples(links, 4, files, 4, alleles_table, format_fields, format_indices, empty_sample, gt_pos, filter_pos, info_pos, options);
+    
+    fail_if(strcmp(array_list_get(0, samples), "1/1:20:40:30:.:PASS"), "Sample (0,0) must be 1/1:20:40:30:.:PASS");
+    fail_if(strcmp(array_list_get(1, samples), "0/1:10:60:50:.:PASS"), "Sample (0,1) must be 0/1:10:60:50:.:PASS");
+    fail_if(strcmp(array_list_get(2, samples), "0/0:30:50:70:.:PASS"), "Sample (0,2) must be 0/0:30:50:70:.:PASS");
+    
+    fail_if(strcmp(array_list_get(3, samples), "2/2:.:.:.:40:STD_FILTER"), "Sample (1,0) must be 2/2:.:.:.:40:STD_FILTER");
+    fail_if(strcmp(array_list_get(4, samples), "0/2:.:.:.:60:STD_FILTER"), "Sample (1,1) must be 0/2:.:.:.:60:STD_FILTER");
+    fail_if(strcmp(array_list_get(5, samples), "0/0:.:.:.:50:STD_FILTER"), "Sample (1,2) must be 0/0:.:.:.:50:STD_FILTER");
+    
+    fail_if(strcmp(array_list_get(6, samples), "3/3:30:.:40:20:q10"), "Sample (2,0) must be 3/3:30:.:40:20:q10");
+    
+    fail_if(strcmp(array_list_get(7, samples), "1/1:.:.:.:.:."), "Sample (3,0) must be 1/1:.:.:.:.:.");
+    fail_if(strcmp(array_list_get(8, samples), "0/1:.:.:.:.:."), "Sample (3,1) must be 0/1:.:.:.:.:.");
+    
+}
+END_TEST
+
+START_TEST (add_info_test) {
+    vcf_record_t *input[4];
+    input[0] = create_example_record_0();
+    input[1] = create_example_record_1();
+    input[2] = create_example_record_2();
+    input[3] = create_example_record_3();
+    
+    vcf_record_t *result = vcf_record_new();
+    
+    vcf_record_file_link **links = calloc (4, sizeof(vcf_record_file_link*));
+    for (int i = 0; i < 4; i++) {
+        links[i] = malloc(sizeof(vcf_record_file_link));
+        links[i]->file = files[i];
+        links[i]->record = input[i];
+    }
+    
+    set_vcf_record_id(input[0]->id, input[0]->id_len, result);
+    set_vcf_record_filter(input[0]->filter, input[0]->filter_len, result);
+    set_vcf_record_quality(merge_quality_field(links, 4), result);
+    
+    cp_hashtable *alleles_table = cp_hashtable_create(8, cp_hash_istring, (cp_compare_fn) strcasecmp);
+    char *alternate = merge_alternate_field(links, 4, alleles_table);
+    set_vcf_record_alternate(alternate, strlen(alternate), result);
+    
+    array_list_t *format_fields = array_list_new(8, 1.2, COLLECTION_MODE_ASYNCHRONIZED);
+    format_fields->compare_fn = strcasecmp;
+        
+    // Insert INFO
+    options->copy_filter = 0;
+    options->copy_info = 1;
+    char *format = merge_format_field(links, 4, options, format_fields);
+    fail_if(strcmp(format, "GT:GQ:DP:HQ:RD:IN"), "Format with info must be GT:GQ:DP:HQ:RD:IN");
+    set_vcf_record_format(format, strlen(format), result);
+    
+    int *format_indices = get_format_indices_per_file(links, 4, files, 4, format_fields);
+    
+    int gt_pos = get_field_position_in_format("GT", strndup(result->format, result->format_len));
+    int filter_pos = get_field_position_in_format("SFT", strndup(result->format, result->format_len));
+    int info_pos = get_field_position_in_format("IN", strndup(result->format, result->format_len));
+    options->missing_mode = MISSING;
+    char *empty_sample = get_empty_sample(format_fields->size, gt_pos, options);
+    
+    array_list_t* samples = merge_samples(links, 4, files, 4, alleles_table, format_fields, format_indices, empty_sample, gt_pos, filter_pos, info_pos, options);
+    
+    fail_if(strcmp(array_list_get(0, samples), "1/1:20:40:30:.:NS=3;DP=14;H2"), "Sample (0,0) must be 1/1:20:40:30:.:NS=3;DP=14;H2");
+    fail_if(strcmp(array_list_get(1, samples), "0/1:10:60:50:.:NS=3;DP=14;H2"), "Sample (0,1) must be 0/1:10:60:50:.:NS=3;DP=14;H2");
+    fail_if(strcmp(array_list_get(2, samples), "0/0:30:50:70:.:NS=3;DP=14;H2"), "Sample (0,2) must be 0/0:30:50:70:.:NS=3;DP=14;H2");
+    
+    fail_if(strcmp(array_list_get(3, samples), "2/2:.:.:.:40:DP=10;NS=4;AF=0.5;H2"), "Sample (1,0) must be 2/2:.:.:.:40:DP=10;NS=4;AF=0.5;H2");
+    fail_if(strcmp(array_list_get(4, samples), "0/2:.:.:.:60:DP=10;NS=4;AF=0.5;H2"), "Sample (1,1) must be 0/2:.:.:.:60:DP=10;NS=4;AF=0.5;H2");
+    fail_if(strcmp(array_list_get(5, samples), "0/0:.:.:.:50:DP=10;NS=4;AF=0.5;H2"), "Sample (1,2) must be 0/0:.:.:.:50:DP=10;NS=4;AF=0.5;H2");
+    
+    fail_if(strcmp(array_list_get(6, samples), "3/3:30:.:40:20:AF=0.5;NS=3;DP=14;DB"), "Sample (2,0) must be 3/3:30:.:40:20:AF=0.5;NS=3;DP=14;DB");
+    
+    fail_if(strcmp(array_list_get(7, samples), "1/1:.:.:.:.:DB;H2"), "Sample (3,0) must be 1/1:.:.:.:.:DB;H2");
+    fail_if(strcmp(array_list_get(8, samples), "0/1:.:.:.:.:DB;H2"), "Sample (3,1) must be 0/1:.:.:.:.:DB;H2");
+}
+END_TEST
+
+START_TEST (add_info_filter_test) {
+    vcf_record_t *input[4];
+    input[0] = create_example_record_0();
+    input[1] = create_example_record_1();
+    input[2] = create_example_record_2();
+    input[3] = create_example_record_3();
+    
+    vcf_record_t *result = vcf_record_new();
+    
+    vcf_record_file_link **links = calloc (4, sizeof(vcf_record_file_link*));
+    for (int i = 0; i < 4; i++) {
+        links[i] = malloc(sizeof(vcf_record_file_link));
+        links[i]->file = files[i];
+        links[i]->record = input[i];
+    }
+    
+    set_vcf_record_id(input[0]->id, input[0]->id_len, result);
+    set_vcf_record_filter(input[0]->filter, input[0]->filter_len, result);
+    set_vcf_record_quality(merge_quality_field(links, 4), result);
+    
+    cp_hashtable *alleles_table = cp_hashtable_create(8, cp_hash_istring, (cp_compare_fn) strcasecmp);
+    char *alternate = merge_alternate_field(links, 4, alleles_table);
+    set_vcf_record_alternate(alternate, strlen(alternate), result);
+    
+    array_list_t *format_fields = array_list_new(8, 1.2, COLLECTION_MODE_ASYNCHRONIZED);
+    format_fields->compare_fn = strcasecmp;
+        
+    // Insert FILTER and INFO
+    options->copy_filter = 1;
+    options->copy_info = 1;
+    char *format = merge_format_field(links, 4, options, format_fields);
+    fail_if(strcmp(format, "GT:GQ:DP:HQ:RD:SFT:IN"), "Format with filter must be GT:GQ:DP:HQ:RD:SFT:IN");
+    set_vcf_record_format(format, strlen(format), result);
+    
+    int *format_indices = get_format_indices_per_file(links, 4, files, 4, format_fields);
+    
+    char *format_bak = strndup(result->format, result->format_len);
+    int gt_pos = get_field_position_in_format("GT", strndup(result->format, result->format_len));
+    int filter_pos = get_field_position_in_format("SFT", strndup(result->format, result->format_len));
+    int info_pos = get_field_position_in_format("IN", strndup(result->format, result->format_len));
+    options->missing_mode = MISSING;
+    char *empty_sample = get_empty_sample(format_fields->size, gt_pos, options);
+    
+    array_list_t* samples = merge_samples(links, 4, files, 4, alleles_table, format_fields, format_indices, empty_sample, gt_pos, filter_pos, info_pos, options);
+    
+    fail_if(strcmp(array_list_get(0, samples), "1/1:20:40:30:.:PASS:NS=3;DP=14;H2"), "Sample (0,0) must be 1/1:20:40:30:.:PASS:NS=3;DP=14;H2");
+    fail_if(strcmp(array_list_get(1, samples), "0/1:10:60:50:.:PASS:NS=3;DP=14;H2"), "Sample (0,1) must be 0/1:10:60:50:.:PASS:NS=3;DP=14;H2");
+    fail_if(strcmp(array_list_get(2, samples), "0/0:30:50:70:.:PASS:NS=3;DP=14;H2"), "Sample (0,2) must be 0/0:30:50:70:.:PASS:NS=3;DP=14;H2");
+    
+    fail_if(strcmp(array_list_get(3, samples), "2/2:.:.:.:40:STD_FILTER:DP=10;NS=4;AF=0.5;H2"), "Sample (1,0) must be 2/2:.:.:.:40:STD_FILTER:DP=10;NS=4;AF=0.5;H2");
+    fail_if(strcmp(array_list_get(4, samples), "0/2:.:.:.:60:STD_FILTER:DP=10;NS=4;AF=0.5;H2"), "Sample (1,1) must be 0/2:.:.:.:60:STD_FILTER:DP=10;NS=4;AF=0.5;H2");
+    fail_if(strcmp(array_list_get(5, samples), "0/0:.:.:.:50:STD_FILTER:DP=10;NS=4;AF=0.5;H2"), "Sample (1,2) must be 0/0:.:.:.:50:STD_FILTER:DP=10;NS=4;AF=0.5;H2");
+    
+    fail_if(strcmp(array_list_get(6, samples), "3/3:30:.:40:20:q10:AF=0.5;NS=3;DP=14;DB"), "Sample (2,0) must be 3/3:30:.:40:20:q10:AF=0.5;NS=3;DP=14;DB");
+    
+    fail_if(strcmp(array_list_get(7, samples), "1/1:.:.:.:.:.:DB;H2"), "Sample (3,0) must be 1/1:.:.:.:.:.:DB;H2");
+    fail_if(strcmp(array_list_get(8, samples), "0/1:.:.:.:.:.:DB;H2"), "Sample (3,1) must be 0/1:.:.:.:.:.:DB;H2");
+}
+END_TEST
 
 
 START_TEST (get_format_indices_per_file_test) {
@@ -687,11 +865,18 @@ Suite *create_test_suite(void)
     tcase_add_test(tc_repeated, merge_samples_test);
     tcase_add_test(tc_repeated, merge_info_test);
     
+    TCase *tc_extra = tcase_create("Adding extra fields to samples");
+    tcase_add_checked_fixture(tc_extra, setup_merge_process, teardown_merge_process);
+    tcase_add_test(tc_extra, add_filter_test);
+    tcase_add_test(tc_extra, add_info_test);
+    tcase_add_test(tc_extra, add_info_filter_test);
+    
     // Add test cases to a test suite
     Suite *fs = suite_create("Check for hpg-vcf/merge");
     suite_add_tcase(fs, tc_unique);
     suite_add_tcase(fs, tc_auxiliary);
     suite_add_tcase(fs, tc_repeated);
+    suite_add_tcase(fs, tc_extra);
     
     return fs;
 }

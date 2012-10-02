@@ -1,15 +1,15 @@
 #include "merge.h"
 
-// int merge(vcf_record_t **variants, int num_variants, list_t* output_list) {
 int merge(array_list_t **records_by_position, int num_positions, vcf_file_t **files, int num_files, merge_options_data_t *options, list_t *output_list) {
-    // TODO
-        int info;
+    int info;
     vcf_record_t *merged;
     for (int i = 0; i < num_positions; i++) {
-        merged = merge_position(records_by_position[i]->items, records_by_position[i]->size, files, num_files, options, &info);
+        merged = merge_position((vcf_record_file_link **) records_by_position[i]->items, records_by_position[i]->size, files, num_files, options, &info);
         
-        list_item_t *item = list_item_new(1, 1, merged);
-        list_insert_item(item, output_list);
+        if (merged) {
+            list_item_t *item = list_item_new(1, 1, merged);
+            list_insert_item(item, output_list);
+        }
     }
     
     printf("Merging %d variants...\n", num_positions);
@@ -65,7 +65,7 @@ vcf_record_t *merge_position(vcf_record_file_link **position_in_files, int posit
     set_vcf_record_filter(filter, strlen(filter), result);
     
     // Get the union of all FORMAT fields with their corresponding position
-    // TODO include INFO and FILTER fields in FORMAT
+    // Include INFO and FILTER fields in FORMAT when required by the user
     array_list_t *format_fields = array_list_new(16, 1.2, COLLECTION_MODE_ASYNCHRONIZED);
     format_fields->compare_fn = strcasecmp;
     char *format = merge_format_field(position_in_files, position_occurrences, options, format_fields);
@@ -76,15 +76,17 @@ vcf_record_t *merge_position(vcf_record_file_link **position_in_files, int posit
     int *format_indices = get_format_indices_per_file(position_in_files, position_occurrences, files, num_files, format_fields);
     
     // Create the text for empty samples
-    char *format_bak = strndup(result->format, result->format_len);
-    int gt_pos = get_field_position_in_format("GT", format_bak);
+    int filter_pos = get_field_position_in_format("SFT", strndup(result->format, result->format_len));
+    int info_pos = get_field_position_in_format("IN", strndup(result->format, result->format_len));
+    int gt_pos = get_field_position_in_format("GT", strndup(result->format, result->format_len));
     char *empty_sample = get_empty_sample(format_fields->size, gt_pos, options);
     printf("empty sample = %s\n", empty_sample);
     
     // Generate samples using the reordered FORMAT fields and the new alleles' numerical values
+    // Include INFO and FILTER fields from the original file when required by the user
     array_list_free(result->samples, NULL);
-    result->samples = merge_samples(position_in_files, position_occurrences, files, num_files, gt_pos, alleles_table, 
-                                    format_fields, format_indices, empty_sample, options);
+    result->samples = merge_samples(position_in_files, position_occurrences, files, num_files, alleles_table, 
+                                    format_fields, format_indices, empty_sample, gt_pos, filter_pos, info_pos, options);
     
     // Merge INFO field
     char *info = merge_info_field(position_in_files, position_occurrences, options->info_fields, options->num_info_fields,
@@ -468,10 +470,12 @@ char* merge_format_field(vcf_record_file_link** position_in_files, int position_
     }
     
     if (options->copy_filter) {
+        array_list_insert(strndup("SFT", 3), format_fields);
         format_text_len += 3;
     }
     if (options->copy_info) {
-        format_text_len += 3;
+        array_list_insert(strndup("IN", 2), format_fields);
+        format_text_len += 2;
     }
     
     result = calloc (format_text_len + 1, sizeof(char));
@@ -481,20 +485,12 @@ char* merge_format_field(vcf_record_file_link** position_in_files, int position_
         strcat(result, (char*) array_list_get(i, format_fields));
     }
     
-    if (options->copy_filter) {
-        strncat(result, "FT:", 3);
-    }
-    if (options->copy_info) {
-        strncat(result, "IN:", 3);
-    }
-    
-    
     return result;
 }
 
 array_list_t* merge_samples(vcf_record_file_link** position_in_files, int position_occurrences, vcf_file_t **files, int num_files, 
-                            int gt_pos, cp_hashtable* alleles_table, array_list_t* format_fields, int *format_indices, char *empty_sample,
-                            merge_options_data_t *options) {
+                            cp_hashtable* alleles_table, array_list_t* format_fields, int *format_indices, char *empty_sample,
+                            int gt_pos, int filter_pos, int info_pos, merge_options_data_t *options) {
     int empty_sample_len = strlen(empty_sample);
     array_list_t *result = array_list_new(num_files * 2, 1.5, COLLECTION_MODE_ASYNCHRONIZED);
     int aux_idx;
@@ -525,6 +521,12 @@ array_list_t* merge_samples(vcf_record_file_link** position_in_files, int positi
                         if (k == gt_pos) {
                             strncat(sample, "./.", 3);
                             len += 3;
+                        } else if (k == filter_pos) {
+                            strncat(sample, record->filter, record->filter_len);
+                            len += record->filter_len;
+                        } else if (k == info_pos) {
+                            strncat(sample, record->info, record->info_len);
+                            len += record->info_len;
                         } else {
                             strncat(sample, ".", 1);
                             len++;
@@ -564,6 +566,12 @@ array_list_t* merge_samples(vcf_record_file_link** position_in_files, int positi
                                 }
                                 len++;
                             }
+                        } else if (k == filter_pos) {
+                                strncat(sample, record->filter, record->filter_len);
+                                len += record->filter_len;
+                        } else if (k == info_pos) {
+                                strncat(sample, record->info, record->info_len);
+                                len += record->info_len;
                         } else {
 //                             printf("sample = %s\n", array_list_get(j, record->samples));
                             strcat(sample, split_sample[idx]);
@@ -574,12 +582,11 @@ array_list_t* merge_samples(vcf_record_file_link** position_in_files, int positi
                     
                     if (k < format_fields->size - 1) {
                         strncat(sample, ":", 1);
-                        len += 1;
+                        len++;
                     }
                 }
                 
                 sample[len] = '\0';
-//                 printf("sample = %s\n", sample);
                 array_list_insert(strndup(sample, len), result);
             }
             
