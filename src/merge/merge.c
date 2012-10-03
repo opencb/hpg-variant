@@ -1,13 +1,108 @@
 #include "merge.h"
 
-int merge(array_list_t **records_by_position, int num_positions, vcf_file_t **files, int num_files, merge_options_data_t *options, list_t *output_list) {
+int merge_vcf_headers(vcf_file_t** files, int num_files, merge_options_data_t* options, list_t* output_list) {
+    cp_hashtable *filter_entries = cp_hashtable_create_by_option(COLLECTION_MODE_DEEP, 16, 
+                                                                 cp_hash_istring, (cp_compare_fn) strcmp, 
+                                                                 NULL, free,
+                                                                 NULL, free);
+    cp_hashtable *format_entries = cp_hashtable_create_by_option(COLLECTION_MODE_DEEP, 16, 
+                                                                 cp_hash_istring, (cp_compare_fn) strcmp, 
+                                                                 NULL, free,
+                                                                 NULL, free);
+    cp_hashtable *info_entries = cp_hashtable_create_by_option(COLLECTION_MODE_DEEP, 16, 
+                                                                 cp_hash_istring, (cp_compare_fn) strcmp, 
+                                                                 NULL, free,
+                                                                 NULL, free);
+    cp_hashtable *other_entries = cp_hashtable_create_by_option(COLLECTION_MODE_DEEP, 16, 
+                                                                 cp_hash_istring, (cp_compare_fn) strcmp, 
+                                                                 NULL, free,
+                                                                 NULL, free);
+    
+    vcf_file_t *file;
+    vcf_header_entry_t *in_entry, *out_entry, *aux;
+    
+    for (int i = 0; i < num_files; i++) {
+        file = files[i];
+        for (int j = 0; j < file->header_entries->size; j++) {
+            out_entry = NULL;
+            in_entry = array_list_get(j, file->header_entries);
+//             printf("1) value = %s\n", array_list_get(0, in_entry->values));
+            // Merge FILTER, FORMAT and other entries that are __not__ INFO ones
+            if (!strncmp("FILTER", in_entry->name, in_entry->name_len)) {
+                aux = cp_hashtable_get(filter_entries, array_list_get(0, in_entry->values));
+                if (!aux) {
+                    cp_hashtable_put(filter_entries, array_list_get(0, in_entry->values), in_entry);
+                    out_entry = in_entry;
+                }
+            } else if (!strncmp("FORMAT", in_entry->name, in_entry->name_len)) {
+                aux = cp_hashtable_get(format_entries, array_list_get(0, in_entry->values));
+                if (!aux) {
+                    cp_hashtable_put(format_entries, array_list_get(0, in_entry->values), in_entry);
+                    out_entry = in_entry;
+                }
+            } else if (!strncmp("INFO", in_entry->name, in_entry->name_len)) {
+                aux = cp_hashtable_get(info_entries, array_list_get(0, in_entry->values));
+                if (!aux) {
+                    cp_hashtable_put(info_entries, array_list_get(0, in_entry->values), in_entry);
+                    out_entry = in_entry;
+                }
+            } else {
+                aux = cp_hashtable_get(other_entries, array_list_get(0, in_entry->values));
+                if (!aux) {
+                    cp_hashtable_put(other_entries, array_list_get(0, in_entry->values), in_entry);
+                    out_entry = in_entry;
+                }
+            }
+            
+            // Insert into the list of entries of the output file
+            if (out_entry) {
+                list_item_t *item = list_item_new(i, MERGED_HEADER, out_entry);
+                list_insert_item(item, output_list);
+            }
+        }
+    }
+    
+    // Create INFO entries
+    char *info_field;
+    char *field_value;
+    
+    config_t *config = (config_t*) calloc (1, sizeof(config_t));
+    int ret_code = config_read_file(config, "vcf-info-fields.cfg");
+    
+    assert(ret_code);
+    for (int i = 0; i < options->num_info_fields; i++) {
+        info_field = options->info_fields[i];
+        // TODO search info field in config file
+        ret_code = config_lookup_string(config, info_field, &field_value);
+        if (ret_code == CONFIG_FALSE) {
+            LOG_ERROR_F("Information about subfield %s of INFO not found in configuration file\n", info_field);
+        } else {
+            aux = cp_hashtable_get(info_entries, field_value);
+            if (!aux) {
+//                 printf("2) value = %s\n", field_value);
+                out_entry = vcf_header_entry_new();
+                set_header_entry_name("INFO", 4, out_entry);
+                add_header_entry_value(field_value, strlen(field_value), out_entry);
+                
+                list_item_t *item = list_item_new(i, MERGED_HEADER, out_entry);
+                list_insert_item(item, output_list);
+            }
+        }
+    }
+    
+    config_destroy(config);
+    free(config);
+}
+
+
+int merge_vcf_records(array_list_t **records_by_position, int num_positions, vcf_file_t **files, int num_files, merge_options_data_t *options, list_t *output_list) {
     int info;
     vcf_record_t *merged;
     for (int i = 0; i < num_positions; i++) {
         merged = merge_position((vcf_record_file_link **) records_by_position[i]->items, records_by_position[i]->size, files, num_files, options, &info);
         
         if (merged) {
-            list_item_t *item = list_item_new(1, 1, merged);
+            list_item_t *item = list_item_new(i, MERGED_RECORD, merged);
             list_insert_item(item, output_list);
         }
     }

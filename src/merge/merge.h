@@ -21,7 +21,12 @@
 #include "error.h"
 #include "global_options.h"
 
-#define NUM_MERGE_OPTIONS  2
+#define NUM_MERGE_OPTIONS   2
+
+
+#define MERGED_RECORD       1
+#define MERGED_HEADER       2
+#define MERGED_DELIMITER    3
 
 enum missing_mode { MISSING, REFERENCE };
 
@@ -72,7 +77,9 @@ static void free_merge_options_data(merge_options_data_t *options_data);
  *       Tool execution         *
  * ******************************/
 
-int merge(array_list_t **records_by_position, int num_positions, vcf_file_t **files, int num_files, merge_options_data_t *options, list_t *output_list);
+int merge_vcf_headers(vcf_file_t **files, int num_files, merge_options_data_t *options, list_t *output_list);
+
+int merge_vcf_records(array_list_t **records_by_position, int num_positions, vcf_file_t **files, int num_files, merge_options_data_t *options, list_t *output_list);
 
 vcf_record_t *merge_position(vcf_record_file_link **position_in_files, int position_occurrences,
                              vcf_file_t **files, int num_files, merge_options_data_t *options, int *err_code);

@@ -4,6 +4,7 @@
 
 #include <check.h>
 
+#include <bioformats/vcf/vcf_file_structure.h>
 #include <bioformats/vcf/vcf_file.h>
 
 #include "merge/merge.h"
@@ -24,7 +25,164 @@ merge_options_data_t *options;
  *       Checked fixtures       *
  * ******************************/
 
-void setup_merge_process(void) {
+void setup_merge_headers(void) {
+    options = calloc(1, sizeof(merge_options_data_t));
+    options->missing_mode = MISSING;
+    options->num_info_fields = 4;
+    options->info_fields = malloc (options->num_info_fields * sizeof(char*));
+    options->info_fields[0] = "DP";
+    options->info_fields[1] = "AN";
+    options->info_fields[2] = "MQ";
+    options->info_fields[3] = "H3";
+    
+    vcf_header_entry_t *entry;
+    char *value;
+    
+    /* ************* File 0 **************/
+    
+    files[0] = vcf_file_new("input0.vcf", INT_MAX);
+    
+    // GT:GQ:DP:HQ
+    entry = vcf_header_entry_new();
+    set_header_entry_name("FORMAT", 6, entry);
+    value = "<ID=GT,Number=1,Type=String,Description=\"Genotype\">";
+    add_header_entry_value(value, strlen(value), entry);
+    assert(add_vcf_header_entry(entry, files[0]));
+    
+    entry = vcf_header_entry_new();
+    set_header_entry_name("FORMAT", 6, entry);
+    value = "<ID=GQ,Number=1,Type=Float,Description=\"Genotype Quality\">";
+    add_header_entry_value(value, strlen(value), entry);
+    add_vcf_header_entry(entry, files[0]);
+    
+    entry = vcf_header_entry_new();
+    set_header_entry_name("FORMAT", 6, entry);
+    value = "<ID=DP,Number=1,Type=Integer,Description=\"Total Depth\">";
+    add_header_entry_value(value, strlen(value), entry);
+    add_vcf_header_entry(entry, files[0]);
+    
+    entry = vcf_header_entry_new();
+    set_header_entry_name("FORMAT", 6, entry);
+    value = "<ID=HQ,Number=1,Type=String,Description=\"Haplotype Qualities\">";
+    add_header_entry_value(value, strlen(value), entry);
+    add_vcf_header_entry(entry, files[0]);
+    
+    // All filters PASS. Example filters: somefilter, bias1
+    entry = vcf_header_entry_new();
+    set_header_entry_name("FILTER", 6, entry);
+    value = "<ID=somefilter,Description=\"FS > 200.0\">";
+    add_header_entry_value(value, strlen(value), entry);
+    add_vcf_header_entry(entry, files[0]);
+    
+    entry = vcf_header_entry_new();
+    set_header_entry_name("FILTER", 6, entry);
+    value = "<ID=bias1,Description=\"Non-biased read\">";
+    add_header_entry_value(value, strlen(value), entry);
+    add_vcf_header_entry(entry, files[0]);
+    
+    // Should be ignored
+    entry = vcf_header_entry_new();
+    set_header_entry_name("INFO", 4, entry);
+    value = "<ID=PL,Number=.,Type=Integer,Description=\"Normalized, Phred-scaled likelihoods for genotypes\">";
+    add_header_entry_value(value, strlen(value), entry);
+    add_vcf_header_entry(entry, files[0]);
+    
+    // Other headers
+    entry = vcf_header_entry_new();
+    value = "Example for a test of VCF merging";
+    add_header_entry_value(value, strlen(value), entry);
+    add_vcf_header_entry(entry, files[0]);
+    
+    
+    /* ************* File 1 **************/
+    
+    files[1] = vcf_file_new("input1.vcf", INT_MAX);
+    
+    // GT:RD
+    entry = vcf_header_entry_new();
+    set_header_entry_name("FORMAT", 6, entry);
+    value = "<ID=GT,Number=1,Type=String,Description=\"Genotype\">";
+    add_header_entry_value(value, strlen(value), entry);
+    add_vcf_header_entry(entry, files[1]);
+    
+    entry = vcf_header_entry_new();
+    set_header_entry_name("FORMAT", 6, entry);
+    value = "<ID=RD,Number=1,Type=Integer,Description=\"Read Depth\">";
+    add_header_entry_value(value, strlen(value), entry);
+    add_vcf_header_entry(entry, files[1]);
+    
+    // Filter STD_FILTER
+    entry = vcf_header_entry_new();
+    set_header_entry_name("FILTER", 6, entry);
+    value = "<ID=STD_FILTER,Description=\"QD < 2.0\", \"MQ < 40.0\", \"FS > 60.0\">";
+    add_header_entry_value(value, strlen(value), entry);
+    add_vcf_header_entry(entry, files[1]);
+    
+    // Other headers
+    entry = vcf_header_entry_new();
+    value = "analysis_type=CombineVariants input_file=[] read_buffer_size=null phone_home=STANDARD read_filter=[]";
+    set_header_entry_name("CombineVariants", strlen("CombineVariants"), entry);
+    add_header_entry_value(value, strlen(value), entry);
+    add_vcf_header_entry(entry, files[1]);
+    
+    
+    /* ************* File 2 **************/
+    
+    files[2] = vcf_file_new("input2.vcf", INT_MAX);
+    
+    // RD:HQ:GT:GQ
+    entry = vcf_header_entry_new();
+    set_header_entry_name("FORMAT", 6, entry);
+    value = "<ID=RD,Number=1,Type=Integer,Description=\"Read Depth\">";
+    add_header_entry_value(value, strlen(value), entry);
+    add_vcf_header_entry(entry, files[2]);
+    
+    entry = vcf_header_entry_new();
+    set_header_entry_name("FORMAT", 6, entry);
+    value = "<ID=HQ,Number=1,Type=String,Description=\"Haplotype Qualities\">";
+    add_header_entry_value(value, strlen(value), entry);
+    add_vcf_header_entry(entry, files[2]);
+    
+    entry = vcf_header_entry_new();
+    set_header_entry_name("FORMAT", 6, entry);
+    value = "<ID=GT,Number=1,Type=String,Description=\"Genotype\">";
+    add_header_entry_value(value, strlen(value), entry);
+    add_vcf_header_entry(entry, files[2]);
+    
+    entry = vcf_header_entry_new();
+    set_header_entry_name("FORMAT", 6, entry);
+    value = "<ID=GQ,Number=1,Type=Float,Description=\"Genotype Quality\">";
+    add_header_entry_value(value, strlen(value), entry);
+    add_vcf_header_entry(entry, files[2]);
+    
+    // Filter q10
+    entry = vcf_header_entry_new();
+    set_header_entry_name("FILTER", 6, entry);
+    value = "<ID=q10,Description=\"QUAL > 10\">";
+    add_header_entry_value(value, strlen(value), entry);
+    add_vcf_header_entry(entry, files[2]);
+    
+    // Should be ignored
+    entry = vcf_header_entry_new();
+    set_header_entry_name("INFO", 4, entry);
+    value = "<ID=MQ,Number=1,Type=Float,Description=\"RMS Mapping Quality\">";
+    add_header_entry_value(value, strlen(value), entry);
+    add_vcf_header_entry(entry, files[2]);
+    
+    
+    /* ************* File 3 **************/
+    
+    files[3] = vcf_file_new("input3.vcf", INT_MAX);
+    
+    // GT
+    entry = vcf_header_entry_new();
+    set_header_entry_name("FORMAT", 6, entry);
+    value = "<ID=GT,Number=1,Type=String,Description=\"Genotype\">";
+    add_header_entry_value(value, strlen(value), entry);
+    add_vcf_header_entry(entry, files[3]);
+}
+
+void setup_merge_positions(void) {
     options = calloc(1, sizeof(merge_options_data_t));
     options->missing_mode = MISSING;
     options->num_info_fields = 1;
@@ -33,40 +191,127 @@ void setup_merge_process(void) {
     options->copy_filter = 0;
     options->copy_info = 0;
     
-    files[0] = calloc (1, sizeof(vcf_file_t));
-    files[0]->filename = "input0.vcf";
-    files[0]->samples_names = array_list_new(10, 1.5, COLLECTION_MODE_SYNCHRONIZED);
+    files[0] = vcf_file_new("input0.vcf", INT_MAX);
     add_vcf_sample_name("S01", 3, files[0]);
     add_vcf_sample_name("S02", 3, files[0]);
     add_vcf_sample_name("S03", 3, files[0]);
     
-    files[1] = calloc (1, sizeof(vcf_file_t));
-    files[1]->filename = "input1.vcf";
-    files[1]->samples_names = array_list_new(10, 1.5, COLLECTION_MODE_SYNCHRONIZED);
+    files[1] = vcf_file_new("input1.vcf", INT_MAX);
     add_vcf_sample_name("S11", 3, files[1]);
     add_vcf_sample_name("S12", 3, files[1]);
     add_vcf_sample_name("S13", 3, files[1]);
     
-    files[2] = calloc (1, sizeof(vcf_file_t));
-    files[2]->filename = "input2.vcf";
-    files[2]->samples_names = array_list_new(10, 1.5, COLLECTION_MODE_SYNCHRONIZED);
+    files[2] = vcf_file_new("input2.vcf", INT_MAX);
     add_vcf_sample_name("S21", 3, files[2]);
     
-    files[3] = calloc (1, sizeof(vcf_file_t));
-    files[3]->filename = "input3.vcf";
-    files[3]->samples_names = array_list_new(10, 1.5, COLLECTION_MODE_SYNCHRONIZED);
+    files[3] = vcf_file_new("input3.vcf", INT_MAX);
     add_vcf_sample_name("S31", 3, files[3]);
     add_vcf_sample_name("S32", 3, files[3]);
 }
 
-void teardown_merge_process(void) {
-    
-}
+void teardown_merge_headers(void) { }
+
+void teardown_merge_positions(void) { }
+
 
 
 /* ******************************
  *          Unit tests          *
  * ******************************/
+
+START_TEST (merge_headers_test) {
+    list_t *output_list = malloc (sizeof(list_t));
+    list_init("headers", 1, INT_MAX, output_list);
+    merge_vcf_headers(files, 4, options, output_list);
+    
+    vcf_header_entry_t *entry;
+    
+    fail_unless(output_list->length == 16, "There must be 16 header entries");
+    
+    entry = list_remove_item(output_list)->data_p;
+    fail_if(strcmp("FORMAT", entry->name), "The name of entry #0 must be FORMAT");
+    fail_if(strcmp("<ID=GT,Number=1,Type=String,Description=\"Genotype\">", array_list_get(0, entry->values)), 
+            "The value of entry #0 must be <ID=GT,Number=1,Type=String,Description=\"Genotype\">");
+    
+    entry = list_remove_item(output_list)->data_p;
+    fail_if(strcmp("FORMAT", entry->name), "The name of entry #1 must be FORMAT");
+    fail_if(strcmp("<ID=GQ,Number=1,Type=Float,Description=\"Genotype Quality\">", array_list_get(0, entry->values)), 
+            "The value of entry #1 must be <ID=GQ,Number=1,Type=Float,Description=\"Genotype Quality\">");
+    
+    entry = list_remove_item(output_list)->data_p;
+    fail_if(strcmp("FORMAT", entry->name), "The name of entry #2 must be FORMAT");
+    fail_if(strcmp("<ID=DP,Number=1,Type=Integer,Description=\"Total Depth\">", array_list_get(0, entry->values)), 
+            "The value of entry #2 must be <ID=DP,Number=1,Type=Integer,Description=\"Total Depth\">");
+    
+    entry = list_remove_item(output_list)->data_p;
+    fail_if(strcmp("FORMAT", entry->name), "The name of entry #3 must be FORMAT");
+    fail_if(strcmp("<ID=HQ,Number=1,Type=String,Description=\"Haplotype Qualities\">", array_list_get(0, entry->values)), 
+            "The value of entry #3 must be <ID=HQ,Number=1,Type=String,Description=\"Haplotype Qualities\">");
+    
+    entry = list_remove_item(output_list)->data_p;
+    fail_if(strcmp("FILTER", entry->name), "The name of entry #4 must be FILTER");
+    fail_if(strcmp("<ID=somefilter,Description=\"FS > 200.0\">", array_list_get(0, entry->values)), 
+            "The value of entry #4 must be <ID=somefilter,Description=\"FS > 200.0\">");
+    
+    entry = list_remove_item(output_list)->data_p;
+    fail_if(strcmp("FILTER", entry->name), "The name of entry #5 must be FILTER");
+    fail_if(strcmp("<ID=bias1,Description=\"Non-biased read\">", array_list_get(0, entry->values)), 
+            "The value of entry #5 must be <ID=bias1,Description=\"Non-biased read\">");
+    
+    entry = list_remove_item(output_list)->data_p;
+    fail_if(strcmp("INFO", entry->name), "The name of entry #6 must be INFO");
+    fail_if(strcmp("<ID=PL,Number=.,Type=Integer,Description=\"Normalized, Phred-scaled likelihoods for genotypes\">", array_list_get(0, entry->values)), 
+            "The value of entry #6 must be <ID=PL,Number=.,Type=Integer,Description=\"Normalized, Phred-scaled likelihoods for genotypes\">");
+    
+    entry = list_remove_item(output_list)->data_p;
+    fail_if(entry->name, "Entry #7 must have no name");
+    fail_if(strcmp("Example for a test of VCF merging", array_list_get(0, entry->values)), 
+            "The value of entry #7 must be 'Example for a test of VCF merging'");
+    
+    entry = list_remove_item(output_list)->data_p;
+    fail_if(strcmp("FORMAT", entry->name), "The name of entry #8 must be FORMAT");
+    fail_if(strcmp("<ID=RD,Number=1,Type=Integer,Description=\"Read Depth\">", array_list_get(0, entry->values)), 
+            "The value of entry #8 must be <ID=RD,Number=1,Type=Integer,Description=\"Read Depth\">");
+    
+    entry = list_remove_item(output_list)->data_p;
+    fail_if(strcmp("FILTER", entry->name), "The name of entry #9 must be FILTER");
+    fail_if(strcmp("<ID=STD_FILTER,Description=\"QD < 2.0\", \"MQ < 40.0\", \"FS > 60.0\">", array_list_get(0, entry->values)), 
+            "The value of entry #9 must be <ID=STD_FILTER,Description=\"QD < 2.0\", \"MQ < 40.0\", \"FS > 60.0\">");
+    
+    entry = list_remove_item(output_list)->data_p;
+    fail_if(strcmp("CombineVariants", entry->name), "The name of entry #10 must be CombineVariants");
+    fail_if(strcmp("analysis_type=CombineVariants input_file=[] read_buffer_size=null phone_home=STANDARD read_filter=[]", array_list_get(0, entry->values)), 
+            "The value of entry #10 must be 'analysis_type=CombineVariants input_file=[] read_buffer_size=null phone_home=STANDARD read_filter=[]'");
+    
+    entry = list_remove_item(output_list)->data_p;
+    fail_if(strcmp("FILTER", entry->name), "The name of entry #11 must be FILTER");
+    fail_if(strcmp("<ID=q10,Description=\"QUAL > 10\">", array_list_get(0, entry->values)), 
+            "The value of entry #11 must be <ID=q10,Description=\"QUAL > 10\">");
+    
+    entry = list_remove_item(output_list)->data_p;
+    fail_if(strcmp("INFO", entry->name), "The name of entry #12 must be INFO");
+    fail_if(strcmp("<ID=MQ,Number=1,Type=Float,Description=\"RMS Mapping Quality\">", array_list_get(0, entry->values)), 
+            "The value of entry #12 must be <ID=MQ,Number=1,Type=Float,Description=\"RMS Mapping Quality\">");
+    
+    entry = list_remove_item(output_list)->data_p;
+    fail_if(strcmp("INFO", entry->name), "The name of entry #13 must be INFO");
+    fail_if(strcmp("<ID=DP,Number=1,Type=Integer,Description=\"Total Depth\">", array_list_get(0, entry->values)), 
+            "The value of entry #13 must be <ID=DP,Number=1,Type=Integer,Description=\"Total Depth\">");
+    
+    entry = list_remove_item(output_list)->data_p;
+    fail_if(strcmp("INFO", entry->name), "The name of entry #14 must be INFO");
+    fail_if(strcmp("<ID=AN,Number=1,Type=Integer,Description=\"Total number of alleles in called genotypes\">", array_list_get(0, entry->values)), 
+            "The value of entry #14 must be <ID=AN,Number=1,Type=Integer,Description=\"Total number of alleles in called genotypes\">");
+    
+    entry = list_remove_item(output_list)->data_p;
+    fail_if(strcmp("INFO", entry->name), "The name of entry #15 must be INFO");
+    fail_if(strcmp("<ID=H3,Number=0,Type=Flag,Description=\"HapMap3 Membership\">", array_list_get(0, entry->values)), 
+            "The value of entry #15 must be <ID=H3,Number=0,Type=Flag,Description=\"HapMap3 Membership\">");
+    
+    fail_if(output_list->length > 0, "The list must be empty");
+}
+END_TEST
+
 
 START_TEST (merge_position_in_one_file) {
     vcf_record_file_link **links = calloc (1, sizeof(vcf_record_file_link*));
@@ -845,18 +1090,21 @@ int main (int argc, char *argv) {
 }
 
 
-Suite *create_test_suite(void)
-{
+Suite *create_test_suite(void) {
+    TCase *tc_headers = tcase_create("Merge headers from several files");
+    tcase_add_checked_fixture(tc_headers, setup_merge_headers, teardown_merge_headers);
+    tcase_add_test(tc_headers, merge_headers_test);
+    
     TCase *tc_unique = tcase_create("Merge position in one file");
-    tcase_add_checked_fixture(tc_unique, setup_merge_process, teardown_merge_process);
+    tcase_add_checked_fixture(tc_unique, setup_merge_positions, teardown_merge_positions);
     tcase_add_test(tc_unique, merge_position_in_one_file);
     
     TCase *tc_auxiliary = tcase_create("Auxiliary functions");
-    tcase_add_checked_fixture(tc_auxiliary, setup_merge_process, teardown_merge_process);
+    tcase_add_checked_fixture(tc_auxiliary, setup_merge_positions, teardown_merge_positions);
     tcase_add_test(tc_auxiliary, get_format_indices_per_file_test);
     
     TCase *tc_repeated = tcase_create("Merge position in several files");
-    tcase_add_checked_fixture(tc_repeated, setup_merge_process, teardown_merge_process);
+    tcase_add_checked_fixture(tc_repeated, setup_merge_positions, teardown_merge_positions);
     tcase_add_test(tc_repeated, merge_id_test);
     tcase_add_test(tc_repeated, merge_alternate_test);
     tcase_add_test(tc_repeated, merge_quality_test);
@@ -866,13 +1114,14 @@ Suite *create_test_suite(void)
     tcase_add_test(tc_repeated, merge_info_test);
     
     TCase *tc_extra = tcase_create("Adding extra fields to samples");
-    tcase_add_checked_fixture(tc_extra, setup_merge_process, teardown_merge_process);
+    tcase_add_checked_fixture(tc_extra, setup_merge_positions, teardown_merge_positions);
     tcase_add_test(tc_extra, add_filter_test);
     tcase_add_test(tc_extra, add_info_test);
     tcase_add_test(tc_extra, add_info_filter_test);
     
     // Add test cases to a test suite
     Suite *fs = suite_create("Check for hpg-vcf/merge");
+    suite_add_tcase(fs, tc_headers);
     suite_add_tcase(fs, tc_unique);
     suite_add_tcase(fs, tc_auxiliary);
     suite_add_tcase(fs, tc_repeated);
