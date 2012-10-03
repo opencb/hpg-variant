@@ -29,40 +29,43 @@ MISC_OBJS = $(COMMONS_DIR)/file_utils.o $(COMMONS_DIR)/http_utils.o $(COMMONS_DI
 	$(BIOFORMATS_DIR)/features/region/region.o $(BIOFORMATS_DIR)/features/region/region_table.o $(BIOFORMATS_DIR)/features/region/region_table_utils.o
 
 # Project source files
-VCF_TOOLS_FILES = $(SRC_DIR)/global_options.c $(SRC_DIR)/hpg_vcf_tools_utils.c $(SRC_DIR)/filter/*.c $(SRC_DIR)/merge/merge.c $(SRC_DIR)/split/*.c $(SRC_DIR)/stats/*.c
+VCF_TOOLS_FILES = $(SRC_DIR)/global_options.c $(SRC_DIR)/hpg_vcf_tools_utils.c $(SRC_DIR)/filter/*.c $(SRC_DIR)/merge/*.c $(SRC_DIR)/split/*.c $(SRC_DIR)/stats/*.c
 
 # Project object files
 VCF_TOOLS_OBJS = *.o
 ALL_OBJS = $(VCF_TOOLS_OBJS) $(VCF_OBJS) $(GFF_OBJS) $(MISC_OBJS)
 
 # Targets
-all: compile-dependencies hpg-vcf
-
-hpg-vcf: compile-dependencies $(VCF_TOOLS_FILES)
-	$(CC) $(CFLAGS_DEBUG) -c $(SRC_DIR)/main.c $(VCF_TOOLS_FILES) $(INCLUDES) $(LIBS)
-	test -d bin || mkdir bin
-	cp hpg-vcf-tools.cfg bin
-	$(CC) $(CFLAGS_DEBUG) -o bin/$@ $(ALL_OBJS) $(INCLUDES) $(LIBS)
+all: compile-dependencies debug
 
 deploy: compile-dependencies-static $(VCF_TOOLS_FILES)
 	$(CC) $(CFLAGS) -c $(SRC_DIR)/main.c $(VCF_TOOLS_FILES) $(INCLUDES_STATIC) $(LIBS_STATIC)
 	test -d bin || mkdir bin
 	cp hpg-vcf-tools.cfg bin
+	cp vcf-info-fields.cfg bin
 	$(CC) $(CFLAGS) -o bin/hpg-vcf $(ALL_OBJS) $(INCLUDES_STATIC) $(LIBS_STATIC)
 
-test: hpg-vcf
+debug: compile-dependencies $(VCF_TOOLS_FILES)
+	$(CC) $(CFLAGS_DEBUG) -c $(SRC_DIR)/main.c $(VCF_TOOLS_FILES) $(INCLUDES) $(LIBS)
+	test -d bin || mkdir bin
+	cp hpg-vcf-tools.cfg bin
+	cp vcf-info-fields.cfg bin
+	$(CC) $(CFLAGS_DEBUG) -o bin/hpg-vcf $(ALL_OBJS) $(INCLUDES) $(LIBS)
+
+test: debug
 	$(CC) $(CFLAGS_DEBUG) -o test/merge.test test/test_merge.c $(VCF_TOOLS_FILES) $(VCF_OBJS) $(GFF_OBJS) $(MISC_OBJS) $(INCLUDES) $(LIBS) $(LIBS_TEST)
+	cp vcf-info-fields.cfg test
 
 compile-dependencies:
 	make family.o && \
-	cd $(COMMONS_DIR) && make compile &&  \
+	cd $(COMMONS_DIR) && make &&  \
 	cd $(CONTAINERS_DIR) && make compile &&  \
 	cd $(BIOFORMATS_DIR)/features/region && make &&  \
 	cd $(BIOFORMATS_DIR)/gff && make compile &&  \
 	cd $(BIOFORMATS_DIR)/vcf && make compile
 
 compile-dependencies-static:
-	cd $(COMMONS_DIR) && make compile &&  \
+	cd $(COMMONS_DIR) && make &&  \
 	cd $(CONTAINERS_DIR) && make &&  \
 	cd $(BIOFORMATS_DIR)/features/region && make &&  \
 	cd $(BIOFORMATS_DIR)/gff && make compile-static &&  \

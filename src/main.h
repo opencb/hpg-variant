@@ -15,7 +15,7 @@
 #include "error.h"
 #include "hpg_vcf_tools_utils.h"
 #include "filter/filter.h"
-// #include "split/split.h"
+#include "split/split.h"
 #include "stats/stats.h"
 
 

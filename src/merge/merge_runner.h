@@ -10,8 +10,8 @@
 #include <omp.h>
 
 #include <commons/file_utils.h>
-#include <containers/list.h>
 #include <commons/log.h>
+#include <containers/list.h>
 #include <bioformats/features/region/region.h>
 #include <bioformats/vcf/vcf_file_structure.h>
 #include <bioformats/vcf/vcf_file.h>

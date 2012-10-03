@@ -54,6 +54,9 @@ merge_options_t *new_merge_cli_options() {
     merge_options_t *options = (merge_options_t*) malloc (sizeof(merge_options_t));
     options->num_options = NUM_MERGE_OPTIONS;
     options->input_files = arg_str1(NULL, "vcf-list", NULL, "List of comma-separated input VCF files");
+    options->missing_mode = arg_str0(NULL, "missing-mode", NULL, "How to fill missing genotypes (missing = ./., reference = 0/0)"); 
+    options->copy_filter = arg_lit0(NULL, "copy-filter", "Whether to copy the FILTER column from the original files into the samples");
+    options->copy_info = arg_lit0(NULL, "copy-info", "Whether to copy the INFO column from the original files into the samples");
     return options;
 }
 

@@ -1,11 +1,17 @@
 #include "merge_runner.h"
 
+#define TREE_LIMIT  2000
 
 int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *options_data) {
+    if (options_data->num_files == 1) {
+        LOG_INFO("Just one VCF file specified, no need to merge");
+        return 0;
+    }
+    
     list_t *read_list[options_data->num_files];
     memset(read_list, 0, options_data->num_files * sizeof(list_t*));
     list_t *output_list = (list_t*) malloc (sizeof(list_t));
-    list_init("output", shared_options_data->num_threads, shared_options_data->max_batches * shared_options_data->batch_size, output_list);
+    list_init("output", shared_options_data->num_threads, shared_options_data->max_batches * shared_options_data->batch_lines, output_list);
     
     int ret_code = 0;
     double start, stop, total;
@@ -14,7 +20,7 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
     
     // Initialize variables related to the different files
     for (int i = 0; i < options_data->num_files; i++) {
-        files[i] = vcf_open(options_data->input_files[i]);
+        files[i] = vcf_open(options_data->input_files[i], shared_options_data->max_batches);
         if (!files[i]) {
             LOG_FATAL_F("VCF file %s does not exist!\n", options_data->input_files[i]);
         }
@@ -36,7 +42,7 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
             // Reading
             start = omp_get_wtime();
 
-            ret_code = vcf_multiread_batches(read_list, shared_options_data->batch_size, files, options_data->num_files);
+            ret_code = vcf_multiread_batches(read_list, shared_options_data->batch_lines, files, options_data->num_files);
 
             stop = omp_get_wtime();
             total = stop - start;
@@ -69,9 +75,7 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
             memset(items, 0, options_data->num_files * sizeof(list_item_t*));
             char *texts[options_data->num_files];
             memset(texts, 0, options_data->num_files * sizeof(char*));
-            list_t *vcf_batches = (list_t*) malloc(sizeof(list_t));
-            list_init("batches", 1, shared_options_data->max_batches, vcf_batches);
-            cp_hashtable *positions_read = cp_hashtable_create(shared_options_data->batch_size * options_data->num_files * 2, 
+            cp_hashtable *positions_read = cp_hashtable_create(shared_options_data->batch_lines * options_data->num_files * 2, 
                                                                cp_hash_long,
                                                                cp_hash_compare_long
                                                               );
@@ -93,7 +97,7 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
                  * last minimum registered.
                  */
                 
-#pragma omp parallel num_threads(shared_options_data->num_threads) firstprivate(items, texts, vcf_batches)
+#pragma omp parallel num_threads(shared_options_data->num_threads) firstprivate(items, texts)
                 {
 #pragma omp critical
                 {
@@ -120,11 +124,11 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
                         continue;
                     }
                     
-//                     printf("[%d] text batch from file %d\n", omp_get_thread_num(), i);
-//                     printf("[%d] contents = '%s'\n", texts[i]);
-                    
                     assert(items[i]->data_p != NULL);
                     texts[i] = items[i]->data_p;
+                    
+//                     printf("[%d] text batch from file %d\n", omp_get_thread_num(), i);
+//                     printf("[%d] contents = '%s'\n", texts[i]);
                 }
                 }
                 
@@ -138,18 +142,16 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
                     assert(text_end != NULL);
                     
                     // Get VCF batches from text batches
-                    vcf_reader_status *status = new_vcf_reader_status(shared_options_data->batch_size, 1, 1);
-                    assert(text_begin != NULL && text_end != NULL && vcf_batches != NULL && files[i] != NULL && status != NULL);
-                    execute_vcf_ragel_machine(text_begin, text_end, vcf_batches, shared_options_data->batch_size, files[i], status);
+                    vcf_reader_status *status = vcf_reader_status_new(shared_options_data->batch_lines, 1);
+                    ret_code = run_vcf_parser(text_begin, text_end, shared_options_data->batch_lines, files[i], status);
                     
-                    list_item_t *batch_item = list_remove_item(vcf_batches);
-                    vcf_batch_t *batch = batch_item->data_p;
+                    vcf_batch_t *batch = fetch_vcf_batch(files[i]);
                     
 //                     printf("[%d] vcf batch from file %d\n", omp_get_thread_num(), i);
                     
                     // Insert records into hashtable
-                    for (int j = 0; j < batch->size; j++) {
-                        vcf_record_t *record = batch->items[j];
+                    for (int j = 0; j < batch->records->size; j++) {
+                        vcf_record_t *record = array_list_get(j, batch->records);
                         cp_list *records_in_position = cp_hashtable_get(positions_read, &(record->position));
                         if (records_in_position != NULL) {
                             cp_list_append(records_in_position, record);
@@ -163,8 +165,9 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
                     }
                     
                     // Update minimum position being a maximum of these batches
-                    char *current_chromosome = ((vcf_record_t*) batch->items[batch->size-1])->chromosome;
-                    long unsigned int current_position = ((vcf_record_t*) batch->items[batch->size-1])->position;
+                    vcf_record_t *current_record = (vcf_record_t*) array_list_get(batch->records->size - 1, batch->records);
+                    char *current_chromosome = current_record->chromosome;
+                    long unsigned int current_position = current_record->position;
                     
 #pragma omp critical
                     {
@@ -180,27 +183,28 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
                         if (chrom_comparison <= 0 && position_comparison < 0) {
                             max_chromosome_merged = strdup(current_chromosome);
                             max_position_merged = current_position;
-                        } else if (chrom_comparison > 0) {
+                        }  /*else if (chrom_comparison > 0) {
                             chromosome_change = 1;
                             LOG_DEBUG_F("Chromosome change (%s -> %s)\n", max_chromosome_merged, current_chromosome);
-                        }
-                    }
+                        }*/
                     }
                     
                     // Free batch and its contents
-                    vcf_batch_free_shallow(batch);
-                    list_item_free(batch_item);
-                    free(texts[i]);
+//                     vcf_batch_free_shallow(batch);
+//                     list_item_free(batch_item);
+//                     free(texts[i]);
+                    free(batch);
                     list_item_free(items[i]);
                     free(status);
-                }
+                    }
                 }
                 
                 LOG_DEBUG_F("Last position to potentially merge = %s:%ld\n", max_chromosome_merged, max_position_merged);
                 
                 // If the data structure reaches certain size or the end of a chromosome, 
                 // merge positions prior to the last minimum registered TODO
-                if (num_eof_found < options_data->num_files && (cp_hashtable_count(positions_read) > 2000 || chromosome_change)) {
+//                 if (num_eof_found < options_data->num_files && (cp_hashtable_count(positions_read) > TREE_LIMIT || chromosome_change)) {
+                if (num_eof_found < options_data->num_files && cp_hashtable_count(positions_read) > TREE_LIMIT) {
                     long **keys = (long**) cp_hashtable_get_keys(positions_read);
                     int num_keys = cp_hashtable_count(positions_read);
                     
@@ -279,6 +283,7 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
                 max_chromosome_merged = NULL;
                 max_position_merged = LONG_MAX;
                 chromosome_change = 0;
+                }
             }
             
 //             printf("Remaining entries = %ld\n", cp_hashtable_count(positions_read));
@@ -289,8 +294,7 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
 //             for (int i = 0; i < num_keys; i++) {
 //                 printf("position #%d = %ld\n", i, *(keys[i]));
 //             }
-                    
-            free(vcf_batches);
+
             free(positions_read);
             
             stop = omp_get_wtime();

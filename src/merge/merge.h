@@ -21,7 +21,7 @@
 #include "error.h"
 #include "global_options.h"
 
-#define NUM_MERGE_OPTIONS   2
+#define NUM_MERGE_OPTIONS   4
 
 
 #define MERGED_RECORD       1
