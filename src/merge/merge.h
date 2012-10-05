@@ -20,6 +20,7 @@
 
 #include "error.h"
 #include "global_options.h"
+#include "merged_node.h"
 
 #define NUM_MERGE_OPTIONS   4
 
@@ -52,11 +53,6 @@ typedef struct merge_options_data {
     enum missing_mode missing_mode;   /**< How to fill a missing sample field whenever its data is missing */
     
 } merge_options_data_t;
-
-typedef struct {
-    vcf_record_t *record;
-    vcf_file_t *file;
-} vcf_record_file_link;
 
 
 static merge_options_t *new_merge_cli_options(void);
