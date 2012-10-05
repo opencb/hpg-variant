@@ -1,19 +1,19 @@
 #include "merge.h"
 
 int merge_vcf_headers(vcf_file_t** files, int num_files, merge_options_data_t* options, list_t* output_list) {
-    cp_hashtable *filter_entries = cp_hashtable_create_by_option(COLLECTION_MODE_DEEP, 16, 
+    cp_hashtable *filter_entries = cp_hashtable_create_by_option(COLLECTION_MODE_PLAIN, 16, 
                                                                  cp_hash_istring, (cp_compare_fn) strcmp, 
                                                                  NULL, free,
                                                                  NULL, free);
-    cp_hashtable *format_entries = cp_hashtable_create_by_option(COLLECTION_MODE_DEEP, 16, 
+    cp_hashtable *format_entries = cp_hashtable_create_by_option(COLLECTION_MODE_PLAIN, 16, 
                                                                  cp_hash_istring, (cp_compare_fn) strcmp, 
                                                                  NULL, free,
                                                                  NULL, free);
-    cp_hashtable *info_entries = cp_hashtable_create_by_option(COLLECTION_MODE_DEEP, 16, 
+    cp_hashtable *info_entries = cp_hashtable_create_by_option(COLLECTION_MODE_PLAIN, 16, 
                                                                  cp_hash_istring, (cp_compare_fn) strcmp, 
                                                                  NULL, free,
                                                                  NULL, free);
-    cp_hashtable *other_entries = cp_hashtable_create_by_option(COLLECTION_MODE_DEEP, 16, 
+    cp_hashtable *other_entries = cp_hashtable_create_by_option(COLLECTION_MODE_PLAIN, 16, 
                                                                  cp_hash_istring, (cp_compare_fn) strcmp, 
                                                                  NULL, free,
                                                                  NULL, free);
@@ -92,6 +92,11 @@ int merge_vcf_headers(vcf_file_t** files, int num_files, merge_options_data_t* o
     
     config_destroy(config);
     free(config);
+    
+    cp_hashtable_destroy(filter_entries);
+    cp_hashtable_destroy(format_entries);
+    cp_hashtable_destroy(info_entries);
+    cp_hashtable_destroy(other_entries);
 }
 
 
@@ -138,9 +143,11 @@ vcf_record_t *merge_position(vcf_record_file_link **position_in_files, int posit
     }
     
     // Once checked, copy constant fields
-    set_vcf_record_chromosome(position_in_files[0]->record->chromosome, position_in_files[0]->record->chromosome_len, result);
+    set_vcf_record_chromosome(strndup(position_in_files[0]->record->chromosome, position_in_files[0]->record->chromosome_len), 
+                              position_in_files[0]->record->chromosome_len, result);
     set_vcf_record_position(position_in_files[0]->record->position, result);
-    set_vcf_record_reference(position_in_files[0]->record->reference, position_in_files[0]->record->reference_len, result);
+    set_vcf_record_reference(strndup(position_in_files[0]->record->reference, position_in_files[0]->record->reference_len),
+                             position_in_files[0]->record->reference_len, result);
     
     // Get first non-dot ID
     // TODO what can we do when having several ID?
@@ -151,7 +158,11 @@ vcf_record_t *merge_position(vcf_record_file_link **position_in_files, int posit
     set_vcf_record_quality(merge_quality_field(position_in_files, position_occurrences), result);
     
     // Concatenate alternates and set their order (used later to assign samples' alleles number)
-    cp_hashtable *alleles_table = cp_hashtable_create(8, cp_hash_istring, (cp_compare_fn) strcasecmp);
+    cp_hashtable *alleles_table = cp_hashtable_create_by_option(COLLECTION_MODE_DEEP, 8, 
+                                                                cp_hash_istring, 
+                                                                (cp_compare_fn) strcasecmp,
+                                                                NULL, free,
+                                                                NULL, free);
     char *alternate = merge_alternate_field(position_in_files, position_occurrences, alleles_table);
     set_vcf_record_alternate(alternate, strlen(alternate), result);
     
@@ -175,7 +186,7 @@ vcf_record_t *merge_position(vcf_record_file_link **position_in_files, int posit
     int info_pos = get_field_position_in_format("IN", strndup(result->format, result->format_len));
     int gt_pos = get_field_position_in_format("GT", strndup(result->format, result->format_len));
     char *empty_sample = get_empty_sample(format_fields->size, gt_pos, options);
-    printf("empty sample = %s\n", empty_sample);
+//     printf("empty sample = %s\n", empty_sample);
     
     // Generate samples using the reordered FORMAT fields and the new alleles' numerical values
     // Include INFO and FILTER fields from the original file when required by the user
@@ -309,7 +320,6 @@ char* merge_filter_field(vcf_record_file_link** position_in_files, int position_
     int filter_text_len = 0;
     array_list_t *failed_filters = array_list_new(8, 1.2, COLLECTION_MODE_ASYNCHRONIZED);
     failed_filters->compare_fn = strcasecmp;
-    int *field_index = (int*) calloc (1, sizeof(int)); *field_index = 0;
     
     // Flags
     int pass_found = 0;
@@ -348,6 +358,8 @@ char* merge_filter_field(vcf_record_file_link** position_in_files, int position_
         }
     }
     
+    array_list_free(failed_filters, free);
+    
     return result;
 }
 
@@ -362,7 +374,7 @@ char *merge_info_field(vcf_record_file_link **position_in_files, int position_oc
     list_t *stats_list = malloc (sizeof(list_t));
     list_init("stats", 1, INT_MAX, stats_list);
     file_stats_t *file_stats = file_stats_new();
-    variant_stats_t *variant_stats;
+    variant_stats_t *variant_stats = NULL;
     int dp = 0, mq0 = 0;
     int dp_checked = 0, mq_checked = 0, stats_checked = 0;
     double mq = 0;
@@ -538,9 +550,13 @@ char *merge_info_field(vcf_record_file_link **position_in_files, int position_oc
         }
     }
     
-    result[len-1] = '\0';
+//     result[len-1] = '\0';
+    result[len] = '\0';
     
-    free(file_stats);
+    if(variant_stats) {
+        variant_stats_free(variant_stats);
+    }
+    file_stats_free(file_stats);
     
     return result;
 }
@@ -562,6 +578,8 @@ char* merge_format_field(vcf_record_file_link** position_in_files, int position_
                 format_text_len += strlen(fields[j]) + 1; // concat field + ":"
             }
         }
+        
+        free(fields);
     }
     
     if (options->copy_filter) {
@@ -683,6 +701,12 @@ array_list_t* merge_samples(vcf_record_file_link** position_in_files, int positi
                 
                 sample[len] = '\0';
                 array_list_insert(strndup(sample, len), result);
+                
+                for (int j = 0; j < num_sample_fields; j++) {
+                    free(split_sample[j]);
+                }
+                free(split_sample);
+                
             }
             
         } else {
@@ -730,6 +754,11 @@ int *get_format_indices_per_file(vcf_record_file_link **position_in_files, int p
                         }
                     }
                 }
+                
+                for (int m = 0; m < num_fields; m++) {
+                    free(fields[m]);
+                }
+                free(fields);
                 
                 break;
             }

@@ -17,6 +17,30 @@ void merged_node_free(merged_node* node) {
     array_list_free(node->links, NULL);
 }
 
+vcf_record_file_link *vcf_record_file_link_new(vcf_record_t *record, vcf_file_t *file) {
+    vcf_record_file_link *link = malloc(sizeof(vcf_record_file_link));
+    link->record = record;
+    link->file = file;
+    return link;
+}
+
+void vcf_record_file_link_free(vcf_record_file_link *link) {
+    assert(link);
+    vcf_record_free_deep(link->record);
+    free(link);
+}
+
+// void vcf_record_file_link_free(vcf_record_file_link *link, int free_record, int free_file) {
+//     assert(link);
+//     if (free_record) {
+//         vcf_record_free_deep(link->record);
+//     }
+//     if (free_file) {
+//         vcf_close(link->file);
+//     }
+//     free(link);
+// }
+
 int merged_node_add_link(vcf_record_t* record, vcf_file_t* file, merged_node* node) {
     assert(record);
     assert(file);
