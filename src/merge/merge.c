@@ -836,3 +836,16 @@ char *get_empty_sample(int num_format_fields, int gt_pos, merge_options_data_t *
     }
     return sample;
 }
+
+vcf_record_file_link *vcf_record_file_link_new(vcf_record_t *record, vcf_file_t *file) {
+    vcf_record_file_link *link = malloc(sizeof(vcf_record_file_link));
+    link->record = record;
+    link->file = file;
+    return link;
+}
+
+void vcf_record_file_link_free(vcf_record_file_link *link) {
+    assert(link);
+    vcf_record_free_deep(link->record);
+    free(link);
+}

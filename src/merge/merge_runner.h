@@ -22,7 +22,6 @@
 
 #include "hpg_vcf_tools_utils.h"
 #include "merge.h"
-#include "merged_node.h"
 
 #define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
 
