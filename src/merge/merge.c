@@ -127,16 +127,27 @@ vcf_record_t *merge_position(vcf_record_file_link **position_in_files, int posit
     for (int i = 0; i < position_occurrences-1; i++) {
         assert(position_in_files[i]);
         assert(position_in_files[i+1]);
+        assert(position_in_files[i]->record->chromosome);
+        assert(position_in_files[i+1]->record->chromosome);
+        assert(position_in_files[i]->record->chromosome_len);
+        
         if (strncmp(position_in_files[i]->record->chromosome, position_in_files[i+1]->record->chromosome, position_in_files[i]->record->chromosome_len)) {
-            LOG_ERROR("Positions can't be merged: Discordant chromosome\n");
+            LOG_ERROR_F("Positions %.*s:%ld and %.*s:%ld can't be merged: Discordant chromosome\n", 
+                        position_in_files[i]->record->chromosome_len, position_in_files[i]->record->chromosome, position_in_files[i]->record->position,
+                        position_in_files[i+1]->record->chromosome_len, position_in_files[i+1]->record->chromosome, position_in_files[i+1]->record->position);
             *err_code = DISCORDANT_CHROMOSOME;
             return NULL;
         } else if (position_in_files[i]->record->position != position_in_files[i+1]->record->position) {
-            LOG_ERROR("Positions can't be merged: Discordant position\n");
+            LOG_ERROR_F("Positions %.*s:%ld and %.*s:%ld can't be merged: Discordant position\n", 
+                        position_in_files[i]->record->chromosome_len, position_in_files[i]->record->chromosome, position_in_files[i]->record->position,
+                        position_in_files[i+1]->record->chromosome_len, position_in_files[i+1]->record->chromosome, position_in_files[i+1]->record->position);
             *err_code = DISCORDANT_POSITION;
             return NULL;
         } else if (strncmp(position_in_files[i]->record->reference, position_in_files[i+1]->record->reference, position_in_files[i]->record->reference_len)) {
-            LOG_ERROR("Positions can't be merged: Discordant reference allele\n");
+            LOG_ERROR_F("Position %.*s:%ld can't be merged: Discordant reference alleles (%.*s, %.*s)\n", 
+                        position_in_files[i]->record->chromosome_len, position_in_files[i]->record->chromosome, position_in_files[i]->record->position,
+                        position_in_files[i]->record->reference_len, position_in_files[i]->record->reference, 
+                        position_in_files[i+1]->record->reference_len, position_in_files[i+1]->record->reference);
             *err_code = DISCORDANT_REFERENCE;
             return NULL;
         }
@@ -182,9 +193,19 @@ vcf_record_t *merge_position(vcf_record_file_link **position_in_files, int posit
     int *format_indices = get_format_indices_per_file(position_in_files, position_occurrences, files, num_files, format_fields);
     
     // Create the text for empty samples
-    int filter_pos = get_field_position_in_format("SFT", strndup(result->format, result->format_len));
-    int info_pos = get_field_position_in_format("IN", strndup(result->format, result->format_len));
-    int gt_pos = get_field_position_in_format("GT", strndup(result->format, result->format_len));
+    int filter_pos, info_pos, gt_pos;
+    char *dupaux = strndup(result->format, result->format_len);
+    filter_pos = get_field_position_in_format("SFT", dupaux);
+    free(dupaux);
+    
+    dupaux = strndup(result->format, result->format_len);
+    info_pos = get_field_position_in_format("IN", dupaux);
+    free(dupaux);
+    
+    dupaux = strndup(result->format, result->format_len);
+    gt_pos = get_field_position_in_format("GT", dupaux);
+    free(dupaux);
+    
     char *empty_sample = get_empty_sample(format_fields->size, gt_pos, options);
 //     printf("empty sample = %s\n", empty_sample);
     
@@ -199,6 +220,8 @@ vcf_record_t *merge_position(vcf_record_file_link **position_in_files, int posit
                                   result, alleles_table, empty_sample);
     set_vcf_record_info(info, strlen(info), result);
     
+    free(empty_sample);
+    free(format_indices);
     array_list_free(format_fields, free);
     cp_hashtable_destroy(alleles_table);
     
@@ -557,6 +580,7 @@ char *merge_info_field(vcf_record_file_link **position_in_files, int position_oc
         variant_stats_free(variant_stats);
     }
     file_stats_free(file_stats);
+    free(stats_list);
     
     return result;
 }
@@ -571,7 +595,8 @@ char* merge_format_field(vcf_record_file_link** position_in_files, int position_
     for (int i = 0; i < position_occurrences; i++) {
         input = position_in_files[i]->record;
         int num_fields;
-        char **fields = split(strndup(input->format, input->format_len), ":", &num_fields);
+        char *dupformat = strndup(input->format, input->format_len);
+        char **fields = split(dupformat, ":", &num_fields);
         for (int j = 0; j < num_fields; j++) {
             if (!array_list_contains(fields[j], format_fields)) {
                 array_list_insert(fields[j], format_fields);
@@ -579,6 +604,7 @@ char* merge_format_field(vcf_record_file_link** position_in_files, int position_
             }
         }
         
+        free(dupformat);
         free(fields);
     }
     
@@ -626,7 +652,8 @@ array_list_t* merge_samples(vcf_record_file_link** position_in_files, int positi
                 memset(sample, 0, 256 * sizeof(char));
                 len = 0;
                 
-                char **split_sample = split(strdup(array_list_get(j, record->samples)), ":", &num_sample_fields);
+                char *dupsample = strdup(array_list_get(j, record->samples));
+                char **split_sample = split(dupsample, ":", &num_sample_fields);
                 for (int k = 0; k < format_fields->size; k++) {
                     int idx = format_indices[i*format_fields->size + k];
 //                     printf("k = %d\tidx = %d\n", k, format_indices[i*format_fields->size + k]);
@@ -647,8 +674,10 @@ array_list_t* merge_samples(vcf_record_file_link** position_in_files, int positi
                     } else {    // Not-missing
                         if (k == gt_pos) {
                             // Manage genotypes (in multiallelic variants, allele indices must be recalculated)
+                            char *dupsplit = strdup(split_sample[idx]);
                             int allele1, allele2;
-                            int allele_ret = get_alleles(strdup(split_sample[idx]), 0, &allele1, &allele2);
+                            int allele_ret = get_alleles(dupsplit, 0, &allele1, &allele2);
+                            free(dupsplit);
                             if (allele_ret == 3) {
                                 strncat(sample, "./.", 3);
                                 len += 3;
@@ -705,6 +734,7 @@ array_list_t* merge_samples(vcf_record_file_link** position_in_files, int positi
                 for (int j = 0; j < num_sample_fields; j++) {
                     free(split_sample[j]);
                 }
+                free(dupsample);
                 free(split_sample);
                 
             }
@@ -742,7 +772,8 @@ int *get_format_indices_per_file(vcf_record_file_link **position_in_files, int p
                 in_file = 1;
                 record = position_in_files[j]->record;
                 int num_fields;
-                char **fields = split(strndup(record->format, record->format_len), ":", &num_fields);
+                char *dupformat = strndup(record->format, record->format_len);
+                char **fields = split(dupformat, ":", &num_fields);
                 
                 for (int k = 0; k < format_fields->size; k++) {
                     indices[i*format_fields->size + k] = -1;
@@ -759,6 +790,7 @@ int *get_format_indices_per_file(vcf_record_file_link **position_in_files, int p
                     free(fields[m]);
                 }
                 free(fields);
+                free(dupformat);
                 
                 break;
             }

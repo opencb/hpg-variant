@@ -222,7 +222,7 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
                     for (k = kh_begin(positions_read); k != kh_end(positions_read); ++k) {
                         if (kh_exist(positions_read, k)) {
                             array_list_t *records_in_position = kh_val(positions_read, k);
-                            assert(records_in_position != NULL);
+                            assert(records_in_position);
 //                                     printf("records in position %ld = %zu (before)\n", keys[k], records_in_position->size);
                             vcf_record_file_link *link = NULL;
                             vcf_record_t *record = NULL;
@@ -233,6 +233,7 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
                             // Free records in a node, and whose positions are prior to the last chromosome:position to merge
                             for (int i = records_in_position->size - 1; i >= 0; i--) {
                                 assert(records_in_position);
+//                                 assert(records_in_position->size);
                                 link = array_list_get(i, records_in_position);
                                 record = link->record;
 //                                     printf("record ? %d\n", record != NULL);
@@ -243,55 +244,51 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
                                     * - In a previous chromosome
                                     * - In the same chromosome, in a previous position
                                     */
-//                                 char *aux_chrom = strndup(record->chromosome, record->chromosome_len);
                                 // TODO if there are multiple chromosomes previous to the limit, this will merge all of them together!!!
                                 if (compare_chromosomes(record->chromosome, max_chromosome_merged, 
                                                         chromosome_order, num_chromosomes) < 0 ||
                                     (compare_chromosomes(record->chromosome, max_chromosome_merged, 
                                                         chromosome_order, num_chromosomes) == 0 &&
                                     compare_positions(&(record->position), &max_position_merged) <= 0)) {
+                                    // TODO added to check if leaks are reduced
+                                    if (!links) {
+//                                         assert(records_in_position->size);
+//                                         assert(sizeof(vcf_record_file_link*));
+                                        assert(records_in_position->size * sizeof(vcf_record_file_link*));
+                                        links = malloc (records_in_position->size * sizeof(vcf_record_file_link*));
+                                        // TODO maybe? 
+//                                         links = malloc ((i+1) * sizeof(vcf_record_file_link*));
+                                        // That would reduce the number of positions allocated to the minimum neccessary
+                                    }
 //                                     printf("comparing %s:%ld against %s:%ld\n", record->chromosome, record->position, max_chromosome_merged, max_position_merged);
                                     assert(array_list_remove_at(i, records_in_position));
 //                                     vcf_record_free_deep(record);
-                                    // TODO added to check if leaks are reduced
-                                    if (!links) {
-                                        links = malloc (records_in_position->size * sizeof(vcf_record_file_link*));
-                                        // TODO maybe? links = malloc ((i+1) * sizeof(vcf_record_file_link*));
-                                        // That would reduce the number of positions allocated to the minimum neccessary
-                                    }
                                     links[num_links] = link;
                                     num_links++;
                                 }
-//                                 free(aux_chrom);
                             }
                             
                             // TODO launch merge
-//                             if (num_links > 0) {
-//                                 int err_code = 0;
-//                                 vcf_record_t *merged = merge_position(links, num_links, files, options_data->num_files, options_data, &err_code);
-//                                 
-//                                 if (!err_code) {
-//                                     list_item_t *item = list_item_new(k, MERGED_RECORD, merged);
-//                                     list_insert_item(item, output_list);
-//                                 }
+                            if (num_links > 0) {
+//                             if (links) {
+                                int err_code = 0;
+//                                 printf("links[0] = %s:%ld in file %s\n", links[0]->record->chromosome, links[0]->record->position, links[0]->file->filename);
+                                vcf_record_t *merged = merge_position(links, num_links, files, options_data->num_files, options_data, &err_code);
                                 
-//                                 for (int i = 0; i < num_links; i++) {
-//                                     vcf_record_file_link_free(links[i]);
-//                                 }
-//                             }
-                            
-//                             if (num_links > 0) {
-                            if (links) {
+                                if (!err_code) {
+                                    list_item_t *item = list_item_new(k, MERGED_RECORD, merged);
+                                    list_insert_item(item, output_list);
+                                }
+                                
+//                                 printf("finished %s:%ld\n", record->chromosome, record->position);
+                                
                                 for (int i = 0; i < num_links; i++) {
                                     vcf_record_file_link_free(links[i]);
                                 }
                                 free(links);
+                                
                             }
                             
-//                                 if (records_in_position->size == 0) {
-//                                     printf("records in position %ld = %zu (after)\n", keys[k], records_in_position->size);
-//                                 }
-
                             // Free empty nodes (lists of records in the same position)
                             if (array_list_size(records_in_position) == 0) {
 //                                     printf("position %ld to be removed!\n", keys[k]);
@@ -311,20 +308,15 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
                             array_list_t *records_in_position = kh_val(positions_read, k);
                             assert(records_in_position != NULL);
                             // TODO if there are multiple chromosomes previous to the limit, this will merge all of them together!!!
-//                             int err_code = 0;
-//                             vcf_record_t *merged = merge_position(records_in_position->items, records_in_position->size, 
-//                                                                   files, options_data->num_files, options_data, &err_code);
-//                             if (!err_code) {
-//                                 list_item_t *item = list_item_new(k, MERGED_RECORD, merged);
-//                                 list_insert_item(item, output_list);
-//                             }
+                            int err_code = 0;
+                            vcf_record_t *merged = merge_position(records_in_position->items, records_in_position->size, 
+                                                                  files, options_data->num_files, options_data, &err_code);
+                            if (!err_code) {
+                                list_item_t *item = list_item_new(k, MERGED_RECORD, merged);
+                                list_insert_item(item, output_list);
+                            }
                             
-//                             for (int i = 0; i < records_in_position->size; i++) {
-//                                 vcf_record_file_link_free(array_list_get(i, records_in_position), 1, 0);
-//                             }
                             array_list_free(records_in_position, vcf_record_file_link_free);
-                            
-//                             array_list_free(records_in_position, vcf_record_free_deep);
                             kh_del(pos, positions_read, k);
                         }
                     }
@@ -347,11 +339,11 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
 
             LOG_INFO_F("[%d] Time elapsed = %f s\n", omp_get_thread_num(), total);
             LOG_INFO_F("[%d] Time elapsed = %e ms\n", omp_get_thread_num(), total*1000);
-// 
-//             // Decrease list writers count
-//             for (i = 0; i < shared_options_data->num_threads; i++) {
-//                 list_decr_writers(output_list);
-//             }
+
+            // Decrease list writers count
+            for (int i = 0; i < shared_options_data->num_threads; i++) {
+                list_decr_writers(output_list);
+            }
         }
         
 #pragma omp section
@@ -370,33 +362,32 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
 //             char input_filename[256];
 //             get_filename_from_path(shared_options_data->vcf_filename, input_filename);
             
-//             vcf_record_t *record;
-//             while ((item = list_remove_item(output_list)) != NULL) {
-//                 record = item->data_p;
+            vcf_record_t *record;
+            while ((item = list_remove_item(output_list)) != NULL) {
+                record = item->data_p;
 //                 printf("record to free %s:%ld\n", record->chromosome, record->position);
-// //                 merge = item->data_p;
-// //                 
-// //                 memset(merge_filename, 0, 1024 * sizeof(char));
-// //                 sprintf(merge_filename, "%s/%s_%s", shared_options_data->output_directory, merge->merge_name, input_filename);
-// // //                 sprintf(merge_filename, "%s/%s.vcf", shared_options_data->output_directory, merge->merge_name, shared_options_data->vcf_filename);
-// //                 
-// // //                 printf("Merge filename = '%s'\n", merge_filename);
-// //                 
-// //                 merge_fd = cp_hashtable_get(output_files, merge->merge_name);
-// //                 if (!merge_fd) {
-// //                     // TODO If its the first line to write into the file, create file and include the header
-// //                     merge_fd = fopen(merge_filename, "w");
-// //                     cp_hashtable_put(output_files, merge->merge_name, merge_fd);
-// //                     
-// //                     vcf_write_to_file(file, merge_fd);
-// //                 }
-// //                 
-// //                 // TODO write line into the file
-// //                 write_record(merge->record, merge_fd);
-// //                 vcf_record_free(merge->record);
-//                 vcf_record_free_deep(record);
-//                 list_item_free(item);
-//             }
+//                 merge = item->data_p;
+//                 
+//                 memset(merge_filename, 0, 1024 * sizeof(char));
+//                 sprintf(merge_filename, "%s/%s_%s", shared_options_data->output_directory, merge->merge_name, input_filename);
+// //                 sprintf(merge_filename, "%s/%s.vcf", shared_options_data->output_directory, merge->merge_name, shared_options_data->vcf_filename);
+//                 
+// //                 printf("Merge filename = '%s'\n", merge_filename);
+//                 
+//                 merge_fd = cp_hashtable_get(output_files, merge->merge_name);
+//                 if (!merge_fd) {
+//                     // TODO If its the first line to write into the file, create file and include the header
+//                     merge_fd = fopen(merge_filename, "w");
+//                     cp_hashtable_put(output_files, merge->merge_name, merge_fd);
+//                     
+//                     vcf_write_to_file(file, merge_fd);
+//                 }
+//                 
+//                 // TODO write line into the file
+//                 write_record(merge->record, merge_fd);
+                vcf_record_free_deep(record);
+                list_item_free(item);
+            }
             
             stop = omp_get_wtime();
 
