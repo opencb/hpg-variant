@@ -100,6 +100,15 @@ int merge_vcf_headers(vcf_file_t** files, int num_files, merge_options_data_t* o
 }
 
 
+array_list_t *merge_vcf_sample_names(vcf_file_t **files, int num_files) {
+    array_list_t *samples = array_list_new(get_num_vcf_samples(files[0]) * 2, 2, COLLECTION_MODE_ASYNCHRONIZED);
+    for (int i = 0; i < num_files; i++) {
+        array_list_insert_all(files[i]->samples_names->items, files[i]->samples_names->size, samples);
+    }
+    return samples;
+}
+
+
 int merge_vcf_records(array_list_t **records_by_position, int num_positions, vcf_file_t **files, int num_files, merge_options_data_t *options, list_t *output_list) {
     int info;
     vcf_record_t *merged;
@@ -805,14 +814,6 @@ int *get_format_indices_per_file(vcf_record_file_link **position_in_files, int p
     }
     
     return indices;
-}
-
-array_list_t *get_global_samples(vcf_file_t **files, int num_files) {
-    array_list_t *samples = array_list_new(get_num_vcf_samples(files[0]) * 2, 2, COLLECTION_MODE_ASYNCHRONIZED);
-    for (int i = 0; i < num_files; i++) {
-        array_list_insert_all(files[i]->samples_names->items, files[i]->samples_names->size, samples);
-    }
-    return samples;
 }
 
 char *get_empty_sample(int num_format_fields, int gt_pos, merge_options_data_t *options) {
