@@ -147,16 +147,16 @@ vcf_record_t *merge_position(vcf_record_file_link **position_in_files, int posit
             *err_code = DISCORDANT_CHROMOSOME;
             return NULL;
         } else if (position_in_files[i]->record->position != position_in_files[i+1]->record->position) {
-            LOG_ERROR_F("Positions %.*s:%ld and %.*s:%ld can't be merged: Discordant position\n", 
-                        position_in_files[i]->record->chromosome_len, position_in_files[i]->record->chromosome, position_in_files[i]->record->position,
-                        position_in_files[i+1]->record->chromosome_len, position_in_files[i+1]->record->chromosome, position_in_files[i+1]->record->position);
+//             LOG_ERROR_F("Positions %.*s:%ld and %.*s:%ld can't be merged: Discordant position\n", 
+//                         position_in_files[i]->record->chromosome_len, position_in_files[i]->record->chromosome, position_in_files[i]->record->position,
+//                         position_in_files[i+1]->record->chromosome_len, position_in_files[i+1]->record->chromosome, position_in_files[i+1]->record->position);
             *err_code = DISCORDANT_POSITION;
             return NULL;
         } else if (strncmp(position_in_files[i]->record->reference, position_in_files[i+1]->record->reference, position_in_files[i]->record->reference_len)) {
-            LOG_ERROR_F("Position %.*s:%ld can't be merged: Discordant reference alleles (%.*s, %.*s)\n", 
-                        position_in_files[i]->record->chromosome_len, position_in_files[i]->record->chromosome, position_in_files[i]->record->position,
-                        position_in_files[i]->record->reference_len, position_in_files[i]->record->reference, 
-                        position_in_files[i+1]->record->reference_len, position_in_files[i+1]->record->reference);
+//             LOG_ERROR_F("Position %.*s:%ld can't be merged: Discordant reference alleles (%.*s, %.*s)\n", 
+//                         position_in_files[i]->record->chromosome_len, position_in_files[i]->record->chromosome, position_in_files[i]->record->position,
+//                         position_in_files[i]->record->reference_len, position_in_files[i]->record->reference, 
+//                         position_in_files[i+1]->record->reference_len, position_in_files[i+1]->record->reference);
             *err_code = DISCORDANT_REFERENCE;
             return NULL;
         }
