@@ -27,4 +27,6 @@
 
 int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *options_data);
 
+static void compose_key_value(const char *chromosome, const long position, char *key);
+
 #endif
