@@ -63,8 +63,16 @@ merge_options_t *new_merge_cli_options() {
 
 merge_options_data_t *new_merge_options_data(merge_options_t *options) {
     merge_options_data_t *options_data = (merge_options_data_t*) calloc (1, sizeof(merge_options_data_t));
+    if (!strcasecmp(*(options->missing_mode->sval), "missing")) {
+        options_data->missing_mode = MISSING;
+    } else if (!strcasecmp(*(options->missing_mode->sval), "reference")) {
+        options_data->missing_mode = REFERENCE;
+    }
     options_data->input_files = split(*(options->input_files->sval), ",", &(options_data->num_files));
     options_data->info_fields = split(*(options->info_fields->sval), ",", &(options_data->num_info_fields));
+    
+    options_data->copy_filter = options->copy_filter->count;
+    options_data->copy_info = options->copy_info->count;
     return options_data;
 }
 

@@ -33,7 +33,6 @@ enum missing_mode { MISSING, REFERENCE };
 typedef struct merge_options {
     struct arg_str *input_files;    /**< List of files used as input */
     struct arg_str *missing_mode;   /**< How to fill a missing sample field whenever its data is missing */
-    
     struct arg_str *info_fields;    /**< Attributes of the new INFO fields generated */
     struct arg_lit *copy_filter;    /**< Whether to copy the contents of the original FILTER field into the samples */
     struct arg_lit *copy_info;      /**< Whether to copy the contents of the original INFO field into the samples */
