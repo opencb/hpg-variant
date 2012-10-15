@@ -135,8 +135,9 @@ void **merge_merge_options(merge_options_t *merge_options, shared_options_t *sha
     tool_options[13] = merge_options->missing_mode;
     tool_options[14] = merge_options->copy_filter;
     tool_options[15] = merge_options->copy_info;
+    tool_options[16] = merge_options->info_fields;
     
-    tool_options[16] = arg_end;
+    tool_options[17] = arg_end;
     
     return tool_options;
 }
@@ -147,6 +148,12 @@ int verify_merge_options(merge_options_t *merge_options, shared_options_t *share
     if (merge_options->input_files->count == 0) {
         LOG_ERROR("Please specify the input VCF files.\n");
         return VCF_FILE_NOT_SPECIFIED;
+    }
+    
+    // Check whether the input VCF files are defined
+    if (merge_options->info_fields->count == 0) {
+        LOG_ERROR("Please specify the fields of the INFO column.\n");
+        return INFO_FIELDS_NOT_SPECIFIED;
     }
     
     // Check whether the missing mode is defined

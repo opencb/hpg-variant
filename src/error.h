@@ -20,6 +20,7 @@
 
 // Merge tool errors
 #define MISSING_MODE_NOT_SPECIFIED              200
+#define INFO_FIELDS_NOT_SPECIFIED               201
 #define DISCORDANT_CHROMOSOME                   210
 #define DISCORDANT_POSITION                     211
 #define DISCORDANT_REFERENCE                    212

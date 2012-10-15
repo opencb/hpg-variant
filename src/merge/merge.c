@@ -75,7 +75,7 @@ int merge_vcf_headers(vcf_file_t** files, int num_files, merge_options_data_t* o
         // TODO search info field in config file
         ret_code = config_lookup_string(config, info_field, &field_value);
         if (ret_code == CONFIG_FALSE) {
-            LOG_ERROR_F("Information about subfield %s of INFO not found in configuration file\n", info_field);
+            LOG_ERROR_F("Information about subfield '%s' of INFO not found in configuration file\n", info_field);
         } else {
             aux = cp_hashtable_get(info_entries, field_value);
             if (!aux) {
@@ -153,10 +153,10 @@ vcf_record_t *merge_position(vcf_record_file_link **position_in_files, int posit
             *err_code = DISCORDANT_POSITION;
             return NULL;
         } else if (strncmp(position_in_files[i]->record->reference, position_in_files[i+1]->record->reference, position_in_files[i]->record->reference_len)) {
-//             LOG_ERROR_F("Position %.*s:%ld can't be merged: Discordant reference alleles (%.*s, %.*s)\n", 
-//                         position_in_files[i]->record->chromosome_len, position_in_files[i]->record->chromosome, position_in_files[i]->record->position,
-//                         position_in_files[i]->record->reference_len, position_in_files[i]->record->reference, 
-//                         position_in_files[i+1]->record->reference_len, position_in_files[i+1]->record->reference);
+            LOG_ERROR_F("Position %.*s:%ld can't be merged: Discordant reference alleles (%.*s, %.*s)\n", 
+                        position_in_files[i]->record->chromosome_len, position_in_files[i]->record->chromosome, position_in_files[i]->record->position,
+                        position_in_files[i]->record->reference_len, position_in_files[i]->record->reference, 
+                        position_in_files[i+1]->record->reference_len, position_in_files[i+1]->record->reference);
             *err_code = DISCORDANT_REFERENCE;
             return NULL;
         }
@@ -582,8 +582,11 @@ char *merge_info_field(vcf_record_file_link **position_in_files, int position_oc
         }
     }
     
-//     result[len-1] = '\0';
-    result[len] = '\0';
+    if (result[len-1] == ';') {
+        result[len-1] = '\0';
+    } else {
+        result[len] = '\0';
+    }
     
     if(variant_stats) {
         variant_stats_free(variant_stats);
