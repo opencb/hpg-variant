@@ -269,7 +269,7 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
             
             // Write delimiter
             array_list_t *sample_names = merge_vcf_sample_names(files, options_data->num_files);
-            write_vcf_delimiter_from_samples(sample_names->items, sample_names->size, merge_fd);
+            write_vcf_delimiter_from_samples((char**) sample_names->items, sample_names->size, merge_fd);
             
             // Write records
             while ((item = list_remove_item(output_list)) != NULL) {
@@ -353,7 +353,7 @@ void calculate_merge_interval(vcf_record_t* current_record, char** max_chromosom
 
 
 void merge_interval(kh_pos_t* positions_read, char *max_chromosome_merged, unsigned long max_position_merged, 
-                    char **chromosome_order, int num_chromosomes, vcf_file_t *files, 
+                    char **chromosome_order, int num_chromosomes, vcf_file_t **files, 
                     shared_options_data_t *shared_options_data, merge_options_data_t *options_data, list_t *output_list) {
     #pragma omp parallel for num_threads(shared_options_data->num_threads)
     for (int k = kh_begin(positions_read); k < kh_end(positions_read); k++) {
@@ -392,7 +392,7 @@ void merge_interval(kh_pos_t* positions_read, char *max_chromosome_merged, unsig
 }
 
 
-void merge_remaining_interval(kh_pos_t* positions_read, vcf_file_t *files, shared_options_data_t *shared_options_data, 
+void merge_remaining_interval(kh_pos_t* positions_read, vcf_file_t **files, shared_options_data_t *shared_options_data, 
                               merge_options_data_t *options_data, list_t *output_list) {
     #pragma omp parallel for num_threads(shared_options_data->num_threads)
     for (int k = kh_begin(positions_read); k < kh_end(positions_read); k++) {

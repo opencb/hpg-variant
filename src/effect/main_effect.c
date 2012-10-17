@@ -37,7 +37,7 @@ int effect(int argc, char *argv[], const char *configuration_file) {
      * ******************************/
 
     // Step 1: read options from configuration file
-    int config_errors = read_global_configuration(configuration_file, shared_options);
+    int config_errors = read_shared_configuration(configuration_file, shared_options);
     config_errors &= read_effect_configuration(configuration_file, effect_options, shared_options);
     LOG_INFO_F("Config read with errors = %d\n", config_errors);
     
