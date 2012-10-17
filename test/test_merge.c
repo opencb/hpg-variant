@@ -7,7 +7,7 @@
 #include <bioformats/vcf/vcf_file_structure.h>
 #include <bioformats/vcf/vcf_file.h>
 
-#include "merge/merge.h"
+#include "vcf-tools/merge/merge.h"
 
 
 Suite *create_test_suite(void);

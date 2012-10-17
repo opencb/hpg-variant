@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2012 Cristina Yenyxe Gonzalez Garcia (CGI-CIPF)
- * Copyright (c) 2012 Ignacio Medina (CGI-CIPF)
+ * Copyright (c) 2012 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
+ * Copyright (c) 2012 Ignacio Medina (ICM-CIPF)
  *
  * This file is part of hpg-variant.
  *

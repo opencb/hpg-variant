@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2012 Cristina Yenyxe Gonzalez Garcia (CGI-CIPF)
- * Copyright (c) 2012 Ignacio Medina (CGI-CIPF)
+ * Copyright (c) 2012 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
+ * Copyright (c) 2012 Ignacio Medina (ICM-CIPF)
  *
  * This file is part of hpg-variant.
  *
@@ -30,23 +30,26 @@ int main(int argc, char *argv[]) {
     int exit_code = 0;
 
     // Parse tool args and run tool
-    if (strcmp(tool, "call") == 0) {
+    if (!strcmp(tool, "call")) {
         fprintf(stderr, "%s tool not yet implemented\n", tool);
         exit_code = NOT_IMPLEMENTED_TOOL;
         
-    } else if (strcmp(tool, "effect") == 0) {
+    } else if (!strcmp(tool, "effect")) {
         exit_code = effect(argc - 1, argv + 1, config);
         
-    } else if (strcmp(tool, "functional-analysis") == 0) {
+    } else if (!strcmp(tool, "functional-analysis")) {
         fprintf(stderr, "%s tool not yet implemented\n", tool);
         exit_code = NOT_IMPLEMENTED_TOOL;
         
-    } else if (strcmp(tool, "gwas") == 0) {
+    } else if (!strcmp(tool, "gwas")) {
         exit_code = genomic_analysis(argc - 1, argv + 1, config);
         
-    } else if (strcmp(tool, "pathway-analysis") == 0) {
+    } else if (!strcmp(tool, "pathway-analysis")) {
         fprintf(stderr, "%s tool not yet implemented\n", tool);
         exit_code = NOT_IMPLEMENTED_TOOL;
+        
+    } else if (!strcmp(tool, "vcf")) {
+        exit_code = vcf_handling(argc - 1, argv + 1, config);
         
     } else {
         fprintf(stderr, "The requested tool does not exist! (%s)\n", tool);

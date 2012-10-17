@@ -13,7 +13,7 @@
 #include <containers/list.h>
 
 #include "error.h"
-#include "global_options.h"
+#include "shared_options.h"
 
 #define NUM_SPLIT_OPTIONS  1
 

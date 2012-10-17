@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2012 Cristina Yenyxe Gonzalez Garcia (CGI-CIPF)
- * Copyright (c) 2012 Ignacio Medina (CGI-CIPF)
+ * Copyright (c) 2012 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
+ * Copyright (c) 2012 Ignacio Medina (ICM-CIPF)
  *
  * This file is part of hpg-variant.
  *
@@ -164,19 +164,19 @@ int verify_effect_options(effect_options_t *effect_options, shared_options_t *sh
     // Check whether the host URL is defined
     if (shared_options->host_url->sval == NULL || strlen(*(shared_options->host_url->sval)) == 0) {
         LOG_ERROR("Please specify the host URL to the web service.\n");
-        return EFFECT_HOST_URL_NOT_SPECIFIED;
+        return HOST_URL_NOT_SPECIFIED;
     }
 
     // Check whether the version is defined
     if (shared_options->version->sval == NULL || strlen(*(shared_options->version->sval)) == 0) {
         LOG_ERROR("Please specify the version.\n");
-        return EFFECT_VERSION_NOT_SPECIFIED;
+        return VERSION_NOT_SPECIFIED;
     }
 
     // Check whether the species is defined
     if (shared_options->species->sval == NULL || strlen(*(shared_options->species->sval)) == 0) {
         LOG_ERROR("Please specify the species to take as reference.\n");
-        return EFFECT_SPECIES_NOT_SPECIFIED;
+        return SPECIES_NOT_SPECIFIED;
     }
 
     // Checker whether batch lines or bytes are defined

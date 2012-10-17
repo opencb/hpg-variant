@@ -21,7 +21,7 @@
 #include <bioformats/vcf/vcf_filters.h>
 #include <bioformats/vcf/vcf_reader.h>
 
-#include "hpg_vcf_tools_utils.h"
+#include "hpg_variant_utils.h"
 #include "merge.h"
 
 #define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
