@@ -16,8 +16,8 @@
 #include <commons/log.h>
 
 #include "error.h"
-#include "global_options.h"
-#include "hpg_vcf_tools_utils.h"
+#include "shared_options.h"
+#include "hpg_variant_utils.h"
 
 #define NUM_STATS_OPTIONS  0
 #define MIN(X,Y) ((X) < (Y) ? (X) : (Y))

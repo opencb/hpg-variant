@@ -18,8 +18,8 @@
 #include <containers/list.h>
 
 #include "error.h"
-#include "global_options.h"
-#include "hpg_vcf_tools_utils.h"
+#include "shared_options.h"
+#include "hpg_variant_utils.h"
 
 #define NUM_FILTER_OPTIONS  6
 
