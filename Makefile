@@ -6,15 +6,17 @@ CFLAGS_DEBUG = -std=c99 -g -O0 -D_XOPEN_SOURCE=600 -D_GNU_SOURCE
 INC_DIR = $(PWD)/include
 LIBS_DIR = $(PWD)/libs
 SRC_DIR = $(PWD)/src
+BIN_DIR = $(PWD)/bin
+
+# Libraries folders
 BIOINFO_LIBS_DIR = $(LIBS_DIR)/bioinfo-libs
 COMMON_LIBS_DIR = $(LIBS_DIR)/common-libs
-
 CONTAINERS_DIR = $(COMMON_LIBS_DIR)/containers
 COMMONS_DIR = $(COMMON_LIBS_DIR)/commons
 BIOFORMATS_DIR = $(BIOINFO_LIBS_DIR)/bioformats
 MATH_DIR = $(LIBS_DIR)/math
 
-# Include and libs folders
+# -I (includes) and -L (libraries) paths
 INCLUDES = -I $(SRC_DIR) -I $(LIBS_DIR) -I $(BIOINFO_LIBS_DIR) -I $(COMMON_LIBS_DIR) -I $(INC_DIR) -I /usr/include/libxml2 -I/usr/local/include
 LIBS = -L/usr/lib/x86_64-linux-gnu -lcurl -Wl,-Bsymbolic-functions -lconfig -lcprops -fopenmp -lm -lxml2 -lgsl -lgslcblas -largtable2
 LIBS_TEST = -lcheck
@@ -22,7 +24,8 @@ LIBS_TEST = -lcheck
 INCLUDES_STATIC = -I $(SRC_DIR) -I $(LIBS_DIR) -I $(BIOINFO_LIBS_DIR) -I $(COMMON_LIBS_DIR) -I $(INC_DIR) -I /usr/include/libxml2 -I/usr/local/include
 LIBS_STATIC = -L$(LIBS_DIR) -L/usr/lib/x86_64-linux-gnu -lcurl -Wl,-Bsymbolic-functions -lconfig -lcprops -fopenmp -lm -lxml2 -lgsl -lgslcblas -largtable2
 
-# Source files dependencies
+
+# Project dependencies
 VCF_OBJS = $(BIOFORMATS_DIR)/vcf/vcf_*.o
 GFF_OBJS = $(BIOFORMATS_DIR)/gff/gff_*.o
 PED_OBJS = $(BIOFORMATS_DIR)/ped/ped_*.o
@@ -31,31 +34,34 @@ MISC_OBJS = $(COMMONS_DIR)/file_utils.o $(COMMONS_DIR)/string_utils.o $(COMMONS_
 	$(CONTAINERS_DIR)/array_list.o $(CONTAINERS_DIR)/list.o $(BIOFORMATS_DIR)/family.o $(MATH_DIR)/fisher.o
 
 # Project source files
-HPG_VARIANT_FILES = $(SRC_DIR)/global_options.c $(SRC_DIR)/hpg_variant_utils.c $(SRC_DIR)/effect/*.c $(SRC_DIR)/gwas/*.c
+VARIANT_FILES = $(SRC_DIR)/effect/*.c $(SRC_DIR)/gwas/*.c
+VCF_TOOLS_FILES = $(SRC_DIR)/vcf-tools/filter/*.c $(SRC_DIR)/vcf-tools/merge/*.c $(SRC_DIR)/vcf-tools/split/*.c $(SRC_DIR)/vcf-tools/stats/*.c
+ALL_FILES = $(SRC_DIR)/shared_options.c $(SRC_DIR)/hpg_variant_utils.c $(VARIANT_FILES) $(VCF_TOOLS_FILES)
 
 # Project object files
 HPG_VARIANT_OBJS = *.o
 ALL_OBJS = $(HPG_VARIANT_OBJS) $(VCF_OBJS) $(GFF_OBJS) $(PED_OBJS) $(REGION_TABLE_OBJS) $(MISC_OBJS)
 
 # Targets
-all: compile-dependencies hpg-variant
+all: compile-dependencies debug
 
-deploy: compile-dependencies-static $(HPG_VARIANT_FILES)
-	$(CC) $(CFLAGS) -c $(SRC_DIR)/main.c $(HPG_VARIANT_FILES) $(INCLUDES) $(LIBS_STATIC)
-	test -d bin || mkdir bin
-	cp hpg-variant.cfg bin
-	$(CC) $(CFLAGS) -o bin/hpg-variant $(ALL_OBJS) $(INCLUDES_STATIC) $(LIBS_STATIC)
+deploy: compile-dependencies-static $(ALL_FILES)
+	$(CC) $(CFLAGS) -c $(SRC_DIR)/main.c $(ALL_FILES) $(INCLUDES) $(LIBS_STATIC)
+	test -d $(BIN_DIR) || mkdir $(BIN_DIR)
+	cp hpg-variant.cfg $(BIN_DIR)
+	$(CC) $(CFLAGS) -o $(BIN_DIR)/hpg-variant $(ALL_OBJS) $(INCLUDES_STATIC) $(LIBS_STATIC)
 	
-hpg-variant: compile-dependencies $(HPG_VARIANT_FILES)
-	$(CC) $(CFLAGS_DEBUG) -c $(SRC_DIR)/main.c $(HPG_VARIANT_FILES) $(INCLUDES) $(LIBS)
-	test -d bin || mkdir bin
-	cp hpg-variant.cfg bin
-	$(CC) $(CFLAGS_DEBUG) -o bin/$@ $(ALL_OBJS) $(INCLUDES) $(LIBS)
+debug: compile-dependencies $(ALL_FILES)
+	$(CC) $(CFLAGS_DEBUG) -c $(SRC_DIR)/main.c $(ALL_FILES) $(INCLUDES) $(LIBS)
+	test -d $(BIN_DIR) || mkdir $(BIN_DIR)
+	cp hpg-variant.cfg $(BIN_DIR)
+	$(CC) $(CFLAGS_DEBUG) -o $(BIN_DIR)/hpg-variant $(ALL_OBJS) $(INCLUDES) $(LIBS)
 
 testing: test/test_effect_runner.c test/test_tdt_runner.c $(ALL_OBJS)
 	$(CC) $(CFLAGS_DEBUG) -o test/effect.test test/test_effect_runner.c $(ALL_OBJS) $(INCLUDES) $(LIBS) $(LIBS_TEST)
 	$(CC) $(CFLAGS_DEBUG) -o test/tdt.test test/test_tdt_runner.c $(ALL_OBJS) $(INCLUDES) $(LIBS) $(LIBS_TEST)
 	$(CC) $(CFLAGS_DEBUG) -o test/checks_family.test test/test_checks_family.c $(ALL_OBJS) $(INCLUDES) $(LIBS) $(LIBS_TEST)
+
 
 compile-dependencies:
 	make family.o && \
@@ -80,6 +86,7 @@ family.o:
 	cd $(BIOFORMATS_DIR) && \
 	$(CC) $(CFLAGS) -c -o $(BIOFORMATS_DIR)/$@ $(BIOFORMATS_DIR)/family.c $(INCLUDES) $(LIBS)
 
+
 clean:
 	rm -f *.o
 	rm -f $(COMMONS_DIR)/*.o
@@ -89,4 +96,3 @@ clean:
 	rm -f $(BIOFORMATS_DIR)/ped/*.o
 	rm -f $(BIOFORMATS_DIR)/features/region/*.o
 	rm -rf bin
-
