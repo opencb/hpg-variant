@@ -66,16 +66,12 @@ void **parse_stats_options(int argc, char *argv[], stats_options_t *stats_option
 }
 
 void **merge_stats_options(stats_options_t *stats_options, shared_options_t *shared_options, struct arg_end *arg_end) {
-    size_t opts_size = stats_options->num_options + shared_options->num_options + 1 - 3;
+    size_t opts_size = stats_options->num_options + shared_options->num_options + 1 - 9;
     void **tool_options = malloc (opts_size * sizeof(void*));
     tool_options[0] = shared_options->vcf_filename;
     tool_options[1] = shared_options->ped_filename;
     tool_options[2] = shared_options->output_filename;
     tool_options[3] = shared_options->output_directory;
-    
-//     tool_options[4] = shared_options->host_url;
-//     tool_options[5] = shared_options->version;
-//     tool_options[6] = shared_options->species;
     
     tool_options[4] = shared_options->max_batches;
     tool_options[5] = shared_options->batch_lines;

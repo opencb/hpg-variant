@@ -109,27 +109,21 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
     
             // Create file streams (summary and results)
             int dirname_len = strlen(shared_options_data->output_directory);
-            int filename_len = strlen("summary-stats");
+//             int filename_len = strlen("summary-stats");
             
             summary_filename = (char*) calloc ((dirname_len + strlen("summary-stats") + 2), sizeof(char));
             sprintf(summary_filename, "%s/summary-stats", shared_options_data->output_directory);
-//             strncat(summary_filename, shared_options_data->output_directory, dirname_len);
-//             strncat(summary_filename, "summary-stats", strlen("summary-stats"));
             
             if (shared_options_data->output_filename == NULL || strlen(shared_options_data->output_filename) == 0) {
-                filename_len = strlen("stats-tool-output");
+//                 filename_len = strlen("stats-tool-output");
             
-                stats_filename = (char*) calloc ((dirname_len + filename_len + 2), sizeof(char));
+                stats_filename = (char*) calloc ((dirname_len + strlen("stats-tool-output") + 2), sizeof(char));
                 sprintf(stats_filename, "%s/stats-tool-output", shared_options_data->output_directory);
-//                 strncat(stats_filename, shared_options_data->output_directory, dirname_len);
-//                 strncat(stats_filename, "stats-tool-output", filename_len);
             } else {
-                filename_len = strlen(shared_options_data->output_filename);
+//                 filename_len = strlen(shared_options_data->output_filename);
             
-                stats_filename = (char*) calloc ((dirname_len + filename_len + 2), sizeof(char));
+                stats_filename = (char*) calloc ((dirname_len + strlen(shared_options_data->output_filename) + 2), sizeof(char));
                 sprintf(stats_filename, "%s/%s", shared_options_data->output_directory, shared_options_data->output_filename);
-//                 strncat(stats_filename, shared_options_data->output_directory, dirname_len);
-//                 strncat(stats_filename, shared_options_data->output_filename, filename_len);
             }
             
             LOG_DEBUG_F("stats filename = %s\nsummary filename = %s\n", stats_filename, summary_filename);
