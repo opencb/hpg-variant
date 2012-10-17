@@ -1,9 +1,0 @@
-
-*.o
-*.test
-bin/*
-*~
-*anjuta*
-*sonar*
-*kdev*
-
