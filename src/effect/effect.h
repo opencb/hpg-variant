@@ -39,7 +39,6 @@
 
 #include "error.h"
 #include "shared_options.h"
-#include "main.h"
 
 /**
  * Number of options applicable to the effect tool.
