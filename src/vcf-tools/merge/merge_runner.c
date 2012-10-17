@@ -150,7 +150,7 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
                     }
 
 //                     printf("batches = %d\n", files[i]->record_batches->length);
-                    vcf_batch_t *batch = fetch_vcf_batch(files[i]);
+                    vcf_batch_t *batch = fetch_vcf_batch_non_blocking(files[i]);
                     if (!batch) {
                         continue;
                     }
