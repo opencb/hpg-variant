@@ -38,7 +38,7 @@ int genomic_analysis(int argc, char *argv[], const char *configuration_file) {
      * ******************************/
 
     // Step 1: read options from configuration file
-    int config_errors = read_global_configuration(configuration_file, shared_options);
+    int config_errors = read_shared_configuration(configuration_file, shared_options);
     config_errors &= read_gwas_configuration(configuration_file, gwas_options, shared_options);
     LOG_INFO_F("Config read with errors = %d\n", config_errors);
     

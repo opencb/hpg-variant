@@ -36,10 +36,10 @@ static void calculate_merge_interval(vcf_record_t* current_record, char** max_ch
                                      char **chromosome_order, int num_chromosomes);
 
 static void merge_interval(kh_pos_t* positions_read, char *max_chromosome_merged, unsigned long max_position_merged, 
-                           char **chromosome_order, int num_chromosomes, vcf_file_t *files, 
+                           char **chromosome_order, int num_chromosomes, vcf_file_t **files, 
                            shared_options_data_t *shared_options_data, merge_options_data_t *options_data, list_t *output_list);
 
-static void merge_remaining_interval(kh_pos_t* positions_read, vcf_file_t *files, 
+static void merge_remaining_interval(kh_pos_t* positions_read, vcf_file_t **files, 
                                      shared_options_data_t *shared_options_data, merge_options_data_t *options_data, list_t *output_list);
 
 

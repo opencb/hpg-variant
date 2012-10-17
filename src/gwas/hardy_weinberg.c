@@ -346,7 +346,7 @@ individual_t **get_founders_from_families(family_t **families, int num_families,
     }
     
     if (cur_ind < num_families * 2) {
-        individual_t *aux = realloc(individuals, cur_ind * sizeof(individual_t));
+        individual_t **aux = realloc(individuals, cur_ind * sizeof(individual_t*));
         if (aux) {
             individuals = aux;
         } else {
