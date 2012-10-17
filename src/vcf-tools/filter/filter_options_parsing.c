@@ -16,7 +16,7 @@ int read_filter_configuration(const char *filename, filter_options_t *options, s
     const char *tmp_string;
     
     // Read number of threads that will make request to the web service
-    ret_code = config_lookup_int(config, "filter.num-threads", shared_options->num_threads->ival);
+    ret_code = config_lookup_int(config, "vcf-tools.filter.num-threads", shared_options->num_threads->ival);
     if (ret_code == CONFIG_FALSE) {
         LOG_WARN("Number of threads not found in config file, must be set via command-line");
     } else {
@@ -24,7 +24,7 @@ int read_filter_configuration(const char *filename, filter_options_t *options, s
     }
 
     // Read maximum number of batches that can be stored at certain moment
-    ret_code = config_lookup_int(config, "filter.max-batches", shared_options->max_batches->ival);
+    ret_code = config_lookup_int(config, "vcf-tools.filter.max-batches", shared_options->max_batches->ival);
     if (ret_code == CONFIG_FALSE) {
         LOG_WARN("Maximum number of batches not found in configuration file, must be set via command-line");
     } else {
@@ -32,8 +32,8 @@ int read_filter_configuration(const char *filename, filter_options_t *options, s
     }
     
     // Read size of every batch read
-    ret_code = config_lookup_int(config, "filter.batch-lines", shared_options->batch_lines->ival);
-    ret_code |= config_lookup_int(config, "filter.batch-bytes", shared_options->batch_bytes->ival);
+    ret_code = config_lookup_int(config, "vcf-tools.filter.batch-lines", shared_options->batch_lines->ival);
+    ret_code |= config_lookup_int(config, "vcf-tools.filter.batch-bytes", shared_options->batch_bytes->ival);
     if (ret_code == CONFIG_FALSE) {
         LOG_WARN("Neither batch lines nor bytes found in configuration file, must be set via command-line");
     } 
@@ -42,7 +42,7 @@ int read_filter_configuration(const char *filename, filter_options_t *options, s
     }*/
     
     // Read number of variants per request to the web service
-    ret_code = config_lookup_int(config, "filter.entries-per-thread", shared_options->entries_per_thread->ival);
+    ret_code = config_lookup_int(config, "vcf-tools.filter.entries-per-thread", shared_options->entries_per_thread->ival);
     if (ret_code == CONFIG_FALSE) {
         LOG_WARN("Variants per request not found in configuration file, must be set via command-line");
     } else {

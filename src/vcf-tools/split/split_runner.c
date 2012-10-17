@@ -65,8 +65,6 @@ int run_split(shared_options_data_t *shared_options_data, split_options_data_t *
             start = omp_get_wtime();
 
             int i = 0;
-//             list_item_t* item = NULL;
-//             while ((item = list_remove_item(read_list)) != NULL) {
             vcf_batch_t *batch = NULL;
             while ((batch = fetch_vcf_batch(file)) != NULL) {
 //                 vcf_batch_t *batch = (vcf_batch_t*) item->data_p;
@@ -139,13 +137,7 @@ int run_split(shared_options_data_t *shared_options_data, split_options_data_t *
             while ((item = list_remove_item(output_list)) != NULL) {
                 result = item->data_p;
                 
-                memset(split_filename, 0, 1024 * sizeof(char));
-//                 printf("outdir     = %s\n", shared_options_data->output_directory);
-//                 printf("split name = %s\n", split->split_name);
-//                 printf("input name = %s\n", input_filename);
                 sprintf(split_filename, "%s/%s_%s", shared_options_data->output_directory, result->split_name, input_filename);
-//                 sprintf(split_filename, "%s/%s.vcf", shared_options_data->output_directory, split->split_name, shared_options_data->vcf_filename);
-                
 //                 printf("Split filename = '%s'\n", split_filename);
                 
                 split_fd = cp_hashtable_get(output_files, result->split_name);
