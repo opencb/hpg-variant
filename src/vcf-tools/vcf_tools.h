@@ -18,8 +18,6 @@
 #include "split/split.h"
 #include "stats/stats.h"
 
-int vcf_handling(int argc, char *argv[], const char *config);
-
 int vcf_tool_filter(int argc, char *argv[], const char *configuration_file);
 
 int vcf_tool_merge(int argc, char *argv[], const char *configuration_file);

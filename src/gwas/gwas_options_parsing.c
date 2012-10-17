@@ -56,41 +56,8 @@ int read_gwas_configuration(const char *filename, gwas_options_t *gwas_options, 
     ret_code |= config_lookup_int(config, "gwas.batch-bytes", shared_options->batch_bytes->ival);
     if (ret_code == CONFIG_FALSE) {
         LOG_WARN("Neither batch lines nor bytes found in configuration file, must be set via command-line");
-    } 
-//     else {
-//         LOG_INFO_F("batch-lines = %ld\n", *(shared_options->batch_lines->ival));
-//     }
-    
-    // Read host URL
-    ret_code = config_lookup_string(config, "gwas.url", &tmp_string);
-    if (ret_code == CONFIG_FALSE) {
-        LOG_WARN("Web services URL not found in configuration file, must be set via command-line");
-    } else {
-        *(shared_options->host_url->sval) = strdup(tmp_string);
-        LOG_DEBUG_F("web services host URL = %s (%zu chars)\n",
-                   *(shared_options->host_url->sval), strlen(*(shared_options->host_url->sval)));
     }
     
-    // Read species
-    ret_code = config_lookup_string(config, "gwas.species", &tmp_string);
-    if (ret_code == CONFIG_FALSE) {
-        LOG_WARN("Species not found in configuration file, must be set via command-line");
-    } else {
-        *(shared_options->species->sval) = strdup(tmp_string);
-        LOG_DEBUG_F("species = %s (%zu chars)\n",
-                   *(shared_options->species->sval), strlen(*(shared_options->species->sval)));
-    }
-    
-    // Read version
-    ret_code = config_lookup_string(config, "gwas.version", &tmp_string);
-    if (ret_code == CONFIG_FALSE) {
-        LOG_WARN("Version not found in configuration file, must be set via command-line");
-    } else {
-        *(shared_options->version->sval) = strdup(tmp_string);
-        LOG_DEBUG_F("version = %s (%zu chars)\n",
-                   *(shared_options->version->sval), strlen(*(shared_options->version->sval)));
-    }
-
     config_destroy(config);
     free(config);
 

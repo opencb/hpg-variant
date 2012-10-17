@@ -127,8 +127,8 @@ void free_shared_options_data(shared_options_data_t *options_data) {
     free(options_data);
 }
 
-int read_shared_configuration(const char *filename, shared_options_t *options_data) {
-    if (filename == NULL || options_data == NULL) {
+int read_shared_configuration(const char *filename, shared_options_t *options) {
+    if (filename == NULL || options == NULL) {
         return -1;
     }
     
@@ -146,10 +146,8 @@ int read_shared_configuration(const char *filename, shared_options_t *options_da
     if (ret_code == CONFIG_FALSE) {
         LOG_WARN("Output folder not found in configuration file, must be set via command-line");
     } else {
-        *(options_data->output_directory->sval) = strdup(tmp_string);
-        LOG_DEBUG_F("Output folder = %s (%zu chars)\n",
-                   *(options_data->output_directory->sval), 
-                   strlen(*(options_data->output_directory->sval)));
+        *(options->output_directory->sval) = strdup(tmp_string);
+        LOG_DEBUG_F("Output folder = %s (%zu chars)\n", *(options->output_directory->sval), strlen(*(options->output_directory->sval)));
     }
     
     // Read whether to mmap VCF files
@@ -160,6 +158,36 @@ int read_shared_configuration(const char *filename, shared_options_t *options_da
         LOG_DEBUG_F("VCF files mapped to virtual memory = %d\n", mmap_vcf);
     }
     
+    // Read species
+    ret_code = config_lookup_string(config, "global.species", &tmp_string);
+    if (ret_code == CONFIG_FALSE) {
+        LOG_WARN("Species not found in configuration file, must be set via command-line");
+    } else {
+        *(options->species->sval) = strdup(tmp_string);
+        LOG_DEBUG_F("species = %s (%zu chars)\n",
+                   *(options->species->sval), strlen(*(options->species->sval)));
+    }
+    
+    // Read database URL
+    ret_code = config_lookup_string(config, "global.db-url", &tmp_string);
+    if (ret_code == CONFIG_FALSE) {
+        LOG_WARN("Web services URL not found in configuration file, must be set via command-line");
+    } else {
+        *(options->host_url->sval) = strdup(tmp_string);
+        LOG_DEBUG_F("web services host URL = %s (%zu chars)\n",
+                   *(options->host_url->sval), strlen(*(options->host_url->sval)));
+    }
+    
+    // Read database version
+    ret_code = config_lookup_string(config, "global.db-version", &tmp_string);
+    if (ret_code == CONFIG_FALSE) {
+        LOG_WARN("Version not found in configuration file, must be set via command-line");
+    } else {
+        *(options->version->sval) = strdup(tmp_string);
+        LOG_DEBUG_F("version = %s (%zu chars)\n",
+                   *(options->version->sval), strlen(*(options->version->sval)));
+    }
+
     config_destroy(config);
     free(config);
     

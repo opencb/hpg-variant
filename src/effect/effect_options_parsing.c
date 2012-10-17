@@ -69,36 +69,6 @@ int read_effect_configuration(const char *filename, effect_options_t *effect_opt
         LOG_DEBUG_F("entries-per-thread = %ld\n", *(shared_options->entries_per_thread->ival));
     }
 
-    // Read host URL
-    ret_code = config_lookup_string(config, "effect.url", &tmp_string);
-    if (ret_code == CONFIG_FALSE) {
-        LOG_WARN("Web services URL not found in configuration file, must be set via command-line");
-    } else {
-        *(shared_options->host_url->sval) = strdup(tmp_string);
-        LOG_DEBUG_F("web services host URL = %s (%zu chars)\n",
-                   *(shared_options->host_url->sval), strlen(*(shared_options->host_url->sval)));
-    }
-    
-    // Read species
-    ret_code = config_lookup_string(config, "effect.species", &tmp_string);
-    if (ret_code == CONFIG_FALSE) {
-        LOG_WARN("Species not found in configuration file, must be set via command-line");
-    } else {
-        *(shared_options->species->sval) = strdup(tmp_string);
-        LOG_DEBUG_F("species = %s (%zu chars)\n",
-                   *(shared_options->species->sval), strlen(*(shared_options->species->sval)));
-    }
-    
-    // Read version
-    ret_code = config_lookup_string(config, "effect.version", &tmp_string);
-    if (ret_code == CONFIG_FALSE) {
-        LOG_WARN("Version not found in configuration file, must be set via command-line");
-    } else {
-        *(shared_options->version->sval) = strdup(tmp_string);
-        LOG_DEBUG_F("version = %s (%zu chars)\n",
-                   *(shared_options->version->sval), strlen(*(shared_options->version->sval)));
-    }
-
     config_destroy(config);
     free(config);
 
