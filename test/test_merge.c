@@ -330,10 +330,6 @@ START_TEST (merge_position_in_one_file) {
     fail_if(strncmp(input->reference, result->reference, input->reference_len), "After merging a position present only in a file, the reference must stay the same");
     fail_if(strncmp(input->alternate, result->alternate, input->alternate_len), "After merging a position present only in a file, the alternate must stay the same");
     fail_if(result->quality != input->quality, "After merging a position present only in a file, the quality must stay the same");
-    
-    assert(input->filter);
-    assert(result->filter);
-    
     fail_if(strncmp(input->filter, result->filter, input->filter_len), "After merging a position present only in a file, the filter must stay the same");
     fail_if(strncmp(input->format, result->format, input->format_len), "After merging a position present only in a file, the format must stay the same");
     
