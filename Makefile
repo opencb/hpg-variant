@@ -63,6 +63,8 @@ testing: test/test_effect_runner.c test/test_tdt_runner.c $(ALL_OBJS)
 	$(CC) $(CFLAGS_DEBUG) -o test/effect.test test/test_effect_runner.c $(ALL_OBJS) $(INCLUDES) $(LIBS) $(LIBS_TEST)
 	$(CC) $(CFLAGS_DEBUG) -o test/tdt.test test/test_tdt_runner.c $(ALL_OBJS) $(INCLUDES) $(LIBS) $(LIBS_TEST)
 	$(CC) $(CFLAGS_DEBUG) -o test/checks_family.test test/test_checks_family.c $(ALL_OBJS) $(INCLUDES) $(LIBS) $(LIBS_TEST)
+	cp hpg-variant.cfg test
+	cp vcf-info-fields.cfg test
 
 
 compile-dependencies:
