@@ -44,7 +44,7 @@
 /**
  * Number of options applicable to the whole application.
  */
-#define NUM_GLOBAL_OPTIONS  20
+#define NUM_GLOBAL_OPTIONS  21
 
 typedef struct shared_options {
     struct arg_file *vcf_filename; /**< VCF file used as input. */
@@ -65,6 +65,7 @@ typedef struct shared_options {
     struct arg_int *num_alleles; /**< Filter by number of alleles. */
     struct arg_int *coverage; /**< Filter by coverage. */
     struct arg_int *quality; /**< Filter by quality. */
+    struct arg_dbl *maf;    /**< Filter by minimum allele frequency (MAF). */
     struct arg_str *region; /**< Filter by region */
     struct arg_file *region_file; /**< Filter by region (using a GFF file) */
     struct arg_str *snp; /**< Filter by SNP */

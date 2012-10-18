@@ -92,13 +92,14 @@ void **merge_filter_options(filter_options_t *filter_options, shared_options_t *
     tool_options[14] = filter_options->num_alleles;
     tool_options[15] = filter_options->coverage;
     tool_options[16] = filter_options->quality;
-    tool_options[17] = filter_options->region;
-    tool_options[18] = filter_options->region_file;
-    tool_options[19] = filter_options->snp;
+    tool_options[17] = filter_options->maf;
+    tool_options[18] = filter_options->region;
+    tool_options[19] = filter_options->region_file;
+    tool_options[20] = filter_options->snp;
     
-    tool_options[20] = filter_options->show_rejected;
+    tool_options[21] = filter_options->show_rejected;
     
-    tool_options[21] = arg_end;
+    tool_options[22] = arg_end;
     
     return tool_options;
 }
@@ -113,7 +114,8 @@ int verify_filter_options(filter_options_t *filter_options, shared_options_t *sh
     
     // Check whether a filter or more has been specified
     if (filter_options->coverage->count + filter_options->num_alleles->count + filter_options->quality->count + 
-        filter_options->region->count + filter_options->region_file->count + filter_options->snp->count == 0) {
+        filter_options->region->count + filter_options->region_file->count + filter_options->snp->count + 
+        filter_options->maf->count == 0) {
         LOG_ERROR("Please specify at least one filter\n");
         return EMPTY_LIST_OF_FILTERS;
     }
