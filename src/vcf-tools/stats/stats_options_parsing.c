@@ -18,7 +18,7 @@ int read_stats_configuration(const char *filename, stats_options_t *options, sha
     if (ret_code == CONFIG_FALSE) {
         LOG_WARN("Number of threads not found in config file, must be set via command-line");
     } else {
-        LOG_INFO_F("num-threads = %ld\n", *(shared_options->num_threads->ival));
+        LOG_DEBUG_F("num-threads = %ld\n", *(shared_options->num_threads->ival));
     }
 
     // Read maximum number of batches that can be stored at certain moment
@@ -26,7 +26,7 @@ int read_stats_configuration(const char *filename, stats_options_t *options, sha
     if (ret_code == CONFIG_FALSE) {
         LOG_WARN("Maximum number of batches not found in configuration file, must be set via command-line");
     } else {
-        LOG_INFO_F("max-batches = %ld\n", *(shared_options->max_batches->ival));
+        LOG_DEBUG_F("max-batches = %ld\n", *(shared_options->max_batches->ival));
     }
     
     // Read size of every batch read
@@ -44,7 +44,7 @@ int read_stats_configuration(const char *filename, stats_options_t *options, sha
     if (ret_code == CONFIG_FALSE) {
         LOG_WARN("Variants per request not found in configuration file, must be set via command-line");
     } else {
-        LOG_INFO_F("entries-per-thread = %ld\n", *(shared_options->entries_per_thread->ival));
+        LOG_DEBUG_F("entries-per-thread = %ld\n", *(shared_options->entries_per_thread->ival));
     }
     
     config_destroy(config);

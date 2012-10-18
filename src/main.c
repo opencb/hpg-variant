@@ -21,6 +21,11 @@
 #include "main.h"
 
 int main(int argc, char *argv[]) {
+    if (argc == 1 || !strcmp(argv[1], "--help")) {
+        printf("Usage: hpg-variant < effect | gwas | vcf > < tool-options >\nFor more information about a certain tool, type hpg-variant tool-name --help\n");
+        return 0;
+    }
+    
     init_log_custom(2, 1, "hpg-variant.log");
 
     const char *config = find_configuration_file(argc, argv);

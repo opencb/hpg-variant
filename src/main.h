@@ -30,6 +30,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <argtable2.h>
+
 #include "error.h"
 #include "shared_options.h"
 #include "hpg_variant_utils.h"

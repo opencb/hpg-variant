@@ -59,7 +59,7 @@ typedef struct shared_options {
     struct arg_int *max_batches; /**< Maximum number of batches stored at the same time. */
     struct arg_int *batch_lines; /**< Maximum size of a batch (in lines). */
     struct arg_int *batch_bytes; /**< Maximum size of a batch (in bytes). */
-    struct arg_int *num_threads; /**< Number of threads when a task is perform in parallel. */
+    struct arg_int *num_threads; /**< Number of threads when a task runs in parallel. */
     struct arg_int *entries_per_thread; /**< Number of entries in a batch each thread processes. */
     
     struct arg_int *num_alleles; /**< Filter by number of alleles. */
@@ -72,7 +72,7 @@ typedef struct shared_options {
     
     struct arg_file *config_file; /**< Path to the configuration file */
     
-    struct arg_lit *mmap_vcf_files; /**< Whether to use map VCF files to virtual memory or use the I/O API. */
+    struct arg_lit *mmap_vcf_files; /**< Whether to map VCF files to virtual memory or use the I/O API. */
     
     int num_options;
 } shared_options_t;
@@ -98,7 +98,7 @@ typedef struct shared_options_data {
     int max_batches; /**< Maximum number of batches stored at the same time. */
     int batch_lines; /**< Maximum size of a batch (in lines). */
     int batch_bytes; /**< Maximum size of a batch (in bytes). */
-    int num_threads; /**< Number of threads when a task is perform in parallel. */
+    int num_threads; /**< Number of threads when a task runs in parallel. */
     int entries_per_thread; /**< Number of entries in a batch each thread processes. */
     
     filter_chain *chain; /**< Chain of filters to apply to the VCF records, if that is the case. */

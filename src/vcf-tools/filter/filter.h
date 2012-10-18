@@ -32,7 +32,7 @@ typedef struct filter_options {
     struct arg_file *region_file;   /**< Filter by region (using a GFF file) */
     struct arg_str *snp;            /**< Filter by SNP */
     
-    struct arg_lit *show_rejected;  /**< Flag that sets whether to write a file containing the rejected records */
+    struct arg_lit *save_rejected;  /**< Flag that sets whether to write a file containing the rejected records */
     
     int num_options;
 } filter_options_t;
@@ -42,7 +42,7 @@ typedef struct filter_options {
  * 
  */
 typedef struct filter_options_data {
-    int show_rejected;      /**< Flag that sets whether to write a file containing the rejected records */
+    int save_rejected;      /**< Flag that sets whether to write a file containing the rejected records */
     filter_chain *chain;    /**< Chain of filters to apply to the VCF records. */
 } filter_options_data_t;
 
