@@ -20,7 +20,8 @@
 
 #include "tdt_runner.h"
 
-int run_tdt_test(shared_options_data_t* shared_options_data, gwas_options_data_t* options_data) {
+// int run_tdt_test(shared_options_data_t* shared_options_data, tdt_options_data_t* options_data) {
+int run_tdt_test(shared_options_data_t* shared_options_data) {
     list_t *read_list = (list_t*) malloc(sizeof(list_t));
     list_init("text", 1, shared_options_data->max_batches, read_list);
     list_t *output_list = (list_t*) malloc (sizeof(list_t));

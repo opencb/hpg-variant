@@ -20,7 +20,7 @@
 
 #include "assoc_runner.h"
 
-int run_association_test(shared_options_data_t* shared_options_data, gwas_options_data_t* options_data) {
+int run_association_test(shared_options_data_t* shared_options_data, assoc_options_data_t* options_data) {
     list_t *read_list = (list_t*) malloc(sizeof(list_t));
     list_init("text", 1, shared_options_data->max_batches, read_list);
     list_t *output_list = (list_t*) malloc (sizeof(list_t));
@@ -170,17 +170,10 @@ int run_association_test(shared_options_data_t* shared_options_data, gwas_option
                 }
 
                 // Launch TDT test over records that passed the filters
-//                 int num_variants = MIN(shared_options_data->batch_lines, passed_records->size);
                 if (passed_records->size > 0) {
 //                     LOG_DEBUG_F("[%d] Test execution\n", omp_get_thread_num());
-                    // TODO is this if neccessary? factorial_logarithms will be null in chi-square
-//                     if (options_data->task == ASSOCIATION_BASIC) {
-//                         assoc_test(options_data->task, (vcf_record_t**) passed_records->items, passed_records->size, 
-//                                    families, num_families, sample_ids, NULL, output_list);
-//                     } else if (options_data->task == FISHER) {
-                        assoc_test(options_data->task, (vcf_record_t**) passed_records->items, passed_records->size, 
-                                   families, num_families, sample_ids, factorial_logarithms, output_list);
-//                     }
+                    assoc_test(options_data->task, (vcf_record_t**) passed_records->items, passed_records->size, 
+                                families, num_families, sample_ids, factorial_logarithms, output_list);
                 }
                 
                 // Write records that passed and failed to separate files
@@ -256,9 +249,9 @@ int run_association_test(shared_options_data_t* shared_options_data, gwas_option
             size_t filename_len = 0;
             
             // Set whole path to the output file
-            if (options_data->task == ASSOCIATION_BASIC) {
-                filename_len = strlen("hpg-variant.assoc");
-                filename = strdup("hpg-variant.assoc");
+            if (options_data->task == CHI_SQUARE) {
+                filename_len = strlen("hpg-variant.chisq");
+                filename = strdup("hpg-variant.chisq");
             } else if (options_data->task == FISHER) {
                 filename_len = strlen("hpg-variant.fisher");
                 filename = strdup("hpg-variant.fisher");
@@ -276,7 +269,7 @@ int run_association_test(shared_options_data_t* shared_options_data, gwas_option
             // Write data: header + one line per variant
             list_item_t* item = NULL;
             
-            if (options_data->task == ASSOCIATION_BASIC) {
+            if (options_data->task == CHI_SQUARE) {
                 assoc_basic_result_t *result;
                 fprintf(fd, "#CHR          BP       A1      C_A1    C_U1         F_A1            F_U1       A2      C_A2    C_U2         F_A2            F_U2              OR           CHISQ         P-VALUE\n");
                 while ((item = list_remove_item(output_list)) != NULL) {

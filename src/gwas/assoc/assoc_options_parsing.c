@@ -18,11 +18,11 @@
  * along with hpg-variant. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "gwas.h"
+#include "assoc.h"
 
 
-int read_gwas_configuration(const char *filename, assoc_options_t *gwas_options, shared_options_t *shared_options) {
-    if (filename == NULL || gwas_options == NULL || shared_options == NULL) {
+int read_assoc_configuration(const char *filename, assoc_options_t *assoc_options, shared_options_t *shared_options) {
+    if (filename == NULL || assoc_options == NULL || shared_options == NULL) {
         return -1;
     }
 
@@ -36,7 +36,7 @@ int read_gwas_configuration(const char *filename, assoc_options_t *gwas_options,
     const char *tmp_string;
     
     // Read number of threads that will make request to the web service
-    ret_code = config_lookup_int(config, "gwas.num-threads", shared_options->num_threads->ival);
+    ret_code = config_lookup_int(config, "gwas.assoc.num-threads", shared_options->num_threads->ival);
     if (ret_code == CONFIG_FALSE) {
         LOG_WARN("Number of threads not found in config file, must be set via command-line");
     } else {
@@ -44,7 +44,7 @@ int read_gwas_configuration(const char *filename, assoc_options_t *gwas_options,
     }
 
     // Read maximum number of batches that can be stored at certain moment
-    ret_code = config_lookup_int(config, "gwas.max-batches", shared_options->max_batches->ival);
+    ret_code = config_lookup_int(config, "gwas.assoc.max-batches", shared_options->max_batches->ival);
     if (ret_code == CONFIG_FALSE) {
         LOG_WARN("Maximum number of batches not found in configuration file, must be set via command-line");
     } else {
@@ -52,8 +52,8 @@ int read_gwas_configuration(const char *filename, assoc_options_t *gwas_options,
     }
     
     // Read size of a batch (in lines or bytes)
-    ret_code = config_lookup_int(config, "gwas.batch-lines", shared_options->batch_lines->ival);
-    ret_code |= config_lookup_int(config, "gwas.batch-bytes", shared_options->batch_bytes->ival);
+    ret_code = config_lookup_int(config, "gwas.assoc.batch-lines", shared_options->batch_lines->ival);
+    ret_code |= config_lookup_int(config, "gwas.assoc.batch-bytes", shared_options->batch_bytes->ival);
     if (ret_code == CONFIG_FALSE) {
         LOG_WARN("Neither batch lines nor bytes found in configuration file, must be set via command-line");
     }
@@ -64,20 +64,20 @@ int read_gwas_configuration(const char *filename, assoc_options_t *gwas_options,
     return 0;
 }
 
-void **parse_gwas_options(int argc, char *argv[], assoc_options_t *gwas_options, shared_options_t *shared_options) {
-    struct arg_end *end = arg_end(gwas_options->num_options + shared_options->num_options);
-    void **argtable = merge_gwas_options(gwas_options, shared_options, end);
+void **parse_assoc_options(int argc, char *argv[], assoc_options_t *assoc_options, shared_options_t *shared_options) {
+    struct arg_end *end = arg_end(assoc_options->num_options + shared_options->num_options);
+    void **argtable = merge_assoc_options(assoc_options, shared_options, end);
     
     int num_errors = arg_parse(argc, argv, argtable);
     if (num_errors > 0) {
-        arg_print_errors(stdout, end, "hpg-variant");
+        arg_print_errors(stdout, end, "hpg-var-gwas");
     }
     
     return argtable;
 }
 
-void **merge_gwas_options(assoc_options_t *gwas_options, shared_options_t *shared_options, struct arg_end *arg_end) {
-    size_t opts_size = gwas_options->num_options + shared_options->num_options + 1;
+void **merge_assoc_options(assoc_options_t *assoc_options, shared_options_t *shared_options, struct arg_end *arg_end) {
+    size_t opts_size = assoc_options->num_options + shared_options->num_options + 1;
     void **tool_options = malloc (opts_size * sizeof(void*));
     tool_options[0] = shared_options->vcf_filename;
     tool_options[1] = shared_options->ped_filename;
@@ -105,18 +105,16 @@ void **merge_gwas_options(assoc_options_t *gwas_options, shared_options_t *share
     tool_options[19] = shared_options->config_file;
     tool_options[20] = shared_options->mmap_vcf_files;
     
-    tool_options[21] = gwas_options->assoc;
-    tool_options[22] = gwas_options->fisher;
-    tool_options[23] = gwas_options->tdt;
-               
-    tool_options[24] = arg_end;
+    tool_options[21] = assoc_options->chisq;
+    tool_options[22] = assoc_options->fisher;
+
+    tool_options[23] = arg_end;
     
     return tool_options;
 }
 
 
-int verify_gwas_options(assoc_options_t *gwas_options, shared_options_t *shared_options)
-{
+int verify_assoc_options(assoc_options_t *assoc_options, shared_options_t *shared_options) {
     // Check whether the input VCF file is defined
     if (shared_options->vcf_filename->count == 0) {
         LOG_ERROR("Please specify the input VCF file.\n");
@@ -124,13 +122,13 @@ int verify_gwas_options(assoc_options_t *gwas_options, shared_options_t *shared_
     }
     
     // Check whether the task to perform is defined
-    if (gwas_options->assoc->count + gwas_options->fisher->count + gwas_options->tdt->count == 0) {
+    if (assoc_options->chisq->count + assoc_options->fisher->count == 0) {
         LOG_ERROR("Please specify the task to perform.\n");
         return GWAS_TASK_NOT_SPECIFIED;
     }
 
     // Check whether more than one task is specified
-    if (gwas_options->assoc->count + gwas_options->fisher->count + gwas_options->tdt->count > 1) {
+    if (assoc_options->chisq->count + assoc_options->fisher->count > 1) {
         LOG_ERROR("Please specify only one task to perform.\n");
         return GWAS_MANY_TASKS_SPECIFIED;
     }
