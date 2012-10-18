@@ -70,7 +70,9 @@ int run_filter(shared_options_data_t *shared_options_data, filter_options_data_t
             
             LOG_DEBUG_F("passed filename = %s\nfailed filename = %s\n", passed_filename, failed_filename);
             passed_file = fopen(passed_filename, "w");
-            failed_file = fopen(failed_filename, "w");
+            if (options_data->show_rejected) {
+                failed_file = fopen(failed_filename, "w");
+            }
             free(passed_filename);
             free(failed_filename);
             LOG_DEBUG("File streams created\n");
@@ -83,7 +85,9 @@ int run_filter(shared_options_data_t *shared_options_data, filter_options_data_t
                 if (i == 0) {
                     // Write file format, header entries and delimiter
                     write_vcf_header(file, passed_file);
-                    write_vcf_header(file, failed_file);
+                    if (options_data->show_rejected) {
+                        write_vcf_header(file, failed_file);
+                    }
 
                     LOG_DEBUG("VCF header written created\n");
                 }
@@ -116,7 +120,7 @@ int run_filter(shared_options_data_t *shared_options_data, filter_options_data_t
                     }
                 }
                 
-                if (failed_records != NULL && failed_records->size > 0) {
+                if (options_data->show_rejected && failed_records != NULL && failed_records->size > 0) {
                     LOG_DEBUG_F("[batch %d] %zu failed records\n", i, failed_records->size);
                 #pragma omp critical 
                     {
