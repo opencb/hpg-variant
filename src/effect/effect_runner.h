@@ -57,7 +57,6 @@
 #include "effect.h"
 #include "error.h"
 #include "hpg_variant_utils.h"
-#include "main.h"
 
 #define CONSEQUENCE_TYPE_WS_NUM_PARAMS  3
 #define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
