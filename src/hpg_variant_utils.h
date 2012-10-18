@@ -52,6 +52,8 @@ void close_job_status_file(FILE *file);
  *      Miscellaneous    *
  * ***********************/
 
+void show_usage(char *tool, void **argtable, int num_arguments);
+
 /**
  * @brief Creates output files depending on the tool options given as input
  * @param global_options_data Options that apply to decide whether to create the output files or not

@@ -21,6 +21,10 @@
 #include "hpg_variant_utils.h"
 
 
+/* ***********************
+ *     Initialization    *
+ * ***********************/
+
 char *find_configuration_file(int argc, char *argv[]) {
     FILE *config_file = NULL;
     char *config_filepath = NULL;
@@ -40,9 +44,14 @@ char *find_configuration_file(int argc, char *argv[]) {
         fclose(config_file);
     }
     
-    LOG_INFO_F("Configuration file = %s\n", config_filepath);
+    LOG_DEBUG_F("Configuration file = %s\n", config_filepath);
     return config_filepath;
 }
+
+
+/* **********************
+ *    Job management    *
+ * **********************/
 
 FILE* new_job_status_file(char* path) {
     return fopen(path, "w");
@@ -64,6 +73,15 @@ void close_job_status_file(FILE* file) {
 }
 
 
+/* ***********************
+ *      Miscellaneous    *
+ * ***********************/
+
+void show_usage(char *tool, void **argtable, int num_arguments) {
+    printf("Usage: hpg-variant %s", tool);
+    arg_print_syntaxv(stdout, argtable, "\n");
+    arg_print_glossary(stdout, argtable, " %-40s %s\n");
+}
 
 int get_output_files(shared_options_data_t *global_options_data, FILE** passed_file, FILE** failed_file) {
     if (global_options_data == NULL) {

@@ -9,7 +9,7 @@ int vcf_tool_split(int argc, char *argv[], const char *configuration_file) {
      * ******************************/
 
     shared_options_t *shared_options = new_shared_cli_options();
-    split_options_t *options = new_split_cli_options();
+    split_options_t *split_options = new_split_cli_options();
 
 
     /* ******************************
@@ -18,34 +18,43 @@ int vcf_tool_split(int argc, char *argv[], const char *configuration_file) {
 
     // Step 1: read options from configuration file
     int config_errors = read_shared_configuration(configuration_file, shared_options);
-    config_errors &= read_split_configuration(configuration_file, options, shared_options);
-    LOG_INFO_F("Config read with errors = %d\n", config_errors);
-
+    config_errors &= read_split_configuration(configuration_file, split_options, shared_options);
+    
     if (config_errors) {
+        LOG_FATAL("Configuration file read with errors\n");
         return CANT_READ_CONFIG_FILE;
     }
-
+    
     // Step 2: parse command-line options
-    void **argtable = parse_split_options(argc, argv, options, shared_options);
+    // If no arguments or only --help are provided, show usage
+    void **argtable;
+    if (argc == 1 || !strcmp(argv[1], "--help")) {
+        argtable = merge_split_options(split_options, shared_options, arg_end(split_options->num_options + shared_options->num_options));
+        show_usage("split", argtable, split_options->num_options + shared_options->num_options);
+        arg_freetable(argtable, split_options->num_options + shared_options->num_options);
+        return 0;
+    } else {
+        argtable = parse_split_options(argc, argv, split_options, shared_options);
+    }
     
     // Step 3: check that all options are set with valid values
     // Mandatory that couldn't be read from the config file must be set via command-line
     // If not, return error code!
-    int check_vcf_tools_opts = verify_split_options(options, shared_options);
+    int check_vcf_tools_opts = verify_split_options(split_options, shared_options);
     if (check_vcf_tools_opts > 0) {
         return check_vcf_tools_opts;
     }
 
     // Step 4: Create XXX_options_data_t structures from valid XXX_options_t
     shared_options_data_t *shared_options_data = new_shared_options_data(shared_options);
-    split_options_data_t *options_data = new_split_options_data(options);
+    split_options_data_t *options_data = new_split_options_data(split_options);
 
     // Step 5: Perform the requested task
     int result = run_split(shared_options_data, options_data);
 
     free_split_options_data(options_data);
     free_shared_options_data(shared_options_data);
-    arg_freetable(argtable, options->num_options + shared_options->num_options - 3);
+    arg_freetable(argtable, split_options->num_options + shared_options->num_options - 3);
 
     return 0;
 }
