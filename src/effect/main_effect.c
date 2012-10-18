@@ -21,8 +21,7 @@
 #include "effect.h"
 #include "effect_runner.h"
 
-int effect(int argc, char *argv[], const char *configuration_file) {
-    LOG_DEBUG_F("effect called with %d args\n", argc);
+int main(int argc, char *argv[]) {
 
     /* ******************************
      * 	    Modifiable options	    *
@@ -30,12 +29,23 @@ int effect(int argc, char *argv[], const char *configuration_file) {
 
     shared_options_t *shared_options = new_shared_cli_options();
     effect_options_t *effect_options = new_effect_cli_options();
+    void **argtable;
 
+    // If no arguments or only -h / --help are provided, show usage
+    if (argc == 1 || !strcmp(argv[1], "-h") || !strcmp(argv[1], "--help")) {
+        argtable = merge_effect_options(effect_options, shared_options, arg_end(effect_options->num_options + shared_options->num_options));
+        show_usage(argv[0], argtable, effect_options->num_options + shared_options->num_options);
+        arg_freetable(argtable, effect_options->num_options + shared_options->num_options);
+        return 0;
+    }
 
     /* ******************************
      * 	    Execution steps	        *
      * ******************************/
 
+    init_log_custom(2, 1, "hpg-var-effect.log");
+    const char *configuration_file = find_configuration_file(argc, argv);
+    
     // Step 1: read options from configuration file
     int config_errors = read_shared_configuration(configuration_file, shared_options);
     config_errors &= read_effect_configuration(configuration_file, effect_options, shared_options);
@@ -46,16 +56,7 @@ int effect(int argc, char *argv[], const char *configuration_file) {
     }
 
     // Step 2: parse command-line options
-    // If no arguments or only --help are provided, show usage
-    void **argtable;
-    if (argc == 1 || !strcmp(argv[1], "--help")) {
-        argtable = merge_effect_options(effect_options, shared_options, arg_end(effect_options->num_options + shared_options->num_options));
-        show_usage("effect", argtable, effect_options->num_options + shared_options->num_options);
-        arg_freetable(argtable, effect_options->num_options + shared_options->num_options);
-        return 0;
-    } else {
-        argtable = parse_effect_options(argc, argv, effect_options, shared_options);
-    }
+    argtable = parse_effect_options(argc, argv, effect_options, shared_options);
     
     // Step 3: check that all options are set with valid values
     // Mandatory options that couldn't be read from the config file must be set via command-line
