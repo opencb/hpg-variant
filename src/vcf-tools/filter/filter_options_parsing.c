@@ -96,7 +96,9 @@ void **merge_filter_options(filter_options_t *filter_options, shared_options_t *
     tool_options[18] = filter_options->region_file;
     tool_options[19] = filter_options->snp;
     
-    tool_options[20] = arg_end;
+    tool_options[20] = filter_options->show_rejected;
+    
+    tool_options[21] = arg_end;
     
     return tool_options;
 }

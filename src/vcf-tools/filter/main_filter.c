@@ -60,7 +60,7 @@ filter_options_t *new_filter_cli_options(void) {
     options->region_file = arg_file0(NULL, "region-file", NULL, "Filter: by a list of regions (read from a GFF file)");
     options->snp = arg_str0(NULL, "snp", NULL, "Filter: by being a SNP or not");
     
-//     options->excludes = arg_str0(NULL, "exclude", NULL, "Consequence types to exclude from the query");
+    options->show_rejected = arg_lit0(NULL, "show-rejected", "Write a file containing the rejected records");
     return options;
 }
 
@@ -106,9 +106,8 @@ filter_options_data_t *new_filter_options_data(filter_options_t *options, shared
         options_data->chain = add_to_filter_chain(filter, options_data->chain);
         LOG_INFO_F("regions file = %s\n", *(options->region->sval));
     }
-//     options_data->num_threads = 1;
-//     options_data->max_batches = 10;
-//     options_data->batch_size = 20000;
+    
+    options_data->show_rejected = (options->show_rejected->count > 0);
 
     return options_data;
 }
