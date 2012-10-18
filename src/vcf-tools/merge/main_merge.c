@@ -31,6 +31,15 @@ int vcf_tool_merge(int argc, char *argv[], const char *configuration_file) {
     shared_options_t *shared_options = new_shared_cli_options();
     merge_options_t *merge_options = new_merge_cli_options();
 
+    // If no arguments or only --help are provided, show usage
+    void **argtable;
+    if (argc == 1 || !strcmp(argv[1], "-h") || !strcmp(argv[1], "--help")) {
+        argtable = merge_merge_options(merge_options, shared_options, arg_end(merge_options->num_options + shared_options->num_options));
+        show_usage("hpg-var-vcf", argtable, merge_options->num_options + shared_options->num_options);
+        arg_freetable(argtable, merge_options->num_options + shared_options->num_options);
+        return 0;
+    }
+
 
     /* ******************************
      *       Execution steps        *
@@ -47,15 +56,7 @@ int vcf_tool_merge(int argc, char *argv[], const char *configuration_file) {
     
     // Step 2: parse command-line options
     // If no arguments or only --help are provided, show usage
-    void **argtable;
-    if (argc == 1 || !strcmp(argv[1], "--help")) {
-        argtable = merge_merge_options(merge_options, shared_options, arg_end(merge_options->num_options + shared_options->num_options));
-        show_usage("merge", argtable, merge_options->num_options + shared_options->num_options);
-        arg_freetable(argtable, merge_options->num_options + shared_options->num_options - 2);
-        return 0;
-    } else {
-        argtable = parse_merge_options(argc, argv, merge_options, shared_options);
-    }
+    argtable = parse_merge_options(argc, argv, merge_options, shared_options);
     
     // Step 3: check that all options are set with valid values
     // Mandatory that couldn't be read from the config file must be set via command-line

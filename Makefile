@@ -34,8 +34,10 @@ MISC_OBJS = $(COMMONS_DIR)/file_utils.o $(COMMONS_DIR)/string_utils.o $(COMMONS_
 	$(CONTAINERS_DIR)/array_list.o $(CONTAINERS_DIR)/list.o $(BIOFORMATS_DIR)/family.o $(MATH_DIR)/fisher.o
 
 # Project source files
+GLOBAL_FILES = $(SRC_DIR)/shared_options.c $(SRC_DIR)/hpg_variant_utils.c
+EFFECT_FILES = $(SRC_DIR)/effect/*.c $(GLOBAL_FILES)
 VARIANT_FILES = $(SRC_DIR)/effect/*.c $(SRC_DIR)/gwas/*.c
-VCF_TOOLS_FILES = $(SRC_DIR)/vcf-tools/*.c $(SRC_DIR)/vcf-tools/filter/*.c $(SRC_DIR)/vcf-tools/merge/*.c $(SRC_DIR)/vcf-tools/split/*.c $(SRC_DIR)/vcf-tools/stats/*.c
+VCF_TOOLS_FILES = $(SRC_DIR)/vcf-tools/*.c $(SRC_DIR)/vcf-tools/filter/*.c $(SRC_DIR)/vcf-tools/merge/*.c $(SRC_DIR)/vcf-tools/split/*.c $(SRC_DIR)/vcf-tools/stats/*.c $(GLOBAL_FILES)
 ALL_FILES = $(SRC_DIR)/shared_options.c $(SRC_DIR)/hpg_variant_utils.c $(VARIANT_FILES) $(VCF_TOOLS_FILES)
 
 # Project object files
@@ -43,7 +45,36 @@ HPG_VARIANT_OBJS = *.o
 ALL_OBJS = $(HPG_VARIANT_OBJS) $(VCF_OBJS) $(GFF_OBJS) $(PED_OBJS) $(REGION_TABLE_OBJS) $(MISC_OBJS)
 
 # Targets
-all: compile-dependencies debug
+all: clean clean-bin compile-dependencies debug
+
+effect-deploy: clean compile-dependencies-static $(EFFECT_FILES)
+	$(CC) $(CFLAGS) -c $(EFFECT_FILES) $(INCLUDES) $(LIBS_STATIC)
+	test -d $(BIN_DIR) || mkdir $(BIN_DIR)
+	cp hpg-variant.cfg $(BIN_DIR)
+	cp vcf-info-fields.cfg $(BIN_DIR)
+	$(CC) $(CFLAGS) -o $(BIN_DIR)/hpg-var-effect $(ALL_OBJS) $(INCLUDES_STATIC) $(LIBS_STATIC)
+
+effect-debug: clean compile-dependencies $(EFFECT_FILES)
+	$(CC) $(CFLAGS_DEBUG) -c $(EFFECT_FILES) $(INCLUDES) $(LIBS)
+	test -d $(BIN_DIR) || mkdir $(BIN_DIR)
+	cp hpg-variant.cfg $(BIN_DIR)
+	cp vcf-info-fields.cfg $(BIN_DIR)
+	$(CC) $(CFLAGS_DEBUG) -o $(BIN_DIR)/hpg-var-effect $(ALL_OBJS) $(INCLUDES) $(LIBS)
+
+vcf-tools-deploy: clean compile-dependencies-static $(VCF_TOOLS_FILES)
+	$(CC) $(CFLAGS) -c $(VCF_TOOLS_FILES) $(INCLUDES) $(LIBS_STATIC)
+	test -d $(BIN_DIR) || mkdir $(BIN_DIR)
+	cp hpg-variant.cfg $(BIN_DIR)
+	cp vcf-info-fields.cfg $(BIN_DIR)
+	$(CC) $(CFLAGS) -o $(BIN_DIR)/hpg-var-vcf $(ALL_OBJS) $(INCLUDES_STATIC) $(LIBS_STATIC)
+
+vcf-tools-debug: clean compile-dependencies $(VCF_TOOLS_FILES)
+	$(CC) $(CFLAGS_DEBUG) -c $(VCF_TOOLS_FILES) $(INCLUDES) $(LIBS)
+	test -d $(BIN_DIR) || mkdir $(BIN_DIR)
+	cp hpg-variant.cfg $(BIN_DIR)
+	cp vcf-info-fields.cfg $(BIN_DIR)
+	$(CC) $(CFLAGS_DEBUG) -o $(BIN_DIR)/hpg-var-vcf $(ALL_OBJS) $(INCLUDES) $(LIBS)
+
 
 deploy: compile-dependencies-static $(ALL_FILES)
 	$(CC) $(CFLAGS) -c $(SRC_DIR)/main.c $(ALL_FILES) $(INCLUDES) $(LIBS_STATIC)
@@ -99,4 +130,6 @@ clean:
 	rm -f $(BIOFORMATS_DIR)/gff/*.o
 	rm -f $(BIOFORMATS_DIR)/ped/*.o
 	rm -f $(BIOFORMATS_DIR)/features/region/*.o
+
+clean-bin:
 	rm -rf bin

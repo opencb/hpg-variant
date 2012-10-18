@@ -18,9 +18,18 @@
  * along with hpg-variant. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "vcf_tools.h"
+#include "main_vcf_tools.h"
 
-int vcf_handling(int argc, char *argv[], const char *config) {
+int main(int argc, char *argv[]) {
+    if (argc == 1 || !strcmp(argv[1], "-h") || !strcmp(argv[1], "--help")) {
+        printf("Usage: %s < filter | merge | split | stats > < tool-options >\nFor more information about a certain tool, type %s tool-name --help\n", argv[0], argv[0]);
+        return 0;
+    }
+    
+    init_log_custom(2, 1, "hpg-var-vcf.log");
+
+    const char *config = find_configuration_file(argc, argv);
+    
     // Get sub-tool
     char *tool = argv[1];
     int exit_code = 0;

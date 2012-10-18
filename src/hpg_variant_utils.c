@@ -78,7 +78,7 @@ void close_job_status_file(FILE* file) {
  * ***********************/
 
 void show_usage(char *tool, void **argtable, int num_arguments) {
-    printf("Usage: hpg-variant %s", tool);
+    printf("Usage: %s", tool);
     arg_print_syntaxv(stdout, argtable, "\n");
     arg_print_glossary(stdout, argtable, " %-40s %s\n");
 }

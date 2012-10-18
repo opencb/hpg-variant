@@ -79,7 +79,7 @@ void **parse_split_options(int argc, char *argv[], split_options_t *split_option
     
     int num_errors = arg_parse(argc, argv, argtable);
     if (num_errors > 0) {
-        arg_print_errors(stdout, end, "hpg-vcf");
+        arg_print_errors(stdout, end, "hpg-var-vcf");
     }
     
     return argtable;

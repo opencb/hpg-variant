@@ -30,6 +30,15 @@ int vcf_tool_stats(int argc, char *argv[], const char *configuration_file) {
     shared_options_t *shared_options = new_shared_cli_options();
     stats_options_t *stats_options = new_stats_cli_options();
 
+    // If no arguments or only --help are provided, show usage
+    void **argtable;
+    if (argc == 1 || !strcmp(argv[1], "-h") || !strcmp(argv[1], "--help")) {
+        argtable = merge_stats_options(stats_options, shared_options, arg_end(stats_options->num_options + shared_options->num_options));
+        show_usage("hpg-var-vcf", argtable, stats_options->num_options + shared_options->num_options);
+        arg_freetable(argtable, stats_options->num_options + shared_options->num_options);
+        return 0;
+    }
+
 
     /* ******************************
      *       Execution steps        *
@@ -45,16 +54,7 @@ int vcf_tool_stats(int argc, char *argv[], const char *configuration_file) {
     }
     
     // Step 2: parse command-line options
-    // If no arguments or only --help are provided, show usage
-    void **argtable;
-    if (argc == 1 || !strcmp(argv[1], "--help")) {
-        argtable = merge_stats_options(stats_options, shared_options, arg_end(stats_options->num_options + shared_options->num_options));
-        show_usage("stats", argtable, stats_options->num_options + shared_options->num_options);
-        arg_freetable(argtable, stats_options->num_options + shared_options->num_options - 9);
-        return 0;
-    } else {
-        argtable = parse_stats_options(argc, argv, stats_options, shared_options);
-    }
+    argtable = parse_stats_options(argc, argv, stats_options, shared_options);
 
     // Step 3: check that all options are set with valid values
     // Mandatory that couldn't be read from the config file must be set via command-line

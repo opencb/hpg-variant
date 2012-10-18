@@ -81,7 +81,7 @@ void **parse_effect_options(int argc, char *argv[], effect_options_t *effect_opt
     
     int num_errors = arg_parse(argc, argv, argtable);
     if (num_errors > 0) {
-        arg_print_errors(stdout, end, "hpg-variant");
+        arg_print_errors(stdout, end, "hpg-var-effect");
     }
     
     return argtable;
