@@ -33,6 +33,7 @@
 #include <commons/log.h>
 
 #include "error.h"
+#include "hpg_variant_utils.h"
 #include "filter/filter.h"
 #include "merge/merge.h"
 #include "split/split.h"

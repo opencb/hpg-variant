@@ -36,16 +36,17 @@ MISC_OBJS = $(COMMONS_DIR)/file_utils.o $(COMMONS_DIR)/string_utils.o $(COMMONS_
 # Project source files
 GLOBAL_FILES = $(SRC_DIR)/shared_options.c $(SRC_DIR)/hpg_variant_utils.c
 EFFECT_FILES = $(SRC_DIR)/effect/*.c $(GLOBAL_FILES)
-VARIANT_FILES = $(SRC_DIR)/effect/*.c $(SRC_DIR)/gwas/*.c
+GWAS_FILES = $(SRC_DIR)/gwas/*.c $(SRC_DIR)/gwas/assoc/*.c $(SRC_DIR)/gwas/tdt/*.c $(GLOBAL_FILES)
+# VARIANT_FILES = $(SRC_DIR)/effect/*.c $(SRC_DIR)/gwas/*.c
 VCF_TOOLS_FILES = $(SRC_DIR)/vcf-tools/*.c $(SRC_DIR)/vcf-tools/filter/*.c $(SRC_DIR)/vcf-tools/merge/*.c $(SRC_DIR)/vcf-tools/split/*.c $(SRC_DIR)/vcf-tools/stats/*.c $(GLOBAL_FILES)
-ALL_FILES = $(SRC_DIR)/shared_options.c $(SRC_DIR)/hpg_variant_utils.c $(VARIANT_FILES) $(VCF_TOOLS_FILES)
+# ALL_FILES = $(SRC_DIR)/shared_options.c $(SRC_DIR)/hpg_variant_utils.c $(VARIANT_FILES) $(VCF_TOOLS_FILES)
 
 # Project object files
 HPG_VARIANT_OBJS = *.o
 ALL_OBJS = $(HPG_VARIANT_OBJS) $(VCF_OBJS) $(GFF_OBJS) $(PED_OBJS) $(REGION_TABLE_OBJS) $(MISC_OBJS)
 
 # Targets
-all: clean clean-bin compile-dependencies debug
+all: clean clean-bin compile-dependencies effect-debug clean gwas-debug clean vcf-tools-debug
 
 effect-deploy: clean compile-dependencies-static $(EFFECT_FILES)
 	$(CC) $(CFLAGS) -c $(EFFECT_FILES) $(INCLUDES) $(LIBS_STATIC)
@@ -60,6 +61,20 @@ effect-debug: clean compile-dependencies $(EFFECT_FILES)
 	cp hpg-variant.cfg $(BIN_DIR)
 	cp vcf-info-fields.cfg $(BIN_DIR)
 	$(CC) $(CFLAGS_DEBUG) -o $(BIN_DIR)/hpg-var-effect $(ALL_OBJS) $(INCLUDES) $(LIBS)
+
+gwas-deploy: clean compile-dependencies-static $(GWAS_FILES)
+	$(CC) $(CFLAGS) -c $(GWAS_FILES) $(INCLUDES) $(LIBS_STATIC)
+	test -d $(BIN_DIR) || mkdir $(BIN_DIR)
+	cp hpg-variant.cfg $(BIN_DIR)
+	cp vcf-info-fields.cfg $(BIN_DIR)
+	$(CC) $(CFLAGS) -o $(BIN_DIR)/hpg-var-gwas $(ALL_OBJS) $(INCLUDES_STATIC) $(LIBS_STATIC)
+
+gwas-debug: clean compile-dependencies $(GWAS_FILES)
+	$(CC) $(CFLAGS_DEBUG) -c $(GWAS_FILES) $(INCLUDES) $(LIBS)
+	test -d $(BIN_DIR) || mkdir $(BIN_DIR)
+	cp hpg-variant.cfg $(BIN_DIR)
+	cp vcf-info-fields.cfg $(BIN_DIR)
+	$(CC) $(CFLAGS_DEBUG) -o $(BIN_DIR)/hpg-var-gwas $(ALL_OBJS) $(INCLUDES) $(LIBS)
 
 vcf-tools-deploy: clean compile-dependencies-static $(VCF_TOOLS_FILES)
 	$(CC) $(CFLAGS) -c $(VCF_TOOLS_FILES) $(INCLUDES) $(LIBS_STATIC)
@@ -76,19 +91,19 @@ vcf-tools-debug: clean compile-dependencies $(VCF_TOOLS_FILES)
 	$(CC) $(CFLAGS_DEBUG) -o $(BIN_DIR)/hpg-var-vcf $(ALL_OBJS) $(INCLUDES) $(LIBS)
 
 
-deploy: compile-dependencies-static $(ALL_FILES)
-	$(CC) $(CFLAGS) -c $(SRC_DIR)/main.c $(ALL_FILES) $(INCLUDES) $(LIBS_STATIC)
-	test -d $(BIN_DIR) || mkdir $(BIN_DIR)
-	cp hpg-variant.cfg $(BIN_DIR)
-	cp vcf-info-fields.cfg $(BIN_DIR)
-	$(CC) $(CFLAGS) -o $(BIN_DIR)/hpg-variant $(ALL_OBJS) $(INCLUDES_STATIC) $(LIBS_STATIC)
-	
-debug: compile-dependencies $(ALL_FILES)
-	$(CC) $(CFLAGS_DEBUG) -c $(SRC_DIR)/main.c $(ALL_FILES) $(INCLUDES) $(LIBS)
-	test -d $(BIN_DIR) || mkdir $(BIN_DIR)
-	cp hpg-variant.cfg $(BIN_DIR)
-	cp vcf-info-fields.cfg $(BIN_DIR)
-	$(CC) $(CFLAGS_DEBUG) -o $(BIN_DIR)/hpg-variant $(ALL_OBJS) $(INCLUDES) $(LIBS)
+# deploy: compile-dependencies-static $(ALL_FILES)
+# 	$(CC) $(CFLAGS) -c $(SRC_DIR)/main.c $(ALL_FILES) $(INCLUDES) $(LIBS_STATIC)
+# 	test -d $(BIN_DIR) || mkdir $(BIN_DIR)
+# 	cp hpg-variant.cfg $(BIN_DIR)
+# 	cp vcf-info-fields.cfg $(BIN_DIR)
+# 	$(CC) $(CFLAGS) -o $(BIN_DIR)/hpg-variant $(ALL_OBJS) $(INCLUDES_STATIC) $(LIBS_STATIC)
+# 	
+# debug: compile-dependencies $(ALL_FILES)
+# 	$(CC) $(CFLAGS_DEBUG) -c $(SRC_DIR)/main.c $(ALL_FILES) $(INCLUDES) $(LIBS)
+# 	test -d $(BIN_DIR) || mkdir $(BIN_DIR)
+# 	cp hpg-variant.cfg $(BIN_DIR)
+# 	cp vcf-info-fields.cfg $(BIN_DIR)
+# 	$(CC) $(CFLAGS_DEBUG) -o $(BIN_DIR)/hpg-variant $(ALL_OBJS) $(INCLUDES) $(LIBS)
 
 testing: test/test_effect_runner.c test/test_tdt_runner.c $(ALL_OBJS)
 	$(CC) $(CFLAGS_DEBUG) -o test/effect.test test/test_effect_runner.c $(ALL_OBJS) $(INCLUDES) $(LIBS) $(LIBS_TEST)

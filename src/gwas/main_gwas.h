@@ -30,29 +30,16 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <argtable2.h>
+#include <commons/log.h>
 
 #include "error.h"
-#include "shared_options.h"
 #include "hpg_variant_utils.h"
-#include "vcf-tools/vcf_tools.h"
+#include "gwas/assoc/assoc.h"
+#include "gwas/tdt/tdt.h"
 
+int association(int argc, char *argv[], const char *configuration_file);
 
-/* ***********************
- *     Available tools   *
- * ***********************/
-
-int call(void);
-
-int effect(int argc, char *argv[], const char *configuration_file);
-
-int functional_analysis(void);
-
-int genomic_analysis(int argc, char *argv[], const char *configuration_file);
-
-int pathway_analysis(void);
-
-int vcf_handling(int argc, char *argv[], const char *configuration_file);
+int tdt(int argc, char *argv[], const char *configuration_file);
 
 
 #endif
