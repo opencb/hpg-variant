@@ -49,7 +49,7 @@ typedef struct effect_options {
     int num_options;
     
     struct arg_lit *no_phenotypes; /**< Flag asking not to retrieve phenotypical information. */
-    struct arg_str *excludes; /**< Consequence types to exclude from the query. */
+    struct arg_str *excludes; /**< Comma-separated consequence types to exclude from the query. */
 } effect_options_t;
 
 /**
@@ -59,8 +59,8 @@ typedef struct effect_options {
  * services that retrieve phenotypical information, or the effects that will not be retrieved.
  */
 typedef struct effect_options_data {
-    int no_phenotypes; /**< Flag asking not to retrieve phenotypical information. */
-    char *excludes; /**< Consequence types to exclude from the query. */
+    int no_phenotypes;  /**< Flag asking not to retrieve phenotypical information. */
+    char *excludes;     /**< Comma-separated consequence types to exclude from the query. */
 } effect_options_data_t;
 
 

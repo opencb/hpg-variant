@@ -20,7 +20,7 @@ int read_merge_configuration(const char *filename, merge_options_t *options, sha
     if (ret_code == CONFIG_FALSE) {
         LOG_WARN("Number of threads not found in config file, must be set via command-line");
     } else {
-        LOG_INFO_F("num-threads = %ld\n", *(shared_options->num_threads->ival));
+        LOG_DEBUG_F("num-threads = %ld\n", *(shared_options->num_threads->ival));
     }
 
     // Read maximum number of batches that can be stored at certain moment
@@ -28,7 +28,7 @@ int read_merge_configuration(const char *filename, merge_options_t *options, sha
     if (ret_code == CONFIG_FALSE) {
         LOG_WARN("Maximum number of batches not found in configuration file, must be set via command-line");
     } else {
-        LOG_INFO_F("max-batches = %ld\n", *(shared_options->max_batches->ival));
+        LOG_DEBUG_F("max-batches = %ld\n", *(shared_options->max_batches->ival));
     }
     
     // Read size of every batch read
@@ -46,7 +46,7 @@ int read_merge_configuration(const char *filename, merge_options_t *options, sha
     if (ret_code == CONFIG_FALSE) {
         LOG_WARN("Entries per thread not found in configuration file, must be set via command-line");
     } else {
-        LOG_INFO_F("entries-per-thread = %ld\n", *(shared_options->entries_per_thread->ival));
+        LOG_DEBUG_F("entries-per-thread = %ld\n", *(shared_options->entries_per_thread->ival));
     }
     
     // Read missing mode
@@ -55,7 +55,7 @@ int read_merge_configuration(const char *filename, merge_options_t *options, sha
         LOG_WARN("Missing mode not found in configuration file, must be set via command-line");
     } else {
         *(options->missing_mode->sval) = strdup(tmp_string);
-        LOG_INFO_F("missing mode = %s (%zu chars)\n",
+        LOG_DEBUG_F("missing mode = %s (%zu chars)\n",
                    *(options->missing_mode->sval), strlen(*(options->missing_mode->sval)));
     }
 

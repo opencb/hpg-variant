@@ -9,7 +9,7 @@ int vcf_tool_merge(int argc, char *argv[], const char *configuration_file) {
      * ******************************/
 
     shared_options_t *shared_options = new_shared_cli_options();
-    merge_options_t *options = new_merge_cli_options();
+    merge_options_t *merge_options = new_merge_cli_options();
 
 
     /* ******************************
@@ -18,34 +18,43 @@ int vcf_tool_merge(int argc, char *argv[], const char *configuration_file) {
 
     // Step 1: read options from configuration file
     int config_errors = read_shared_configuration(configuration_file, shared_options);
-    config_errors &= read_merge_configuration(configuration_file, options, shared_options);
-    LOG_INFO_F("Config read with errors = %d\n", config_errors);
-
+    config_errors &= read_merge_configuration(configuration_file, merge_options, shared_options);
+    
     if (config_errors) {
+        LOG_FATAL("Configuration file read with errors\n");
         return CANT_READ_CONFIG_FILE;
     }
-
+    
     // Step 2: parse command-line options
-    void **argtable = parse_merge_options(argc, argv, options, shared_options);
+    // If no arguments or only --help are provided, show usage
+    void **argtable;
+    if (argc == 1 || !strcmp(argv[1], "--help")) {
+        argtable = merge_merge_options(merge_options, shared_options, arg_end(merge_options->num_options + shared_options->num_options));
+        show_usage("merge", argtable, merge_options->num_options + shared_options->num_options);
+        arg_freetable(argtable, merge_options->num_options + shared_options->num_options - 2);
+        return 0;
+    } else {
+        argtable = parse_merge_options(argc, argv, merge_options, shared_options);
+    }
     
     // Step 3: check that all options are set with valid values
     // Mandatory that couldn't be read from the config file must be set via command-line
     // If not, return error code!
-    int check_vcf_tools_opts = verify_merge_options(options, shared_options);
+    int check_vcf_tools_opts = verify_merge_options(merge_options, shared_options);
     if (check_vcf_tools_opts > 0) {
         return check_vcf_tools_opts;
     }
 
     // Step 4: Create XXX_options_data_t structures from valid XXX_options_t
     shared_options_data_t *shared_options_data = new_shared_options_data(shared_options);
-    merge_options_data_t *options_data = new_merge_options_data(options);
+    merge_options_data_t *options_data = new_merge_options_data(merge_options);
 
     // Step 5: Perform the requested task
     int result = run_merge(shared_options_data, options_data);
 
     free_merge_options_data(options_data);
     free_shared_options_data(shared_options_data);
-    arg_freetable(argtable, options->num_options + shared_options->num_options + 1 - 2);
+    arg_freetable(argtable, merge_options->num_options + shared_options->num_options + 1 - 2);
 
     return 0;
 }

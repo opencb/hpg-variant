@@ -23,8 +23,8 @@
 shared_options_t *new_shared_cli_options(void) {
     shared_options_t *options_data = (shared_options_t*) calloc (1, sizeof(shared_options_t));
     
-    options_data->vcf_filename = arg_file1(NULL, "vcf-file", NULL, "VCF file used as input");
-    options_data->ped_filename = arg_file0(NULL, "ped-file", NULL, "PED file used as input");
+    options_data->vcf_filename = arg_file1("v", "vcf-file", NULL, "VCF file used as input");
+    options_data->ped_filename = arg_file0("p", "ped-file", NULL, "PED file used as input");
     options_data->output_filename = arg_file0(NULL, "out", NULL, "Filename prefix for main output files");
     options_data->output_directory = arg_str0(NULL, "outdir", NULL, "Directory where the output files will be stored");
     
@@ -35,7 +35,7 @@ shared_options_t *new_shared_cli_options(void) {
     options_data->max_batches = arg_int0(NULL, "num-batches", NULL, "Maximum number of batches stored at the same time");
     options_data->batch_lines = arg_int0(NULL, "batch-lines", NULL, "Maximum number of lines in a batch");
     options_data->batch_bytes = arg_int0(NULL, "batch-bytes", NULL, "Maximum number of bytes in a batch");
-    options_data->num_threads = arg_int0(NULL, "num-threads", NULL, "Number of threads when a task is perform in parallel");
+    options_data->num_threads = arg_int0(NULL, "num-threads", NULL, "Number of threads when a task runs in parallel");
     options_data->entries_per_thread = arg_int0(NULL, "entries-per-thread", NULL, "Number of entries in a batch each thread processes");
     
     options_data->num_alleles = arg_int0(NULL, "alleles", NULL, "Filter: by number of alleles");
@@ -48,7 +48,7 @@ shared_options_t *new_shared_cli_options(void) {
     
     options_data->config_file = arg_file0(NULL, "config", NULL, "File that contains the parameters for configuring the application");
     
-    options_data->mmap_vcf_files = arg_lit0(NULL, "mmap-vcf", "Whether to use map VCF files to virtual memory or use the I/O API");
+    options_data->mmap_vcf_files = arg_lit0(NULL, "mmap-vcf", "Whether to map VCF files to virtual memory or use the I/O API");
     
     options_data->num_options = NUM_GLOBAL_OPTIONS;
     

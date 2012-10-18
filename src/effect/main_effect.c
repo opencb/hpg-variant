@@ -39,15 +39,24 @@ int effect(int argc, char *argv[], const char *configuration_file) {
     // Step 1: read options from configuration file
     int config_errors = read_shared_configuration(configuration_file, shared_options);
     config_errors &= read_effect_configuration(configuration_file, effect_options, shared_options);
-    LOG_INFO_F("Config read with errors = %d\n", config_errors);
     
     if (config_errors) {
+        LOG_FATAL("Configuration file read with errors\n");
         return CANT_READ_CONFIG_FILE;
     }
 
     // Step 2: parse command-line options
-    void **argtable = parse_effect_options(argc, argv, effect_options, shared_options);
-
+    // If no arguments or only --help are provided, show usage
+    void **argtable;
+    if (argc == 1 || !strcmp(argv[1], "--help")) {
+        argtable = merge_effect_options(effect_options, shared_options, arg_end(effect_options->num_options + shared_options->num_options));
+        show_usage("effect", argtable, effect_options->num_options + shared_options->num_options);
+        arg_freetable(argtable, effect_options->num_options + shared_options->num_options);
+        return 0;
+    } else {
+        argtable = parse_effect_options(argc, argv, effect_options, shared_options);
+    }
+    
     // Step 3: check that all options are set with valid values
     // Mandatory options that couldn't be read from the config file must be set via command-line
     // If not, return error code!
@@ -80,7 +89,7 @@ int effect(int argc, char *argv[], const char *configuration_file) {
     
     free_effect_options_data(effect_options_data);
     free_shared_options_data(shared_options_data);
-    arg_freetable(argtable, effect_options->num_options + shared_options->num_options);
+    arg_freetable(argtable, effect_options->num_options + shared_options->num_options - 1);
 
     return 0;
 }
