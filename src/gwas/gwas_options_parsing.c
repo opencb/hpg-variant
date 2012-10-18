@@ -97,18 +97,19 @@ void **merge_gwas_options(gwas_options_t *gwas_options, shared_options_t *shared
     tool_options[12] = shared_options->num_alleles;
     tool_options[13] = shared_options->coverage;
     tool_options[14] = shared_options->quality;
-    tool_options[15] = shared_options->region;
-    tool_options[16] = shared_options->region_file;
-    tool_options[17] = shared_options->snp;
+    tool_options[15] = shared_options->maf;
+    tool_options[16] = shared_options->region;
+    tool_options[17] = shared_options->region_file;
+    tool_options[18] = shared_options->snp;
     
-    tool_options[18] = shared_options->config_file;
-    tool_options[19] = shared_options->mmap_vcf_files;
+    tool_options[19] = shared_options->config_file;
+    tool_options[20] = shared_options->mmap_vcf_files;
     
-    tool_options[20] = gwas_options->assoc;
-    tool_options[21] = gwas_options->fisher;
-    tool_options[22] = gwas_options->tdt;
+    tool_options[21] = gwas_options->assoc;
+    tool_options[22] = gwas_options->fisher;
+    tool_options[23] = gwas_options->tdt;
                
-    tool_options[23] = arg_end;
+    tool_options[24] = arg_end;
     
     return tool_options;
 }
