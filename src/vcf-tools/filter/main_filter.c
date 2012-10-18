@@ -56,6 +56,7 @@ filter_options_t *new_filter_cli_options(void) {
     options->num_alleles = arg_int0(NULL, "alleles", NULL, "Filter: by number of alleles");
     options->coverage = arg_int0(NULL, "coverage", NULL, "Filter: by minimum coverage");
     options->quality = arg_int0(NULL, "quality", NULL, "Filter: by minimum quality");
+    options->maf = arg_dbl0(NULL, "maf", NULL, "Filter: by maximum MAF (minimum allele frequency)");
     options->region = arg_str0(NULL, "region", NULL, "Filter: by a list of regions (chr1:start1-end1,chr2:start2-end2...)");
     options->region_file = arg_file0(NULL, "region-file", NULL, "Filter: by a list of regions (read from a GFF file)");
     options->snp = arg_str0(NULL, "snp", NULL, "Filter: by being a SNP or not");
@@ -83,6 +84,11 @@ filter_options_data_t *new_filter_options_data(filter_options_t *options, shared
         filter = quality_filter_new(*(options->quality->ival));
         options_data->chain = add_to_filter_chain(filter, options_data->chain);
         LOG_INFO_F("minimum quality filter = %d\n", *(options->quality->ival));
+    }
+    if (options->maf->count > 0) {
+        filter = maf_filter_new(*(options->maf->dval));
+        options_data->chain = add_to_filter_chain(filter, options_data->chain);
+        LOG_INFO_F("maximum MAF = %.3f\n", ((maf_filter_args*)filter->args)->max_maf);
     }
     if (options->snp->count > 0) {
         if (!strcmp(*(options->snp->sval), "exclude")) {
