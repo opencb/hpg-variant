@@ -20,7 +20,7 @@
 
 #include "assoc.h"
 
-void assoc_test(enum GWAS_task test_type, vcf_record_t **variants, int num_variants, family_t **families, int num_families, 
+void assoc_test(enum ASSOC_task test_type, vcf_record_t **variants, int num_variants, family_t **families, int num_families, 
                 cp_hashtable *sample_ids, const void *opt_input, list_t *output_list) {
     int ret_code = 0;
     int tid = omp_get_thread_num();
@@ -141,7 +141,7 @@ void assoc_test(enum GWAS_task test_type, vcf_record_t **variants, int num_varia
         
 //         LOG_DEBUG_F("[%d] before adding %.*s:%ld\n", tid, record->chromosome_len, record->chromosome, record->position);
         
-        if (test_type == ASSOCIATION_BASIC) {
+        if (test_type == CHI_SQUARE) {
             double assoc_basic_chisq = assoc_basic_test(A1, U1, A2, U2);
             assoc_basic_result_t *result = assoc_basic_result_new(record->chromosome, record->chromosome_len, 
                                                                   record->position, 

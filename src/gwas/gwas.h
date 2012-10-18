@@ -52,9 +52,9 @@ typedef struct gwas_options {
     struct arg_lit *assoc;
     struct arg_lit *fisher;
     struct arg_lit *tdt;
-} gwas_options_t;
+} assoc_options_t;
 
-enum GWAS_task { NONE, TDT, ASSOCIATION_BASIC, FISHER };
+enum GWAS_task { NONE, TDT, CHI_SQUARE, FISHER };
 
 /**
  * @brief Values for the options of the gwas tool.
@@ -68,7 +68,7 @@ typedef struct gwas_options_data {
 } gwas_options_data_t;
 
 
-static gwas_options_t *new_gwas_cli_options(void);
+static assoc_options_t *new_gwas_cli_options(void);
 
 /**
  * @brief Initializes an gwas_options_data_t structure mandatory members.
@@ -77,7 +77,7 @@ static gwas_options_t *new_gwas_cli_options(void);
  * Initializes a new gwas_options_data_t structure mandatory members, which are the buffers for 
  * the URL parts, as well as its numerical ones.
  */
-static gwas_options_data_t *new_gwas_options_data(gwas_options_t *options);
+static gwas_options_data_t *new_gwas_options_data(assoc_options_t *options);
 
 /**
  * @brief Free memory associated to a gwas_options_data_t structure.
@@ -102,7 +102,7 @@ static void free_gwas_options_data(gwas_options_data_t *options_data);
  * file can't be read, these parameters should be provided via the command-line
  * interface.
  */
-int read_gwas_configuration(const char *filename, gwas_options_t *gwas_options, shared_options_t *shared_options);
+int read_gwas_configuration(const char *filename, assoc_options_t *gwas_options, shared_options_t *shared_options);
 
 /**
  * @brief Parses the tool options from the command-line.
@@ -114,9 +114,9 @@ int read_gwas_configuration(const char *filename, gwas_options_t *gwas_options, 
  * Reads the arguments from the command-line, checking they correspond to an option for the 
  * gwas tool, and stores them in the local or global structure, depending on their scope.
  */
-void **parse_gwas_options(int argc, char *argv[], gwas_options_t *gwas_options, shared_options_t *shared_options);
+void **parse_gwas_options(int argc, char *argv[], assoc_options_t *gwas_options, shared_options_t *shared_options);
 
-void **merge_gwas_options(gwas_options_t *gwas_options, shared_options_t *shared_options, struct arg_end *arg_end);
+void **merge_gwas_options(assoc_options_t *gwas_options, shared_options_t *shared_options, struct arg_end *arg_end);
 
 /**
  * @brief Checks semantic dependencies among the tool options.
@@ -127,7 +127,7 @@ void **merge_gwas_options(gwas_options_t *gwas_options, shared_options_t *shared
  * Checks that all dependencies among options are satisfied, i.e.: option A is mandatory, 
  * option B can't be provided at the same time as option C, and so on.
  */
-int verify_gwas_options(gwas_options_t *gwas_options, shared_options_t *shared_options);
+int verify_gwas_options(assoc_options_t *gwas_options, shared_options_t *shared_options);
 
 
 #endif
