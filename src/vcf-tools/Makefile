@@ -42,10 +42,10 @@ VCF_TOOLS_OBJS = $(SRC_DIR)/vcf-tools/*.o $(SRC_DIR)/vcf-tools/filter/*.o $(SRC_
 
 
 # hpg-var-vcf targets
-vcf-deploy: vcf-obj-deploy
+vcf-dist: vcf-obj-dist
 	$(CC) $(CFLAGS) -o $(BIN_DIR)/hpg-var-vcf $(VCF_TOOLS_OBJS) $(DEPEND_OBJS) $(INCLUDES_STATIC) $(LIBS)
 
-vcf-obj-deploy: $(VCF_TOOLS_FILES)
+vcf-obj-dist: $(VCF_TOOLS_FILES)
 	for F in $(VCF_TOOLS_FILES); do \
 		$(CC) $(CFLAGS) -c $$F -o $$F.o $(INCLUDES_STATIC) $(LIBS); \
 	done;
