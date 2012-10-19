@@ -42,10 +42,10 @@ EFFECT_OBJS = $(SRC_DIR)/effect/*.o $(SRC_DIR)/*.o
 
 
 # hpg-var-effect targets
-effect-deploy: effect-obj-deploy
+effect-dist: effect-obj-dist
 	$(CC) $(CFLAGS) -o $(BIN_DIR)/hpg-var-effect $(EFFECT_OBJS) $(DEPEND_OBJS) $(INCLUDES_STATIC) $(LIBS)
 
-effect-obj-deploy: $(EFFECT_FILES)
+effect-obj-dist: $(EFFECT_FILES)
 	for F in $(EFFECT_FILES); do \
 		$(CC) $(CFLAGS) -c $$F -o $$F.o $(INCLUDES_STATIC) $(LIBS); \
 	done;

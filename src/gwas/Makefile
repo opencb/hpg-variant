@@ -42,10 +42,10 @@ GWAS_OBJS = $(SRC_DIR)/gwas/*.o $(SRC_DIR)/gwas/assoc/*.o $(SRC_DIR)/gwas/tdt/*.
 
 
 # hpg-var-gwas targets
-gwas-deploy: gwas-obj-deploy
+gwas-dist: gwas-obj-dist
 	$(CC) $(CFLAGS) -o $(BIN_DIR)/hpg-var-gwas $(GWAS_OBJS) $(DEPEND_OBJS) $(INCLUDES_STATIC) $(LIBS)
 
-gwas-obj-deploy: $(GWAS_FILES)
+gwas-obj-dist: $(GWAS_FILES)
 	for F in $(GWAS_FILES); do \
 		$(CC) $(CFLAGS) -c $$F -o $$F.o $(INCLUDES_STATIC) $(LIBS); \
 	done;
