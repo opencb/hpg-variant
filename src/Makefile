@@ -32,28 +32,30 @@ MISC_OBJS = $(COMMONS_DIR)/file_utils.o $(COMMONS_DIR)/string_utils.o $(COMMONS_
 	$(CONTAINERS_DIR)/array_list.o $(CONTAINERS_DIR)/list.o $(BIOFORMATS_DIR)/family.o $(MATH_DIR)/fisher.o
 
 
-# Global target
-all: clean compile-dependencies effect-debug gwas-debug vcf-debug
+# Global targets
+dist: compile-dependencies effect-dist gwas-dist vcf-dist
+debug: compile-dependencies effect-debug gwas-debug vcf-debug
+
 
 # hpg-var-effect
-effect-deploy: compile-dependencies
-	cd effect && $(MAKE) effect-deploy
+effect-dist: compile-dependencies
+	cd effect && $(MAKE) effect-dist
 
 effect-debug: compile-dependencies
 	cd effect && $(MAKE) effect-debug
 
 
 # hpg-var-gwas
-gwas-deploy: compile-dependencies
-	cd gwas && $(MAKE) gwas-deploy
+gwas-dist: compile-dependencies
+	cd gwas && $(MAKE) gwas-dist
 
 gwas-debug: compile-dependencies
 	cd gwas && $(MAKE) gwas-debug
 
 
 # hpg-var-vcf
-vcf-deploy: compile-dependencies
-	cd vcf-tools && $(MAKE) vcf-deploy
+vcf-dist: compile-dependencies
+	cd vcf-tools && $(MAKE) vcf-dist
 
 vcf-debug: compile-dependencies
 	cd vcf-tools && $(MAKE) vcf-debug

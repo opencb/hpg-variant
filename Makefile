@@ -2,31 +2,39 @@ SRC_DIR = $(PWD)/src
 BIN_DIR = $(PWD)/bin
 TEST_DIR = $(PWD)/test
 
-all: clean build
+all: clean dist
 
 # Deployment
-build: build-effect build-gwas build-vcf
-
-build-effect:
+dist:
 	mkdir -p $(BIN_DIR)
 	cp hpg-variant.cfg $(BIN_DIR)
 	cp vcf-info-fields.cfg $(BIN_DIR)
-	cd $(SRC_DIR) && $(MAKE) effect-deploy
+	cd $(SRC_DIR) && $(MAKE) dist
 
-build-gwas:
+dist-effect:
 	mkdir -p $(BIN_DIR)
 	cp hpg-variant.cfg $(BIN_DIR)
 	cp vcf-info-fields.cfg $(BIN_DIR)
-	cd $(SRC_DIR) && $(MAKE) gwas-deploy
+	cd $(SRC_DIR) && $(MAKE) effect-dist
 
-build-vcf:
+dist-gwas:
 	mkdir -p $(BIN_DIR)
 	cp hpg-variant.cfg $(BIN_DIR)
 	cp vcf-info-fields.cfg $(BIN_DIR)
-	cd $(SRC_DIR) && $(MAKE) vcf-deploy
+	cd $(SRC_DIR) && $(MAKE) gwas-dist
+
+dist-vcf:
+	mkdir -p $(BIN_DIR)
+	cp hpg-variant.cfg $(BIN_DIR)
+	cp vcf-info-fields.cfg $(BIN_DIR)
+	cd $(SRC_DIR) && $(MAKE) vcf-dist
 
 # Debugging
-debug: debug-effect debug-gwas debug-vcf
+debug:
+	mkdir -p $(BIN_DIR)
+	cp hpg-variant.cfg $(BIN_DIR)
+	cp vcf-info-fields.cfg $(BIN_DIR)
+	cd $(SRC_DIR) && $(MAKE) debug
 
 debug-effect:
 	mkdir -p $(BIN_DIR)
