@@ -116,7 +116,7 @@ START_TEST (family_unaffected_child) {
     cp_hashtable_put(sample_ids, "CHILD00", pos2);
     
     // Launch and verify execution
-    fail_unless(tdt_test(&record, 1, ped->families, get_num_families(ped), sample_ids, output_list) == 0, "TDT test terminated with errors");
+    fail_unless(tdt_test(&record, 1, cp_hashtable_get_values(ped->families), get_num_families(ped), sample_ids, output_list) == 0, "TDT test terminated with errors");
     fail_if(output_list->length == 0, "There must be one result inserted");
     
     tdt_result_t *result = output_list->first_p->data_p;
@@ -150,7 +150,7 @@ START_TEST (family_01_01_00) {
     cp_hashtable_put(sample_ids, "CHILD00", pos2);
     
     // Launch and verify execution
-    fail_unless(tdt_test(&record, 1, ped->families, get_num_families(ped), sample_ids, output_list) == 0, "TDT test terminated with errors");
+    fail_unless(tdt_test(&record, 1, cp_hashtable_get_values(ped->families), get_num_families(ped), sample_ids, output_list) == 0, "TDT test terminated with errors");
     fail_if(output_list->length == 0, "There must be one result inserted");
     
     tdt_result_t *result = output_list->first_p->data_p;
@@ -184,7 +184,7 @@ START_TEST (family_01_00_00) {
     cp_hashtable_put(sample_ids, "CHILD00", pos2);
     
     // Launch and verify execution
-    fail_unless(tdt_test(&record, 1, ped->families, get_num_families(ped), sample_ids, output_list) == 0, "TDT test terminated with errors");
+    fail_unless(tdt_test(&record, 1, cp_hashtable_get_values(ped->families), get_num_families(ped), sample_ids, output_list) == 0, "TDT test terminated with errors");
     fail_if(output_list->length == 0, "There must be one result inserted");
     
     tdt_result_t *result = output_list->first_p->data_p;
@@ -218,7 +218,7 @@ START_TEST (family_01_01_01) {
     cp_hashtable_put(sample_ids, "CHILD01", pos2);
     
     // Launch and verify execution
-    fail_unless(tdt_test(&record, 1, ped->families, get_num_families(ped), sample_ids, output_list) == 0, "TDT test terminated with errors");
+    fail_unless(tdt_test(&record, 1, cp_hashtable_get_values(ped->families), get_num_families(ped), sample_ids, output_list) == 0, "TDT test terminated with errors");
     fail_if(output_list->length == 0, "There must be one result inserted");
     
     tdt_result_t *result = output_list->first_p->data_p;
@@ -252,7 +252,7 @@ START_TEST (family_01_00_01) {
     cp_hashtable_put(sample_ids, "CHILD01", pos2);
     
     // Launch and verify execution
-    fail_unless(tdt_test(&record, 1, ped->families, get_num_families(ped), sample_ids, output_list) == 0, "TDT test terminated with errors");
+    fail_unless(tdt_test(&record, 1, cp_hashtable_get_values(ped->families), get_num_families(ped), sample_ids, output_list) == 0, "TDT test terminated with errors");
     fail_if(output_list->length == 0, "There must be one result inserted");
     
     tdt_result_t *result = output_list->first_p->data_p;
@@ -286,7 +286,7 @@ START_TEST (family_01_11_01) {
     cp_hashtable_put(sample_ids, "CHILD01", pos2);
     
     // Launch and verify execution
-    fail_unless(tdt_test(&record, 1, ped->families, get_num_families(ped), sample_ids, output_list) == 0, "TDT test terminated with errors");
+    fail_unless(tdt_test(&record, 1, cp_hashtable_get_values(ped->families), get_num_families(ped), sample_ids, output_list) == 0, "TDT test terminated with errors");
     fail_if(output_list->length == 0, "There must be one result inserted");
     
     tdt_result_t *result = output_list->first_p->data_p;
@@ -320,7 +320,7 @@ START_TEST (family_00_01_01) {
     cp_hashtable_put(sample_ids, "CHILD01", pos2);
     
     // Launch and verify execution
-    fail_unless(tdt_test(&record, 1, ped->families, get_num_families(ped), sample_ids, output_list) == 0, "TDT test terminated with errors");
+    fail_unless(tdt_test(&record, 1, cp_hashtable_get_values(ped->families), get_num_families(ped), sample_ids, output_list) == 0, "TDT test terminated with errors");
     fail_if(output_list->length == 0, "There must be one result inserted");
     
     tdt_result_t *result = output_list->first_p->data_p;
@@ -354,7 +354,7 @@ START_TEST (family_11_01_01) {
     cp_hashtable_put(sample_ids, "CHILD01", pos2);
     
     // Launch and verify execution
-    fail_unless(tdt_test(&record, 1, ped->families, get_num_families(ped), sample_ids, output_list) == 0, "TDT test terminated with errors");
+    fail_unless(tdt_test(&record, 1, cp_hashtable_get_values(ped->families), get_num_families(ped), sample_ids, output_list) == 0, "TDT test terminated with errors");
     fail_if(output_list->length == 0, "There must be one result inserted");
     
     tdt_result_t *result = output_list->first_p->data_p;
@@ -415,7 +415,7 @@ START_TEST (combined_families) {
     cp_hashtable_put(sample_ids, "CHILD00B", pos5);
     
     // Launch and verify execution
-    fail_unless(tdt_test(&record, 1, ped->families, get_num_families(ped), sample_ids, output_list) == 0, "TDT test terminated with errors");
+    fail_unless(tdt_test(&record, 1, cp_hashtable_get_values(ped->families), get_num_families(ped), sample_ids, output_list) == 0, "TDT test terminated with errors");
     fail_if(output_list->length == 0, "There must be one result inserted");
     
     tdt_result_t *result = output_list->first_p->data_p;
