@@ -6,14 +6,12 @@
 #include <check.h>
 
 #include <bioformats/family.h>
-#include <bioformats/vcf/vcf_batch.h>
 #include <bioformats/vcf/vcf_file_structure.h>
-#include <bioformats/vcf/vcf_read.h>
 #include <commons/string_utils.h>
 #include <containers/array_list.h>
 
-#include "../gwas/gwas.h"
-#include "../gwas/tdt_runner.h"
+#include "gwas/gwas.h"
+#include "gwas/tdt/tdt_runner.h"
 
 Suite *create_test_suite(void);
 
@@ -71,12 +69,12 @@ void setup_tdt_function(void) {
     mother_sample = (char*) calloc (3, sizeof(char));
     child_sample = (char*) calloc (3, sizeof(char));
     
-    record = create_record();
-    set_record_chromosome("1", record);
-    set_record_position(111111, record);
-    set_record_reference("C", record);
-    set_record_alternate("T", record);
-    set_record_format("GT", record);
+    record = vcf_record_new();
+    set_vcf_record_chromosome("1", 1, record);
+    set_vcf_record_position(111111, record);
+    set_vcf_record_reference("C", 1, record);
+    set_vcf_record_alternate("T", 1, record);
+    set_vcf_record_format("GT", 2, record);
     
     output_list = (list_t*) malloc (sizeof(list_t));
     list_init("output", 1, 1, output_list);
@@ -118,7 +116,7 @@ START_TEST (family_unaffected_child) {
     cp_hashtable_put(sample_ids, "CHILD00", pos2);
     
     // Launch and verify execution
-    fail_unless(tdt_test(ped, &record, 1, sample_ids, output_list) == 0, "TDT test terminated with errors");
+    fail_unless(tdt_test(&record, 1, ped->families, get_num_families(ped), sample_ids, output_list) == 0, "TDT test terminated with errors");
     fail_if(output_list->length == 0, "There must be one result inserted");
     
     tdt_result_t *result = output_list->first_p->data_p;
@@ -152,7 +150,7 @@ START_TEST (family_01_01_00) {
     cp_hashtable_put(sample_ids, "CHILD00", pos2);
     
     // Launch and verify execution
-    fail_unless(tdt_test(ped, &record, 1, sample_ids, output_list) == 0, "TDT test terminated with errors");
+    fail_unless(tdt_test(&record, 1, ped->families, get_num_families(ped), sample_ids, output_list) == 0, "TDT test terminated with errors");
     fail_if(output_list->length == 0, "There must be one result inserted");
     
     tdt_result_t *result = output_list->first_p->data_p;
@@ -186,7 +184,7 @@ START_TEST (family_01_00_00) {
     cp_hashtable_put(sample_ids, "CHILD00", pos2);
     
     // Launch and verify execution
-    fail_unless(tdt_test(ped, &record, 1, sample_ids, output_list) == 0, "TDT test terminated with errors");
+    fail_unless(tdt_test(&record, 1, ped->families, get_num_families(ped), sample_ids, output_list) == 0, "TDT test terminated with errors");
     fail_if(output_list->length == 0, "There must be one result inserted");
     
     tdt_result_t *result = output_list->first_p->data_p;
@@ -220,7 +218,7 @@ START_TEST (family_01_01_01) {
     cp_hashtable_put(sample_ids, "CHILD01", pos2);
     
     // Launch and verify execution
-    fail_unless(tdt_test(ped, &record, 1, sample_ids, output_list) == 0, "TDT test terminated with errors");
+    fail_unless(tdt_test(&record, 1, ped->families, get_num_families(ped), sample_ids, output_list) == 0, "TDT test terminated with errors");
     fail_if(output_list->length == 0, "There must be one result inserted");
     
     tdt_result_t *result = output_list->first_p->data_p;
@@ -254,7 +252,7 @@ START_TEST (family_01_00_01) {
     cp_hashtable_put(sample_ids, "CHILD01", pos2);
     
     // Launch and verify execution
-    fail_unless(tdt_test(ped, &record, 1, sample_ids, output_list) == 0, "TDT test terminated with errors");
+    fail_unless(tdt_test(&record, 1, ped->families, get_num_families(ped), sample_ids, output_list) == 0, "TDT test terminated with errors");
     fail_if(output_list->length == 0, "There must be one result inserted");
     
     tdt_result_t *result = output_list->first_p->data_p;
@@ -288,7 +286,7 @@ START_TEST (family_01_11_01) {
     cp_hashtable_put(sample_ids, "CHILD01", pos2);
     
     // Launch and verify execution
-    fail_unless(tdt_test(ped, &record, 1, sample_ids, output_list) == 0, "TDT test terminated with errors");
+    fail_unless(tdt_test(&record, 1, ped->families, get_num_families(ped), sample_ids, output_list) == 0, "TDT test terminated with errors");
     fail_if(output_list->length == 0, "There must be one result inserted");
     
     tdt_result_t *result = output_list->first_p->data_p;
@@ -322,7 +320,7 @@ START_TEST (family_00_01_01) {
     cp_hashtable_put(sample_ids, "CHILD01", pos2);
     
     // Launch and verify execution
-    fail_unless(tdt_test(ped, &record, 1, sample_ids, output_list) == 0, "TDT test terminated with errors");
+    fail_unless(tdt_test(&record, 1, ped->families, get_num_families(ped), sample_ids, output_list) == 0, "TDT test terminated with errors");
     fail_if(output_list->length == 0, "There must be one result inserted");
     
     tdt_result_t *result = output_list->first_p->data_p;
@@ -356,7 +354,7 @@ START_TEST (family_11_01_01) {
     cp_hashtable_put(sample_ids, "CHILD01", pos2);
     
     // Launch and verify execution
-    fail_unless(tdt_test(ped, &record, 1, sample_ids, output_list) == 0, "TDT test terminated with errors");
+    fail_unless(tdt_test(&record, 1, ped->families, get_num_families(ped), sample_ids, output_list) == 0, "TDT test terminated with errors");
     fail_if(output_list->length == 0, "There must be one result inserted");
     
     tdt_result_t *result = output_list->first_p->data_p;
@@ -417,7 +415,7 @@ START_TEST (combined_families) {
     cp_hashtable_put(sample_ids, "CHILD00B", pos5);
     
     // Launch and verify execution
-    fail_unless(tdt_test(ped, &record, 1, sample_ids, output_list) == 0, "TDT test terminated with errors");
+    fail_unless(tdt_test(&record, 1, ped->families, get_num_families(ped), sample_ids, output_list) == 0, "TDT test terminated with errors");
     fail_if(output_list->length == 0, "There must be one result inserted");
     
     tdt_result_t *result = output_list->first_p->data_p;
@@ -429,11 +427,11 @@ END_TEST
 
 START_TEST (whole_test) {
     // Invoke hpg-variant/genome-analysis --tdt
-    int tdt_ret = system("../bin/hpg-variant gwas --tdt --vcf-file tdt_files/500K_variants_147_samples.vcf \
-                                                        --ped-file tdt_files/500K_variants_147_samples.ped \
-                                                        --config ../bin/hpg-variant.cfg \
-                                                        --outdir ./ ");
-    fail_unless(tdt_ret == 0, "hpg-variant exited with errors");
+    int tdt_ret = system("../bin/hpg-var-gwas tdt --vcf-file tdt_files/500K_variants_147_samples.vcf \
+                                                  --ped-file tdt_files/500K_variants_147_samples.ped \
+                                                  --config ../bin/hpg-variant.cfg \
+                                                  --outdir ./ ");
+    fail_unless(tdt_ret == 0, "hpg-var-gwas exited with errors");
     
     // Check results in base to output file: get each line, grep plink.tdt and compare fields
     FILE *cut_proc = popen("cut -f2,5,6 ./hpg-variant.tdt", "r");
