@@ -43,7 +43,8 @@ int main(int argc, char *argv[]) {
      * 	    Execution steps	        *
      * ******************************/
 
-    init_log_custom(2, 1, "hpg-var-effect.log");
+    init_log_custom(2, 1, "hpg-var-effect.log", "w");
+    
     const char *configuration_file = find_configuration_file(argc, argv);
     
     // Step 1: read options from configuration file
@@ -92,6 +93,8 @@ int main(int argc, char *argv[]) {
     free_shared_options_data(shared_options_data);
     arg_freetable(argtable, effect_options->num_options + shared_options->num_options - 1);
 
+    stop_log();
+    
     return 0;
 }
 

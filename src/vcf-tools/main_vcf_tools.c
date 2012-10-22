@@ -55,6 +55,9 @@ int main(int argc, char *argv[]) {
     if (exit_code > 0) {
         fprintf(stderr, "Tool %s terminated with failure (exit code = %d)\n", tool, exit_code);
     }
+    
+    stop_log();
+    
     return exit_code;
 }
 
