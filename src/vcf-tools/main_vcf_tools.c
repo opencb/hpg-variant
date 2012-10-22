@@ -26,7 +26,7 @@ int main(int argc, char *argv[]) {
         return 0;
     }
     
-    init_log_custom(2, 1, "hpg-var-vcf.log");
+    init_log_custom(2, 1, "hpg-var-vcf.log", "w");
 
     const char *config = find_configuration_file(argc, argv);
     
