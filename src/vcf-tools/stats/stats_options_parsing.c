@@ -102,7 +102,10 @@ void **merge_stats_options(stats_options_t *stats_options, shared_options_t *sha
     tool_options[9] = shared_options->config_file;
     tool_options[10] = shared_options->mmap_vcf_files;
     
-    tool_options[11] = arg_end;
+    tool_options[11] = stats_options->variant_stats;
+    tool_options[12] = stats_options->sample_stats;
+    
+    tool_options[13] = arg_end;
     
     return tool_options;
 }
@@ -115,15 +118,23 @@ int verify_stats_options(stats_options_t *stats_options, shared_options_t *share
         return VCF_FILE_NOT_SPECIFIED;
     }
     
-    // Checker whether batch lines or bytes are defined
+    // Check whether batch lines or bytes are defined
     if (*(shared_options->batch_lines->ival) == 0 && *(shared_options->batch_bytes->ival) == 0) {
         LOG_ERROR("Please specify the size of the reading batches (in lines or bytes).\n");
         return BATCH_SIZE_NOT_SPECIFIED;
     }
     
-    // Checker if both batch lines or bytes are defined
+    // Check if both batch lines or bytes are defined
     if (*(shared_options->batch_lines->ival) > 0 && *(shared_options->batch_bytes->ival) > 0) {
         LOG_WARN("The size of reading batches has been specified both in lines and bytes. The size in bytes will be used.\n");
+        return 0;
+    }
+    
+    // Check whether variant or sample stats are requested
+    // If not, set variant stats as default
+    if (stats_options->variant_stats->count + stats_options->sample_stats->count == 0) {
+        LOG_WARN("Statistics requested neither for variants nor samples. Variants taken as default.\n");
+        stats_options->variant_stats->count = 1;
         return 0;
     }
     

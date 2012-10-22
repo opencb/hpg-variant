@@ -54,9 +54,8 @@
 #define DISCORDANT_REFERENCE                    412
 
 // -- Split tool errors
-#define NONE_CRITERION_SPECIFIED                500
+#define CRITERION_NOT_SPECIFIED                 500
 
 // -- Stats tool errors
-
 
 #endif
