@@ -26,7 +26,7 @@ int main(int argc, char *argv[]) {
         return 0;
     }
     
-    init_log_custom(2, 1, "hpg-var-gwas.log");
+    init_log_custom(2, 1, "hpg-var-gwas.log", "w");
 
     const char *config = find_configuration_file(argc, argv);
     
@@ -49,6 +49,9 @@ int main(int argc, char *argv[]) {
     if (exit_code > 0) {
         fprintf(stderr, "Tool %s terminated with failure (exit code = %d)\n", tool, exit_code);
     }
+    
+    stop_log();
+    
     return exit_code;
 }
 
