@@ -80,12 +80,16 @@ int vcf_tool_stats(int argc, char *argv[], const char *configuration_file) {
 
 stats_options_t *new_stats_cli_options() {
     stats_options_t *options = (stats_options_t*) malloc (sizeof(stats_options_t));
+    options->sample_stats = arg_lit0(NULL, "samples", "Get stats about samples");
+    options->variant_stats = arg_lit0(NULL, "variants", "Get stats about variants");
     options->num_options = NUM_STATS_OPTIONS;
     return options;
 }
 
 stats_options_data_t *new_stats_options_data(stats_options_t *options) {
     stats_options_data_t *options_data = (stats_options_data_t*) malloc (sizeof(stats_options_data_t));
+    options_data->sample_stats = options->sample_stats->count;
+    options_data->variant_stats = options->variant_stats->count;
     return options_data;
 }
 
