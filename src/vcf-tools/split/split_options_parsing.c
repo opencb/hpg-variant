@@ -124,7 +124,7 @@ int verify_split_options(split_options_t *split_options, shared_options_t *share
     // Check whether the splitting criterion is defined
     if (split_options->criterion->count == 0) {
         LOG_ERROR("Please specify a splitting criterion.\n");
-        return NONE_CRITERION_SPECIFIED;
+        return CRITERION_NOT_SPECIFIED;
     }
     
     // Checker whether batch lines or bytes are defined
