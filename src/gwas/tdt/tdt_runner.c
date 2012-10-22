@@ -272,14 +272,14 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
             
             LOG_INFO_F("TDT output filename = %s\n", path);
             free(filename);
-            free(path);
+//             free(path);
             
             double start = omp_get_wtime();
             
             // Write data: header + one line per variant
             list_item_t* item = NULL;
             tdt_result_t *result;
-            fprintf(fd, "CHR           BP       A1      A2         T       U           OR           CHISQ         P-VALUE\n");
+            fprintf(fd, "#CHR         POS       A1      A2         T       U           OR           CHISQ         P-VALUE\n");
             while ((item = list_remove_item(output_list)) != NULL) {
                 result = item->data_p;
                 
@@ -292,6 +292,18 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
             }
             
             fclose(fd);
+            
+            // Sort resulting file
+            char *cmd = calloc (40 + strlen(path) * 4, sizeof(char));
+            sprintf(cmd, "sort -k1,1h -k2,2n %s > %s.tmp && mv %s.tmp %s", path, path, path, path);
+            
+            int sort_ret = system(cmd);
+            if (sort_ret) {
+                LOG_WARN("TDT results could not be sorted by chromosome and position, will be shown unsorted\n");
+            }
+            
+            free(cmd);
+            free(path);
             
             double stop = omp_get_wtime();
 

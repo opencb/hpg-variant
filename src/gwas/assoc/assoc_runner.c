@@ -262,7 +262,6 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
             
             LOG_INFO_F("Association test output filename = %s\n", path);
             free(filename);
-            free(path);
             
             double start = omp_get_wtime();
             
@@ -271,7 +270,7 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
             
             if (options_data->task == CHI_SQUARE) {
                 assoc_basic_result_t *result;
-                fprintf(fd, "#CHR          BP       A1      C_A1    C_U1         F_A1            F_U1       A2      C_A2    C_U2         F_A2            F_U2              OR           CHISQ         P-VALUE\n");
+                fprintf(fd, "#CHR         POS       A1      C_A1    C_U1         F_A1            F_U1       A2      C_A2    C_U2         F_A2            F_U2              OR           CHISQ         P-VALUE\n");
                 while ((item = list_remove_item(output_list)) != NULL) {
                     result = item->data_p;
                     
@@ -290,7 +289,7 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
                 }
             } else if (options_data->task == FISHER) {
                 assoc_fisher_result_t *result;
-                fprintf(fd, "#CHR          BP       A1      C_A1    C_U1         F_A1            F_U1       A2      C_A2    C_U2         F_A2            F_U2              OR         P-VALUE\n");
+                fprintf(fd, "#CHR         POS       A1      C_A1    C_U1         F_A1            F_U1       A2      C_A2    C_U2         F_A2            F_U2              OR         P-VALUE\n");
                 while ((item = list_remove_item(output_list)) != NULL) {
                     result = item->data_p;
                     
@@ -310,6 +309,15 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
             }
             
             fclose(fd);
+            
+            // Sort resulting file
+            char *cmd = calloc (40 + strlen(path) * 4, sizeof(char));
+            sprintf(cmd, "sort -k1,1h -k2,2n %s > %s.tmp && mv %s.tmp %s", path, path, path, path);
+            
+            int sort_ret = system(cmd);
+            if (sort_ret) {
+                LOG_WARN("TDT results could not be sorted by chromosome and position, will be shown unsorted\n");
+            }
             
             double stop = omp_get_wtime();
             double total = stop - start;
