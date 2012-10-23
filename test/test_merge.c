@@ -44,53 +44,53 @@ void setup_merge_headers(void) {
     
     // GT:GQ:DP:HQ
     entry = vcf_header_entry_new();
-    set_header_entry_name("FORMAT", 6, entry);
+    set_vcf_header_entry_name("FORMAT", 6, entry);
     value = "<ID=GT,Number=1,Type=String,Description=\"Genotype\">";
-    add_header_entry_value(value, strlen(value), entry);
+    add_vcf_header_entry_value(value, strlen(value), entry);
     assert(add_vcf_header_entry(entry, files[0]));
     
     entry = vcf_header_entry_new();
-    set_header_entry_name("FORMAT", 6, entry);
+    set_vcf_header_entry_name("FORMAT", 6, entry);
     value = "<ID=GQ,Number=1,Type=Float,Description=\"Genotype Quality\">";
-    add_header_entry_value(value, strlen(value), entry);
+    add_vcf_header_entry_value(value, strlen(value), entry);
     add_vcf_header_entry(entry, files[0]);
     
     entry = vcf_header_entry_new();
-    set_header_entry_name("FORMAT", 6, entry);
+    set_vcf_header_entry_name("FORMAT", 6, entry);
     value = "<ID=DP,Number=1,Type=Integer,Description=\"Total Depth\">";
-    add_header_entry_value(value, strlen(value), entry);
+    add_vcf_header_entry_value(value, strlen(value), entry);
     add_vcf_header_entry(entry, files[0]);
     
     entry = vcf_header_entry_new();
-    set_header_entry_name("FORMAT", 6, entry);
+    set_vcf_header_entry_name("FORMAT", 6, entry);
     value = "<ID=HQ,Number=1,Type=String,Description=\"Haplotype Qualities\">";
-    add_header_entry_value(value, strlen(value), entry);
+    add_vcf_header_entry_value(value, strlen(value), entry);
     add_vcf_header_entry(entry, files[0]);
     
     // All filters PASS. Example filters: somefilter, bias1
     entry = vcf_header_entry_new();
-    set_header_entry_name("FILTER", 6, entry);
+    set_vcf_header_entry_name("FILTER", 6, entry);
     value = "<ID=somefilter,Description=\"FS > 200.0\">";
-    add_header_entry_value(value, strlen(value), entry);
+    add_vcf_header_entry_value(value, strlen(value), entry);
     add_vcf_header_entry(entry, files[0]);
     
     entry = vcf_header_entry_new();
-    set_header_entry_name("FILTER", 6, entry);
+    set_vcf_header_entry_name("FILTER", 6, entry);
     value = "<ID=bias1,Description=\"Non-biased read\">";
-    add_header_entry_value(value, strlen(value), entry);
+    add_vcf_header_entry_value(value, strlen(value), entry);
     add_vcf_header_entry(entry, files[0]);
     
     // Should be ignored
     entry = vcf_header_entry_new();
-    set_header_entry_name("INFO", 4, entry);
+    set_vcf_header_entry_name("INFO", 4, entry);
     value = "<ID=PL,Number=.,Type=Integer,Description=\"Normalized, Phred-scaled likelihoods for genotypes\">";
-    add_header_entry_value(value, strlen(value), entry);
+    add_vcf_header_entry_value(value, strlen(value), entry);
     add_vcf_header_entry(entry, files[0]);
     
     // Other headers
     entry = vcf_header_entry_new();
     value = "Example for a test of VCF merging";
-    add_header_entry_value(value, strlen(value), entry);
+    add_vcf_header_entry_value(value, strlen(value), entry);
     add_vcf_header_entry(entry, files[0]);
     
     
@@ -100,29 +100,29 @@ void setup_merge_headers(void) {
     
     // GT:RD
     entry = vcf_header_entry_new();
-    set_header_entry_name("FORMAT", 6, entry);
+    set_vcf_header_entry_name("FORMAT", 6, entry);
     value = "<ID=GT,Number=1,Type=String,Description=\"Genotype\">";
-    add_header_entry_value(value, strlen(value), entry);
+    add_vcf_header_entry_value(value, strlen(value), entry);
     add_vcf_header_entry(entry, files[1]);
     
     entry = vcf_header_entry_new();
-    set_header_entry_name("FORMAT", 6, entry);
+    set_vcf_header_entry_name("FORMAT", 6, entry);
     value = "<ID=RD,Number=1,Type=Integer,Description=\"Read Depth\">";
-    add_header_entry_value(value, strlen(value), entry);
+    add_vcf_header_entry_value(value, strlen(value), entry);
     add_vcf_header_entry(entry, files[1]);
     
     // Filter STD_FILTER
     entry = vcf_header_entry_new();
-    set_header_entry_name("FILTER", 6, entry);
+    set_vcf_header_entry_name("FILTER", 6, entry);
     value = "<ID=STD_FILTER,Description=\"QD < 2.0\", \"MQ < 40.0\", \"FS > 60.0\">";
-    add_header_entry_value(value, strlen(value), entry);
+    add_vcf_header_entry_value(value, strlen(value), entry);
     add_vcf_header_entry(entry, files[1]);
     
     // Other headers
     entry = vcf_header_entry_new();
     value = "analysis_type=CombineVariants input_file=[] read_buffer_size=null phone_home=STANDARD read_filter=[]";
-    set_header_entry_name("CombineVariants", strlen("CombineVariants"), entry);
-    add_header_entry_value(value, strlen(value), entry);
+    set_vcf_header_entry_name("CombineVariants", strlen("CombineVariants"), entry);
+    add_vcf_header_entry_value(value, strlen(value), entry);
     add_vcf_header_entry(entry, files[1]);
     
     
@@ -132,41 +132,41 @@ void setup_merge_headers(void) {
     
     // RD:HQ:GT:GQ
     entry = vcf_header_entry_new();
-    set_header_entry_name("FORMAT", 6, entry);
+    set_vcf_header_entry_name("FORMAT", 6, entry);
     value = "<ID=RD,Number=1,Type=Integer,Description=\"Read Depth\">";
-    add_header_entry_value(value, strlen(value), entry);
+    add_vcf_header_entry_value(value, strlen(value), entry);
     add_vcf_header_entry(entry, files[2]);
     
     entry = vcf_header_entry_new();
-    set_header_entry_name("FORMAT", 6, entry);
+    set_vcf_header_entry_name("FORMAT", 6, entry);
     value = "<ID=HQ,Number=1,Type=String,Description=\"Haplotype Qualities\">";
-    add_header_entry_value(value, strlen(value), entry);
+    add_vcf_header_entry_value(value, strlen(value), entry);
     add_vcf_header_entry(entry, files[2]);
     
     entry = vcf_header_entry_new();
-    set_header_entry_name("FORMAT", 6, entry);
+    set_vcf_header_entry_name("FORMAT", 6, entry);
     value = "<ID=GT,Number=1,Type=String,Description=\"Genotype\">";
-    add_header_entry_value(value, strlen(value), entry);
+    add_vcf_header_entry_value(value, strlen(value), entry);
     add_vcf_header_entry(entry, files[2]);
     
     entry = vcf_header_entry_new();
-    set_header_entry_name("FORMAT", 6, entry);
+    set_vcf_header_entry_name("FORMAT", 6, entry);
     value = "<ID=GQ,Number=1,Type=Float,Description=\"Genotype Quality\">";
-    add_header_entry_value(value, strlen(value), entry);
+    add_vcf_header_entry_value(value, strlen(value), entry);
     add_vcf_header_entry(entry, files[2]);
     
     // Filter q10
     entry = vcf_header_entry_new();
-    set_header_entry_name("FILTER", 6, entry);
+    set_vcf_header_entry_name("FILTER", 6, entry);
     value = "<ID=q10,Description=\"QUAL > 10\">";
-    add_header_entry_value(value, strlen(value), entry);
+    add_vcf_header_entry_value(value, strlen(value), entry);
     add_vcf_header_entry(entry, files[2]);
     
     // Should be ignored
     entry = vcf_header_entry_new();
-    set_header_entry_name("INFO", 4, entry);
+    set_vcf_header_entry_name("INFO", 4, entry);
     value = "<ID=MQ,Number=1,Type=Float,Description=\"RMS Mapping Quality\">";
-    add_header_entry_value(value, strlen(value), entry);
+    add_vcf_header_entry_value(value, strlen(value), entry);
     add_vcf_header_entry(entry, files[2]);
     
     
@@ -176,9 +176,9 @@ void setup_merge_headers(void) {
     
     // GT
     entry = vcf_header_entry_new();
-    set_header_entry_name("FORMAT", 6, entry);
+    set_vcf_header_entry_name("FORMAT", 6, entry);
     value = "<ID=GT,Number=1,Type=String,Description=\"Genotype\">";
-    add_header_entry_value(value, strlen(value), entry);
+    add_vcf_header_entry_value(value, strlen(value), entry);
     add_vcf_header_entry(entry, files[3]);
 }
 
