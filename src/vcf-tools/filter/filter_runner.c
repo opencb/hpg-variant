@@ -73,11 +73,13 @@ int run_filter(shared_options_data_t *shared_options_data, filter_options_data_t
             
             if (shared_options_data->output_filename == NULL || strlen(shared_options_data->output_filename) == 0) {
                 int dirname_len = strlen(shared_options_data->output_directory);
-                int filename_len = strlen("filter-tool-output");
+                char *aux_filename = malloc (strlen(shared_options_data->vcf_filename) * sizeof(char));
+                aux_filename = get_filename_from_path(shared_options_data->vcf_filename, aux_filename);
+                int filename_len = strlen(aux_filename);
                 passed_filename = (char*) calloc ((dirname_len + filename_len + 15), sizeof(char));
-                sprintf(passed_filename, "%s/%s.vcf.filtered", shared_options_data->output_directory, "filter-tool-output");
+                sprintf(passed_filename, "%s/%s.filtered", shared_options_data->output_directory, aux_filename);
                 failed_filename = (char*) calloc ((dirname_len + filename_len + 15), sizeof(char));
-                sprintf(failed_filename, "%s/%s.vcf.rejected", shared_options_data->output_directory, "filter-tool-output");
+                sprintf(failed_filename, "%s/%s.rejected", shared_options_data->output_directory, aux_filename);
                 
             } else {
                 int dirname_len = strlen(shared_options_data->output_directory);

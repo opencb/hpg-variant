@@ -56,7 +56,7 @@ void show_usage(char *tool, void **argtable, int num_arguments);
 
 /**
  * @brief Creates output files depending on the tool options given as input
- * @param global_options_data Options that apply to decide whether to create the output files or not
+ * @param shared_options Options for deciding whether to create the output files or not
  * @param passed_file File containing entries that pass filters tests
  * @param failed_file File containing entries that don't pass filters tests
  * @return 0 if no errors occurred, 1 otherwise
@@ -65,7 +65,7 @@ void show_usage(char *tool, void **argtable, int num_arguments);
  * If no output filename has been provided but some filters are applied, uses the original filename as prefix.
  * If no output filename nor filters are provided, don't create output files.
  */
-int get_output_files(shared_options_data_t *global_options_data, FILE **passed_file, FILE **failed_file);
+int get_output_files(shared_options_data_t *shared_options, FILE **passed_file, FILE **failed_file);
 
 /**
  * @brief Given a list of records, distributes them in chunks of similar size

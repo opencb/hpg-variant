@@ -102,7 +102,7 @@ effect_options_t *new_effect_cli_options(void) {
     effect_options_t *options = (effect_options_t*) malloc (sizeof(effect_options_t));
     options->num_options = NUM_EFFECT_OPTIONS;
     options->no_phenotypes = arg_lit0(NULL, "no-phenotypes", "Flag asking not to retrieve phenotypical information");
-    options->excludes = arg_str0(NULL, "exclude", NULL, "Consequence types to exclude from the query");
+    options->excludes = arg_str0(NULL, "exclude", NULL, "Consequence types to exclude from the query (comma-separated)");
     return options;
 }
 
