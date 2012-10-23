@@ -108,9 +108,9 @@ int run_effect(char **urls, shared_options_data_t *shared_options, effect_option
             start = omp_get_wtime();
 
             if (shared_options->batch_bytes > 0) {
-                ret_code = vcf_parse_batches_in_bytes(shared_options->batch_bytes, file, 0);
+                ret_code = vcf_parse_batches_in_bytes(shared_options->batch_bytes, file);
             } else if (shared_options->batch_lines > 0) {
-                ret_code = vcf_parse_batches(shared_options->batch_lines, file, 0);
+                ret_code = vcf_parse_batches(shared_options->batch_lines, file);
             }
 
             stop = omp_get_wtime();
