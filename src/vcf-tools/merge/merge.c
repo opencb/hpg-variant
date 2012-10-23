@@ -101,8 +101,8 @@ int merge_vcf_headers(vcf_file_t** files, int num_files, merge_options_data_t* o
             if (!aux) {
 //                 printf("2) value = %s\n", field_value);
                 out_entry = vcf_header_entry_new();
-                set_header_entry_name("INFO", 4, out_entry);
-                add_header_entry_value(field_value, strlen(field_value), out_entry);
+                set_vcf_header_entry_name("INFO", 4, out_entry);
+                add_vcf_header_entry_value(field_value, strlen(field_value), out_entry);
                 
                 list_item_t *item = list_item_new(i, MERGED_HEADER, out_entry);
                 list_insert_item(item, output_list);
