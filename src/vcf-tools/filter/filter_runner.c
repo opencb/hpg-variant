@@ -63,40 +63,15 @@ int run_filter(shared_options_data_t *shared_options_data, filter_options_data_t
         {
             filter_t **filters = NULL;
             int num_filters = 0;
-            if (options_data->chain != NULL) {
-                filters = sort_filter_chain(options_data->chain, &num_filters);
+            if (shared_options_data->chain != NULL) {
+                filters = sort_filter_chain(shared_options_data->chain, &num_filters);
             }
     
             FILE *passed_file = NULL, *failed_file = NULL;
-            char *passed_filename, *failed_filename;
-//             get_output_files(shared_options_data, &passed_file, &failed_file);
-            
-            if (shared_options_data->output_filename == NULL || strlen(shared_options_data->output_filename) == 0) {
-                int dirname_len = strlen(shared_options_data->output_directory);
-                char *aux_filename = malloc (strlen(shared_options_data->vcf_filename) * sizeof(char));
-                aux_filename = get_filename_from_path(shared_options_data->vcf_filename, aux_filename);
-                int filename_len = strlen(aux_filename);
-                passed_filename = (char*) calloc ((dirname_len + filename_len + 15), sizeof(char));
-                sprintf(passed_filename, "%s/%s.filtered", shared_options_data->output_directory, aux_filename);
-                failed_filename = (char*) calloc ((dirname_len + filename_len + 15), sizeof(char));
-                sprintf(failed_filename, "%s/%s.rejected", shared_options_data->output_directory, aux_filename);
-                
-            } else {
-                int dirname_len = strlen(shared_options_data->output_directory);
-                int filename_len = strlen(shared_options_data->output_filename);
-                passed_filename = (char*) calloc ((dirname_len + filename_len + 11), sizeof(char));
-                sprintf(passed_filename, "%s/%s.filtered", shared_options_data->output_directory, shared_options_data->output_filename);            
-                failed_filename = (char*) calloc ((dirname_len + filename_len + 11), sizeof(char));
-                sprintf(failed_filename, "%s/%s.rejected", shared_options_data->output_directory, shared_options_data->output_filename);
+            get_output_files(shared_options_data, &passed_file, &failed_file);
+            if (!options_data->save_rejected) {
+                fclose(failed_file);
             }
-            
-            LOG_DEBUG_F("passed filename = %s\nfailed filename = %s\n", passed_filename, failed_filename);
-            passed_file = fopen(passed_filename, "w");
-            if (options_data->save_rejected) {
-                failed_file = fopen(failed_filename, "w");
-            }
-            free(passed_filename);
-            free(failed_filename);
             LOG_DEBUG("File streams created\n");
             
             start = omp_get_wtime();
