@@ -129,7 +129,7 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
                 
 //                 start_batch = omp_get_wtime();
                 
-                vcf_reader_status *status = vcf_reader_status_new(shared_options_data->batch_lines, 1);
+                vcf_reader_status *status = vcf_reader_status_new(shared_options_data->batch_lines);
                 if (shared_options_data->batch_bytes > 0) {
                     ret_code = run_vcf_parser(text_begin, text_end_batch, 0, file, status);
                 } else if (shared_options_data->batch_lines > 0) {
