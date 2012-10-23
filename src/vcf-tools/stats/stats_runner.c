@@ -48,9 +48,9 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
             start = omp_get_wtime();
 
             if (shared_options_data->batch_bytes > 0) {
-                ret_code = vcf_parse_batches_in_bytes(shared_options_data->batch_bytes, file, 1);
+                ret_code = vcf_parse_batches_in_bytes(shared_options_data->batch_bytes, file);
             } else if (shared_options_data->batch_lines > 0) {
-                ret_code = vcf_parse_batches(shared_options_data->batch_lines, file, 1);
+                ret_code = vcf_parse_batches(shared_options_data->batch_lines, file);
             }
 
             stop = omp_get_wtime();

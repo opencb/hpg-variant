@@ -119,7 +119,7 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
                 
                 assert(text_end != NULL);
                 
-                vcf_reader_status *status = vcf_reader_status_new(shared_options_data->batch_lines, 1);
+                vcf_reader_status *status = vcf_reader_status_new(shared_options_data->batch_lines);
                 if (shared_options_data->batch_bytes > 0) {
                     ret_code = run_vcf_parser(text_begin, text_end, 0, file, status);
                 } else if (shared_options_data->batch_lines > 0) {
