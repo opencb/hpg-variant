@@ -55,7 +55,7 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
     
     LOG_INFO("About to perform TDT test...\n");
 
-#pragma omp parallel sections num_threads(3) private (ret_code)
+#pragma omp parallel sections private(ret_code)
     {
 #pragma omp section
         {
