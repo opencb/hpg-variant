@@ -160,7 +160,7 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
 //                     printf("batch = '%.*s'\n", text_end - text_begin, text_begin);
                     
                     // Get VCF batches from text batches
-                    vcf_reader_status *status = vcf_reader_status_new(shared_options_data->batch_lines, 1);
+                    vcf_reader_status *status = vcf_reader_status_new(shared_options_data->batch_lines);
                     ret_code = run_vcf_parser(text_begin, text_end, shared_options_data->batch_lines, files[i], status);
                     
                     if (ret_code) {

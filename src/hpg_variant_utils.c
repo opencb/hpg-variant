@@ -83,21 +83,21 @@ void show_usage(char *tool, void **argtable, int num_arguments) {
     arg_print_glossary(stdout, argtable, " %-40s %s\n");
 }
 
-int get_output_files(shared_options_data_t *global_options_data, FILE** passed_file, FILE** failed_file) {
-    if (global_options_data == NULL) {
+int get_output_files(shared_options_data_t *shared_options, FILE** passed_file, FILE** failed_file) {
+    if (shared_options == NULL) {
         return 1;
     }
     
     char *prefix_filename, *passed_filename, *failed_filename;
     int prefix_filename_len = 0;
-    int dirname_len = strlen(global_options_data->output_directory);
+    int dirname_len = strlen(shared_options->output_directory);
     
-    if (global_options_data->output_filename != NULL && strlen(global_options_data->output_filename) > 0) {
-        prefix_filename = global_options_data->output_filename;
-    } else if (global_options_data->chain != NULL) {
-        char input_filename[strlen(global_options_data->vcf_filename)];
-        memset(input_filename, 0, strlen(global_options_data->vcf_filename) * sizeof(char));
-        get_filename_from_path(global_options_data->vcf_filename, input_filename);
+    if (shared_options->output_filename != NULL && strlen(shared_options->output_filename) > 0) {
+        prefix_filename = shared_options->output_filename;
+    } else if (shared_options->chain != NULL) {
+        char input_filename[strlen(shared_options->vcf_filename)];
+        memset(input_filename, 0, strlen(shared_options->vcf_filename) * sizeof(char));
+        get_filename_from_path(shared_options->vcf_filename, input_filename);
         prefix_filename = strdup(input_filename);
     } else {
         // Output files are not created
@@ -107,11 +107,11 @@ int get_output_files(shared_options_data_t *global_options_data, FILE** passed_f
     prefix_filename_len = strlen(prefix_filename);
     
     passed_filename = (char*) calloc (dirname_len + prefix_filename_len + 11, sizeof(char));
-    sprintf(passed_filename, "%s/%s.filtered", global_options_data->output_directory, prefix_filename);
+    sprintf(passed_filename, "%s/%s.filtered", shared_options->output_directory, prefix_filename);
     *passed_file = fopen(passed_filename, "w");
 
     failed_filename = (char*) calloc (dirname_len + prefix_filename_len + 11, sizeof(char));
-    sprintf(failed_filename, "%s/%s.rejected", global_options_data->output_directory, prefix_filename);
+    sprintf(failed_filename, "%s/%s.rejected", shared_options->output_directory, prefix_filename);
     *failed_file = fopen(failed_filename, "w");
     
 //     LOG_INFO_F("passed filename = %s\nfailed filename = %s\n", passed_filename, failed_filename);
