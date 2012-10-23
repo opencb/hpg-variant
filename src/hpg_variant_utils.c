@@ -95,10 +95,8 @@ int get_output_files(shared_options_data_t *shared_options, FILE** passed_file, 
     if (shared_options->output_filename != NULL && strlen(shared_options->output_filename) > 0) {
         prefix_filename = shared_options->output_filename;
     } else if (shared_options->chain != NULL) {
-        char input_filename[strlen(shared_options->vcf_filename)];
-        memset(input_filename, 0, strlen(shared_options->vcf_filename) * sizeof(char));
-        get_filename_from_path(shared_options->vcf_filename, input_filename);
-        prefix_filename = strdup(input_filename);
+        prefix_filename = calloc(strlen(shared_options->vcf_filename), sizeof(char));
+        get_filename_from_path(shared_options->vcf_filename, prefix_filename);
     } else {
         // Output files are not created
         return 0;
@@ -114,7 +112,7 @@ int get_output_files(shared_options_data_t *shared_options, FILE** passed_file, 
     sprintf(failed_filename, "%s/%s.rejected", shared_options->output_directory, prefix_filename);
     *failed_file = fopen(failed_filename, "w");
     
-//     LOG_INFO_F("passed filename = %s\nfailed filename = %s\n", passed_filename, failed_filename);
+    LOG_DEBUG_F("passed filename = %s\nfailed filename = %s\n", passed_filename, failed_filename);
     
     free(passed_filename);
     free(failed_filename);

@@ -109,13 +109,13 @@ void **merge_filter_options(filter_options_t *filter_options, shared_options_t *
     tool_options[12] = shared_options->config_file;
     tool_options[13] = shared_options->mmap_vcf_files;
     
-    tool_options[14] = filter_options->num_alleles;
-    tool_options[15] = filter_options->coverage;
-    tool_options[16] = filter_options->quality;
-    tool_options[17] = filter_options->maf;
-    tool_options[18] = filter_options->region;
-    tool_options[19] = filter_options->region_file;
-    tool_options[20] = filter_options->snp;
+    tool_options[14] = shared_options->num_alleles;
+    tool_options[15] = shared_options->coverage;
+    tool_options[16] = shared_options->quality;
+    tool_options[17] = shared_options->maf;
+    tool_options[18] = shared_options->region;
+    tool_options[19] = shared_options->region_file;
+    tool_options[20] = shared_options->snp;
     
     tool_options[21] = filter_options->save_rejected;
     
@@ -133,9 +133,9 @@ int verify_filter_options(filter_options_t *filter_options, shared_options_t *sh
     }
     
     // Check whether a filter or more has been specified
-    if (filter_options->coverage->count + filter_options->num_alleles->count + filter_options->quality->count + 
-        filter_options->region->count + filter_options->region_file->count + filter_options->snp->count + 
-        filter_options->maf->count == 0) {
+    if (shared_options->coverage->count + shared_options->num_alleles->count + shared_options->quality->count + 
+        shared_options->region->count + shared_options->region_file->count + shared_options->snp->count + 
+        shared_options->maf->count == 0) {
         LOG_ERROR("Please specify at least one filter\n");
         return EMPTY_LIST_OF_FILTERS;
     }
