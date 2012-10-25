@@ -220,13 +220,14 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
             LOG_INFO_F("[%d] Time elapsed = %f s\n", omp_get_thread_num(), total);
             LOG_INFO_F("[%d] Time elapsed = %e ms\n", omp_get_thread_num(), total*1000);
 
-            // Free filters
+            // Free resources
             for (int i = 0; i < num_filters; i++) {
                 filter_t *filter = filters[i];
                 filter->free_func(filter);
             }
             free(filters);
-            
+            free(individuals);
+
             // Decrease list writers count
             for (int i = 0; i < shared_options_data->num_threads; i++) {
                 list_decr_writers(output_list);
@@ -362,6 +363,8 @@ individual_t **sort_individuals(vcf_file_t *vcf, ped_file_t *ped) {
 		}
         cp_list_iterator_destroy(children_iterator);
 	}
+
+	cp_hashtable_destroy(positions);
 
 	return individuals;
 }
