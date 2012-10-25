@@ -6,8 +6,8 @@
 
 #include <containers/array_list.h>
 
-#include "../effect/effect.h"
-#include "../effect/effect_runner.h"
+#include "effect/effect.h"
+#include "effect/effect_runner.h"
 
 
 Suite *create_test_suite(void);
@@ -27,7 +27,7 @@ void setup_effect_ws(void) {
     global_data->output_directory = strdup("/tmp/variant-test/");
     global_data->num_threads = 4;
     global_data->max_batches = 10;
-    global_data->batch_size = 4000;
+    global_data->batch_lines = 4000;
     global_data->entries_per_thread = 1000;
     
     opts_data = (effect_options_data_t*) calloc (1, sizeof(effect_options_data_t));
@@ -46,19 +46,21 @@ void teardown_effect_ws(void) {
 
 START_TEST (url_composition) {
     // All null arguments
-    fail_unless(compose_effect_ws_request(global_data) == NULL, "The resulting URL must be null (all args are null)");
+    fail_if(compose_effect_ws_request("genomic/variant", "consequence_type", global_data), 
+            "The resulting URL must be null (all args are null)");
     
     // Some not-null arguments
     global_data->species = "hsa";
     global_data->version = "v1";
-    fail_unless(compose_effect_ws_request(global_data) == NULL, "The resulting URL must be null (some args are null)");
+    fail_if(compose_effect_ws_request("genomic/variant", "consequence_type", global_data), 
+            "The resulting URL must be null (some args are null)");
     
     // None null argument
     global_data->host_url = "http://localhost:8080";
     global_data->species = "hsa";
     global_data->version = "v1";
     
-    char *url = compose_effect_ws_request(global_data);
+    char *url = compose_effect_ws_request("genomic/variant", "consequence_type", global_data);
     fail_if(strcmp(url, "http://localhost:8080/cellbase/rest/v1/hsa/genomic/variant/consequence_type?header=false"),
             "The resulting URL must be 'http://localhost:8080/cellbase/rest/v1/hsa/genomic/variant/consequence_type'"); 
 }
@@ -91,7 +93,7 @@ START_TEST (effect_ws_request) {
     array_list_insert(record_2, batch);
     array_list_insert(record_3, batch);
     
-    fail_unless(run_effect(url, global_data, opts_data) == 0, "The web service request was not successfully performed");
+    fail_if(run_effect(&url, global_data, opts_data), "The web service request was not successfully performed");
 }
 END_TEST
 
@@ -123,9 +125,9 @@ START_TEST (whole_test) {
     FILE *p;
     
     // Invoke hpg-variant/effect
-    int tdt_ret = system("../bin/hpg-variant effect --vcf-file effect_files/variants_marta_head_3K.vcf \
-                                                    --config ../bin/hpg-variant.cfg \
-                                                    --outdir ./ --region 1:10000-400000");
+    int tdt_ret = system("../bin/hpg-var-effect --vcf-file effect_files/variants_marta_head_3K.vcf \
+                                                --config ../bin/hpg-variant.cfg \
+                                                --outdir ./ --region 1:10000-400000");
     fail_unless(tdt_ret == 0, "hpg-variant exited with errors");
     
     // Check all variants
