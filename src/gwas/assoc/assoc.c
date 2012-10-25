@@ -20,151 +20,41 @@
 
 #include "assoc.h"
 
-//void assoc_test(enum ASSOC_task test_type, vcf_record_t **variants, int num_variants, family_t **families, int num_families,
-//                cp_hashtable *sample_ids, const void *opt_input, list_t *output_list) {
-void assoc_test(enum ASSOC_task test_type, vcf_record_t **variants, int num_variants, individual_t *samples, int num_samples,
+void assoc_test(enum ASSOC_task test_type, vcf_record_t **variants, int num_variants, individual_t **samples, int num_samples,
                 const void *opt_input, list_t *output_list) {
-    int ret_code = 0;
     int tid = omp_get_thread_num();
 
-    assert(num_samples == 147);
-	for (int j = 0; j < num_samples; j++) {
-		printf("** individual %s:%s\n", samples[j].family->id, samples[j].id);
-	}
-	//
-	//	exit(1);
-
-//    int num_samples = cp_hashtable_count(sample_ids);
-
-    char **sample_data;
+    vcf_record_t *record;
+    individual_t *individual;
+    char *sample_data;
     
     int gt_position;
     int allele1, allele2;
 
     // Affection counts
     int A1 = 0, A2 = 0, U1 = 0, U2 = 0;
-    int num_read = 0, num_analyzed = 0;
     
-    ///////////////////////////////////
     // Perform analysis for each variant
-    
-    vcf_record_t *record;
     for (int i = 0; i < num_variants; i++) {
         record = variants[i];
 //         LOG_DEBUG_F("[%d] Checking variant %.*s:%ld\n", tid, record->chromosome_len, record->chromosome, record->position);
         
         A1 = 0; A2 = 0;
         U1 = 0; U2 = 0;
-        num_read = 0;
-        num_analyzed = 0;
 
-        sample_data = (char**) record->samples->items;
         gt_position = get_field_position_in_format("GT", strndup(record->format, record->format_len));
     
         // Count over individuals
-        individual_t individual;
-        char *sample_data;
-
         for (int j = 0; j < num_samples; j++) {
         	individual = samples[j];
         	sample_data = strdup(array_list_get(j, record->samples));
         	if (!get_alleles(sample_data, gt_position, &allele1, &allele2)) {
-				num_analyzed++;
-				assoc_count_individual(&individual, record, allele1, allele2, &A1, &A2, &U1, &U2);
+				assoc_count_individual(individual, record, allele1, allele2, &A1, &A2, &U1, &U2);
 			}
         	free(sample_data);
         }
- /*		// Count over families
-        family_t *family;
         
-
-        for (int f = 0; f < num_families; f++) {
-            family = families[f];
-            individual_t *father = family->father;
-            individual_t *mother = family->mother;
-            cp_list *children = family->children;
-
-//             LOG_DEBUG_F("Read = %d\tAnalyzed = %d\n", num_read, num_analyzed);
-//             LOG_DEBUG_F("Family = %d (%s)\n", f, family->id);
-            
-            // Perform test with father
-            if (father != NULL && father->condition != MISSING) {
-                num_read++;
-                int *father_pos = cp_hashtable_get(sample_ids, father->id);
-//                 if (father_pos != NULL) {
-//                     LOG_DEBUG_F("[%d] Father %s is in position %d\n", tid, father->id, *father_pos);
-//                 } else {
-//                     LOG_DEBUG_F("[%d] Father %s is not positioned\n", tid, father->id);
-//                     continue;
-//                 }
-                if (!father_pos) {
-                    continue;
-                }
-                
-                char *father_sample = strdup(sample_data[*father_pos]);
-                if (!get_alleles(father_sample, gt_position, &allele1, &allele2)) {
-                    num_analyzed++;
-                    assoc_count_individual(father, record, allele1, allele2, &A1, &A2, &U1, &U2);
-                }
-                free(father_sample);
-            }
-            
-            // Perform test with mother
-            if (mother != NULL && mother->condition != MISSING) {
-                num_read++;
-                int *mother_pos = cp_hashtable_get(sample_ids, mother->id);
-//                 if (mother_pos != NULL) {
-//                     LOG_DEBUG_F("[%d] Mother %s is in position %d\n", tid, mother->id, *mother_pos);
-//                 } else {
-//                     LOG_DEBUG_F("[%d] Mother %s is not positioned\n", tid, mother->id);
-//                     continue;
-//                 }
-                if (!mother_pos) {
-                    continue;
-                }
-                
-                char *mother_sample = strdup(sample_data[*mother_pos]);
-                if (!get_alleles(mother_sample, gt_position, &allele1, &allele2)) {
-                    num_analyzed++;
-                    assoc_count_individual(mother, record, allele1, allele2, &A1, &A2, &U1, &U2);
-                }
-                free(mother_sample);
-            }
-            
-            // Perform test with children
-            cp_list_iterator *children_iterator = cp_list_create_iterator(family->children, COLLECTION_LOCK_READ);
-            individual_t *child = NULL;
-            while ((child = cp_list_iterator_next(children_iterator)) != NULL) {
-                int *child_pos = cp_hashtable_get(sample_ids, child->id);
-//                 if (child_pos != NULL) {
-//                     LOG_DEBUG_F("[%d] Child %s is in position %d\n", tid, child->id, *child_pos);
-//                 } else {
-//                     LOG_DEBUG_F("[%d] Child %s is not positioned\n", tid, child->id);
-//                     continue;
-//                 }
-                if (!child_pos) {
-                    continue;
-                }
-                
-                num_read++;
-                char *child_sample = strdup(sample_data[*child_pos]);
-                if (!get_alleles(child_sample, gt_position, &allele1, &allele2)) {
-                    num_analyzed++;
-                    assoc_count_individual(child, record, allele1, allele2, &A1, &A2, &U1, &U2);
-                }
-                free(child_sample);
-            
-            } // next offspring in family
-            cp_list_iterator_destroy(children_iterator);
-        }  // next nuclear family
-*/
-        /////////////////////////////
-        // Finished counting: now compute
-        // the statistics
-        
-        
-//         LOG_DEBUG_F("[%d] before adding %.*s:%ld\n", tid, record->chromosome_len, record->chromosome, record->position);
-        
+        // Finished counting: now compute the statistics
         if (test_type == CHI_SQUARE) {
             double assoc_basic_chisq = assoc_basic_test(A1, U1, A2, U2);
             assoc_basic_result_t *result = assoc_basic_result_new(record->chromosome, record->chromosome_len, 
