@@ -90,7 +90,7 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
             LOG_DEBUG_F("Thread %d processes data\n", omp_get_thread_num());
             
             volatile int initialization_done = 0;
-            cp_hashtable *sample_ids = NULL;
+            individual_t **individuals;
             
             // Create chain of filters for the VCF file
             filter_t **filters = NULL;
@@ -102,16 +102,12 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
             get_output_files(shared_options_data, &passed_file, &failed_file);
     
             double start = omp_get_wtime();
-            
+
             double *factorial_logarithms = NULL;
             
-// #pragma omp parallel num_threads(shared_options_data->num_threads) shared(initialization_done, sample_ids, factorial_logarithms, filters)
-#pragma omp parallel num_threads(shared_options_data->num_threads) shared(initialization_done, factorial_logarithms, filters)
+#pragma omp parallel num_threads(shared_options_data->num_threads) shared(initialization_done, factorial_logarithms, filters, individuals)
             {
-//            family_t **families = (family_t**) cp_hashtable_get_values(ped_file->families);
-//            int num_families = get_num_families(ped_file);
-            individual_t *individuals;
-            
+
             int i = 0;
             list_item_t *item = NULL;
             while ((item = list_remove_item(read_list)) != NULL) {
@@ -130,13 +126,12 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
                 // Initialize structures needed for association tests and write headers of output files
                 if (!initialization_done) {
 //                    sample_ids = associate_samples_and_positions(file);
-                	individuals = sort_individuals(file, ped_file);
 # pragma omp critical
                 {
                     // Guarantee that just one thread performs this operation
                     if (!initialization_done) {
-                        // Create map to associate the position of individuals in the list of samples defined in the VCF file
-//                         sample_ids = associate_samples_and_positions(file);
+                        // Sort individuals in PED as defined in the VCF file
+                    	individuals = sort_individuals(file, ped_file);
                         
                         // Write file format, header entries and delimiter
                         if (passed_file != NULL) { write_vcf_header(file, passed_file); }
@@ -145,7 +140,6 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
                         LOG_DEBUG("VCF header written\n");
                         
                         if (options_data->task == FISHER) {
-//                             factorial_logarithms = init_logarithm_array(file->num_samples * 10);
                             factorial_logarithms = init_logarithm_array(get_num_vcf_samples(file) * 10);
                         }
                         
@@ -177,8 +171,6 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
                 	assert(individuals);
                     assoc_test(options_data->task, (vcf_record_t**) passed_records->items, passed_records->size, 
                                 individuals, get_num_vcf_samples(file), factorial_logarithms, output_list);
-//                    assoc_test(options_data->task, (vcf_record_t**) passed_records->items, passed_records->size,
-//                                families, num_families, sample_ids, factorial_logarithms, output_list);
                 }
                 
                 // Write records that passed and failed to separate files
@@ -189,7 +181,6 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
                         for (int r = 0; r < passed_records->size; r++) {
                             write_vcf_record(passed_records->items[r], passed_file);
                         }
-//                         write_batch(passed_records, passed_file);
                     }
                     }
                     if (failed_records != NULL && failed_records->size > 0) {
@@ -198,7 +189,6 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
                         for (int r = 0; r < passed_records->size; r++) {
                             write_vcf_record(failed_records->items[r], failed_file);
                         }
-//                         write_batch(failed_records, failed_file);
                     }
                     }
                 }
@@ -230,9 +220,6 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
             LOG_INFO_F("[%d] Time elapsed = %f s\n", omp_get_thread_num(), total);
             LOG_INFO_F("[%d] Time elapsed = %e ms\n", omp_get_thread_num(), total*1000);
 
-            // Free resources
-            if (sample_ids) { cp_hashtable_destroy(sample_ids); }
-            
             // Free filters
             for (int i = 0; i < num_filters; i++) {
                 filter_t *filter = filters[i];
@@ -342,68 +329,40 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
 }
 
 
-individual_t *sort_individuals(vcf_file_t *vcf, ped_file_t *ped) {
+individual_t **sort_individuals(vcf_file_t *vcf, ped_file_t *ped) {
 	family_t *family;
 	family_t **families = (family_t**) cp_hashtable_get_values(ped->families);
 	int num_families = get_num_families(ped);
-	assert(num_families);
 
-	individual_t *individuals = calloc (get_num_vcf_samples(vcf), sizeof(individual_t));
-
+	individual_t **individuals = calloc (get_num_vcf_samples(vcf), sizeof(individual_t*));
 	cp_hashtable *positions = associate_samples_and_positions(vcf);
 	int *pos;
 
-//	family_t *family;
-//	    family_t **families = cp_hashtable_get_values(ped->families);
-//	    for (int i = 0; i < get_num_families(ped); i++) {
-//	    	family = families[i];
-//	    	individual_t *ind_f = family->father;
-//	    	individual_t *ind_m = family->mother;
-//	    	printf("(%s) father %s, mother %s\n", family->id, ind_f->id, ind_m->id);
-//	    	pos = cp_hashtable_get(positions, ind_f->id);
-//			printf("father (%s), pos = %d\n", ind_f->id, *pos);
-//			individuals[*pos] = *ind_f;
-//	    }
-//
-//	    exit(1);
-
-
-	for (int f = 0; f < get_num_families(ped); f++) {
+	for (int f = 0; f < num_families; f++) {
 		family = families[f];
 		individual_t *father = family->father;
 		individual_t *mother = family->mother;
 		cp_list *children = family->children;
-		assert(father || mother || cp_list_item_count(children));
-		assert(father->id && mother->id);
 
 		if (father != NULL) {
 			pos = cp_hashtable_get(positions, father->id);
-//			printf("father (%s), pos = %d\t", father->id, *pos);
-			individuals[*pos] = *father;
+			individuals[*pos] = father;
 		}
 
 		if (mother != NULL) {
 			pos = cp_hashtable_get(positions, mother->id);
-//			printf("mother pos = %d\t", *pos);
-			individuals[*pos] = *mother;
+			individuals[*pos] = mother;
 		}
 
 		cp_list_iterator *children_iterator = cp_list_create_iterator(family->children, COLLECTION_LOCK_READ);
 		individual_t *child = NULL;
 		while ((child = cp_list_iterator_next(children_iterator)) != NULL) {
 			pos = cp_hashtable_get(positions, child->id);
-//			printf("child pos = %d\t", *pos);
-			individuals[*pos] = *child;
-		} // next offspring in family
+			individuals[*pos] = child;
+		}
         cp_list_iterator_destroy(children_iterator);
-//        printf("\n--------------\n");
 	}
 
-//	for (int i = 0; i < get_num_vcf_samples(vcf); i++) {
-//		printf("individual %s:%s\n", individuals[i].family->id, individuals[i].id);
-//	}
-//
-//	exit(1);
 	return individuals;
 }
 

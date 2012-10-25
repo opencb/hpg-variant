@@ -52,7 +52,7 @@
 int run_association_test(shared_options_data_t *global_options_data, assoc_options_data_t *options_data);
 
 
-static individual_t *sort_individuals(vcf_file_t *vcf, ped_file_t *ped);
+static individual_t **sort_individuals(vcf_file_t *vcf, ped_file_t *ped);
 
 static cp_hashtable *associate_samples_and_positions(vcf_file_t *file);
 
