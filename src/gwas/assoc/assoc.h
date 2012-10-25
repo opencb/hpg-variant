@@ -41,8 +41,6 @@
 #include "hpg_variant_utils.h"
 #include "shared_options.h"
 
-#define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
-
 
 /**
  * Number of options applicable to the assoc tool.
@@ -136,8 +134,10 @@ int verify_assoc_options(assoc_options_t *assoc_options, shared_options_t *share
  *                Test execution                *
  * **********************************************/
 
-void assoc_test(enum ASSOC_task test_type, vcf_record_t **variants, int num_variants, family_t **families, int num_families, 
-                cp_hashtable *sample_ids, const void *opt_input, list_t *output_list);
+//void assoc_test(enum ASSOC_task test_type, vcf_record_t **variants, int num_variants, family_t **families, int num_families,
+//                cp_hashtable *sample_ids, const void *opt_input, list_t *output_list);
+void assoc_test(enum ASSOC_task test_type, vcf_record_t **variants, int num_variants, individual_t *samples, int num_samples,
+                const void *opt_input, list_t *output_list);
 
 void assoc_count_individual(individual_t *individual, vcf_record_t *record, int allele1, int allele2, 
                            int *affected1, int *affected2, int *unaffected1, int *unaffected2);

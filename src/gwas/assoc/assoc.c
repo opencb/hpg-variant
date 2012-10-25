@@ -20,12 +20,22 @@
 
 #include "assoc.h"
 
-void assoc_test(enum ASSOC_task test_type, vcf_record_t **variants, int num_variants, family_t **families, int num_families, 
-                cp_hashtable *sample_ids, const void *opt_input, list_t *output_list) {
+//void assoc_test(enum ASSOC_task test_type, vcf_record_t **variants, int num_variants, family_t **families, int num_families,
+//                cp_hashtable *sample_ids, const void *opt_input, list_t *output_list) {
+void assoc_test(enum ASSOC_task test_type, vcf_record_t **variants, int num_variants, individual_t *samples, int num_samples,
+                const void *opt_input, list_t *output_list) {
     int ret_code = 0;
     int tid = omp_get_thread_num();
-    int num_samples = cp_hashtable_count(sample_ids);
-    
+
+    assert(num_samples == 147);
+	for (int j = 0; j < num_samples; j++) {
+		printf("** individual %s:%s\n", samples[j].family->id, samples[j].id);
+	}
+	//
+	//	exit(1);
+
+//    int num_samples = cp_hashtable_count(sample_ids);
+
     char **sample_data;
     
     int gt_position;
@@ -51,9 +61,23 @@ void assoc_test(enum ASSOC_task test_type, vcf_record_t **variants, int num_vari
         sample_data = (char**) record->samples->items;
         gt_position = get_field_position_in_format("GT", strndup(record->format, record->format_len));
     
-        // Count over families
+        // Count over individuals
+        individual_t individual;
+        char *sample_data;
+
+        for (int j = 0; j < num_samples; j++) {
+        	individual = samples[j];
+        	sample_data = strdup(array_list_get(j, record->samples));
+        	if (!get_alleles(sample_data, gt_position, &allele1, &allele2)) {
+				num_analyzed++;
+				assoc_count_individual(&individual, record, allele1, allele2, &A1, &A2, &U1, &U2);
+			}
+        	free(sample_data);
+        }
+ /*		// Count over families
         family_t *family;
         
+
         for (int f = 0; f < num_families; f++) {
             family = families[f];
             individual_t *father = family->father;
@@ -133,7 +157,7 @@ void assoc_test(enum ASSOC_task test_type, vcf_record_t **variants, int num_vari
             } // next offspring in family
             cp_list_iterator_destroy(children_iterator);
         }  // next nuclear family
-
+*/
         /////////////////////////////
         // Finished counting: now compute
         // the statistics
