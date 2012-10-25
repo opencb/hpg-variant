@@ -45,7 +45,7 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
     if (ret_code != 0) {
         LOG_FATAL_F("Can't read PED file: %s\n", ped_file->filename);
     }
-               
+
     // Try to create the directory where the output files will be stored
     ret_code = create_directory(shared_options_data->output_directory);
     if (ret_code != 0 && errno != EEXIST) {
@@ -108,8 +108,9 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
 // #pragma omp parallel num_threads(shared_options_data->num_threads) shared(initialization_done, sample_ids, factorial_logarithms, filters)
 #pragma omp parallel num_threads(shared_options_data->num_threads) shared(initialization_done, factorial_logarithms, filters)
             {
-            family_t **families = (family_t**) cp_hashtable_get_values(ped_file->families);
-            int num_families = get_num_families(ped_file);
+//            family_t **families = (family_t**) cp_hashtable_get_values(ped_file->families);
+//            int num_families = get_num_families(ped_file);
+            individual_t *individuals;
             
             int i = 0;
             list_item_t *item = NULL;
@@ -126,9 +127,10 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
                     ret_code = run_vcf_parser(text_begin, text_end, shared_options_data->batch_lines, file, status);
                 }
                 
-                // Initialize structures needed for TDT and write headers of output files
+                // Initialize structures needed for association tests and write headers of output files
                 if (!initialization_done) {
-                    sample_ids = associate_samples_and_positions(file);
+//                    sample_ids = associate_samples_and_positions(file);
+                	individuals = sort_individuals(file, ped_file);
 # pragma omp critical
                 {
                     // Guarantee that just one thread performs this operation
@@ -169,11 +171,14 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
                     passed_records = run_filter_chain(input_records, failed_records, filters, num_filters);
                 }
 
-                // Launch TDT test over records that passed the filters
+                // Launch association test over records that passed the filters
                 if (passed_records->size > 0) {
 //                     LOG_DEBUG_F("[%d] Test execution\n", omp_get_thread_num());
+                	assert(individuals);
                     assoc_test(options_data->task, (vcf_record_t**) passed_records->items, passed_records->size, 
-                                families, num_families, sample_ids, factorial_logarithms, output_list);
+                                individuals, get_num_vcf_samples(file), factorial_logarithms, output_list);
+//                    assoc_test(options_data->task, (vcf_record_t**) passed_records->items, passed_records->size,
+//                                families, num_families, sample_ids, factorial_logarithms, output_list);
                 }
                 
                 // Write records that passed and failed to separate files
@@ -337,6 +342,72 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
 }
 
 
+individual_t *sort_individuals(vcf_file_t *vcf, ped_file_t *ped) {
+	family_t *family;
+	family_t **families = (family_t**) cp_hashtable_get_values(ped->families);
+	int num_families = get_num_families(ped);
+	assert(num_families);
+
+	individual_t *individuals = calloc (get_num_vcf_samples(vcf), sizeof(individual_t));
+
+	cp_hashtable *positions = associate_samples_and_positions(vcf);
+	int *pos;
+
+//	family_t *family;
+//	    family_t **families = cp_hashtable_get_values(ped->families);
+//	    for (int i = 0; i < get_num_families(ped); i++) {
+//	    	family = families[i];
+//	    	individual_t *ind_f = family->father;
+//	    	individual_t *ind_m = family->mother;
+//	    	printf("(%s) father %s, mother %s\n", family->id, ind_f->id, ind_m->id);
+//	    	pos = cp_hashtable_get(positions, ind_f->id);
+//			printf("father (%s), pos = %d\n", ind_f->id, *pos);
+//			individuals[*pos] = *ind_f;
+//	    }
+//
+//	    exit(1);
+
+
+	for (int f = 0; f < get_num_families(ped); f++) {
+		family = families[f];
+		individual_t *father = family->father;
+		individual_t *mother = family->mother;
+		cp_list *children = family->children;
+		assert(father || mother || cp_list_item_count(children));
+		assert(father->id && mother->id);
+
+		if (father != NULL) {
+			pos = cp_hashtable_get(positions, father->id);
+//			printf("father (%s), pos = %d\t", father->id, *pos);
+			individuals[*pos] = *father;
+		}
+
+		if (mother != NULL) {
+			pos = cp_hashtable_get(positions, mother->id);
+//			printf("mother pos = %d\t", *pos);
+			individuals[*pos] = *mother;
+		}
+
+		cp_list_iterator *children_iterator = cp_list_create_iterator(family->children, COLLECTION_LOCK_READ);
+		individual_t *child = NULL;
+		while ((child = cp_list_iterator_next(children_iterator)) != NULL) {
+			pos = cp_hashtable_get(positions, child->id);
+//			printf("child pos = %d\t", *pos);
+			individuals[*pos] = *child;
+		} // next offspring in family
+        cp_list_iterator_destroy(children_iterator);
+//        printf("\n--------------\n");
+	}
+
+//	for (int i = 0; i < get_num_vcf_samples(vcf); i++) {
+//		printf("individual %s:%s\n", individuals[i].family->id, individuals[i].id);
+//	}
+//
+//	exit(1);
+	return individuals;
+}
+
+
 cp_hashtable* associate_samples_and_positions(vcf_file_t* file) {
     LOG_DEBUG_F("** %zu sample names read\n", file->samples_names->size);
     array_list_t *sample_names = file->samples_names;
@@ -352,8 +423,8 @@ cp_hashtable* associate_samples_and_positions(vcf_file_t* file) {
         index = (int*) malloc (sizeof(int)); *index = i;
         cp_hashtable_put(sample_ids, name, index);
     }
-//     char **keys = (char**) cp_hashtable_get_keys(sample_names);
-//     int num_keys = cp_hashtable_count(sample_names);
+//     char **keys = (char**) cp_hashtable_get_keys(sample_ids);
+//     int num_keys = cp_hashtable_count(sample_ids);
 //     for (int i = 0; i < num_keys; i++) {
 //         printf("%s\t%d\n", keys[i], *((int*) cp_hashtable_get(sample_ids, keys[i])));
 //     }
