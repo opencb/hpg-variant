@@ -247,8 +247,8 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
             LOG_INFO_F("[%d] Time elapsed = %f s\n", omp_get_thread_num(), total);
             LOG_INFO_F("[%d] Time elapsed = %e ms\n", omp_get_thread_num(), total*1000);
 
-            printf("** Time in parsing = %f s\n", total_parsing);
-            printf("** Time in insertion = %f s\n", total_insertion);
+            LOG_DEBUG_F("** Time in parsing = %f s\n", total_parsing);
+            LOG_DEBUG_F("** Time in insertion = %f s\n", total_insertion);
 //             for (int i = 0; i < shared_options_data->num_threads; i++) {
 //                 printf("[%d] Time in searching = %f s\n", i, total_search[i]);
 //                 printf("[%d] Time in merging = %f s\n", i, total_merge[i]);
