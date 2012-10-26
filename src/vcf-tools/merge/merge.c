@@ -300,7 +300,6 @@ char* merge_alternate_field(vcf_record_file_link** position_in_files, int positi
         file = position_in_files[i]->file;
         input = position_in_files[i]->record;
 
-    	position = input->position;
         pos_alternates = strndup(input->alternate, input->alternate_len);
         split_pos_alternates = split(pos_alternates, ",", &num_pos_alternates);
 
