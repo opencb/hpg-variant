@@ -27,6 +27,7 @@ LIBS_STATIC = -L$(LIBS_DIR) -L/usr/lib/x86_64-linux-gnu -lcurl -Wl,-Bsymbolic-fu
 VCF_OBJS = $(BIOFORMATS_DIR)/vcf/vcf_*.o
 GFF_OBJS = $(BIOFORMATS_DIR)/gff/gff_*.o
 PED_OBJS = $(BIOFORMATS_DIR)/ped/ped_*.o
+FAMILY_OBJS = $(BIOFORMATS_DIR)/family/family.o $(BIOFORMATS_DIR)/family/checks_family.o
 REGION_TABLE_OBJS = $(BIOFORMATS_DIR)/features/region/region.o $(BIOFORMATS_DIR)/features/region/region_table.o $(BIOFORMATS_DIR)/features/region/region_table_utils.o
 MISC_OBJS = $(COMMONS_DIR)/file_utils.o $(COMMONS_DIR)/string_utils.o $(COMMONS_DIR)/http_utils.o $(COMMONS_DIR)/log.o $(COMMONS_DIR)/result.o \
 	$(CONTAINERS_DIR)/array_list.o $(CONTAINERS_DIR)/list.o $(BIOFORMATS_DIR)/family.o $(MATH_DIR)/fisher.o
@@ -63,10 +64,10 @@ vcf-debug: compile-dependencies
 
 # Build dependencies
 compile-dependencies:
-	make family.o && \
 	cd $(MATH_DIR) && make compile &&  \
 	cd $(COMMONS_DIR) && make compile &&  \
 	cd $(CONTAINERS_DIR) && make &&  \
+	cd $(BIOFORMATS_DIR)/family && make &&  \
 	cd $(BIOFORMATS_DIR)/features/region && make &&  \
 	cd $(BIOFORMATS_DIR)/gff && make compile &&  \
 	cd $(BIOFORMATS_DIR)/ped && make compile &&  \
@@ -76,6 +77,7 @@ compile-dependencies-static:
 	cd $(MATH_DIR) && make compile &&  \
 	cd $(COMMONS_DIR) && make compile &&  \
 	cd $(CONTAINERS_DIR) && make &&  \
+	cd $(BIOFORMATS_DIR)/family && make &&  \
 	cd $(BIOFORMATS_DIR)/features/region && make &&  \
 	cd $(BIOFORMATS_DIR)/gff && make compile-static &&  \
 	cd $(BIOFORMATS_DIR)/ped && make compile-static &&  \
