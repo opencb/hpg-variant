@@ -30,7 +30,7 @@
 #include <cprops/hashtable.h>
 #include <omp.h>
 
-#include <bioformats/family.h>
+#include <bioformats/family/family.h>
 #include <bioformats/ped/ped_file.h>
 #include <bioformats/ped/ped_file_structure.h>
 #include <bioformats/vcf/vcf_file_structure.h>

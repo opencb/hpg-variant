@@ -31,6 +31,7 @@
 #include <libconfig.h>
 #include <omp.h>
 
+#include <bioformats/family/checks_family.h>
 #include <bioformats/ped/ped_file.h>
 #include <bioformats/ped/ped_file_structure.h>
 #include <bioformats/vcf/vcf_file.h>
@@ -40,7 +41,6 @@
 #include <containers/list.h>
 
 #include "error.h"
-#include "gwas/checks_family.h"
 #include "shared_options.h"
 
 /**
