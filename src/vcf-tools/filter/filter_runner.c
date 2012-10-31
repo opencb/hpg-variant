@@ -150,9 +150,13 @@ int run_filter(shared_options_data_t *shared_options_data, filter_options_data_t
             LOG_INFO_F("[%d] Time elapsed = %e ms\n", omp_get_thread_num(), total*1000);
 
             // Free resources
-            if (passed_file) { fclose(passed_file); }
-            if (failed_file) { fclose(failed_file); }
-            
+            if (passed_file) {
+            	fclose(passed_file);
+            }
+            if (options_data->save_rejected && failed_file) {
+            	fclose(failed_file);
+            }
+
             free_filters(filters, num_filters);
         }
     }
