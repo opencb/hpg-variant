@@ -362,11 +362,8 @@ void calculate_merge_interval(vcf_record_t* current_record, char** max_chromosom
             *max_chromosome_merged = current_chromosome;
             *max_position_merged = current_position;
         } else {
-            if (!current_chromosome) {
-                printf("no current chromosome!!\n");
-            } else {
-                free(current_chromosome);
-            }
+        	assert(current_chromosome);
+            free(current_chromosome);
         }
     }
 }
