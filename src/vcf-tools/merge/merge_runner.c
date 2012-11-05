@@ -20,7 +20,7 @@
 
 #include "merge_runner.h"
 
-#define TREE_LIMIT  (shared_options_data->batch_lines * 2)
+#define TREE_LIMIT  (shared_options_data->batch_lines)
 
 static int num_chromosomes;
 static char **chromosome_order;

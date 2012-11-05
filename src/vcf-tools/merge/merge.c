@@ -428,6 +428,10 @@ char* merge_filter_field(vcf_record_file_link** position_in_files, int position_
 
 char *merge_info_field(vcf_record_file_link **position_in_files, int position_occurrences, char **info_fields, int num_fields,
                        vcf_record_t *output_record, cp_hashtable *alleles, char *empty_sample) {
+	if (num_fields == 0) {
+		return strndup(".", 1);
+	}
+
     size_t len = 0;
     size_t max_len = 128;
     char *result = calloc (max_len, sizeof(char));
