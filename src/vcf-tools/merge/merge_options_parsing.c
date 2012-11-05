@@ -141,10 +141,10 @@ int verify_merge_options(merge_options_t *merge_options, shared_options_t *share
     }
     
     // Check whether the input VCF files are defined
-    if (merge_options->info_fields->count == 0) {
-        LOG_ERROR("Please specify the fields of the INFO column.\n");
-        return INFO_FIELDS_NOT_SPECIFIED;
-    }
+//    if (merge_options->info_fields->count == 0) {
+//        LOG_ERROR("Please specify the fields of the INFO column.\n");
+//        return INFO_FIELDS_NOT_SPECIFIED;
+//    }
     
     // Check whether the missing mode is defined
     if (merge_options->missing_mode->count == 0 && strlen(*(merge_options->missing_mode->sval)) == 0) {
