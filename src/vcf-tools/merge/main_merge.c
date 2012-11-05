@@ -85,7 +85,7 @@ merge_options_t *new_merge_cli_options() {
     options->num_options = NUM_MERGE_OPTIONS;
     options->input_files = arg_str1(NULL, "vcf-list", NULL, "List of comma-separated input VCF files");
     options->missing_mode = arg_str0(NULL, "missing-mode", NULL, "How to fill missing genotypes (missing = ./., reference = 0/0)");
-    options->info_fields = arg_str1(NULL, "info-fields", NULL, "Information to generate in the new INFO column");
+    options->info_fields = arg_str0(NULL, "info-fields", NULL, "Information to generate in the new INFO column");
     options->copy_filter = arg_lit0(NULL, "copy-filter", "Whether to copy the FILTER column from the original files into the samples");
     options->copy_info = arg_lit0(NULL, "copy-info", "Whether to copy the INFO column from the original files into the samples");
     return options;
@@ -99,8 +99,12 @@ merge_options_data_t *new_merge_options_data(merge_options_t *options) {
         options_data->missing_mode = REFERENCE;
     }
     options_data->input_files = split(*(options->input_files->sval), ",", &(options_data->num_files));
-    options_data->info_fields = split(*(options->info_fields->sval), ",", &(options_data->num_info_fields));
-    
+
+    if (options->info_fields->count > 0) {
+    	options_data->info_fields = split(*(options->info_fields->sval), ",", &(options_data->num_info_fields));
+    } else {
+    	options_data->num_info_fields = 0;
+    }
     options_data->copy_filter = options->copy_filter->count;
     options_data->copy_info = options->copy_info->count;
     return options_data;
