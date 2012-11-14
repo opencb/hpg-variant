@@ -41,7 +41,7 @@
 #include <commons/log.h>
 #include <commons/string_utils.h>
 #include <containers/list.h>
-#include <math/fisher.h>
+#include <fisher.h>
 
 #include "assoc.h"
 #include "assoc_basic_test.h"
