@@ -32,10 +32,6 @@ env = conf.Finish()
 
 
 # Extra flags
-bioinfo_path = '#libs/bioinfo-libs'
-commons_path = '#libs/common-libs'
-math_path = '#libs/math'
-
 if int(ARGUMENTS.get('debug', '0')) == 1:
     debug = 1
     env['CFLAGS'] = '-std=c99 -D_XOPEN_SOURCE=600 -D_GNU_SOURCE -fopenmp -O0 -g'
@@ -43,6 +39,10 @@ else:
     debug = 0
     env['CFLAGS'] = '-std=c99 -D_XOPEN_SOURCE=600 -D_GNU_SOURCE -fopenmp -O3'
     
+bioinfo_path = '#libs/bioinfo-libs'
+commons_path = '#libs/common-libs'
+math_path = '#libs/math'
+
 env['CPPPATH'] = ['#', '#src', '#include', bioinfo_path, commons_path, math_path]
 env['LIBPATH'] = ['/usr/lib', '/usr/local/lib', '#libs', commons_path]
 env['LIBS']   += ['common']
