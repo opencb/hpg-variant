@@ -1,66 +1,32 @@
+import buildaux
 
-env = Environment()
+# Initialize the environment with path variables, CFLAGS, and so on
+bioinfo_path = '#libs/bioinfo-libs'
+commons_path = '#libs/common-libs'
+math_path = '#libs/math'
 
-# Check dependency libraries: cprops
-conf = Configure(env)
+vars = Variables('buildvars.py')
+vars.Add(PathVariable('ARGTABLE_INCLUDE_PATH', 'Path to the headers of argtable2 library', '', PathVariable.PathAccept))
+vars.Add(PathVariable('ARGTABLE_LIBRARY_PATH', 'Path to the compiled argtable2 library', '', PathVariable.PathAccept))
+vars.Add(PathVariable('CPROPS_INCLUDE_PATH', 'Path to the headers of cprops library', '', PathVariable.PathAccept))
+vars.Add(PathVariable('CPROPS_LIBRARY_PATH', 'Path to the compiled cprops library', '', PathVariable.PathAccept))
 
-if not conf.CheckLib('argtable2'):
-    print 'argtable2 library not found!'
-    Exit(1)
+env = Environment(variables = vars,
+                  CPPPATH = ['#', '#src', '#include', '/usr/local/include', '/usr/include/libxml2', bioinfo_path, commons_path, math_path, '$ARGTABLE_INCLUDE_PATH', '$CPROPS_INCLUDE_PATH' ],
+                  LIBPATH = ['/usr/lib', '/usr/local/lib', '#libs', commons_path, '$ARGTABLE_LIBRARY_PATH', '$CPROPS_LIBRARY_PATH' ],
+                  LIBS = ['argtable2', 'common', 'config', 'cprops', 'curl', 'gsl', 'gslcblas', 'm', 'xml2'],
+                  LINKFLAGS = ['-fopenmp'])
 
-if not conf.CheckLib('config'):
-    print 'config library not found!'
-    Exit(1)
-
-if not conf.CheckLib('cprops'):
-    print 'cprops library not found!'
-    Exit(1)
-
-if not conf.CheckLib('curl'):
-    print 'cURL library not found!'
-    Exit(1)
-
-if not conf.CheckLib('gsl'):
-    print 'GSL library not found!'
-    Exit(1)
-
-if not conf.CheckLib('xml2'):
-    print 'xml2 library not found!'
-    Exit(1)
-    
-env = conf.Finish()
-
-
-# Extra flags
 if int(ARGUMENTS.get('debug', '0')) == 1:
     debug = 1
     env['CFLAGS'] = '-std=c99 -D_XOPEN_SOURCE=600 -D_GNU_SOURCE -fopenmp -O0 -g'
 else:
     debug = 0
     env['CFLAGS'] = '-std=c99 -D_XOPEN_SOURCE=600 -D_GNU_SOURCE -fopenmp -O3'
-    
-bioinfo_path = '#libs/bioinfo-libs'
-commons_path = '#libs/common-libs'
-math_path = '#libs/math'
 
-env['CPPPATH'] = ['#', '#src', '#include', bioinfo_path, commons_path, math_path]
-env['LIBPATH'] = ['/usr/lib', '/usr/local/lib', '#libs', commons_path]
-env['LIBS']   += ['common']
-env['LINKFLAGS'] = '-fopenmp'
+env['objects'] = []
 
-env.ParseConfig("pkg-config argtable2 --cflags --libs")
-env.ParseConfig("pkg-config libconfig --cflags --libs")
-env.ParseConfig("pkg-config libcurl --cflags --libs")
-env.ParseConfig("pkg-config gsl --cflags --libs")
-env.ParseConfig("pkg-config libxml-2.0 --cflags --libs")
-env.ParseConfig("pkg-config libcurl --cflags --libs")
-
-print 'CPPPATH = %s' % env['CPPPATH']
-print 'LIBPATH = %s' % env['LIBPATH']
-print 'LIBS = %s' % env['LIBS']
-
-
-## Targets
+# Targets
 
 SConscript(['%s/bioformats/SConscript' % bioinfo_path,
             '%s/SConscript' % commons_path,
@@ -72,3 +38,4 @@ SConscript(['src/effect/SConscript',
             'src/vcf-tools/SConscript'
             ], exports = ['env', 'debug', 'commons_path', 'bioinfo_path', 'math_path'])
 
+env.Install('#bin', ['hpg-variant.cfg', 'vcf-info-fields.cfg'])
