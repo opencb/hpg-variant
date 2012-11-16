@@ -12,12 +12,32 @@ You must compile the following dependencies: cprops
 cprops can be downloaded from http://sourceforge.net/projects/cprops/
 During the configuration phase, use the following command:
 
-./configure --disable-cpsp --disable-cpsvc
+./configure --disable-cpsp --disable-cpsvc --with-cflags=-O2 --prefix=/path/to/install/dir
 
-Then 'make' and, if you want to install it in your system, 'sudo make install' (by default it will be installed in /usr/local/lib)
+** By default, prefix = /usr/local
 
-Set the path to the cprops library you installed manually so that SCons can find it during the build. Library paths are read from the 'buildaux.conf' file. 
-You only need to set the fields: CPROPS_INCLUDE_PATH, CPROPS_LIBRARY_PATH (don't forget the quotes around them)
+Now it is neccessary to modify a bit the auto-generated Makefile. In the first section, path variables such as 'prefix', 'bindir', 'libdir', etc., should be defined. XXXdir ones don't point to correct paths. You must replace this:
+
+bindir = $(DESTDIR)${exec_prefix}/bin
+libdir = $(DESTDIR)${exec_prefix}/lib
+incdir = $(DESTDIR)${prefix}/include/cprops
+mandir = $(DESTDIR)${datarootdir}/man
+datadir = ${prefix}/share
+man3dir = $(mandir)/man3
+
+With this:
+
+bindir = ${prefix}/bin
+libdir = ${prefix}/lib
+incdir = ${prefix}/include/cprops
+mandir = ${prefix}/man
+datadir = ${prefix}/share
+man3dir = ${prefix}/man3
+
+Then type 'make && make install'.
+
+Set the path to the cprops library so that SCons can find it during the build. Library paths are read from the 'buildvars.py' file. 
+You need to set the fields: CPROPS_INCLUDE_PATH, CPROPS_LIBRARY_PATH (don't forget the quotes around them) in the root folder of HPG Variant, in libs/common-libs, and in libs/bioinfo-libs.
 
 Build
 -----
@@ -37,10 +57,14 @@ sudo yum install gcc-c++ glibc-devel scons libconfig-devel libcurl-devel gsl-dev
 You must compile the following dependencies: argtable-2.x
 
 Argtable can be downloaded from http://argtable.sourceforge.net/ (make sure you pick up the 2.x version!)
-In order to construct the static (.a) library file, run 'cmake && make'. Don't run ./configure or it will generate a .la file.
+Run the following:
 
-Set the path to the argtable library you installed manually so that SCons can find it during the build. Library paths are read from the 'buildaux.conf' file. 
-You only need to set the fields: ARGTABLE_INCLUDE_PATH, ARGTABLE_LIBRARY_PATH (don't forget the quotes around them)
+./configure --prefix=/path/to/install/dir && make && make install
+
+** By default, prefix = /usr
+
+Set the path to the argtable library so that SCons can find it during the build. Library paths are read from the 'buildvasr.py' file. 
+You need to set the fields: ARGTABLE_INCLUDE_PATH, ARGTABLE_LIBRARY_PATH (don't forget the quotes around them) in the root folder of HPG Variant.
 
 Build
 -----
