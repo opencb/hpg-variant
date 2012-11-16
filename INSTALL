@@ -1,0 +1,47 @@
+Debian / Ubuntu
+===============
+
+Pre-build
+---------
+You need a C compiler, the build system SCons and a list of other libraries. Some of them can be downloaded using apt-get or aptitude.
+
+sudo apt-get install build-essential scons libconfig8-dev libcurl4-openssl-dev libgsl0-dev libxml2-dev libargtable2-dev
+
+You must compile the following dependencies: cprops
+
+cprops can be downloaded from http://sourceforge.net/projects/cprops/
+During the configuration phase, use the following command:
+
+./configure --disable-cpsp --disable-cpsvc
+
+Then 'make' and, if you want to install it in your system, 'sudo make install' (by default it will be installed in /usr/local/lib)
+
+Set the path to the cprops library you installed manually so that SCons can find it during the build. Library paths are read from the 'buildaux.conf' file. 
+You only need to set the fields: CPROPS_INCLUDE_PATH, CPROPS_LIBRARY_PATH (don't forget the quotes around them)
+
+Build
+-----
+From the root folder of the application, type 'scons'.
+
+
+
+Fedora
+======
+
+Pre-build
+---------
+You need a C compiler, the build system SCons and a list of other libraries. Some of them can be downloaded using yum.
+
+sudo yum install gcc-c++ glibc-devel scons libconfig-devel libcurl-devel gsl-devel libxml2-devel libcprops-devel
+
+You must compile the following dependencies: argtable-2.x
+
+Argtable can be downloaded from http://argtable.sourceforge.net/ (make sure you pick up the 2.x version!)
+In order to construct the static (.a) library file, run 'cmake && make'. Don't run ./configure or it will generate a .la file.
+
+Set the path to the argtable library you installed manually so that SCons can find it during the build. Library paths are read from the 'buildaux.conf' file. 
+You only need to set the fields: ARGTABLE_INCLUDE_PATH, ARGTABLE_LIBRARY_PATH (don't forget the quotes around them)
+
+Build
+-----
+From the root folder of the application, type 'scons'.
