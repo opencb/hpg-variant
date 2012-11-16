@@ -5,7 +5,7 @@ Pre-build
 ---------
 You need a C compiler, the build system SCons and a list of other libraries. Some of them can be downloaded using apt-get or aptitude.
 
-sudo apt-get install build-essential scons libconfig8-dev libcurl4-openssl-dev libgsl0-dev libxml2-dev libargtable2-dev
+sudo apt-get install build-essential scons libconfig8-dev libcurl4-openssl-dev libgsl0-dev libxml2-dev libargtable2-dev zlib1g-dev
 
 You must compile the following dependencies: cprops
 
@@ -36,8 +36,8 @@ man3dir = ${prefix}/man3
 
 Then type 'make && make install'.
 
-Set the path to the cprops library so that SCons can find it during the build. Library paths are read from the 'buildvars.py' file. 
-You need to set the fields: CPROPS_INCLUDE_PATH, CPROPS_LIBRARY_PATH (don't forget the quotes around them) in the root folder of HPG Variant, in libs/common-libs, and in libs/bioinfo-libs.
+Set the path to the cprops library so that SCons can find it during the build. Library paths are read from files named 'buildvars.py'. 
+You need to set the fields: CPROPS_INCLUDE_PATH, CPROPS_LIBRARY_PATH (don't forget the quotes around them) in libs/common-libs and libs/bioinfo-libs. CPROPS_INCLUDE_PATH will point to the 'include' subfolder inside HPG Variant, and CPROPS_LIBRARY_PATH will point to the 'libs' subfolder.
 
 Build
 -----
@@ -50,9 +50,9 @@ Fedora
 
 Pre-build
 ---------
-You need a C compiler, the build system SCons and a list of other libraries. Some of them can be downloaded using yum.
+You need a C compiler, the build system SCons and a list of other libraries, which can be downloaded using yum.
 
-sudo yum install gcc-c++ glibc-devel scons libconfig-devel libcurl-devel gsl-devel libxml2-devel libcprops-devel
+sudo yum install gcc-c++ glibc-devel scons libconfig-devel libcurl-devel gsl-devel libxml2-devel libcprops-devel zlib-devel
 
 You must compile the following dependencies: argtable-2.x
 
@@ -62,9 +62,6 @@ Run the following:
 ./configure --prefix=/path/to/install/dir && make && make install
 
 ** By default, prefix = /usr
-
-Set the path to the argtable library so that SCons can find it during the build. Library paths are read from the 'buildvasr.py' file. 
-You need to set the fields: ARGTABLE_INCLUDE_PATH, ARGTABLE_LIBRARY_PATH (don't forget the quotes around them) in the root folder of HPG Variant.
 
 Build
 -----
