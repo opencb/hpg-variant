@@ -46,7 +46,11 @@ If you want to create a .deb package to install HPG Variant in your system, type
 
 Install
 -------
-This step is not neccessary to run HPG Variant, but to install the .deb package created in the previous step. Type 'sudo dkpg -i hpg-variant_X.Y-amd64.deb', and don't forget to replace X.Y with the corresponding version number of your package.
+This step is not neccessary to run HPG Variant, but to install the .deb package created in the previous step. In this case, you will need to run the following command:
+
+sudo apt-get install libargtable2-0 libconfig8 libcurl4-openssl-dev libgsl0ldbl libxml2 zlib1g
+
+If no errors ocurred, type 'sudo dkpg -i hpg-variant_X.Y-amd64.deb', and don't forget to replace X.Y with the corresponding version number of your package.
 
 
 
