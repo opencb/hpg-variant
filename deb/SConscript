@@ -24,8 +24,6 @@ DEBFILES = [
     ("etc/hpg-variant/hpg-variant.conf",        "#bin/hpg-variant.cfg"),
     ("etc/hpg-variant/vcf-info-fields.conf",    "#bin/vcf-info-fields.cfg"),
     
-    #("usr/lib/libcommon.so",    "#libs/common-libs/libcommon.so")
-
 ]
 
 # This is the debian package we're going to create
