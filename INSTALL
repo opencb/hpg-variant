@@ -41,7 +41,12 @@ You need to set the fields: CPROPS_INCLUDE_PATH, CPROPS_LIBRARY_PATH (don't forg
 
 Build
 -----
-From the root folder of the application, type 'scons'.
+From the root folder of the application, type 'scons'. This will create 3 binaries in the 'bin' subfolder.
+If you want to create a .deb package to install HPG Variant in your system, type 'scons debian'. A file named 'hpg-variant_X.Y-amd64.deb' (with X.Y being the version number) will be created in the root folder of HPG Variant.
+
+Install
+-------
+This step is not neccessary to run HPG Variant, but to install the .deb package created in the previous step. Type 'sudo dkpg -i hpg-variant_X.Y-amd64.deb', and don't forget to replace X.Y with the corresponding version number of your package.
 
 
 
@@ -65,4 +70,4 @@ Run the following:
 
 Build
 -----
-From the root folder of the application, type 'scons'.
+From the root folder of the application, type 'scons'. This will create 3 binaries in the 'bin' subfolder.
