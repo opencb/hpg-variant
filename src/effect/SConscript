@@ -2,7 +2,7 @@ Import('env commons_path bioinfo_path')
 
 #penv = env.Clone()
 
-env.Program('hpg-var-effect', 
+prog = env.Program('hpg-var-effect', 
              source = [Glob('*.c'), Glob('../*.c'),
                        "%s/libcommon.a" % commons_path,
                        "%s/bioformats/libbioformats.a" % bioinfo_path
@@ -10,3 +10,5 @@ env.Program('hpg-var-effect',
            )
                       
 env.Install('#bin', 'hpg-var-effect')
+
+Return("prog")
