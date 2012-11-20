@@ -28,7 +28,9 @@ int main(int argc, char *argv[]) {
     
     init_log_custom(2, 1, "hpg-var-vcf.log", "w");
 
-    const char *config = find_configuration_file(argc, argv);
+    //    const char *config = find_configuration_file(argc, argv);
+	array_list_t *config_search_paths = get_configuration_search_paths(argc, argv);
+	const char *config = retrieve_config_file("hpg-variant.conf", config_search_paths);
     
     // Get sub-tool
     char *tool = argv[1];
@@ -39,7 +41,7 @@ int main(int argc, char *argv[]) {
         exit_code = vcf_tool_filter(argc - 1, argv + 1, config);
         
     } else if (strcmp(tool, "merge") == 0) {
-        exit_code = vcf_tool_merge(argc - 1, argv + 1, config);
+        exit_code = vcf_tool_merge(argc - 1, argv + 1, config, config_search_paths);
         
     } else if (strcmp(tool, "split") == 0) {
         exit_code = vcf_tool_split(argc - 1, argv + 1, config);

@@ -86,10 +86,11 @@ int merge_vcf_headers(vcf_file_t** files, int num_files, merge_options_data_t* o
     char *info_field;
     char *field_value;
     
+    char *configuration_file = retrieve_config_file("vcf-info-fields.conf", options->config_search_paths);
     config_t *config = (config_t*) calloc (1, sizeof(config_t));
-    int ret_code = config_read_file(config, "vcf-info-fields.cfg");
-    
+    int ret_code = config_read_file(config, configuration_file);
     assert(ret_code);
+
     for (int i = 0; i < options->num_info_fields; i++) {
         info_field = options->info_fields[i];
         // TODO search info field in config file
