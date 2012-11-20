@@ -31,6 +31,7 @@
 #include <string.h>
 
 #include <commons/log.h>
+#include <containers/array_list.h>
 
 #include "error.h"
 #include "hpg_variant_utils.h"
@@ -41,7 +42,7 @@
 
 int vcf_tool_filter(int argc, char *argv[], const char *configuration_file);
 
-int vcf_tool_merge(int argc, char *argv[], const char *configuration_file);
+int vcf_tool_merge(int argc, char *argv[], const char *configuration_file, array_list_t *config_search_paths);
 
 int vcf_tool_split(int argc, char *argv[], const char *configuration_file);
 

@@ -45,7 +45,9 @@ int main(int argc, char *argv[]) {
 
     init_log_custom(2, 1, "hpg-var-effect.log", "w");
     
-    const char *configuration_file = find_configuration_file(argc, argv);
+//    const char *configuration_file = find_configuration_file(argc, argv);
+    array_list_t *config_search_paths = get_configuration_search_paths(argc, argv);
+    const char *configuration_file = retrieve_config_file("hpg-variant.conf", config_search_paths);
     
     // Step 1: read options from configuration file
     int config_errors = read_shared_configuration(configuration_file, shared_options);

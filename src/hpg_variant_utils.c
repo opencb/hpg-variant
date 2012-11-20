@@ -25,27 +25,175 @@
  *     Initialization    *
  * ***********************/
 
-char *find_configuration_file(int argc, char *argv[]) {
-    FILE *config_file = NULL;
-    char *config_filepath = NULL;
+//char *find_configuration_file(int argc, char *argv[]) {
+//    FILE *config_file = NULL;
+//    char *config_filepath = NULL;
+//    for (int i = 0; i < argc-1; i++) {
+//        if (!strcmp("--config", argv[i])) {
+//            config_filepath = argv[i+1];
+//        }
+//    }
+//    if (!config_filepath) {
+//        config_filepath = "hpg-variant.conf";
+//    }
+//
+//    config_file = fopen(config_filepath, "r");
+//    if (!config_file) {
+//        LOG_FATAL("Configuration file can't be loaded!");
+//    } else {
+//        fclose(config_file);
+//    }
+//
+//    LOG_DEBUG_F("Configuration file = %s\n", config_filepath);
+//    return config_filepath;
+//}
+
+array_list_t *get_configuration_search_paths(int argc, char *argv[]) {
+	char *c = get_config_path_from_args(argc, argv);
+	char *config_dirpaths[3] = { c, getcwd(NULL, 0), "/etc/hpg-variant" };
+
+	char *h = get_config_home_folder(config_dirpaths, 3);
+
+	return sort_config_paths_by_priority(c, h);
+}
+
+char *get_config_path_from_args(int argc, char *argv[]) {
+    FILE *config_dir = NULL;
+    char *config_dirpath = NULL;
+    struct stat sb;
+
     for (int i = 0; i < argc-1; i++) {
         if (!strcmp("--config", argv[i])) {
-            config_filepath = argv[i+1];
+            config_dirpath = argv[i+1];
+            break;
         }
     }
-    if (!config_filepath) {
-        config_filepath = "hpg-variant.cfg";
+
+    if (config_dirpath && stat(config_dirpath, &sb) == -1 && errno == ENOENT) {
+    	LOG_WARN("The folder specified to store configuration files does not exist.");
+    	return NULL;
+	}
+
+    if (config_dirpath && !S_ISDIR(sb.st_mode)) {
+    	LOG_WARN("The path specified to store configuration files is not a folder.");
+    	return NULL;
+
     }
-    
-    config_file = fopen(config_filepath, "r");
-    if (!config_file) {
-        LOG_FATAL("Configuration file can't be loaded!");
-    } else {
-        fclose(config_file);
-    }
-    
-    LOG_DEBUG_F("Configuration file = %s\n", config_filepath);
-    return config_filepath;
+
+    return config_dirpath;
+}
+
+char *get_config_home_folder(char *config_dirpaths[], int num_dirpaths) {
+	if (!getenv("HOME")) {	// Job mode, no HOME directory
+		return NULL;
+	}
+
+	FILE *home_config_dir = NULL;
+	char *home_config_dirpath = malloc (1024 * sizeof(char));
+	char hpg_variant_conf_path_src[1024];
+	char hpg_variant_conf_path_dest[1024];
+	char vcf_info_fields_conf_path_src[1024];
+	char vcf_info_fields_conf_path_dest[1024];
+
+    struct stat sb;
+
+	// Get home folder path
+	sprintf(home_config_dirpath, "%s/.hpg-variant", getenv("HOME"));
+
+	if (stat(home_config_dirpath, &sb) == -1 && errno == ENOENT) {
+		// Create non-existing folder
+		create_directory(home_config_dirpath);
+
+		// Populate with the files from config_dirpaths
+		FILE *from, *to;
+		char ch;
+		int hpg_variant_conf_copied = 0, vcf_info_fields_conf_copied = 0;
+
+		for (int i = 0; i < num_dirpaths && !hpg_variant_conf_copied && !vcf_info_fields_conf_copied; i++) {
+			if (!config_dirpaths[i]) {
+				continue;
+			}
+
+			sprintf(hpg_variant_conf_path_src, "%s/hpg-variant.conf", config_dirpaths[i]);
+			sprintf(vcf_info_fields_conf_path_src, "%s/vcf-info-fields.conf", config_dirpaths[i]);
+
+			if (!hpg_variant_conf_copied && !stat(hpg_variant_conf_path_src, &sb)) {
+				// Copy file hpg-variant.conf
+				sprintf(hpg_variant_conf_path_dest, "%s/hpg-variant.conf", home_config_dirpath);
+				from = fopen(hpg_variant_conf_path_src, "r");
+				to = fopen(hpg_variant_conf_path_dest, "w");
+
+				while((ch = fgetc(from)) != EOF) {
+					fputc(ch, to);
+				}
+
+				fclose(from);
+				fclose(to);
+				hpg_variant_conf_copied = 1;
+			}
+
+			if (!vcf_info_fields_conf_copied && !stat(vcf_info_fields_conf_path_src, &sb)) {
+				// Copy file hpg-variant.conf
+				sprintf(vcf_info_fields_conf_path_dest, "%s/vcf-info-fields.conf", home_config_dirpath);
+				from = fopen(vcf_info_fields_conf_path_src, "r");
+				to = fopen(vcf_info_fields_conf_path_dest, "w");
+
+				while((ch = fgetc(from)) != EOF) {
+					fputc(ch, to);
+				}
+
+				fclose(from);
+				fclose(to);
+				vcf_info_fields_conf_copied = 1;
+			}
+		}
+	}
+
+	return home_config_dirpath;
+}
+
+array_list_t *sort_config_paths_by_priority(char *config_arg_path, char *home_path) {
+	int num_paths = 2;
+	num_paths += config_arg_path ? 1 : 0;
+	num_paths += home_path ? 1 : 0;
+
+	// Priority is: --config, current folder, home folder, /etc folder
+
+	array_list_t *paths = array_list_new(num_paths, 1.1, COLLECTION_MODE_ASYNCHRONIZED);
+	if (config_arg_path) {
+		array_list_insert(config_arg_path, paths);
+	}
+
+	array_list_insert(getcwd(NULL, 0), paths);
+
+	if (home_path) {
+		array_list_insert(home_path, paths);
+	}
+
+	array_list_insert(strndup("/etc/hpg-variant", 16), paths);
+
+	return paths;
+}
+
+
+/* **********************
+ *     Config files     *
+ * **********************/
+
+char *retrieve_config_file(char *filename, array_list_t *paths_to_search) {
+	char *filepath = NULL;
+    struct stat sb;
+
+	char aux_filepath[1024];
+	for (int i = 0; i < paths_to_search->size; i++) {
+		sprintf(aux_filepath, "%s/%s", (char*) array_list_get(i, paths_to_search), filename);
+		if (!stat(aux_filepath, &sb)) {
+			filepath = strdup(aux_filepath);
+			break;
+		}
+	}
+
+	return filepath;
 }
 
 

@@ -28,7 +28,9 @@ int main(int argc, char *argv[]) {
     
     init_log_custom(2, 1, "hpg-var-gwas.log", "w");
 
-    const char *config = find_configuration_file(argc, argv);
+//    const char *config = find_configuration_file(argc, argv);
+    array_list_t *config_search_paths = get_configuration_search_paths(argc, argv);
+    const char *config = retrieve_config_file("hpg-variant.conf", config_search_paths);
     
     // Get sub-tool
     char *tool = argv[1];

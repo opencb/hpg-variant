@@ -36,7 +36,7 @@ progs = SConscript(['src/effect/SConscript',
             'src/vcf-tools/SConscript'
             ], exports = ['env', 'debug', 'commons_path', 'bioinfo_path', 'math_path'])
 
-env.Install('#bin', ['hpg-variant.cfg', 'vcf-info-fields.cfg'])
+env.Install('#bin', ['hpg-variant.conf', 'vcf-info-fields.conf'])
 
 # Create tarball
 # For the packaging manager: Don't forget to point the XXX_INCLUDE_PATH and XXX_LIBRARY_PATH 
