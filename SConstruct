@@ -39,11 +39,16 @@ progs = SConscript(['src/effect/SConscript',
 env.Install('#bin', ['hpg-variant.cfg', 'vcf-info-fields.cfg'])
 
 # Create tarball
+# For the packaging manager: Don't forget to point the XXX_INCLUDE_PATH and XXX_LIBRARY_PATH 
+# variables to the application libraries folder!!
 env.Package(NAME           = 'hpg-variant',
             VERSION        = '0.2',
             PACKAGEVERSION = 0,
             PACKAGETYPE    = 'src_targz',
-            source         = env.FindAllSourceFiles(progs) + [ '#libs/libargtable2.a', '#libs/libcprops.a', '#COPYING', '#INSTALL' ]
+            source         = env.FindSourceFiles() + env.FindHeaderFiles(progs) + 
+                             [ '#libs/libargtable2.a', '#libs/libcprops.a', 
+                               '#buildaux.py', '#buildvars.py', '#libs/common-libs/buildvars.py', '#libs/bioinfo-libs/buildvars.py',
+                               '#COPYING', '#INSTALL' ]
             )
 
 # Create Debian package
