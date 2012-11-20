@@ -24,6 +24,7 @@
 #include <assert.h>
 #include <limits.h>
 #include <math.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -39,6 +40,7 @@
 #include <containers/list.h>
 
 #include "error.h"
+#include "hpg_variant_utils.h"
 #include "shared_options.h"
 
 #define NUM_MERGE_OPTIONS   5
@@ -71,6 +73,8 @@ typedef struct merge_options_data {
     
     enum missing_mode missing_mode;   /**< How to fill a missing sample field whenever its data is missing */
     
+    array_list_t *config_search_paths; /**< Paths to search for the configuration files specific to the merge tool */
+
 } merge_options_data_t;
 
 typedef struct {
@@ -85,7 +89,7 @@ static merge_options_t *new_merge_cli_options(void);
 /**
  * Initialize a merge_options_data_t structure mandatory fields.
  */
-static merge_options_data_t *new_merge_options_data(merge_options_t *options);
+static merge_options_data_t *new_merge_options_data(merge_options_t *options, array_list_t *config_search_paths);
 
 /**
  * Free memory associated to a merge_options_data_t structure.

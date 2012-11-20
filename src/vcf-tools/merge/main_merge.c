@@ -22,7 +22,7 @@
 #include "merge_runner.h"
 
 
-int vcf_tool_merge(int argc, char *argv[], const char *configuration_file) {
+int vcf_tool_merge(int argc, char *argv[], const char *configuration_file, array_list_t *config_search_paths) {
 
     /* ******************************
      *       Modifiable options     *
@@ -68,7 +68,7 @@ int vcf_tool_merge(int argc, char *argv[], const char *configuration_file) {
 
     // Step 4: Create XXX_options_data_t structures from valid XXX_options_t
     shared_options_data_t *shared_options_data = new_shared_options_data(shared_options);
-    merge_options_data_t *options_data = new_merge_options_data(merge_options);
+    merge_options_data_t *options_data = new_merge_options_data(merge_options, config_search_paths);
 
     // Step 5: Perform the requested task
     int result = run_merge(shared_options_data, options_data);
@@ -91,7 +91,7 @@ merge_options_t *new_merge_cli_options() {
     return options;
 }
 
-merge_options_data_t *new_merge_options_data(merge_options_t *options) {
+merge_options_data_t *new_merge_options_data(merge_options_t *options, array_list_t *config_search_paths) {
     merge_options_data_t *options_data = (merge_options_data_t*) calloc (1, sizeof(merge_options_data_t));
     if (!strcasecmp(*(options->missing_mode->sval), "missing")) {
         options_data->missing_mode = MISSING;
@@ -107,6 +107,7 @@ merge_options_data_t *new_merge_options_data(merge_options_t *options) {
     }
     options_data->copy_filter = options->copy_filter->count;
     options_data->copy_info = options->copy_info->count;
+    options_data->config_search_paths = config_search_paths;
     return options_data;
 }
 

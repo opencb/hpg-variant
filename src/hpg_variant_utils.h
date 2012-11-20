@@ -23,6 +23,7 @@
 
 #include <math.h>
 #include <stdlib.h>
+#include <sys/stat.h>
 
 #include <commons/file_utils.h>
 #include <commons/log.h>
@@ -35,6 +36,18 @@
  * ***********************/
 
 char *find_configuration_file(int argc, char *argv[]);
+
+array_list_t *get_configuration_search_paths(int argc, char *argv[]);
+char *get_config_path_from_args(int argc, char *argv[]);
+char *get_config_home_folder(char *config_dirpaths[], int num_dirpaths);
+array_list_t *sort_config_paths_by_priority(char *config_arg_path, char *home_path);
+
+
+/* **********************
+ *     Config files     *
+ * **********************/
+
+char *retrieve_config_file(char *filename, array_list_t *paths_to_search);
 
 
 /* **********************
