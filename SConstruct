@@ -1,3 +1,4 @@
+import buildaux
 
 # Initialize the environment with path variables, CFLAGS, and so on
 bioinfo_path = '#libs/bioinfo-libs'
@@ -21,19 +22,30 @@ else:
 env['objects'] = []
 
 
-# Targets
+##### Targets
 
+# Compile dependencies
 SConscript(['%s/bioformats/SConscript' % bioinfo_path,
             '%s/SConscript' % commons_path,
             '%s/SConscript' % math_path
             ], exports = ['env', 'debug'])
 
-SConscript(['src/effect/SConscript',
+# Create binaries and copy them to 'bin' folder
+progs = SConscript(['src/effect/SConscript',
             'src/gwas/SConscript',
             'src/vcf-tools/SConscript'
             ], exports = ['env', 'debug', 'commons_path', 'bioinfo_path', 'math_path'])
 
 env.Install('#bin', ['hpg-variant.cfg', 'vcf-info-fields.cfg'])
 
+# Create tarball
+env.Package(NAME           = 'hpg-variant',
+            VERSION        = '0.2',
+            PACKAGEVERSION = 0,
+            PACKAGETYPE    = 'src_targz',
+            source         = env.FindAllSourceFiles(progs) + [ '#libs/libargtable2.a', '#libs/libcprops.a', '#COPYING', '#INSTALL' ]
+            )
+
+# Create Debian package
 if 'debian' in COMMAND_LINE_TARGETS:
     SConscript("deb/SConscript", exports = ['env'] )
