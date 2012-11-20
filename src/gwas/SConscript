@@ -2,7 +2,7 @@ Import('env commons_path bioinfo_path math_path')
 
 #penv = env.Clone()
 
-env.Program('hpg-var-gwas', 
+prog = env.Program('hpg-var-gwas', 
              source = [Glob('*.c'), Glob('assoc/*.c'), Glob('tdt/*.c'), Glob('../*.c'),
                        "%s/libcommon.a" % commons_path,
                        "%s/bioformats/libbioformats.a" % bioinfo_path,
@@ -11,3 +11,5 @@ env.Program('hpg-var-gwas',
            )
                       
 env.Install('#bin', 'hpg-var-gwas')
+
+Return("prog")
