@@ -10,4 +10,4 @@ test/tdt_files/job.map
 test/tdt_files/job.ped
 test/tdt_files/job.vcf
 .sconsign.dblite
-
+*.pyc
