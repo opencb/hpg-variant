@@ -24,7 +24,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <fisher.h>
+#include <stats/fisher.h>
 
 typedef struct {
     char *chromosome;

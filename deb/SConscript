@@ -1,7 +1,7 @@
 import os, shutil, sys
 Import('env') # exported by parent SConstruct
 
-# Here's the core info for the package
+# Here's the core info for the DEBIAN/control file of the package
 DEBNAME = "hpg-variant"
 DEBVERSION = "0.2"
 DEBMAINT = "Cristina Yenyxe Gonzalez Garcia (cgonzalez@cipf.es)"
