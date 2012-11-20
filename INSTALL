@@ -44,13 +44,16 @@ Build
 From the root folder of the application, type 'scons'. This will create 3 binaries in the 'bin' subfolder.
 If you want to create a .deb package to install HPG Variant in your system, type 'scons debian'. A file named 'hpg-variant_X.Y-amd64.deb' (with X.Y being the version number) will be created in the root folder of HPG Variant.
 
-Install
--------
-This step is not neccessary to run HPG Variant, but to install the .deb package created in the previous step. In this case, you will need to run the following command:
+Run
+---
+If you want to execute HPG Variant (not just build it), you need to run the following command:
 
 sudo apt-get install libargtable2-0 libconfig8 libcurl4-openssl-dev libgsl0ldbl libxml2 zlib1g
 
-If no errors ocurred, type 'sudo dkpg -i hpg-variant_X.Y-amd64.deb', and don't forget to replace X.Y with the corresponding version number of your package.
+Install
+-------
+This step is not neccessary to run HPG Variant, but to install the .deb package created in the 'Build' step. 
+Type 'sudo dkpg -i hpg-variant_X.Y-amd64.deb', and don't forget to replace X.Y with the corresponding version number of your package.
 
 
 
@@ -75,3 +78,4 @@ Run the following:
 Build
 -----
 From the root folder of the application, type 'scons'. This will create 3 binaries in the 'bin' subfolder.
+
