@@ -1,0 +1,57 @@
+import hashlib, os, shutil, sys
+
+Import('env') # exported by parent SConstruct
+
+RPMNAME = "hpg-variant"
+RPMVERSION = "0.2"
+RPMARCH = "x86_64"
+RPMBUILDREQUIRES = "gcc,glibc-devel,scons,libconfig-devel,libcurl-devel,gsl-devel,libxml2-devel,zlib-devel".split(", ")
+RPMREQUIRES = "libconfig,libcurl,gsl,libxml2,zlib".split(", ") # what are we dependent on?
+RPMSUMMARY = "HPG Variant summary"
+RPMDESC = "HPG Variant retrieves the effect of genome mutations and allows to conduct analysis"
+RPMSECTION = "Application/Engineering"
+RPMSOURCE = "hpg-variant-0.2.tar.gz"
+RPMURL = "http://bioinfo.cipf.es"
+
+RPMBUILDIR = 'rpmbuild'
+RPMSPECFILE = "%s.spec" % RPMNAME
+
+
+# We want the package to be built when we build 'rpm'
+basename_rpmpkg = '%s-%s.fc17.%s.rpm' % (RPMNAME, RPMVERSION, RPMARCH)
+root_rpmpkg = "#" + basename_rpmpkg
+rpmpkg = os.path.join(RPMBUILDIR, 'RPMS', RPMARCH, basename_rpmpkg)
+env.Alias("rpm", rpmpkg)
+env.Depends(rpmpkg, RPMSPECFILE)
+env.Depends(root_rpmpkg, RPMSPECFILE)
+
+
+# 1) Create folder for building the packages
+if os.path.exists(RPMBUILDIR):
+    shutil.rmtree(RPMBUILDIR)
+
+SOURCES_DIR = os.path.join(RPMBUILDIR, 'SOURCES')
+SPECS_DIR = os.path.join(RPMBUILDIR, 'SPECS')
+
+os.mkdir(RPMBUILDIR)
+os.mkdir(os.path.join(RPMBUILDIR, 'BUILD'))
+os.mkdir(os.path.join(RPMBUILDIR, 'RPMS'))
+os.mkdir(SOURCES_DIR)
+os.mkdir(SPECS_DIR)
+os.mkdir(os.path.join(RPMBUILDIR, 'SRPMS'))
+
+# 2) Copy tarball to RPMBUILDIR/SOURCES subfolder
+shutil.copy('../%s' % RPMSOURCE, SOURCES_DIR)
+
+# 3) Copy .spec file to RPMBUILDIR folder
+shutil.copy(RPMSPECFILE, SPECS_DIR)
+
+# 4) Run rpmbuild with the .spec file as argument and copy to root folder
+SOURCETAR = os.path.join(SOURCES_DIR, RPMSOURCE)
+cmd = "rpmbuild --define='_topdir %s' -ba $SOURCE" % os.path.abspath(RPMBUILDIR)
+
+env.Command(rpmpkg, RPMSPECFILE, cmd)
+
+# 5) Copy to root folder
+#print "copy to %s" % root_rpmpkg
+#env.Command(root_rpmpkg, rpmpkg, Copy("$TARGET", "$SOURCE"))

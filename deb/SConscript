@@ -21,8 +21,8 @@ DEBFILES = [
     ("usr/bin/hpg-var-gwas",                    "#bin/hpg-var-gwas"),
     ("usr/bin/hpg-var-vcf",                     "#bin/hpg-var-vcf"),
     
-    ("etc/hpg-variant/hpg-variant.conf",        "#bin/hpg-variant.cfg"),
-    ("etc/hpg-variant/vcf-info-fields.conf",    "#bin/vcf-info-fields.cfg"),
+    ("etc/hpg-variant/hpg-variant.conf",        "#bin/hpg-variant.conf"),
+    ("etc/hpg-variant/vcf-info-fields.conf",    "#bin/vcf-info-fields.conf"),
     
 ]
 
