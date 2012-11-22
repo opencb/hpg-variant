@@ -46,11 +46,16 @@ env.Package(NAME           = 'hpg-variant',
             PACKAGEVERSION = 0,
             PACKAGETYPE    = 'src_targz',
             source         = env.FindSourceFiles() + env.FindHeaderFiles(progs) + 
-                             [ '#libs/libargtable2.a', '#libs/libcprops.a', 
+                             [ '#libs/libargtable2.a', '#libs/libcprops.a',
+                               Glob('#include/*.h'), Glob('#include/cprops/*.h'),
                                '#buildaux.py', '#buildvars.py', '#libs/common-libs/buildvars.py', '#libs/bioinfo-libs/buildvars.py',
+                               '#deb/SConscript', '#rpm/SConscript',
                                '#COPYING', '#INSTALL' ]
             )
 
 # Create Debian package
 if 'debian' in COMMAND_LINE_TARGETS:
     SConscript("deb/SConscript", exports = ['env'] )
+
+if 'rpm' in COMMAND_LINE_TARGETS:
+    SConscript("rpm/SConscript", exports = ['env'] )
