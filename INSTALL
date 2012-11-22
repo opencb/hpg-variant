@@ -47,3 +47,9 @@ sudo yum install libconfig libcurl gsl libxml2 zlib
 
 Install
 -------
+This step is not neccessary to run HPG Variant, but to install it in your system.
+
+In order to create RPM packages, you must install the rpmbuild tool by running the command 'sudo yum install rpm-build'.
+
+Type 'scons rpm' to create a file named 'hpg-variant_X.Y.fc17.x86_64.rpm' (with X.Y being the version number) in the subfolder 'rpm/rpmbuild/RPMS/x86_64'.
+Type 'sudo rpm -i hpg-variant_X.Y.fc17.x86_64.rpm', and don't forget to replace X.Y with the corresponding version number of your package.
