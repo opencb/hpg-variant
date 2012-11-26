@@ -34,7 +34,8 @@ int tdt(int argc, char *argv[], const char *configuration_file) {
     void **argtable;
     if (argc == 1 || !strcmp(argv[1], "--help")) {
         argtable = merge_tdt_options(tdt_options, shared_options, arg_end(tdt_options->num_options + shared_options->num_options));
-        show_usage("hpg-var-tdt", argtable, tdt_options->num_options + shared_options->num_options);
+        printf("trololo");
+        show_usage("hpg-var-gwas tdt", argtable, tdt_options->num_options + shared_options->num_options);
         arg_freetable(argtable, tdt_options->num_options + shared_options->num_options);
         return 0;
     }
