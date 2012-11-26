@@ -5,8 +5,8 @@ Import('env') # exported by parent SConstruct
 RPMNAME = "hpg-variant"
 RPMVERSION = "0.2"
 RPMARCH = "x86_64"
-RPMBUILDREQUIRES = "gcc,glibc-devel,scons,libconfig-devel,libcurl-devel,gsl-devel,libxml2-devel,zlib-devel".split(", ")
-RPMREQUIRES = "libconfig,libcurl,gsl,libxml2,zlib".split(", ") # what are we dependent on?
+RPMBUILDREQUIRES = "gcc glibc-devel scons libconfig-devel libcurl-devel gsl-devel libxml2-devel zlib-devel".split(" ")
+RPMREQUIRES = "libconfig libcurl gsl libxml2 zlib".split(" ") # what are we dependent on?
 RPMSUMMARY = "HPG Variant summary"
 RPMDESC = "HPG Variant retrieves the effect of genome mutations and allows to conduct analysis"
 RPMSECTION = "Application/Engineering"

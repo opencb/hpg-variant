@@ -5,14 +5,13 @@ Import('env') # exported by parent SConstruct
 # Here's the core info for the DEBIAN/control file of the package
 DEBNAME = "hpg-variant"
 DEBVERSION = "0.2"
-DEBMAINT = "Cristina Yenyxe Gonzalez Garcia (cgonzalez@cipf.es)"
+DEBMAINT = "Cristina Yenyxe Gonzalez Garcia <cgonzalez@cipf.es>"
 DEBARCH = "amd64"
 DEBDEPENDS = "libconfig8, libcurl4-openssl-dev, libgsl0ldbl, libxml2, zlib1g" # what are we dependent on?
 DEBDESC = "HPG Variant"
-DEBSECTION = "user/science"
+DEBSECTION = "science"
 
 DEBFILES = [
-
     # Now we specify the files to be included in the .deb
     # Where they should go, and where they should be copied from.
     # If you have a lot of files, you may wish to generate this 
@@ -22,8 +21,12 @@ DEBFILES = [
     ("usr/bin/hpg-var-vcf",                     "#bin/hpg-var-vcf"),
     
     ("etc/hpg-variant/hpg-variant.conf",        "#bin/hpg-variant.conf"),
-    ("etc/hpg-variant/vcf-info-fields.conf",    "#bin/vcf-info-fields.conf"),
-    
+    ("etc/hpg-variant/vcf-info-fields.conf",    "#bin/vcf-info-fields.conf"), 
+]
+
+CONFFILES = [
+    "/etc/hpg-variant/hpg-variant.conf",
+    "/etc/hpg-variant/vcf-info-fields.conf"
 ]
 
 # This is the debian package we're going to create
@@ -33,6 +36,7 @@ debpkg = '#%s_%s-%s.deb' % (DEBNAME, DEBVERSION, DEBARCH)
 # and we want it to be built when we build 'debian'
 env.Alias("debian", debpkg)
 
+DEBCONFFILE = os.path.join(DEBNAME, "DEBIAN/conffiles")
 DEBCONTROLFILE = os.path.join(DEBNAME, "DEBIAN/control")
 DEBMD5FILE = os.path.join(DEBNAME, "DEBIAN/md5sums")
 
@@ -63,8 +67,18 @@ Depends: %s
 Description: %s
 """
 
+env.Depends(debpkg, DEBCONFFILE)
 env.Depends(debpkg, DEBCONTROLFILE)
 env.Depends(debpkg, DEBMD5FILE)
+
+# This function creates the conffiles file.
+def make_conffiles(target=None, source=None, env=None):
+    conffile = ''
+    for i in CONFFILES:
+        conffile += i + '\n'
+    f = open(str(target[0]), 'w')
+    f.write(conffile)
+    f.close()
 
 # This function creates the control file from the template and info specified 
 # above, and works out the final size of the package.
@@ -97,12 +111,12 @@ def make_md5sums(target=None, source=None, env=None):
     f = open(str(target[0]), 'w')
     f.write(md5sums)
     f.close()
-
     
-# We can generate the files in the DEBIAN folder by calling make_control and make_md5sums
+# We can generate the files in the DEBIAN folder
+env.Command(DEBCONFFILE, None, make_conffiles)
 env.Command(DEBCONTROLFILE, None, make_control)
 env.Command(DEBMD5FILE, None, make_md5sums)
 
 # And we can generate the .deb file by calling dpkg-deb
-env.Command(debpkg, [DEBCONTROLFILE, DEBMD5FILE],
+env.Command(debpkg, [DEBCONFFILE, DEBCONTROLFILE, DEBMD5FILE],
             "fakeroot dpkg-deb -b %s %s" % ("deb/%s" % DEBNAME, "$TARGET"))
