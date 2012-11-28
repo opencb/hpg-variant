@@ -229,10 +229,10 @@ int run_effect(char **urls, shared_options_data_t *shared_options, effect_option
                                 LOG_ERROR_F("Mutations phenotype web service error: %s\n", get_last_http_error(ret_ws_2));
                             }
                             
-                            // In presence of errors, wait 5 seconds before retrying
+                            // In presence of errors, wait 4 seconds before retrying
                             reconnections++;
                             LOG_ERROR_F("Some errors ocurred, reconnection #%d\n", reconnections);
-                            sleep(5);
+                            sleep(4);
                         } else {
                             free(chunk_starts);
                             free(chunk_sizes);
