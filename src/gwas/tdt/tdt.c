@@ -21,7 +21,6 @@
 #include "tdt.h"
 
 int tdt_test(vcf_record_t **variants, int num_variants, family_t **families, int num_families, cp_hashtable *sample_ids, list_t *output_list) {
-    printf("WT%d start TDT\n", omp_get_thread_num());
     double start = omp_get_wtime();
     
     int ret_code = 0;
@@ -265,7 +264,6 @@ int tdt_test(vcf_record_t **variants, int num_variants, family_t **families, int
     } // next variant
 
     double end = omp_get_wtime();
-    printf("WT%d TDT time\t%f s\n", omp_get_thread_num(), end - start);
     
     return ret_code;
 }
