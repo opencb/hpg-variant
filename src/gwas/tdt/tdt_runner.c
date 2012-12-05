@@ -59,7 +59,7 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
     {
 #pragma omp section
         {
-            printf("Level %d: number of threads in the team - %d\n", 0, omp_get_num_threads());
+            LOG_DEBUG_F("Level %d: number of threads in the team - %d\n", 0, omp_get_num_threads());
             
  //           LOG_DEBUG_F("Thread %d reads the VCF file\n", omp_get_thread_num());
             // Reading
@@ -86,7 +86,7 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
 
 #pragma omp section
         {
-            printf("Level %d: number of threads in the team - %d\n", 10, omp_get_num_threads());
+            LOG_DEBUG_F("Level %d: number of threads in the team - %d\n", 10, omp_get_num_threads());
             double *res = calloc (shared_options_data->num_threads, sizeof(double));
             
             // Enable nested parallelism
@@ -110,7 +110,7 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
             
 #pragma omp parallel num_threads(shared_options_data->num_threads) shared(initialization_done, sample_ids, filters)
             {
-            printf("Level %d: number of threads in the team - %d\n", 11, omp_get_num_threads()); 
+            LOG_DEBUG_F("Level %d: number of threads in the team - %d\n", 11, omp_get_num_threads()); 
             
             family_t **families = (family_t**) cp_hashtable_get_values(ped_file->families);
             int num_families = get_num_families(ped_file);
@@ -151,6 +151,12 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
                     if (!initialization_done) {
                         // Create map to associate the position of individuals in the list of samples defined in the VCF file
                         sample_ids = associate_samples_and_positions(file);
+                        
+                        // Add headers associated to the defined filters
+                        vcf_header_entry_t **filter_headers = get_filters_as_vcf_headers(filters, num_filters);
+                        for (int j = 0; j < num_filters; j++) {
+                            add_vcf_header_entry(filter_headers[j], file);
+                        }
                         
                         // Write file format, header entries and delimiter
                         if (passed_file != NULL) { write_vcf_header(file, passed_file); }
@@ -203,7 +209,7 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
                     if (failed_records != NULL && failed_records->size > 0) {
                 #pragma omp critical 
                     {
-                        for (int r = 0; r < passed_records->size; r++) {
+                        for (int r = 0; r < failed_records->size; r++) {
                             write_vcf_record(failed_records->items[r], failed_file);
                         }
 //                         write_batch(failed_records, failed_file);
@@ -263,7 +269,7 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
 
 #pragma omp section
         {
-            printf("Level %d: number of threads in the team - %d\n", 20, omp_get_num_threads());
+            LOG_DEBUG_F("Level %d: number of threads in the team - %d\n", 20, omp_get_num_threads());
             
             // Thread which writes the results to the output file
             FILE *fd = NULL;    // TODO check if output file is defined
