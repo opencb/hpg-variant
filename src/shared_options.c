@@ -24,7 +24,7 @@ shared_options_t *new_shared_cli_options(void) {
     shared_options_t *options_data = (shared_options_t*) calloc (1, sizeof(shared_options_t));
     
     options_data->vcf_filename = arg_file1("v", "vcf-file", NULL, "VCF file used as input");
-    options_data->ped_filename = arg_file0("p", "ped-file", NULL, "PED file used as input");
+    options_data->ped_filename = arg_file1("p", "ped-file", NULL, "PED file used as input");
     options_data->output_filename = arg_file0(NULL, "out", NULL, "Filename prefix for main output files");
     options_data->output_directory = arg_str0(NULL, "outdir", NULL, "Directory where the output files will be stored");
     
@@ -36,7 +36,7 @@ shared_options_t *new_shared_cli_options(void) {
     options_data->batch_lines = arg_int0(NULL, "batch-lines", NULL, "Maximum number of lines in a batch");
     options_data->batch_bytes = arg_int0(NULL, "batch-bytes", NULL, "Maximum number of bytes in a batch");
     options_data->num_threads = arg_int0(NULL, "num-threads", NULL, "Number of threads when a task runs in parallel");
-    options_data->entries_per_thread = arg_int0(NULL, "entries-per-thread", NULL, "Number of entries in a batch each thread processes");
+    options_data->entries_per_thread = arg_int0(NULL, "entries-per-thread", NULL, "Number of entries from a batch processed by a thread");
     
     options_data->num_alleles = arg_int0(NULL, "alleles", NULL, "Filter: by number of alleles");
     options_data->coverage = arg_int0(NULL, "coverage", NULL, "Filter: by minimum coverage");
@@ -97,19 +97,19 @@ shared_options_data_t* new_shared_options_data(shared_options_t* options) {
     if (options->snp->count > 0) {
         filter = snp_filter_new(strcmp(*(options->snp->sval), "exclude"));
         options_data->chain = add_to_filter_chain(filter, options_data->chain);
-        LOG_INFO_F("snp filter to %s SNPs\n", *(options->snp->sval));
+        LOG_DEBUG_F("snp filter to %s SNPs\n", *(options->snp->sval));
     }
     if (options->region->count > 0) {
         filter = region_exact_filter_new(strdup(*(options->region->sval)), 0,
                                          *(options->host_url->sval), *(options->species->sval), *(options->version->sval));
         options_data->chain = add_to_filter_chain(filter, options_data->chain);
-        LOG_INFO_F("regions = %s\n", *(options->region->sval));
+        LOG_DEBUG_F("regions = %s\n", *(options->region->sval));
     } 
     if (options->region_file->count > 0) {
         filter = region_exact_filter_new(strdup(*(options->region->sval)), 1, 
                                          *(options->host_url->sval), *(options->species->sval), *(options->version->sval));
         options_data->chain = add_to_filter_chain(filter, options_data->chain);
-        LOG_INFO_F("regions file = %s\n", *(options->region->sval));
+        LOG_DEBUG_F("regions file = %s\n", *(options->region->sval));
     }
     
     // If not previously defined, set the value present in the command-line
