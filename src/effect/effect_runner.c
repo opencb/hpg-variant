@@ -157,6 +157,12 @@ int run_effect(char **urls, shared_options_data_t *shared_options, effect_option
 
             while ((batch = fetch_vcf_batch(file)) != NULL) {
                 if (i == 0) {
+                    // Add headers associated to the defined filters
+                    vcf_header_entry_t **filter_headers = get_filters_as_vcf_headers(filters, num_filters);
+                    for (int j = 0; j < num_filters; j++) {
+                        add_vcf_header_entry(filter_headers[j], file);
+                    }
+                        
                     // Write file format, header entries and delimiter
                     if (passed_file != NULL) { write_vcf_header(file, passed_file); }
                     if (failed_file != NULL) { write_vcf_header(file, failed_file); }
@@ -253,7 +259,7 @@ int run_effect(char **urls, shared_options_data_t *shared_options, effect_option
                     if (failed_records != NULL && failed_records->size > 0) {
                 #pragma omp critical 
                     {
-                        for (int r = 0; r < passed_records->size; r++) {
+                        for (int r = 0; r < failed_records->size; r++) {
                             write_vcf_record(failed_records->items[r], failed_file);
                         }
                     }
