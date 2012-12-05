@@ -58,7 +58,8 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
     {
 #pragma omp section
         {
-            LOG_DEBUG_F("Thread %d reads the VCF file\n", omp_get_thread_num());
+            LOG_DEBUG_F("Level %d: number of threads in the team - %d\n", 0, omp_get_num_threads());
+            
             // Reading
             double start = omp_get_wtime();
 
@@ -84,10 +85,9 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
 
 #pragma omp section
         {
+            LOG_DEBUG_F("Level %d: number of threads in the team - %d\n", 10, omp_get_num_threads());
             // Enable nested parallelism
             omp_set_nested(1);
-            
-            LOG_DEBUG_F("Thread %d processes data\n", omp_get_thread_num());
             
             volatile int initialization_done = 0;
             individual_t **individuals;
@@ -107,6 +107,7 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
             
 #pragma omp parallel num_threads(shared_options_data->num_threads) shared(initialization_done, factorial_logarithms, filters, individuals)
             {
+            LOG_DEBUG_F("Level %d: number of threads in the team - %d\n", 11, omp_get_num_threads()); 
 
             int i = 0;
             list_item_t *item = NULL;
@@ -132,6 +133,12 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
                     if (!initialization_done) {
                         // Sort individuals in PED as defined in the VCF file
                     	individuals = sort_individuals(file, ped_file);
+                        
+                        // Add headers associated to the defined filters
+                        vcf_header_entry_t **filter_headers = get_filters_as_vcf_headers(filters, num_filters);
+                        for (int j = 0; j < num_filters; j++) {
+                            add_vcf_header_entry(filter_headers[j], file);
+                        }
                         
                         // Write file format, header entries and delimiter
                         if (passed_file != NULL) { write_vcf_header(file, passed_file); }
@@ -186,7 +193,7 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
                     if (failed_records != NULL && failed_records->size > 0) {
                 #pragma omp critical 
                     {
-                        for (int r = 0; r < passed_records->size; r++) {
+                        for (int r = 0; r < failed_records->size; r++) {
                             write_vcf_record(failed_records->items[r], failed_file);
                         }
                     }
@@ -236,6 +243,8 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
 
 #pragma omp section
         {
+            LOG_DEBUG_F("Level %d: number of threads in the team - %d\n", 20, omp_get_num_threads());
+            
             // Thread which writes the results to the output file
             FILE *fd = NULL;
             char *path = NULL, *filename = NULL;

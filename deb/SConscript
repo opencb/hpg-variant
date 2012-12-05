@@ -4,7 +4,7 @@ Import('env') # exported by parent SConstruct
 
 # Here's the core info for the DEBIAN/control file of the package
 DEBNAME = "hpg-variant"
-DEBVERSION = "0.2"
+DEBVERSION = "0.2.1"
 DEBMAINT = "Cristina Yenyxe Gonzalez Garcia <cgonzalez@cipf.es>"
 DEBARCH = "amd64"
 DEBDEPENDS = "libconfig8, libcurl4-openssl-dev, libgsl0ldbl, libxml2, zlib1g" # what are we dependent on?
