@@ -222,16 +222,10 @@ void close_job_status_file(FILE* file) {
 
 
 /* ***********************
- *      Miscellaneous    *
+ *        Filtering      *
  * ***********************/
 
-void show_usage(char *tool, void **argtable, int num_arguments) {
-    printf("Usage: %s", tool);
-    arg_print_syntaxv(stdout, argtable, "\n");
-    arg_print_glossary(stdout, argtable, " %-40s %s\n");
-}
-
-int get_output_files(shared_options_data_t *shared_options, FILE** passed_file, FILE** failed_file) {
+int get_filtering_output_files(shared_options_data_t *shared_options, FILE** passed_file, FILE** failed_file) {
     if (shared_options == NULL) {
         return 1;
     }
@@ -266,6 +260,44 @@ int get_output_files(shared_options_data_t *shared_options, FILE** passed_file, 
     free(failed_filename);
     
     return 0;
+}
+
+int write_filtering_output_files(array_list_t *passed_records, array_list_t *failed_records, FILE* passed_file, FILE* failed_file) {
+    int ret_code = 0;
+    if (passed_file) {
+        if (passed_records != NULL && passed_records->size > 0) {
+        #pragma omp critical 
+            {
+                for (int r = 0; r < passed_records->size; r++) {
+                    ret_code |= write_vcf_record(passed_records->items[r], passed_file);
+                }
+            }
+        }
+    }
+    
+    if (failed_file) {
+        if (failed_records != NULL && failed_records->size > 0) {
+        #pragma omp critical 
+            {
+                for (int r = 0; r < failed_records->size; r++) {
+                    ret_code |= write_vcf_record(failed_records->items[r], failed_file);
+                }
+            }
+        }
+    }
+    
+    return ret_code;
+}
+
+
+/* ***********************
+ *      Miscellaneous    *
+ * ***********************/
+
+void show_usage(char *tool, void **argtable, int num_arguments) {
+    printf("Usage: %s", tool);
+    arg_print_syntaxv(stdout, argtable, "\n");
+    arg_print_glossary(stdout, argtable, " %-40s %s\n");
 }
 
 int *create_chunks(int length, int max_chunk_size, int *num_chunks, int **chunk_sizes) {
