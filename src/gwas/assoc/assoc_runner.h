@@ -50,6 +50,12 @@
 
 int run_association_test(shared_options_data_t *global_options_data, assoc_options_data_t *options_data);
 
+static FILE *get_output_file(enum ASSOC_task task, char *output_directory, char **path);
+
+static void write_output_header(enum ASSOC_task task, FILE *fd);
+
+static void write_output_body(enum ASSOC_task task, list_t* output_list, FILE *fd);
+
 
 static individual_t **sort_individuals(vcf_file_t *vcf, ped_file_t *ped);
 

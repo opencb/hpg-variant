@@ -35,8 +35,6 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
         LOG_FATAL("PED file does not exist!\n");
     }
     
-    size_t output_directory_len = strlen(shared_options_data->output_directory);
-    
     LOG_INFO("About to read PED file...\n");
     // Read PED file before doing any proccessing
     ret_code = ped_read(ped_file);
@@ -99,7 +97,7 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
             
 #pragma omp parallel num_threads(shared_options_data->num_threads) shared(initialization_done, sample_ids, filters)
             {
-            LOG_DEBUG_F("Level %d: number of threads in the team - %d\n", 11, omp_get_num_threads()); 
+            LOG_DEBUG_F("Level %d: number of threads in the team - %d\n", 11, omp_get_num_threads());
             
             family_t **families = (family_t**) cp_hashtable_get_values(ped_file->families);
             int num_families = get_num_families(ped_file);
@@ -165,7 +163,6 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
 
                 // Launch TDT test over records that passed the filters
                 if (passed_records->size > 0) {
-//                     printf("[%d] first chromosome pos = %lu\n", omp_get_thread_num(), ((vcf_record_t*) passed_records->items[0])->position);
                     ret_code = tdt_test((vcf_record_t**) passed_records->items, passed_records->size, families, num_families, sample_ids, output_list);
                     if (ret_code) {
                         LOG_FATAL_F("[%d] Error in execution #%d of TDT\n", omp_get_thread_num(), i);
@@ -177,11 +174,11 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
                 
                 // Free items in both lists (not their internal data)
                 if (passed_records != input_records) {
-         //           LOG_DEBUG_F("[Batch %d] %zu passed records\n", i, passed_records->size);
+                   LOG_DEBUG_F("[Batch %d] %zu passed records\n", i, passed_records->size);
                     array_list_free(passed_records, NULL);
                 }
                 if (failed_records) {
-         //           LOG_DEBUG_F("[Batch %d] %zu failed records\n", i, failed_records->size);
+                   LOG_DEBUG_F("[Batch %d] %zu failed records\n", i, failed_records->size);
                     array_list_free(failed_records, NULL);
                 }
                 
@@ -204,12 +201,6 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
             // Free resources
             if (sample_ids) { cp_hashtable_destroy(sample_ids); }
             
-            LOG_INFO_F("[%d] Time elapsed = %f s\n", omp_get_thread_num(), stop - start);
-            LOG_INFO_F("[%d] Time elapsed = %e ms\n", omp_get_thread_num(), (stop - start) * 1000);
-
-//             // Free resources
-//             if (sample_ids) { cp_hashtable_destroy(sample_ids); }
-//             
 //             // Free filters
 //             for (int i = 0; i < num_filters; i++) {
 //                 filter_t *filter = filters[i];
@@ -225,38 +216,19 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
 
 #pragma omp section
         {
+            // Thread which writes the results to the output file
             LOG_DEBUG_F("Level %d: number of threads in the team - %d\n", 20, omp_get_num_threads());
             
-            // Thread which writes the results to the output file
-            FILE *fd = NULL;    // TODO check if output file is defined
-            char *path = NULL;
-            char *filename = strdup("hpg-variant.tdt");
-            size_t filename_len = strlen(filename);
-            
-            // Set whole path to the output file
-            path = (char*) calloc ((output_directory_len + filename_len + 2), sizeof(char));
-            sprintf(path, "%s/%s", shared_options_data->output_directory, filename);
-            fd = fopen(path, "w");
-            
+            // Get the file descriptor
+            char *path;
+            FILE *fd = get_output_file(shared_options_data->output_directory, &path);
             LOG_INFO_F("TDT output filename = %s\n", path);
-            free(filename);
             
             double start = omp_get_wtime();
             
             // Write data: header + one line per variant
-            list_item_t* item = NULL;
-            tdt_result_t *result;
-            fprintf(fd, "#CHR         POS       A1      A2         T       U           OR           CHISQ         P-VALUE\n");
-            while ((item = list_remove_item(output_list)) != NULL) {
-                result = item->data_p;
-                
-                fprintf(fd, "%s\t%8ld\t%s\t%s\t%3d\t%3d\t%6f\t%6f\t%6f\n",
-                       result->chromosome, result->position, result->reference, result->alternate, 
-                       result->t1, result->t2, result->odds_ratio, result->chi_square, result->p_value);
-                
-                tdt_result_free(result);
-                list_item_free(item);
-            }
+            write_output_header(fd);
+            write_output_body(output_list, fd);
             
             fclose(fd);
             
@@ -289,6 +261,42 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
     return ret_code;
 }
 
+
+/* *******************
+ * Output generation *
+ * *******************/
+
+FILE *get_output_file(char *output_directory, char **path) {
+    char *filename = "hpg-variant.tdt";
+    *path = (char*) calloc ((strlen(output_directory) + strlen(filename) + 2), sizeof(char));
+    sprintf(*path, "%s/%s", output_directory, filename);
+    return fopen(*path, "w");
+}
+
+void write_output_header(FILE *fd) {
+    assert(fd);
+    fprintf(fd, "#CHR         POS       A1      A2         T       U           OR           CHISQ         P-VALUE\n");
+}
+
+void write_output_body(list_t* output_list, FILE *fd) {
+    assert(fd);
+    list_item_t* item = NULL;
+    while (item = list_remove_item(output_list)) {
+        tdt_result_t *result = item->data_p;
+        
+        fprintf(fd, "%s\t%8ld\t%s\t%s\t%3d\t%3d\t%6f\t%6f\t%6f\n",
+                result->chromosome, result->position, result->reference, result->alternate, 
+                result->t1, result->t2, result->odds_ratio, result->chi_square, result->p_value);
+        
+        tdt_result_free(result);
+        list_item_free(item);
+    }
+}
+
+
+/* *******************
+ *      Sorting      *
+ * *******************/
 
 cp_hashtable* associate_samples_and_positions(vcf_file_t* file) {
     LOG_DEBUG_F("** %zu sample names read\n", file->samples_names->size);
