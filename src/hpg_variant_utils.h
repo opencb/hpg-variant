@@ -25,6 +25,7 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 
+#include <bioformats/vcf/vcf_file.h>
 #include <commons/file_utils.h>
 #include <commons/log.h>
 #include <containers/list.h>
@@ -62,10 +63,8 @@ void close_job_status_file(FILE *file);
 
 
 /* ***********************
- *      Miscellaneous    *
+ *        Filtering      *
  * ***********************/
-
-void show_usage(char *tool, void **argtable, int num_arguments);
 
 /**
  * @brief Creates output files depending on the tool options given as input
@@ -78,7 +77,16 @@ void show_usage(char *tool, void **argtable, int num_arguments);
  * If no output filename has been provided but some filters are applied, uses the original filename as prefix.
  * If no output filename nor filters are provided, don't create output files.
  */
-int get_output_files(shared_options_data_t *shared_options, FILE **passed_file, FILE **failed_file);
+int get_filtering_output_files(shared_options_data_t *shared_options, FILE **passed_file, FILE **failed_file);
+
+int write_filtering_output_files(array_list_t *passed_records, array_list_t *failed_records, FILE* passed_file, FILE* failed_file);
+
+
+/* ***********************
+ *      Miscellaneous    *
+ * ***********************/
+
+void show_usage(char *tool, void **argtable, int num_arguments);
 
 /**
  * @brief Given a list of records, distributes them in chunks of similar size

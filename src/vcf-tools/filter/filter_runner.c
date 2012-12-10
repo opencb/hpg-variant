@@ -68,7 +68,7 @@ int run_filter(shared_options_data_t *shared_options_data, filter_options_data_t
             }
     
             FILE *passed_file = NULL, *failed_file = NULL;
-            get_output_files(shared_options_data, &passed_file, &failed_file);
+            get_filtering_output_files(shared_options_data, &passed_file, &failed_file);
             if (!options_data->save_rejected) {
                 fclose(failed_file);
             }

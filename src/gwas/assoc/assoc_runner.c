@@ -21,8 +21,6 @@
 #include "assoc_runner.h"
 
 int run_association_test(shared_options_data_t* shared_options_data, assoc_options_data_t* options_data) {
-    list_t *read_list = (list_t*) malloc(sizeof(list_t));
-    list_init("text", 1, shared_options_data->max_batches, read_list);
     list_t *output_list = (list_t*) malloc (sizeof(list_t));
     list_init("output", shared_options_data->num_threads, INT_MAX, output_list);
 
@@ -60,15 +58,11 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
         {
             LOG_DEBUG_F("Level %d: number of threads in the team - %d\n", 0, omp_get_num_threads());
             
-            // Reading
             double start = omp_get_wtime();
 
-            ret_code = 0;
-            if (shared_options_data->batch_bytes > 0) {
-                ret_code = vcf_read_batches_in_bytes(read_list, shared_options_data->batch_bytes, file);
-            } else if (shared_options_data->batch_lines > 0) {
-                ret_code = vcf_read_batches(read_list, shared_options_data->batch_lines, file);
-            }
+            ret_code = vcf_read(file, 0,
+                                (shared_options_data->batch_bytes > 0) ? shared_options_data->batch_bytes : shared_options_data->batch_lines,
+                                shared_options_data->batch_bytes <= 0);
 
             double stop = omp_get_wtime();
             double total = stop - start;
@@ -80,7 +74,7 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
             LOG_INFO_F("[%dR] Time elapsed = %f s\n", omp_get_thread_num(), total);
             LOG_INFO_F("[%dR] Time elapsed = %e ms\n", omp_get_thread_num(), total*1000);
 
-            list_decr_writers(read_list);
+            notify_end_reading(file);
         }
 
 #pragma omp section
@@ -99,7 +93,7 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
                 filters = sort_filter_chain(shared_options_data->chain, &num_filters);
             }
             FILE *passed_file = NULL, *failed_file = NULL;
-            get_output_files(shared_options_data, &passed_file, &failed_file);
+            get_filtering_output_files(shared_options_data, &passed_file, &failed_file);
     
             double start = omp_get_wtime();
 
@@ -110,12 +104,9 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
             LOG_DEBUG_F("Level %d: number of threads in the team - %d\n", 11, omp_get_num_threads()); 
 
             int i = 0;
-            list_item_t *item = NULL;
-            while ((item = list_remove_item(read_list)) != NULL) {
-                char *text_begin = item->data_p;
-                char *text_end = text_begin + strlen(text_begin);
-                
-                assert(text_end != NULL);
+            char *text_begin, *text_end;
+            while(text_begin = fetch_vcf_text_batch(file)) {
+                text_end = text_begin + strlen(text_begin);
                 
                 vcf_reader_status *status = vcf_reader_status_new(shared_options_data->batch_lines);
                 if (shared_options_data->batch_bytes > 0) {
@@ -181,24 +172,7 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
                 }
                 
                 // Write records that passed and failed to separate files
-                if (passed_file != NULL && failed_file != NULL) {
-                    if (passed_records != NULL && passed_records->size > 0) {
-                #pragma omp critical 
-                    {
-                        for (int r = 0; r < passed_records->size; r++) {
-                            write_vcf_record(passed_records->items[r], passed_file);
-                        }
-                    }
-                    }
-                    if (failed_records != NULL && failed_records->size > 0) {
-                #pragma omp critical 
-                    {
-                        for (int r = 0; r < failed_records->size; r++) {
-                            write_vcf_record(failed_records->items[r], failed_file);
-                        }
-                    }
-                    }
-                }
+                write_filtering_output_files(passed_records, failed_records, passed_file, failed_file);
                 
                 // Free items in both lists (not their internal data)
                 if (passed_records != input_records) {
@@ -213,12 +187,11 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
                 // Free batch and its contents
                 vcf_reader_status_free(status);
                 vcf_batch_free(batch);
-                list_item_free(item);
                 
                 i++;
             }  
             
-            list_decr_writers(file->record_batches);
+            notify_end_parsing(file);
             }
 
             double stop = omp_get_wtime();
@@ -295,7 +268,7 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
                 while ((item = list_remove_item(output_list)) != NULL) {
                     result = item->data_p;
                     
-                    fprintf(fd, "%s\t%8ld\t%s\t%3d\t%3d\t%6f\t%6f\t%s\t%3d\t%3d\t%6f\t%6f\t%6f\t%6f\n",//\t%f\n",
+                    fprintf(fd, "%s\t%8ld\t%s\t%3d\t%3d\t%6f\t%6f\t%s\t%3d\t%3d\t%6f\t%6f\t%6f\t%6f\n",
                             result->chromosome, result->position, 
                             result->reference, result->affected1, result->unaffected1, 
                             (double) result->affected1 / (result->affected1 + result->affected2), 
@@ -329,7 +302,6 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
         }
     }
    
-    free(read_list);
     free(output_list);
     vcf_close(file);
     // TODO delete conflicts among frees

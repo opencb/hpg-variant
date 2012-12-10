@@ -54,15 +54,15 @@ static size_t output_directory_len;
 static int batch_num;
 
 
-int run_effect(char **urls, shared_options_data_t *shared_options, effect_options_data_t *options_data) {
+int run_effect(char **urls, shared_options_data_t *shared_options_data, effect_options_data_t *options_data) {
     int ret_code = 0;
     double start, stop, total;
-    vcf_file_t *file = vcf_open(shared_options->vcf_filename, shared_options->max_batches);
+    vcf_file_t *file = vcf_open(shared_options_data->vcf_filename, shared_options_data->max_batches);
     if (!file) {
         LOG_FATAL("VCF file does not exist!\n");
     }
     
-    output_directory = shared_options->output_directory;
+    output_directory = shared_options_data->output_directory;
     output_directory_len = strlen(output_directory);
     
     ret_code = create_directory(output_directory);
@@ -83,7 +83,7 @@ int run_effect(char **urls, shared_options_data_t *shared_options, effect_option
     }
     
     // Initialize collections of file descriptors and summary counters
-    ret_code = initialize_ws_output(shared_options, options_data);
+    ret_code = initialize_ws_output(shared_options_data, options_data);
     if (ret_code != 0) {
         return ret_code;
     }
@@ -104,14 +104,12 @@ int run_effect(char **urls, shared_options_data_t *shared_options, effect_option
 #pragma omp section
         {
             LOG_DEBUG_F("Thread %d reads the VCF file\n", omp_get_thread_num());
-            // Reading
+            
             start = omp_get_wtime();
-
-            if (shared_options->batch_bytes > 0) {
-                ret_code = vcf_parse_batches_in_bytes(shared_options->batch_bytes, file);
-            } else if (shared_options->batch_lines > 0) {
-                ret_code = vcf_parse_batches(shared_options->batch_lines, file);
-            }
+            
+            ret_code = vcf_read(file, 1,
+                                (shared_options_data->batch_bytes > 0) ? shared_options_data->batch_bytes : shared_options_data->batch_lines,
+                                shared_options_data->batch_bytes <= 0);
 
             stop = omp_get_wtime();
             total = stop - start;
@@ -123,7 +121,7 @@ int run_effect(char **urls, shared_options_data_t *shared_options, effect_option
             LOG_INFO_F("[%dR] Time elapsed = %f s\n", omp_get_thread_num(), total);
             LOG_INFO_F("[%dR] Time elapsed = %e ms\n", omp_get_thread_num(), total*1000);
 
-            notify_end_reading(file);
+            notify_end_parsing(file);
         }
         
 #pragma omp section
@@ -135,17 +133,17 @@ int run_effect(char **urls, shared_options_data_t *shared_options, effect_option
             
             filter_t **filters = NULL;
             int num_filters = 0;
-            if (shared_options->chain != NULL) {
-                filters = sort_filter_chain(shared_options->chain, &num_filters);
+            if (shared_options_data->chain != NULL) {
+                filters = sort_filter_chain(shared_options_data->chain, &num_filters);
             }
             FILE *passed_file = NULL, *failed_file = NULL, *non_processed_file = NULL;
-            get_output_files(shared_options, &passed_file, &failed_file);
+            get_filtering_output_files(shared_options_data, &passed_file, &failed_file);
             
             // Filename structure outdir/vcfname.errors
-            char *prefix_filename = calloc(strlen(shared_options->vcf_filename), sizeof(char));
-            get_filename_from_path(shared_options->vcf_filename, prefix_filename);
-            char *non_processed_filename = malloc((strlen(shared_options->output_directory) + strlen(prefix_filename) + 8) * sizeof(char));
-            sprintf(non_processed_filename, "%s/%s.errors", shared_options->output_directory, prefix_filename);
+            char *prefix_filename = calloc(strlen(shared_options_data->vcf_filename), sizeof(char));
+            get_filename_from_path(shared_options_data->vcf_filename, prefix_filename);
+            char *non_processed_filename = malloc((strlen(shared_options_data->output_directory) + strlen(prefix_filename) + 8) * sizeof(char));
+            sprintf(non_processed_filename, "%s/%s.errors", shared_options_data->output_directory, prefix_filename);
             non_processed_file = fopen(non_processed_filename, "w");
             free(non_processed_filename);
     
@@ -155,7 +153,7 @@ int run_effect(char **urls, shared_options_data_t *shared_options, effect_option
             
             start = omp_get_wtime();
 
-            while ((batch = fetch_vcf_batch(file)) != NULL) {
+            while (batch = fetch_vcf_batch(file)) {
                 if (i == 0) {
                     // Add headers associated to the defined filters
                     vcf_header_entry_t **filter_headers = get_filters_as_vcf_headers(filters, num_filters);
@@ -197,11 +195,11 @@ int run_effect(char **urls, shared_options_data_t *shared_options, effect_option
                     // Divide the list of passed records in ranges of size defined in config file
                     int num_chunks;
                     int *chunk_sizes;
-                    int *chunk_starts = create_chunks(passed_records->size, shared_options->entries_per_thread, &num_chunks, &chunk_sizes);
+                    int *chunk_starts = create_chunks(passed_records->size, shared_options_data->entries_per_thread, &num_chunks, &chunk_sizes);
                     
                     do {
                         // OpenMP: Launch a thread for each range
-                        #pragma omp parallel for num_threads(shared_options->num_threads)
+                        #pragma omp parallel for num_threads(shared_options_data->num_threads)
                         for (int j = 0; j < num_chunks; j++) {
                             LOG_DEBUG_F("[%d] WS invocation\n", omp_get_thread_num());
                             LOG_DEBUG_F("[%d] -- effect WS\n", omp_get_thread_num());
@@ -247,24 +245,7 @@ int run_effect(char **urls, shared_options_data_t *shared_options, effect_option
                 }
                 
                 // Write records that passed and failed filters to separate files
-                if (passed_file != NULL && failed_file != NULL) {
-                    if (passed_records != NULL && passed_records->size > 0) {
-                #pragma omp critical 
-                    {
-                        for (int r = 0; r < passed_records->size; r++) {
-                            write_vcf_record(passed_records->items[r], passed_file);
-                        }
-                    }
-                    }
-                    if (failed_records != NULL && failed_records->size > 0) {
-                #pragma omp critical 
-                    {
-                        for (int r = 0; r < failed_records->size; r++) {
-                            write_vcf_record(failed_records->items[r], failed_file);
-                        }
-                    }
-                    }
-                }
+                write_filtering_output_files(passed_records, failed_records, passed_file, failed_file);
                 
                 // If the maximum number of reconnections was reached still with errors, 
                 // write the non-processed batch to the corresponding file
@@ -310,7 +291,7 @@ int run_effect(char **urls, shared_options_data_t *shared_options, effect_option
             free(filters);
             
             // Decrease list writers count
-            for (i = 0; i < shared_options->num_threads; i++) {
+            for (i = 0; i < shared_options_data->num_threads; i++) {
                 list_decr_writers(output_list);
             }
         }
@@ -364,10 +345,9 @@ int run_effect(char **urls, shared_options_data_t *shared_options, effect_option
 
     write_summary_file(summary_count, summary_file);
     write_genes_with_variants_file(gene_list, output_directory);
-    write_result_file(shared_options, options_data, summary_count, output_directory);
+    write_result_file(shared_options_data, options_data, summary_count, output_directory);
 
-    ret_code = free_ws_output(shared_options->num_threads);
-//     free(read_list);
+    ret_code = free_ws_output(shared_options_data->num_threads);
     free(output_list);
     vcf_close(file);
     
