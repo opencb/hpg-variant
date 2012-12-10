@@ -171,8 +171,6 @@ int run_effect(char **urls, shared_options_data_t *shared_options_data, effect_o
                 
 //                     printf("batch loaded = '%.*s'\n", 50, batch->text);
 //                     printf("batch text len = %zu\n", strlen(batch->text));
-                array_list_t *input_records = batch->records;
-                array_list_t *passed_records = NULL, *failed_records = NULL;
 
 //                 if (i % 10 == 0) {
                     LOG_INFO_F("Batch %d reached by thread %d - %zu/%zu records \n", 
@@ -180,17 +178,12 @@ int run_effect(char **urls, shared_options_data_t *shared_options_data, effect_o
                             batch->records->size, batch->records->capacity);
 //                 }
 
-                if (filters == NULL) {
-                    passed_records = input_records;
-                } else {
-                    failed_records = array_list_new(input_records->size + 1, 1, COLLECTION_MODE_ASYNCHRONIZED);
-                    passed_records = run_filter_chain(input_records, failed_records, filters, num_filters);
-                }
-
                 int reconnections = 0;
                 int max_reconnections = 3; // TODO allow to configure?
-                    
+
                 // Write records that passed to a separate file, and query the WS with them as args
+                array_list_t *failed_records = NULL;
+                array_list_t *passed_records = filter_records(filters, num_filters, batch->records, &failed_records);
                 if (passed_records->size > 0) {
                     // Divide the list of passed records in ranges of size defined in config file
                     int num_chunks;
@@ -244,9 +237,6 @@ int run_effect(char **urls, shared_options_data_t *shared_options_data, effect_o
                     } while (reconnections < max_reconnections && (ret_ws_0 || ret_ws_1 || ret_ws_2));
                 }
                 
-                // Write records that passed and failed filters to separate files
-                write_filtering_output_files(passed_records, failed_records, passed_file, failed_file);
-                
                 // If the maximum number of reconnections was reached still with errors, 
                 // write the non-processed batch to the corresponding file
                 if (reconnections == max_reconnections && (ret_ws_0 || ret_ws_1 || ret_ws_2)) {
@@ -256,15 +246,10 @@ int run_effect(char **urls, shared_options_data_t *shared_options_data, effect_o
                     }
                 }
                 
-                // Free items in both lists (not their internal data)
-                if (passed_records != input_records) {
-                    LOG_DEBUG_F("[Batch %d] %zu passed records\n", i, passed_records->size);
-                    array_list_free(passed_records, NULL);
-                }
-                if (failed_records) {
-                    LOG_DEBUG_F("[Batch %d] %zu failed records\n", i, failed_records->size);
-                    array_list_free(failed_records, NULL);
-                }
+                // Write records that passed and failed filters to separate files, and free them
+                write_filtering_output_files(passed_records, failed_records, passed_file, failed_file);
+                free_filtered_records(passed_records, failed_records, batch->records);
+                
                 // Free batch and its contents
                 vcf_batch_free(batch);
                 
