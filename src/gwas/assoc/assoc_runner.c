@@ -115,7 +115,6 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
                 
                 // Initialize structures needed for association tests and write headers of output files
                 if (!initialization_done) {
-//                    sample_ids = associate_samples_and_positions(file);
 # pragma omp critical
                 {
                     // Guarantee that just one thread performs this operation
@@ -145,40 +144,24 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
                 }
                 
                 vcf_batch_t *batch = fetch_vcf_batch(file);
-                array_list_t *input_records = batch->records;
-                array_list_t *passed_records = NULL, *failed_records = NULL;
-
+                
                 if (i % 100 == 0) {
                     LOG_INFO_F("Batch %d reached by thread %d - %zu/%zu records \n", 
                             i, omp_get_thread_num(),
                             batch->records->size, batch->records->capacity);
                 }
 
-                if (filters == NULL) {
-                    passed_records = input_records;
-                } else {
-                    failed_records = array_list_new(input_records->size + 1, 1, COLLECTION_MODE_ASYNCHRONIZED);
-                    passed_records = run_filter_chain(input_records, failed_records, filters, num_filters);
-                }
-
                 // Launch association test over records that passed the filters
+                array_list_t *failed_records = NULL;
+                array_list_t *passed_records = filter_records(filters, num_filters, batch->records, &failed_records);
                 if (passed_records->size > 0) {
                     assoc_test(options_data->task, (vcf_record_t**) passed_records->items, passed_records->size, 
                                 individuals, get_num_vcf_samples(file), factorial_logarithms, output_list);
                 }
                 
-                // Write records that passed and failed to separate files
+                // Write records that passed and failed filters to separate files, and free them
                 write_filtering_output_files(passed_records, failed_records, passed_file, failed_file);
-                
-                // Free items in both lists (not their internal data)
-                if (passed_records != input_records) {
-                    LOG_DEBUG_F("[Batch %d] %zu passed records\n", i, passed_records->size);
-                    array_list_free(passed_records, NULL);
-                }
-                if (failed_records) {
-                    LOG_DEBUG_F("[Batch %d] %zu failed records\n", i, failed_records->size);
-                    array_list_free(failed_records, NULL);
-                }
+                free_filtered_records(passed_records, failed_records, batch->records);
                 
                 // Free batch and its contents
                 vcf_reader_status_free(status);
