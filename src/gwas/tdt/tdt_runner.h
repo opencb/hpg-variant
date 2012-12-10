@@ -50,8 +50,14 @@
 #define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
 
 
-// int run_tdt_test(shared_options_data_t *global_options_data, tdt_options_data_t *options_data);
 int run_tdt_test(shared_options_data_t *global_options_data);
+
+
+static FILE *get_output_file(char *output_directory, char **path);
+
+static void write_output_header(FILE *fd);
+
+static void write_output_body(list_t* output_list, FILE *fd);
 
 
 static cp_hashtable *associate_samples_and_positions(vcf_file_t *file);
