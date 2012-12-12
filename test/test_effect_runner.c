@@ -23,8 +23,8 @@ effect_options_data_t *opts_data;
 
 void setup_effect_ws(void) {
     global_data = (shared_options_data_t*) calloc (1, sizeof(shared_options_data_t));
-    global_data->vcf_filename = strdup("effect_files/variants_marta_head_3K.vcf");
-    global_data->output_directory = strdup("/tmp/variant-test/");
+    global_data->vcf_filename = "effect_files/variants_marta_head_500.vcf";
+    global_data->output_directory = "/tmp/variant-test/";
     global_data->num_threads = 4;
     global_data->max_batches = 10;
     global_data->batch_lines = 4000;
@@ -104,7 +104,7 @@ START_TEST (whole_test) {
     FILE *p;
     
     // Invoke hpg-variant/effect
-    int tdt_ret = system("../bin/hpg-var-effect --vcf-file effect_files/variants_marta_head_3K.vcf \
+    int tdt_ret = system("../bin/hpg-var-effect --vcf-file effect_files/variants_marta_head_500.vcf \
                                                 --outdir ./ --region 1:13000-13500");
     fail_unless(tdt_ret == 0, "hpg-variant exited with errors");
     
