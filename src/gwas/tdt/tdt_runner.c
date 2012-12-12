@@ -154,6 +154,8 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
 
                 // Launch TDT test over records that passed the filters
                 array_list_t *failed_records = NULL;
+                assert(batch);
+                assert(batch->records);
                 array_list_t *passed_records = filter_records(filters, num_filters, batch->records, &failed_records);
                 if (passed_records->size > 0) {
                     ret_code = tdt_test((vcf_record_t**) passed_records->items, passed_records->size, families, num_families, sample_ids, output_list);
@@ -185,12 +187,13 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
             // Free resources
             if (sample_ids) { cp_hashtable_destroy(sample_ids); }
             
-//             // Free filters
-//             for (int i = 0; i < num_filters; i++) {
-//                 filter_t *filter = filters[i];
-//                 filter->free_func(filter);
-//             }
-//             free(filters);
+            if (filters) {
+                for (int i = 0; i < num_filters; i++) {
+                    filter_t *filter = filters[i];
+                    filter->free_func(filter);
+                }
+                free(filters);
+            }
             
             // Decrease list writers count
             for (int i = 0; i < shared_options_data->num_threads; i++) {
