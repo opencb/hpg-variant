@@ -34,6 +34,8 @@ void setup_merge_headers(void) {
     options->info_fields[1] = "AN";
     options->info_fields[2] = "MQ";
     options->info_fields[3] = "H3";
+    options->config_search_paths = array_list_new(2, 2, COLLECTION_MODE_ASYNCHRONIZED);
+    array_list_insert(".", options->config_search_paths);
     
     vcf_header_entry_t *entry;
     char *value;
@@ -190,6 +192,8 @@ void setup_merge_positions(void) {
     options->info_fields[0] = "DP";
     options->copy_filter = 0;
     options->copy_info = 0;
+    options->config_search_paths = array_list_new(2, 2, COLLECTION_MODE_ASYNCHRONIZED);
+    array_list_insert(".", options->config_search_paths);
     
     files[0] = vcf_file_new("input0.vcf", INT_MAX);
     add_vcf_sample_name("S01", 3, files[0]);

@@ -3,7 +3,7 @@
 
 #include <check.h>
 
-#include "gwas/checks_family.h"
+#include "bioformats/family/checks_family.h"
 
 
 Suite *create_test_suite(void);
