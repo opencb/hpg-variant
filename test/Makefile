@@ -33,19 +33,20 @@ GFF_OBJS = $(BIOFORMATS_DIR)/gff/gff_*.o
 PED_OBJS = $(BIOFORMATS_DIR)/ped/ped_*.o
 REGION_TABLE_OBJS = $(BIOFORMATS_DIR)/features/region/region.o $(BIOFORMATS_DIR)/features/region/region_table.o $(BIOFORMATS_DIR)/features/region/region_table_utils.o
 MISC_OBJS = $(COMMONS_DIR)/file_utils.o $(COMMONS_DIR)/string_utils.o $(COMMONS_DIR)/http_utils.o $(COMMONS_DIR)/log.o $(COMMONS_DIR)/result.o \
-	$(CONTAINERS_DIR)/array_list.o $(CONTAINERS_DIR)/list.o $(BIOFORMATS_DIR)/family.o $(MATH_DIR)/fisher.o
+	$(CONTAINERS_DIR)/array_list.o $(CONTAINERS_DIR)/list.o $(BIOFORMATS_DIR)/family/family.o $(BIOFORMATS_DIR)/family/checks_family.o $(MATH_DIR)/stats/fisher.o
 DEPEND_OBJS = $(VCF_OBJS) $(GFF_OBJS) $(PED_OBJS) $(REGION_TABLE_OBJS) $(MISC_OBJS)
 
 # Project files
-EFFECT_OBJS = $(SRC_DIR)/effect/*.o $(SRC_DIR)/*.o
-GWAS_OBJS = $(SRC_DIR)/gwas/*.o $(SRC_DIR)/gwas/assoc/*.o $(SRC_DIR)/gwas/tdt/*.o $(SRC_DIR)/*.o
+# EFFECT_OBJS = $(SRC_DIR)/effect/*.o $(SRC_DIR)/*.o
+# GWAS_OBJS = $(SRC_DIR)/gwas/*.o $(SRC_DIR)/gwas/assoc/*.o $(SRC_DIR)/gwas/tdt/*.o $(SRC_DIR)/*.o
+EFFECT_OBJS = $(SRC_DIR)/effect/auxiliary_files_writer.o $(SRC_DIR)/effect/effect_options_parsing.o $(SRC_DIR)/effect/effect_runner.o $(SRC_DIR)/*.o
+GWAS_OBJS = $(SRC_DIR)/gwas/assoc/*.o $(SRC_DIR)/gwas/tdt/*.o $(SRC_DIR)/hpg_variant_utils.o $(SRC_DIR)/shared_options.o
 VCF_TOOLS_OBJS = $(SRC_DIR)/vcf-tools/*.o $(SRC_DIR)/vcf-tools/filter/*.o $(SRC_DIR)/vcf-tools/merge/*.o $(SRC_DIR)/vcf-tools/split/*.o $(SRC_DIR)/vcf-tools/stats/*.o  $(SRC_DIR)/*.o
 
 
 all: build
 
-build: $(TEST_DIR)/test_effect_runner.c $(TEST_DIR)/test_tdt_runner.c
-	rm $(SRC_DIR)/effect/main_effect.c.o $(SRC_DIR)/gwas/main_gwas.c.o $(SRC_DIR)/vcf-tools/main_vcf_tools.c.o
+build: $(TEST_DIR)/test_checks_family.c $(TEST_DIR)/test_effect_runner.c $(TEST_DIR)/test_merge.c  $(TEST_DIR)/test_tdt_runner.c
 	$(CC) $(CFLAGS_DEBUG) -o $(TEST_DIR)/checks_family.test $(TEST_DIR)/test_checks_family.c $(GWAS_OBJS) $(DEPEND_OBJS) $(INCLUDES) $(LIBS) $(LIBS_TEST)
 	$(CC) $(CFLAGS_DEBUG) -o $(TEST_DIR)/effect.test $(TEST_DIR)/test_effect_runner.c $(EFFECT_OBJS) $(DEPEND_OBJS) $(INCLUDES) $(LIBS) $(LIBS_TEST)
 	$(CC) $(CFLAGS_DEBUG) -o $(TEST_DIR)/merge.test $(TEST_DIR)/test_merge.c $(SRC_DIR)/vcf-tools/filter/*.o $(SRC_DIR)/vcf-tools/merge/*.o $(SRC_DIR)/vcf-tools/split/*.o $(SRC_DIR)/vcf-tools/stats/*.o $(SRC_DIR)/*.o $(DEPEND_OBJS) $(INCLUDES) $(LIBS) $(LIBS_TEST)

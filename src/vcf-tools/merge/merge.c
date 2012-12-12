@@ -657,7 +657,7 @@ char* merge_format_field(vcf_record_file_link** position_in_files, int position_
     
     if (options->copy_filter) {
         array_list_insert(strndup("SFT", 3), format_fields);
-        format_text_len += 3;
+        format_text_len += options->copy_info ? 4 : 3; // If INFO is copied, another ":" is needed
     }
     if (options->copy_info) {
         array_list_insert(strndup("IN", 2), format_fields);
