@@ -60,7 +60,7 @@ void teardown_positions(void) {
 
 
 void setup_tdt_function(void) {
-    ped = ped_open("tdt_files/500K_variants_147_samples.ped");
+    ped = ped_open("tdt_files/4K_variants_147_samples.ped");
     family = family_new("TESTFAM");
     add_family(family, ped);
     
@@ -435,9 +435,8 @@ END_TEST
 
 START_TEST (whole_test) {
     // Invoke hpg-variant/genome-analysis --tdt
-    int tdt_ret = system("../bin/hpg-var-gwas tdt --vcf-file tdt_files/500K_variants_147_samples.vcf \
-                                                  --ped-file tdt_files/500K_variants_147_samples.ped \
-                                                  --config ../bin/hpg-variant.cfg \
+    int tdt_ret = system("../bin/hpg-var-gwas tdt --vcf-file tdt_files/4K_variants_147_samples.vcf \
+                                                  --ped-file tdt_files/4K_variants_147_samples.ped \
                                                   --outdir ./ ");
     fail_unless(tdt_ret == 0, "hpg-var-gwas exited with errors");
     
@@ -455,7 +454,7 @@ START_TEST (whole_test) {
     fail_if(fgets(&line, line_len, cut_proc) == NULL, "The TDT results file cannot be read");
     
     int i = 0;
-    int entries_tested = 5000;
+    int entries_tested = 2000;
     
     while (fgets(&line, line_len, cut_proc) && i < entries_tested) {
         if (i % 50 == 0) {
