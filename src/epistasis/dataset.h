@@ -1,6 +1,7 @@
 #ifndef EPISTASIS_DATASET
 #define EPISTASIS_DATASET
 
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
 
@@ -18,7 +19,7 @@ epistasis_dataset *epistasis_dataset_new();
 void epistasis_dataset_free(epistasis_dataset *dataset);
 
 
-void epistasis_dataset_process_records(vcf_record_t **variants, size_t num_variants, int num_samples, int *phenotypes, epistasis_dataset *dataset);
+void epistasis_dataset_process_records(vcf_record_t **variants, size_t num_variants, int num_samples, uint8_t *phenotypes, epistasis_dataset *dataset);
 
 void epistasis_dataset_add_entry(uint16_t *genotype_count, epistasis_dataset *dataset);
 
