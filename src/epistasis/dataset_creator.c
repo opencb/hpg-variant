@@ -30,7 +30,10 @@ int create_dataset_from_vcf(shared_options_data_t* shared_options_data) {
         LOG_FATAL_F("Can't create output directory: %s\n", shared_options_data->output_directory);
     }
     
-    LOG_INFO("About to perform TDT test...\n");
+    // Create dataset
+    epistasis_dataset *dataset = epistasis_dataset_new();
+    
+    LOG_INFO("About to create epistasis dataset...\n");
 
 #pragma omp parallel sections private(ret_code, start, stop, total)
     {
@@ -71,7 +74,6 @@ int create_dataset_from_vcf(shared_options_data_t* shared_options_data) {
             FILE *passed_file = NULL, *failed_file = NULL, *non_processed_file = NULL;
             get_filtering_output_files(shared_options_data, &passed_file, &failed_file);
     
-            epistasis_dataset *dataset = epistasis_dataset_new();
             int *phenotypes, num_affected, num_unaffected;
             
             int i = 0;
@@ -106,53 +108,17 @@ int create_dataset_from_vcf(shared_options_data_t* shared_options_data) {
                 array_list_t *passed_records = filter_records(filters, num_filters, batch->records, &failed_records);
                 if (passed_records->size > 0) {
                     // Divide the list of passed records in ranges of size defined in config file
-                    int num_chunks;
-                    int *chunk_sizes;
-                    int *chunk_starts = create_chunks(passed_records->size, shared_options_data->entries_per_thread, &num_chunks, &chunk_sizes);
-                    
+//                     int num_chunks;
+//                     int *chunk_sizes;
+//                     int *chunk_starts = create_chunks(passed_records->size, shared_options_data->entries_per_thread, &num_chunks, &chunk_sizes);
+//                     
 //                     // OpenMP: Launch a thread for each range
 //                     #pragma omp parallel for num_threads(shared_options_data->num_threads)
 //                     for (int j = 0; j < num_chunks; j++) {
 //                         // TODO task
 //                     }
                     
-                    epistasis_dataset_process_records(passed_records->items, passed_records->size, get_num_vcf_samples(file), phenotypes, dataset);
-                    
-//                     for (int j = 0; j < passed_records->size; j++) {
-//                         vcf_record_t *record = array_list_get(j, passed_records);
-//                         int gt_position = get_field_position_in_format("GT", strndup(record->format, record->format_len));
-//                         
-//                         int gt_dataset_index;
-//                         uint16_t *genotypes = calloc (6, sizeof(uint16_t));
-//                         // TODO for each sample, get genotype
-//                         for (int k = 0; k < get_num_vcf_samples(file); k++) {
-//                             char *sample = strdup(array_list_get(k, record->samples));
-//                             int allele1, allele2;
-//                             if (get_alleles(sample, gt_position, &allele1, &allele2)) {
-//                                 LOG_WARN_F("Sample '%s' in variant %.*s:%ld is missing\n", 
-//                                            array_list_get(k, file->samples_names), 
-//                                            record->chromosome_len, record->chromosome, record->position);
-//                             } else {
-//                                 // Increment genotype count depending on phenotype
-//                                 if (!allele1 && allele1 == allele2) { // Homozygous in first allele
-//                                     gt_dataset_index = 0;
-//                                 } else if ((!allele1 && allele2) || (allele1 && !allele2)) { // Heterozygous
-//                                     gt_dataset_index = 1;
-//                                 } else if (allele1 && allele1 == allele2) { // Homozygous in second allele
-//                                     gt_dataset_index = 2;
-//                                 }
-//                                 
-//                                 if (phenotypes[k]) { // Case
-//                                     genotypes[gt_dataset_index]++;
-//                                 } else { // Control
-//                                     genotypes[gt_dataset_index + 1]++;
-//                                 }
-//                             }
-//                             free(sample);
-//                         }
-//                         
-//                         epistasis_dataset_add_entry(genotypes, dataset);
-//                     }
+                    epistasis_dataset_process_records((vcf_record_t**) passed_records->items, passed_records->size, get_num_vcf_samples(file), phenotypes, dataset);
                 }
                 
                 // Write records that passed and failed filters to separate files, and free them
@@ -189,11 +155,11 @@ int create_dataset_from_vcf(shared_options_data_t* shared_options_data) {
             }
         }
 
-#pragma omp section
-        {
-            // Thread which writes the results to the output file
-            LOG_DEBUG_F("Level %d: number of threads in the team - %d\n", 20, omp_get_num_threads());
-            
+// #pragma omp section
+//         {
+//             // Thread which writes the results to the output file
+//             LOG_DEBUG_F("Level %d: number of threads in the team - %d\n", 20, omp_get_num_threads());
+//             
 //             // Get the file descriptor
 //             char *path;
 //             FILE *fd = get_output_file(shared_options_data->output_directory, &path);
@@ -223,9 +189,41 @@ int create_dataset_from_vcf(shared_options_data_t* shared_options_data) {
 // 
 //             LOG_INFO_F("[%dW] Time elapsed = %f s\n", omp_get_thread_num(), stop - start);
 //             LOG_INFO_F("[%dW] Time elapsed = %e ms\n", omp_get_thread_num(), (stop - start) * 1000);
-
+// 
+//         }
+    }
+    
+    FILE *fp = fopen("epistasis_dataset.bin","wb");
+    
+    // TODO write binary file with dataset
+    
+    // First write the phenotypes and number of samples
+    
+    // Then the dataset itself
+    for (size_t i = 0; i < epistasis_dataset_get_num_variants(dataset); i++) {
+        uint8_t *genotypes = epistasis_dataset_get_variant_counts(i, dataset);
+        if (!fwrite(genotypes, sizeof(uint8_t), get_num_vcf_samples(file), fp)) {
+            printf("variant %zu not written\n", i);
         }
     }
+    
+    fclose(fp);
+    
+    fp = fopen("epistasis_dataset.bin","rb");
+    
+    for (size_t i = 0; i < epistasis_dataset_get_num_variants(dataset); i++) {
+        uint8_t *genotypes = epistasis_dataset_get_variant_counts(i, dataset);
+        if (!fread(genotypes, sizeof(uint8_t), get_num_vcf_samples(file), fp)) {
+            printf("variant %zu not read\n", i);
+        } else {            
+            printf("[%zu] { ", i);
+            for (int j = 0; j < get_num_vcf_samples(file); j++) {
+                printf("%d ", genotypes[j]);
+            }
+            printf("}\n");
+        }
+    }
+    
     
     free(output_list);
     vcf_close(file);
