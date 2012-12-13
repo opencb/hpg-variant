@@ -218,10 +218,6 @@ int tdt_test(vcf_record_t **variants, int num_variants, family_t **families, int
 //                 }
                 
                 // Increment transmission counts
-//                 if (trA==1) { t1++; }
-//                 if (trB==1) { t1++; }
-//                 if (trA==2) { t2++; }
-//                 if (trB==2) { t2++; }
                 if (trA==1) { t1++; }
                 else if (trA==2) { t2++; }
                 
