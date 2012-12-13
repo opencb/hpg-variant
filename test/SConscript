@@ -1,0 +1,39 @@
+Import('env commons_path bioinfo_path math_path')
+
+penv = env.Clone()
+penv['LIBS'] += ['check']
+
+effect = penv.Program('effect.test', 
+             source = [Glob('test_effect_runner.c'), 
+                       Glob('#src/*.o'), '#src/effect/auxiliary_files_writer.o', '#src/effect/effect_options_parsing.o', '#src/effect/effect_runner.o',
+                       "%s/libcommon.a" % commons_path,
+                       "%s/bioformats/libbioformats.a" % bioinfo_path
+                      ]
+           )
+
+check_fam = penv.Program('checks_family.test', 
+             source = [Glob('test_checks_family.c'), 
+                       Glob('#src/*.o'), Glob('#src/gwas/assoc/*.o'), Glob('#src/gwas/tdt/*.o'),
+                       "%s/libcommon.a" % commons_path,
+                       "%s/bioformats/libbioformats.a" % bioinfo_path,
+                       "%s/libhpgmath.a" % math_path
+                      ]
+           )
+
+tdt = penv.Program('tdt.test', 
+             source = [Glob('test_tdt_runner.c'),
+                       Glob('#src/*.o'), Glob('#src/gwas/tdt/*.o'),
+                       "%s/libcommon.a" % commons_path,
+                       "%s/bioformats/libbioformats.a" % bioinfo_path,
+                       "%s/libhpgmath.a" % math_path
+                      ]
+           )
+
+merge = penv.Program('merge.test', 
+             source = [Glob('test_merge.c'),
+                       Glob('#src/*.o'), Glob('#src/vcf-tools/merge/*.o'),
+                       "%s/libcommon.a" % commons_path,
+                       "%s/bioformats/libbioformats.a" % bioinfo_path,
+                       "%s/libhpgmath.a" % math_path
+                      ]
+           )

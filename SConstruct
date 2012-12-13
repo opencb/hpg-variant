@@ -41,7 +41,6 @@ inst = env.Install('#bin', ['hpg-variant.conf', 'vcf-info-fields.conf'] + list(p
 
 # Run tests
 t = SConscript("test/SConscript", exports = ['env', 'debug', 'commons_path', 'bioinfo_path', 'math_path'] )
-Alias('testing', t)
 
 # Create tarball
 # For the packaging manager: Don't forget to point the XXX_INCLUDE_PATH and XXX_LIBRARY_PATH 
