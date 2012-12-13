@@ -32,6 +32,9 @@ int create_dataset_from_vcf(shared_options_data_t* shared_options_data) {
     
     // Create dataset
     epistasis_dataset *dataset = epistasis_dataset_new();
+    size_t num_variants = 0;
+    uint8_t *phenotypes;
+    
     
     LOG_INFO("About to create epistasis dataset...\n");
 
@@ -74,8 +77,6 @@ int create_dataset_from_vcf(shared_options_data_t* shared_options_data) {
             FILE *passed_file = NULL, *failed_file = NULL, *non_processed_file = NULL;
             get_filtering_output_files(shared_options_data, &passed_file, &failed_file);
     
-            int *phenotypes, num_affected, num_unaffected;
-            
             int i = 0;
             vcf_batch_t *batch = NULL;
             
@@ -84,7 +85,7 @@ int create_dataset_from_vcf(shared_options_data_t* shared_options_data) {
             while (batch = fetch_vcf_batch(file)) {
                 if (i == 0) {
                     // Get individual phenotypes
-                    phenotypes = get_individual_phenotypes(file, ped_file, &num_affected, &num_unaffected);
+                    phenotypes = get_individual_phenotypes(file, ped_file);
                     
                     // Add headers associated to the defined filters
                     vcf_header_entry_t **filter_headers = get_filters_as_vcf_headers(filters, num_filters);
@@ -117,7 +118,8 @@ int create_dataset_from_vcf(shared_options_data_t* shared_options_data) {
 //                     for (int j = 0; j < num_chunks; j++) {
 //                         // TODO task
 //                     }
-                    
+
+                    num_variants += passed_records->size;
                     epistasis_dataset_process_records((vcf_record_t**) passed_records->items, passed_records->size, get_num_vcf_samples(file), phenotypes, dataset);
                 }
                 
@@ -197,32 +199,40 @@ int create_dataset_from_vcf(shared_options_data_t* shared_options_data) {
     
     // TODO write binary file with dataset
     
-    // First write the phenotypes and number of samples
+    // First write the number of samples, number of variants and phenotypes
+    size_t num_samples = get_num_vcf_samples(file);
+    if (!fwrite(&num_variants, sizeof(size_t), 1, fp) || 
+        !fwrite(&num_samples, sizeof(size_t), 1, fp) ||
+        !fwrite(phenotypes, sizeof(uint8_t), num_samples, fp)) {
+        LOG_ERROR("The header of the dataset could not be written!");
+    }
     
     // Then the dataset itself
     for (size_t i = 0; i < epistasis_dataset_get_num_variants(dataset); i++) {
         uint8_t *genotypes = epistasis_dataset_get_variant_counts(i, dataset);
-        if (!fwrite(genotypes, sizeof(uint8_t), get_num_vcf_samples(file), fp)) {
-            printf("variant %zu not written\n", i);
+        if (!fwrite(genotypes, sizeof(uint8_t), num_samples, fp)) {
+            LOG_ERROR_F("Variant #%zu could not be written!\n", i);
         }
     }
     
     fclose(fp);
     
-    fp = fopen("epistasis_dataset.bin","rb");
-    
-    for (size_t i = 0; i < epistasis_dataset_get_num_variants(dataset); i++) {
-        uint8_t *genotypes = epistasis_dataset_get_variant_counts(i, dataset);
-        if (!fread(genotypes, sizeof(uint8_t), get_num_vcf_samples(file), fp)) {
-            printf("variant %zu not read\n", i);
-        } else {            
-            printf("[%zu] { ", i);
-            for (int j = 0; j < get_num_vcf_samples(file); j++) {
-                printf("%d ", genotypes[j]);
-            }
-            printf("}\n");
-        }
-    }
+//     fp = fopen("epistasis_dataset.bin","rb");
+//     
+//     for (size_t i = 0; i < epistasis_dataset_get_num_variants(dataset); i++) {
+//         uint8_t *genotypes = epistasis_dataset_get_variant_counts(i, dataset);
+//         if (!fread(genotypes, sizeof(uint8_t), get_num_vcf_samples(file), fp)) {
+//             printf("variant %zu not read\n", i);
+//         } else {            
+//             printf("[%zu] { ", i);
+//             for (int j = 0; j < get_num_vcf_samples(file); j++) {
+//                 printf("%d ", genotypes[j]);
+//             }
+//             printf("}\n");
+//         }
+//     }
+//     
+//     fclose(fp);
     
     
     free(output_list);
@@ -234,71 +244,14 @@ int create_dataset_from_vcf(shared_options_data_t* shared_options_data) {
     return ret_code;
 }
 
-int flatten_phenotypes(vcf_file_t *vcf, ped_file_t *ped, int *num_affected, int *num_unaffected) {
-    int phenotypes_mask = 0;
-    individual_t **individual = sort_individuals(vcf, ped);
-    
-    for (int i = 0; i < get_num_vcf_samples(vcf); i++) {
-        if (individual[i]->phenotype == AFFECTED) {
-            phenotypes_mask |= 1 << i;
-            (*num_affected)++;
-        } else {
-            (*num_unaffected)++;
-        }
-    }
-    
-//     family_t *family;
-//     family_t **families = (family_t**) cp_hashtable_get_values(ped->families);
-//     int num_families = get_num_families(ped);
-// 
-//     cp_hashtable *positions = associate_samples_and_positions(vcf);
-//     int *pos;
-// 
-//     for (int f = 0; f < num_families; f++) {
-//         family = families[f];
-//         individual_t *father = family->father;
-//         individual_t *mother = family->mother;
-//         cp_list *children = family->children;
-// 
-//         if (father != NULL) {
-//             pos = cp_hashtable_get(positions, father->id);
-//             phenotypes_mask |= 1 << *pos;
-//         }
-// 
-//         if (mother != NULL) {
-//             pos = cp_hashtable_get(positions, mother->id);
-//             phenotypes_mask |= 1 << *pos;
-//         }
-// 
-//         cp_list_iterator *children_iterator = cp_list_create_iterator(family->children, COLLECTION_LOCK_READ);
-//         individual_t *child = NULL;
-//         while ((child = cp_list_iterator_next(children_iterator)) != NULL) {
-//             pos = cp_hashtable_get(positions, child->id);
-//             phenotypes_mask |= 1 << *pos;
-//         }
-//         cp_list_iterator_destroy(children_iterator);
-//     }
-// 
-//     cp_hashtable_destroy(positions);
-    
-    return phenotypes_mask;
-}
 
 
-int *get_individual_phenotypes(vcf_file_t *vcf, ped_file_t *ped, int *num_affected, int *num_unaffected) {
-    int *phenotypes = malloc (get_num_vcf_samples(vcf) * sizeof(int));
+uint8_t *get_individual_phenotypes(vcf_file_t *vcf, ped_file_t *ped) {
+    uint8_t *phenotypes = malloc (get_num_vcf_samples(vcf) * sizeof(uint8_t));
     individual_t **individuals = sort_individuals(vcf, ped);
     
-    *num_affected = *num_unaffected = 0;
-    
     for (int i = 0; i < get_num_vcf_samples(vcf); i++) {
-        if (individuals[i]->condition == AFFECTED) {
-            phenotypes[i] = 1;
-            (*num_affected)++;
-        } else {
-            phenotypes[i] = 0;
-            (*num_unaffected)++;
-        }
+        phenotypes[i] = individuals[i]->condition == AFFECTED;
     }
     
     free(individuals);
