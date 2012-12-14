@@ -1,6 +1,7 @@
 #ifndef EPISTASIS_DATASET_CREATOR
 #define EPISTASIS_DATASET_CREATOR
 
+#include <stdbool.h>
 #include <stdlib.h>
 #include <omp.h>
 

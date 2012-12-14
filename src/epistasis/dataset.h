@@ -14,12 +14,12 @@ typedef struct {
     array_list_t *genotype_counts;
 } epistasis_dataset;
 
-epistasis_dataset *epistasis_dataset_new();
+// epistasis_dataset *epistasis_dataset_new();
 
-void epistasis_dataset_free(epistasis_dataset *dataset);
+// void epistasis_dataset_free(epistasis_dataset *dataset);
 
 
-void epistasis_dataset_process_records(vcf_record_t **variants, size_t num_variants, int num_samples, uint8_t *phenotypes, epistasis_dataset *dataset);
+uint8_t *epistasis_dataset_process_records(vcf_record_t **variants, size_t num_variants, int num_samples);
 
 void epistasis_dataset_add_entry(uint16_t *genotype_count, epistasis_dataset *dataset);
 
