@@ -19,14 +19,14 @@ typedef struct {
 // void epistasis_dataset_free(epistasis_dataset *dataset);
 
 
-uint8_t *epistasis_dataset_process_records(vcf_record_t **variants, size_t num_variants, int num_samples);
+uint8_t *epistasis_dataset_process_records(vcf_record_t** variants, size_t num_variants, int* destination, int num_samples);
 
-void epistasis_dataset_add_entry(uint16_t *genotype_count, epistasis_dataset *dataset);
+// void epistasis_dataset_add_entry(uint16_t *genotype_count, epistasis_dataset *dataset);
 
 
-size_t epistasis_dataset_get_num_variants(epistasis_dataset *dataset);
+// size_t epistasis_dataset_get_num_variants(epistasis_dataset *dataset);
 
-uint8_t *epistasis_dataset_get_variant_counts(size_t index, epistasis_dataset *dataset);
+// uint8_t *epistasis_dataset_get_variant_counts(size_t index, epistasis_dataset *dataset);
 
 
 #endif

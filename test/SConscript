@@ -22,7 +22,8 @@ effect = penv.Program('effect.test',
 
 epi_data = penv.Program('epistasis_dataset.test', 
              source = [Glob('test_epistasis_dataset.c'), 
-                       Glob('#src/*.o'), '#src/epistasis/dataset.o', '#src/epistasis/dataset_creator.o',
+#                       Glob('#src/*.o'), '#src/epistasis/dataset.o', '#src/epistasis/dataset_creator.o',
+                       Glob('#src/*.o'), '#src/epistasis/dataset.o', 
                        "%s/libcommon.a" % commons_path,
                        "%s/bioformats/libbioformats.a" % bioinfo_path
                       ]
