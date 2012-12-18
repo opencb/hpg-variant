@@ -107,24 +107,25 @@ void **merge_effect_options(effect_options_t *effect_options, shared_options_t *
     tool_options[7] = shared_options->coverage;
     tool_options[8] = shared_options->quality;
     tool_options[9] = shared_options->maf;
-    tool_options[10] = shared_options->region;
-    tool_options[11] = shared_options->region_file;
-    tool_options[12] = shared_options->snp;
+    tool_options[10] = shared_options->missing;
+    tool_options[11] = shared_options->region;
+    tool_options[12] = shared_options->region_file;
+    tool_options[13] = shared_options->snp;
     
     // Configuration file
-    tool_options[13] = shared_options->config_file;
+    tool_options[14] = shared_options->config_file;
     
     // Advanced configuration
-    tool_options[14] = shared_options->host_url;
-    tool_options[15] = shared_options->version;
-    tool_options[16] = shared_options->max_batches;
-    tool_options[17] = shared_options->batch_lines;
-    tool_options[18] = shared_options->batch_bytes;
-    tool_options[19] = shared_options->num_threads;
-    tool_options[20] = shared_options->entries_per_thread;
-    tool_options[21] = shared_options->mmap_vcf_files;
+    tool_options[15] = shared_options->host_url;
+    tool_options[16] = shared_options->version;
+    tool_options[17] = shared_options->max_batches;
+    tool_options[18] = shared_options->batch_lines;
+    tool_options[19] = shared_options->batch_bytes;
+    tool_options[20] = shared_options->num_threads;
+    tool_options[21] = shared_options->entries_per_thread;
+    tool_options[22] = shared_options->mmap_vcf_files;
     
-    tool_options[22] = arg_end;
+    tool_options[23] = arg_end;
     
     return tool_options;
 }
