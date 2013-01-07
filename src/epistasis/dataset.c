@@ -69,7 +69,7 @@ int get_block_stride(size_t block_operations, int order) {
 }
 
 int get_next_block(int num_blocks, int order, int block_coordinates[order]) {
-    for (int i = order - 1; i > 0; i--) {
+    for (int i = order - 1; i >= 0; i--) {
         if (block_coordinates[i] + 1 < num_blocks) {
             // Increment coordinate, for example: (0,1,2) -> (0,1,3)
             (block_coordinates[i])++;

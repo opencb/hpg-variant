@@ -156,7 +156,6 @@ START_TEST (test_get_block_stride) {
     fail_unless(get_block_stride(1024, 2) == 32, "1024 operations, order 2 -> stride 32");
     fail_unless(get_block_stride(10000000, 2) == 3163, "10M operations, order 2 -> stride 3163");
     
-    printf("1000, 3 = %d\n", get_block_stride(1000, 3));
     fail_unless(get_block_stride(1000, 3) == 10, "1000 operations, order 3 -> stride 10");
     fail_unless(get_block_stride(1024, 3) == 11, "1024 operations, order 3 -> stride 11");
     fail_unless(get_block_stride(10000, 3) == 22, "10000 operations, order 3 -> stride 22");
@@ -165,6 +164,64 @@ START_TEST (test_get_block_stride) {
     fail_unless(get_block_stride(1000000, 5) == 16, "1M operations, order 5 -> stride 16");
 }
 END_TEST
+
+START_TEST (test_get_next_block) {
+    int num_blocks = 4;
+    int order = 2;
+    int block_2coords[] = { 0, 0 };
+    int num_combinations = 1;
+    
+    while (!get_next_block(num_blocks, order, block_2coords)) { num_combinations++; }
+    fail_if(num_combinations != 10, "4 blocks, order 2 -> 10 combinations");
+    
+    block_2coords[0] = block_2coords[1] = 0;
+    get_next_block(num_blocks, order, block_2coords); fail_if(block_2coords[0] != 0 || block_2coords[1] != 1, "Block: (0,0) -> (0,1)");
+    get_next_block(num_blocks, order, block_2coords); fail_if(block_2coords[0] != 0 || block_2coords[1] != 2, "Block: (0,1) -> (0,2)");
+    get_next_block(num_blocks, order, block_2coords); fail_if(block_2coords[0] != 0 || block_2coords[1] != 3, "Block: (0,2) -> (0,3)");
+    get_next_block(num_blocks, order, block_2coords); fail_if(block_2coords[0] != 1 || block_2coords[1] != 1, "Block: (0,3) -> (1,1)");
+
+    get_next_block(num_blocks, order, block_2coords); fail_if(block_2coords[0] != 1 || block_2coords[1] != 2, "Block: (1,1) -> (1,2)");
+    get_next_block(num_blocks, order, block_2coords); fail_if(block_2coords[0] != 1 || block_2coords[1] != 3, "Block: (1,2) -> (1,3)");
+    get_next_block(num_blocks, order, block_2coords); fail_if(block_2coords[0] != 2 || block_2coords[1] != 2, "Block: (1,3) -> (2,2)");
+    
+    get_next_block(num_blocks, order, block_2coords); fail_if(block_2coords[0] != 2 || block_2coords[1] != 3, "Block: (2,2) -> (2,3)");
+    get_next_block(num_blocks, order, block_2coords); fail_if(block_2coords[0] != 3 || block_2coords[1] != 3, "Block: (2,3) -> (3,3)");
+    
+    int block_3coords[] = { 0, 0, 0 };
+    order = 3;
+    num_combinations = 1;
+    
+    while (!get_next_block(num_blocks, order, block_3coords)) { num_combinations++; }
+    fail_if(num_combinations != 20, "4 blocks, order 3 -> 20 combinations");
+    
+    block_3coords[0] = block_3coords[1] = block_3coords[2] = 0;
+    get_next_block(num_blocks, order, block_3coords); fail_if(block_3coords[0] != 0 || block_3coords[1] != 0 || block_3coords[2] != 1, "Block: (0,0,0) -> (0,0,1)");
+    get_next_block(num_blocks, order, block_3coords); fail_if(block_3coords[0] != 0 || block_3coords[1] != 0 || block_3coords[2] != 2, "Block: (0,0,1) -> (0,0,2)");
+    get_next_block(num_blocks, order, block_3coords); fail_if(block_3coords[0] != 0 || block_3coords[1] != 0 || block_3coords[2] != 3, "Block: (0,0,2) -> (0,0,3)");
+    get_next_block(num_blocks, order, block_3coords); fail_if(block_3coords[0] != 0 || block_3coords[1] != 1 || block_3coords[2] != 1, "Block: (0,0,3) -> (0,1,1)");
+
+    get_next_block(num_blocks, order, block_3coords); fail_if(block_3coords[0] != 0 || block_3coords[1] != 1 || block_3coords[2] != 2, "Block: (0,1,1) -> (0,1,2)");
+    get_next_block(num_blocks, order, block_3coords); fail_if(block_3coords[0] != 0 || block_3coords[1] != 1 || block_3coords[2] != 3, "Block: (0,1,2) -> (0,1,3)");
+    get_next_block(num_blocks, order, block_3coords); fail_if(block_3coords[0] != 0 || block_3coords[1] != 2 || block_3coords[2] != 2, "Block: (0,1,3) -> (0,2,2)");
+    
+    get_next_block(num_blocks, order, block_3coords); fail_if(block_3coords[0] != 0 || block_3coords[1] != 2 || block_3coords[2] != 3, "Block: (0,2,2) -> (0,2,3)");
+    get_next_block(num_blocks, order, block_3coords); fail_if(block_3coords[0] != 0 || block_3coords[1] != 3 || block_3coords[2] != 3, "Block: (0,2,3) -> (0,3,3)");
+    
+    get_next_block(num_blocks, order, block_3coords); fail_if(block_3coords[0] != 1 || block_3coords[1] != 1 || block_3coords[2] != 1, "Block: (0,3,3) -> (1,1,1)");
+    get_next_block(num_blocks, order, block_3coords); fail_if(block_3coords[0] != 1 || block_3coords[1] != 1 || block_3coords[2] != 2, "Block: (1,1,1) -> (1,1,2)");
+    get_next_block(num_blocks, order, block_3coords); fail_if(block_3coords[0] != 1 || block_3coords[1] != 1 || block_3coords[2] != 3, "Block: (1,1,2) -> (1,1,3)");
+    get_next_block(num_blocks, order, block_3coords); fail_if(block_3coords[0] != 1 || block_3coords[1] != 2 || block_3coords[2] != 2, "Block: (1,1,3) -> (1,2,2)");
+
+    get_next_block(num_blocks, order, block_3coords); fail_if(block_3coords[0] != 1 || block_3coords[1] != 2 || block_3coords[2] != 3, "Block: (1,2,2) -> (1,2,3)");
+    get_next_block(num_blocks, order, block_3coords); fail_if(block_3coords[0] != 1 || block_3coords[1] != 3 || block_3coords[2] != 3, "Block: (1,2,3) -> (1,3,3)");
+    get_next_block(num_blocks, order, block_3coords); fail_if(block_3coords[0] != 2 || block_3coords[1] != 2 || block_3coords[2] != 2, "Block: (1,3,3) -> (2,2,2)");
+    
+    get_next_block(num_blocks, order, block_3coords); fail_if(block_3coords[0] != 2 || block_3coords[1] != 2 || block_3coords[2] != 3, "Block: (2,2,2) -> (2,2,3)");
+    get_next_block(num_blocks, order, block_3coords); fail_if(block_3coords[0] != 2 || block_3coords[1] != 3 || block_3coords[2] != 3, "Block: (2,2,3) -> (2,3,3)");
+    get_next_block(num_blocks, order, block_3coords); fail_if(block_3coords[0] != 3 || block_3coords[1] != 3 || block_3coords[2] != 3, "Block: (2,3,3) -> (3,3,3)");
+}
+END_TEST
+
 
 /* ******************************
  *      Main entry point        *
@@ -190,6 +247,7 @@ Suite *create_test_suite(void) {
     TCase *tc_balancing = tcase_create("Work distribution and load balancing");
 //     tcase_add_unchecked_fixture(tc_balancing, setup_dataset, teardown_dataset);
     tcase_add_test(tc_balancing, test_get_block_stride);
+    tcase_add_test(tc_balancing, test_get_next_block);
     
     
     // Add test cases to a test suite
