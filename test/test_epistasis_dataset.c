@@ -152,6 +152,20 @@ START_TEST (test_process_records) {
 END_TEST
 
 
+START_TEST (test_get_block_stride) {
+    fail_unless(get_block_stride(1024, 2) == 32, "1024 operations, order 2 -> stride 32");
+    fail_unless(get_block_stride(10000000, 2) == 3163, "10M operations, order 2 -> stride 3163");
+    
+    printf("1000, 3 = %d\n", get_block_stride(1000, 3));
+    fail_unless(get_block_stride(1000, 3) == 10, "1000 operations, order 3 -> stride 10");
+    fail_unless(get_block_stride(1024, 3) == 11, "1024 operations, order 3 -> stride 11");
+    fail_unless(get_block_stride(10000, 3) == 22, "10000 operations, order 3 -> stride 22");
+    
+    fail_unless(get_block_stride(10000, 4) == 10, "10000 operations, order 4 -> stride 10");
+    fail_unless(get_block_stride(1000000, 5) == 16, "1M operations, order 5 -> stride 16");
+}
+END_TEST
+
 /* ******************************
  *      Main entry point        *
  * ******************************/
@@ -173,9 +187,15 @@ Suite *create_test_suite(void) {
     tcase_add_test(tc_creation, test_destination);
     tcase_add_test(tc_creation, test_process_records);
     
+    TCase *tc_balancing = tcase_create("Work distribution and load balancing");
+//     tcase_add_unchecked_fixture(tc_balancing, setup_dataset, teardown_dataset);
+    tcase_add_test(tc_balancing, test_get_block_stride);
+    
+    
     // Add test cases to a test suite
     Suite *fs = suite_create("Epistasis dataset");
     suite_add_tcase(fs, tc_creation);
+    suite_add_tcase(fs, tc_balancing);
     
     return fs;
 }

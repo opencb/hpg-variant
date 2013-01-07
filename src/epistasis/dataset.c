@@ -60,3 +60,49 @@ uint8_t *epistasis_dataset_process_records(vcf_record_t **variants, size_t num_v
 // uint8_t *epistasis_dataset_get_variant_counts(size_t index, epistasis_dataset *dataset) {
 //     return array_list_get(index, dataset->genotype_counts);
 // }
+
+
+
+
+int get_block_stride(size_t block_operations, int order) {
+    return ceil(pow(block_operations, ((double) 1/order)));
+}
+
+int get_next_block(int num_blocks, int order, int block_coordinates[order]) {
+    for (int i = order - 1; i > 0; i--) {
+        if (block_coordinates[i] + 1 < num_blocks) {
+            // Increment coordinate, for example: (0,1,2) -> (0,1,3)
+            (block_coordinates[i])++;
+            
+            // The following coordinates must be, at least, the same as the current one
+            // Let num_blocks=4, (0,1,3) -> (0,2,3) -> (0,2,2)
+            if (i < order - 1) {
+                for (int j = i + 1; j < order; j++) {
+                    block_coordinates[j] = block_coordinates[i];
+                }
+            }
+            
+            return 0; // New valid block found
+        }
+    }
+    
+    return 1; // No more blocks available
+}
+
+int* get_first_combination_in_block(int order, int block_coordinates[order], int stride) {
+    int init_coordinates[order];
+    init_coordinates[0] = block_coordinates[0] * stride;
+    
+    for (int i = 1; i < order; i++) {
+        // Set values in base to the block coordinates and the stride of each block
+        init_coordinates[i] = block_coordinates[i] * stride;
+        
+        // If two coordinates belong to the same block they must have consecutive positions
+        // Let stride=100 and block_coordinates=(0,1,1), then combination (0,100,100) -> (0,100,101)
+        if (init_coordinates[i] <= init_coordinates[i-1]) {
+            init_coordinates[i] = init_coordinates[i-1] + 1;
+        }
+    }
+    
+    return init_coordinates;
+}
