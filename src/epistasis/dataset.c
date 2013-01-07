@@ -90,7 +90,7 @@ int get_next_block(int num_blocks, int order, int block_coordinates[order]) {
 }
 
 int* get_first_combination_in_block(int order, int block_coordinates[order], int stride) {
-    int init_coordinates[order];
+    int init_coordinates[order];    // TODO broken?
     init_coordinates[0] = block_coordinates[0] * stride;
     
     for (int i = 1; i < order; i++) {

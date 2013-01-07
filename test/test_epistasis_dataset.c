@@ -168,9 +168,10 @@ END_TEST
 START_TEST (test_get_next_block) {
     int num_blocks = 4;
     int order = 2;
-    int block_2coords[] = { 0, 0 };
+    int block_2coords[] = { 0, 0 }, block_3coords[] = { 0, 0, 0 };
     int num_combinations = 1;
     
+    // Order 2 combinations
     while (!get_next_block(num_blocks, order, block_2coords)) { num_combinations++; }
     fail_if(num_combinations != 10, "4 blocks, order 2 -> 10 combinations");
     
@@ -187,7 +188,8 @@ START_TEST (test_get_next_block) {
     get_next_block(num_blocks, order, block_2coords); fail_if(block_2coords[0] != 2 || block_2coords[1] != 3, "Block: (2,2) -> (2,3)");
     get_next_block(num_blocks, order, block_2coords); fail_if(block_2coords[0] != 3 || block_2coords[1] != 3, "Block: (2,3) -> (3,3)");
     
-    int block_3coords[] = { 0, 0, 0 };
+    
+    // Order 3 combinations
     order = 3;
     num_combinations = 1;
     
@@ -222,6 +224,68 @@ START_TEST (test_get_next_block) {
 }
 END_TEST
 
+START_TEST (test_get_first_combination_in_block) {
+    int stride = 10;
+    int order = 2;
+    int block_2coords[] = { 0, 0 }, block_3coords[] = { 0, 0, 0 };
+    int *first_coords;
+    
+    // Order 2 combinations
+    first_coords = get_first_combination_in_block(order, block_2coords, stride);
+    fail_if(first_coords[0] != 0 || first_coords[1] != 1, "B(0,0) -> Pos(0,1)");
+    
+    block_2coords[0] = 0, block_2coords[1] = 1;
+    first_coords = get_first_combination_in_block(order, block_2coords, stride);
+    fail_if(first_coords[0] != 0 || first_coords[1] != 10, "B(0,1) -> Pos(0,10)");
+    
+    block_2coords[0] = 1, block_2coords[1] = 1;
+    first_coords = get_first_combination_in_block(order, block_2coords, stride);
+    fail_if(first_coords[0] != 10 || first_coords[1] != 11, "B(1,1) -> Pos(10,11)");
+    
+    block_2coords[0] = 1, block_2coords[1] = 3;
+    first_coords = get_first_combination_in_block(order, block_2coords, stride);
+    fail_if(first_coords[0] != 10 || first_coords[1] != 30, "B(1,3) -> Pos(10,30)");
+    
+    block_2coords[0] = 2, block_2coords[1] = 2;
+    first_coords = get_first_combination_in_block(order, block_2coords, stride);
+    fail_if(first_coords[0] != 20 || first_coords[1] != 21, "B(2,2) -> Pos(20,21)");
+    
+    block_2coords[0] = 2, block_2coords[1] = 1;
+    first_coords = get_first_combination_in_block(order, block_2coords, stride);
+    fail_if(first_coords[0] != 20 || first_coords[1] != 21, "B(2,1) -> Pos(20,21)");
+    
+    // Order 3 combinations
+    order = 3;
+    
+    first_coords = get_first_combination_in_block(order, block_3coords, stride);
+    fail_if(first_coords[0] != 0 || first_coords[1] != 1 || first_coords[2] != 2, "B(0,0) -> Pos(0,1,2)");
+    
+    block_3coords[0] = 0, block_3coords[1] = 1, block_3coords[1] = 1;
+    first_coords = get_first_combination_in_block(order, block_3coords, stride);
+    fail_if(first_coords[0] != 0 || first_coords[1] != 10 || first_coords[2] != 11, "B(0,1,1) -> Pos(0,10,11)");
+    
+    block_3coords[0] = 0, block_3coords[1] = 1, block_3coords[1] = 1;
+    first_coords = get_first_combination_in_block(order, block_3coords, stride);
+    fail_if(first_coords[0] != 0 || first_coords[1] != 10 || first_coords[2] != 11, "B(0,1,1) -> Pos(0,10,11)");
+    
+    block_3coords[0] = 1, block_3coords[1] = 1, block_3coords[1] = 1;
+    first_coords = get_first_combination_in_block(order, block_3coords, stride);
+    fail_if(first_coords[0] != 10 || first_coords[1] != 11 || first_coords[2] != 12, "B(1,1,1) -> Pos(10,11,12)");
+    
+    block_3coords[0] = 2, block_3coords[1] = 3, block_3coords[1] = 3;
+    first_coords = get_first_combination_in_block(order, block_3coords, stride);
+    fail_if(first_coords[0] != 20 || first_coords[1] != 30 || first_coords[2] != 31, "B(2,3,3) -> Pos(20,30,31)");
+    
+    block_3coords[0] = 3, block_3coords[1] = 3, block_3coords[1] = 2;
+    first_coords = get_first_combination_in_block(order, block_3coords, stride);
+    fail_if(first_coords[0] != 30 || first_coords[1] != 31 || first_coords[2] != 32, "B(3,3,2) -> Pos(30,31,32)");
+    
+    block_3coords[0] = 3, block_3coords[1] = 3, block_3coords[1] = 3;
+    first_coords = get_first_combination_in_block(order, block_3coords, stride);
+    fail_if(first_coords[0] != 30 || first_coords[1] != 31 || first_coords[2] != 32, "B(3,3,3) -> Pos(30,31,32)");
+}
+END_TEST
+
 
 /* ******************************
  *      Main entry point        *
@@ -245,9 +309,9 @@ Suite *create_test_suite(void) {
     tcase_add_test(tc_creation, test_process_records);
     
     TCase *tc_balancing = tcase_create("Work distribution and load balancing");
-//     tcase_add_unchecked_fixture(tc_balancing, setup_dataset, teardown_dataset);
     tcase_add_test(tc_balancing, test_get_block_stride);
     tcase_add_test(tc_balancing, test_get_next_block);
+    tcase_add_test(tc_balancing, test_get_first_combination_in_block);
     
     
     // Add test cases to a test suite
