@@ -1,8 +1,16 @@
 #include "model.h"
 
 
-int* get_counts(int order, uint8_t* gts, int num_affected, int num_unaffected) {
+int* get_counts(int order, uint8_t* genotypes, int num_affected, int num_unaffected) {
+    int num_masks;
+    int num_samples = num_affected + num_unaffected;
+    uint8_t *masks = get_masks(order, genotypes, num_samples, &num_masks);
+    int *counts = malloc(pow(3, order) * sizeof(int));
     
+    // TODO
+    
+    
+    return counts;
 }
 
 uint8_t* get_masks(int order, uint8_t *genotypes, int num_samples, int *num_masks) {
@@ -24,6 +32,7 @@ uint8_t* get_masks(int order, uint8_t *genotypes, int num_samples, int *num_mask
      * ...
      * SNP(order-1) - Mask genotype 2
      */
+    // TODO better to group by SNP?
     *num_masks = 3 * order * num_samples;
     uint8_t *masks = malloc(*num_masks * sizeof(uint8_t));
     int samples_per_order = order * num_samples;
@@ -32,7 +41,7 @@ uint8_t* get_masks(int order, uint8_t *genotypes, int num_samples, int *num_mask
     for (int i = 0; i < 3; i++) {
         for (int j = 0; j < order; j++) {
             for (int k = 0; k < num_samples; k++) {
-                // samples_per_order allows to group by mask (0,1,2)
+                // samples_per_order allows to group by genotype mask (0,1,2)
                 // num_samples allows to get the row inside a group
                 masks[i * samples_per_order + j * num_samples + k] = genotypes[j * num_samples + k] == i;
             }

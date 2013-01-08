@@ -1,17 +1,5 @@
 #include "dataset.h"
 
-// epistasis_dataset* epistasis_dataset_new() {
-//     epistasis_dataset *dataset = malloc (sizeof(epistasis_dataset));
-//     dataset->num_affected = 0;
-//     dataset->num_unaffected = 0;
-//     dataset->genotype_counts = array_list_new(1000, 1.5, COLLECTION_MODE_SYNCHRONIZED);
-//     return dataset;
-// }
-// 
-// void epistasis_dataset_free(epistasis_dataset *dataset) {
-//     array_list_free(dataset->genotype_counts, free);
-//     free(dataset);
-// }
 
 uint8_t *epistasis_dataset_process_records(vcf_record_t **variants, size_t num_variants, int *destination, int num_samples) {
     uint8_t *genotypes = malloc (num_variants * num_samples * sizeof(uint8_t));
@@ -48,19 +36,6 @@ uint8_t *epistasis_dataset_process_records(vcf_record_t **variants, size_t num_v
     return genotypes;
 }
 
-// void epistasis_dataset_add_entry(uint16_t *genotype_count, epistasis_dataset *dataset) {
-//     array_list_insert(genotype_count, dataset->genotype_counts);    
-// }
-// 
-// 
-// size_t epistasis_dataset_get_num_variants(epistasis_dataset *dataset) {
-//     return dataset->genotype_counts->size;
-// }
-// 
-// uint8_t *epistasis_dataset_get_variant_counts(size_t index, epistasis_dataset *dataset) {
-//     return array_list_get(index, dataset->genotype_counts);
-// }
-
 
 
 
@@ -69,13 +44,14 @@ int get_block_stride(size_t block_operations, int order) {
 }
 
 int get_next_block(int num_blocks, int order, int block_coordinates[order]) {
+    // TODO not using next_combination because get_next_block tolerates repetition!
     for (int i = order - 1; i >= 0; i--) {
         if (block_coordinates[i] + 1 < num_blocks) {
             // Increment coordinate, for example: (0,1,2) -> (0,1,3)
             (block_coordinates[i])++;
             
             // The following coordinates must be, at least, the same as the current one
-            // Let num_blocks=4, (0,1,3) -> (0,2,3) -> (0,2,2)
+            // Let num_blocks=4, (0,1,3) --increment--> (0,2,3) --correct--> (0,2,2)
             if (i < order - 1) {
                 for (int j = i + 1; j < order; j++) {
                     block_coordinates[j] = block_coordinates[i];
@@ -106,3 +82,89 @@ int* get_first_combination_in_block(int order, int block_coordinates[order], int
     
     return init_coordinates;
 }
+
+
+
+
+int* initial_combination(int k) {
+    int *comb = malloc (k * sizeof(int));
+    for (int i = 0; i < k; ++i)
+        comb[i] = i;
+    return comb;
+}
+
+static void print_combination(int comb[], unsigned long idx, int k) {
+    printf("%lu -> {", idx);
+    int i;
+    for (i = 0; i < k; ++i)
+//         printf("%d, ", comb[i] + 1);
+        printf("%d, ", comb[i]);
+    printf("\b\b}\n");
+}
+
+/**
+ * @brief  Generates the next combination of n elements as k after comb
+ *
+ * @param order the size of the subsets to generate
+ * @param comb the previous combination ( use (0, 1, 2, ..., k) for first)
+ * @param block_coordinates 
+ * @param stride the size of the original set
+ * @return 1 if a valid combination was found, 0 otherwise
+ **/
+int get_next_combination_in_block(int order, int comb[order], int block_coordinates[order], int stride) {
+    int i = order - 1;
+    ++comb[i];
+    print_combination(comb, (unsigned long) 1000, order);
+    
+//     while ((i > 0) && (comb[i] >= n - k + 1 + i)) {
+//         --i;
+//         ++comb[i];
+//         print_combination(comb, i, k);
+//     }
+    
+    // comb[i] compared against last position allowed in its block
+    while ((i > 0) && (comb[i] >= ((block_coordinates[i] + 1) * stride) - order + 1 + i)) {
+        --i;
+        ++comb[i];
+        print_combination(comb, i, order);
+    }
+    
+    print_combination(comb, (unsigned long) 2000, order);
+
+//     if (comb[0] > n - k) /* Combination (n-k, n-k+1, ..., n) reached */
+    printf("%d > %d? %d\n", comb[0], (block_coordinates[0] + 1) * stride, comb[0] > (block_coordinates[0] + 1) * stride);
+    /* Combination (n-k, n-k+1, ..., n) reached */
+    if (comb[0] > (block_coordinates[0] + 1) * stride - 1) {
+        return 0; /* No more combinations can be generated */
+    }
+
+    /* comb now looks like (..., x, n, n, n, ..., n).
+    Turn it into (..., x, x + 1, x + 2, ...) */
+//     for (i = i + 1; i < k; ++i) {
+//         comb[i] = comb[i - 1] + 1;
+//         print_combination(comb, i, k);
+//     }
+    for (i = i + 1; i < order; ++i) {
+        if (block_coordinates[i-1] == block_coordinates[i]) {
+            comb[i] = comb[i - 1] + 1;
+            print_combination(comb, i*10, order);
+        } else {
+            comb[i] = block_coordinates[i] * stride;
+            print_combination(comb, i, order);
+        }
+    }
+
+    print_combination(comb, (unsigned long) 3000, order);
+
+    return 1;
+}
+
+// bool check_combination(int order, int comb[order], int block_coordinates[order], int stride) {
+//     // TODO optimize combination generation so this step can be avoided
+//     for (int i = 0; i < order; i++) {
+//         if (comb[i] < block_coordinates[i] * stride) {
+//             return false;
+//         }
+//     }
+//     return true;
+// }
