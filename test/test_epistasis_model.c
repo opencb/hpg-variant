@@ -47,33 +47,42 @@ START_TEST(test_get_masks) {
     
     fail_unless(num_masks == 3 * samples_per_order, "There should be 3 GTs * 4 SNPs * 8 samples = 96 elements in the masks array");
     
-    uint8_t mask_0[] = { 1, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 0, 0, 1, 0 };
-    uint8_t mask_1[] = { 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0 };
-    uint8_t mask_2[] = { 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1 };
+    uint8_t mask_0[] = { 1, 1, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1 };
+    uint8_t mask_1[] = { 1, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0 };
+    uint8_t mask_2[] = { 0, 0, 1, 0, 1, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0 };
+    uint8_t mask_3[] = { 1, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1 };
     
-    print_combination(masks, 0, samples_per_order);
-    print_combination(mask_0, 0, samples_per_order);
-    print_combination(masks + samples_per_order, 1, samples_per_order);
-    print_combination(mask_1, 1, num_samples * 4);
-    print_combination(masks + samples_per_order * 2, 2, samples_per_order);
-    print_combination(mask_2, 2, num_samples * 4);
+    for (int i = 0; i < order; i++) {
+        print_combination(masks + i * 3 * num_samples, i, 3 * num_samples);
+    }
+    printf("\n");
+    print_combination(mask_0, 0, 3 * num_samples);
+    print_combination(mask_1, 1, 3 * num_samples);
+    print_combination(mask_2, 2, 3 * num_samples);
+    print_combination(mask_3, 3, 3 * num_samples);
     
-    for (int j = 0; j < samples_per_order; j++) {
-        char msg[23];
-        sprintf(msg, "Mask 0: %d should be %d\n", j, mask_0[j]);
+    for (int j = 0; j < num_samples; j++) {
+        char msg[26];
+        sprintf(msg, "Mask SNP0: %d should be %d\n", j, mask_0[j]);
         fail_if(masks[j] != mask_0[j], msg);
     }
     
-    for (int j = 0; j < samples_per_order; j++) {
-        char msg[23];
-        sprintf(msg, "Mask 1: %d should be %d\n", j, mask_1[j]);
-        fail_if(masks[num_samples * 4 + j] != mask_1[j], msg);
+    for (int j = 0; j < num_samples; j++) {
+        char msg[26];
+        sprintf(msg, "Mask SNP1: %d should be %d\n", j, mask_1[j]);
+        fail_if(masks[num_samples * 3 + j] != mask_1[j], msg);
     }
     
-    for (int j = 0; j < samples_per_order; j++) {
-        char msg[23];
-        sprintf(msg, "Mask 2: %d should be %d\n", j, mask_2[j]);
-        fail_if(masks[num_samples * 8 + j] != mask_2[j], msg);
+    for (int j = 0; j < num_samples; j++) {
+        char msg[26];
+        sprintf(msg, "Mask SNP2: %d should be %d\n", j, mask_2[j]);
+        fail_if(masks[num_samples * 6 + j] != mask_2[j], msg);
+    }
+    
+    for (int j = 0; j < num_samples; j++) {
+        char msg[26];
+        sprintf(msg, "Mask SNP3: %d should be %d\n", j, mask_3[j]);
+        fail_if(masks[num_samples * 9 + j] != mask_3[j], msg);
     }
 }
 END_TEST
