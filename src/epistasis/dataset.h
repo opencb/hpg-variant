@@ -26,4 +26,7 @@ int get_next_genotype_combination(int order, int comb[order]);
 
 
 void print_combination(int comb[], unsigned long idx, int k);
+
+void print_gt_combination(uint8_t comb[], unsigned long idx, int k);
+
 #endif

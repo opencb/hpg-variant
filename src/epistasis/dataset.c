@@ -70,7 +70,7 @@ int get_next_block(int num_blocks, int order, int block_coordinates[order]) {
 }
 
 int* get_first_combination_in_block(int order, int block_coordinates[order], int stride) {
-    int *init_coordinates = malloc(order * sizeof(int));    // TODO broken?
+    int *init_coordinates = malloc(order * sizeof(int));
     init_coordinates[0] = block_coordinates[0] * stride;
     
     for (int i = 1; i < order; i++) {
@@ -89,15 +89,6 @@ int* get_first_combination_in_block(int order, int block_coordinates[order], int
 
 
 
-
-void print_combination(int comb[], unsigned long idx, int k) {
-    printf("%lu -> {", idx);
-    int i;
-    for (i = 0; i < k; ++i)
-//         printf("%d, ", comb[i] + 1);
-        printf("%d, ", comb[i]);
-    printf("\b\b}\n");
-}
 
 /**
  * @brief  Generates the next combination of n elements as k after comb
@@ -157,14 +148,34 @@ int get_next_combination_in_block(int order, int comb[order], int block_coordina
 }
 
 int get_next_genotype_combination(int order, int comb[order]) {
-    for (int i = order - 1; i > 0; i--) {
+    for (int i = order - 1; i >= 0; i--) {
         ++comb[i];
         if (comb[i] < NUM_GENOTYPES) {
             return 1;
+        } else if (comb[0] >= NUM_GENOTYPES) {
+            return 0;
         } else {
             comb[i] = 0;
         }
     }
     
     return comb[0] < NUM_GENOTYPES;
+}
+
+void print_combination(int comb[], unsigned long idx, int k) {
+    printf("%lu -> {", idx);
+    int i;
+    for (i = 0; i < k; ++i)
+//         printf("%d, ", comb[i] + 1);
+        printf("%d, ", comb[i]);
+    printf("\b\b}\n");
+}
+
+void print_gt_combination(uint8_t comb[], unsigned long idx, int k) {
+    printf("%lu -> {", idx);
+    int i;
+    for (i = 0; i < k; ++i)
+//         printf("%d, ", comb[i] + 1);
+        printf("%d, ", comb[i]);
+    printf("\b\b}\n");
 }
