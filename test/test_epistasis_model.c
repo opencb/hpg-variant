@@ -5,6 +5,9 @@
 
 #include <check.h>
 
+#include <containers/array_list.h>
+
+#include "epistasis/mdr.h"
 #include "epistasis/model.h"
 
 
@@ -139,6 +142,21 @@ START_TEST(test_get_counts) {
 }
 END_TEST
 
+START_TEST (test_get_high_risk_combinations) {
+    int num_counts = 6, num_risky = 0;
+    int counts[] = { 8, 40, 4, 75, 9, 20, 8, 63 } ;
+    int num_affected = 10, num_unaffected = 80;
+    array_list_t* aux_ret = array_list_new(4, 1.2, COLLECTION_MODE_ASYNCHRONIZED);
+    
+    int *combinations = get_high_risk_combinations(counts, num_counts, num_affected, num_unaffected, 
+                                                   &num_risky, aux_ret, mdr_high_risk_combinations);
+    
+    fail_if(num_risky != 2, "There should be 2 risky combination");
+    fail_if(combinations[0] != 0, "Combination 0 (zero) should be risky");
+    fail_if(combinations[1] != 2, "Combination 2 should be risky");
+}
+END_TEST
+
 
 /* ******************************
  *      Main entry point        *
@@ -161,6 +179,7 @@ Suite *create_test_suite(void) {
     
     TCase *tc_counts = tcase_create("Genotype counts");
     tcase_add_test(tc_masks, test_get_counts);
+    tcase_add_test(tc_masks, test_get_high_risk_combinations);
     
     // Add test cases to a test suite
     Suite *fs = suite_create("Epistasis model");

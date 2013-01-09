@@ -9,7 +9,6 @@ int* get_counts(int order, uint8_t* genotypes, int num_affected, int num_unaffec
     uint8_t *masks = get_masks(order, genotypes, num_samples, &num_masks); // Grouped by SNP
     int *counts = malloc((*num_counts) * sizeof(int)); // Affected and unaffected
     
-    // TODO
     int comb[order]; memset(comb, 0, order * sizeof(int));
     int comb_idx = 0, flag = 1, count = 0;
     do {
@@ -42,6 +41,7 @@ int* get_counts(int order, uint8_t* genotypes, int num_affected, int num_unaffec
         
         comb_idx++;
     } while (get_next_genotype_combination(order, comb));
+    // TODO Optimization: precalculate combinations for a given order, replace {order,genotypes} by {combinations}
     
     return counts;
 }
@@ -79,4 +79,26 @@ uint8_t* get_masks(int order, uint8_t *genotypes, int num_samples, int *num_mask
     }
     
     return masks;
+}
+
+
+int* get_high_risk_combinations(int* counts, int num_counts, int num_affected, int num_unaffected, 
+                                int *num_risky, array_list_t* aux_ret, 
+                                bool (*test_func)(int, int, int, int, void **)) {
+    int *combinations = malloc ((num_counts / 2) * sizeof(int));
+    *num_risky = 0;
+    
+    for (int i = 0; i <= num_counts; i += 2) {
+        void *test_return_values;
+        bool is_high_risk = test_func(counts[i], counts[i+1], num_affected, num_unaffected, &test_return_values);
+        if (is_high_risk) {
+            combinations[*num_risky] = i / 2;
+            if (test_return_values) {
+                array_list_insert(test_return_values, aux_ret);
+            }
+            (*num_risky)++;
+        }
+    }
+    
+    return combinations;
 }
