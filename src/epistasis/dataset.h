@@ -22,4 +22,8 @@ int* get_first_combination_in_block(int order, int block_coordinates[order], int
 
 int get_next_combination_in_block(int order, int comb[order], int block_coordinates[order], int stride);
 
+int get_next_genotype_combination(int order, int comb[order]);
+
+
+void print_combination(int comb[], unsigned long idx, int k);
 #endif

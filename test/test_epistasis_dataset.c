@@ -73,6 +73,9 @@ void setup_dataset(void) {
 
 void teardown_dataset(void) {
 //     epistasis_dataset_free(dataset);
+    for (int i = 0; i < 3; i++) {
+        vcf_record_free(records[i]);
+    }
     free(records);
 }
 
@@ -233,56 +236,69 @@ START_TEST (test_get_first_combination_in_block) {
     // Order 2 combinations
     first_coords = get_first_combination_in_block(order, block_2coords, stride);
     fail_if(first_coords[0] != 0 || first_coords[1] != 1, "B(0,0) -> Pos(0,1)");
+    free(first_coords);
     
     block_2coords[0] = 0, block_2coords[1] = 1;
     first_coords = get_first_combination_in_block(order, block_2coords, stride);
     fail_if(first_coords[0] != 0 || first_coords[1] != 10, "B(0,1) -> Pos(0,10)");
+    free(first_coords);
     
     block_2coords[0] = 1, block_2coords[1] = 1;
     first_coords = get_first_combination_in_block(order, block_2coords, stride);
     fail_if(first_coords[0] != 10 || first_coords[1] != 11, "B(1,1) -> Pos(10,11)");
+    free(first_coords);
     
     block_2coords[0] = 1, block_2coords[1] = 3;
     first_coords = get_first_combination_in_block(order, block_2coords, stride);
     fail_if(first_coords[0] != 10 || first_coords[1] != 30, "B(1,3) -> Pos(10,30)");
+    free(first_coords);
     
     block_2coords[0] = 2, block_2coords[1] = 2;
     first_coords = get_first_combination_in_block(order, block_2coords, stride);
     fail_if(first_coords[0] != 20 || first_coords[1] != 21, "B(2,2) -> Pos(20,21)");
+    free(first_coords);
     
     block_2coords[0] = 2, block_2coords[1] = 1;
     first_coords = get_first_combination_in_block(order, block_2coords, stride);
     fail_if(first_coords[0] != 20 || first_coords[1] != 21, "B(2,1) -> Pos(20,21)");
+    free(first_coords);
     
     // Order 3 combinations
     order = 3;
     
     first_coords = get_first_combination_in_block(order, block_3coords, stride);
     fail_if(first_coords[0] != 0 || first_coords[1] != 1 || first_coords[2] != 2, "B(0,0) -> Pos(0,1,2)");
+    free(first_coords);
     
     block_3coords[0] = 0, block_3coords[1] = 1, block_3coords[1] = 1;
     first_coords = get_first_combination_in_block(order, block_3coords, stride);
     fail_if(first_coords[0] != 0 || first_coords[1] != 10 || first_coords[2] != 11, "B(0,1,1) -> Pos(0,10,11)");
+    free(first_coords);
     
     block_3coords[0] = 0, block_3coords[1] = 1, block_3coords[1] = 1;
     first_coords = get_first_combination_in_block(order, block_3coords, stride);
     fail_if(first_coords[0] != 0 || first_coords[1] != 10 || first_coords[2] != 11, "B(0,1,1) -> Pos(0,10,11)");
+    free(first_coords);
     
     block_3coords[0] = 1, block_3coords[1] = 1, block_3coords[1] = 1;
     first_coords = get_first_combination_in_block(order, block_3coords, stride);
     fail_if(first_coords[0] != 10 || first_coords[1] != 11 || first_coords[2] != 12, "B(1,1,1) -> Pos(10,11,12)");
+    free(first_coords);
     
     block_3coords[0] = 2, block_3coords[1] = 3, block_3coords[1] = 3;
     first_coords = get_first_combination_in_block(order, block_3coords, stride);
     fail_if(first_coords[0] != 20 || first_coords[1] != 30 || first_coords[2] != 31, "B(2,3,3) -> Pos(20,30,31)");
+    free(first_coords);
     
     block_3coords[0] = 3, block_3coords[1] = 3, block_3coords[1] = 2;
     first_coords = get_first_combination_in_block(order, block_3coords, stride);
     fail_if(first_coords[0] != 30 || first_coords[1] != 31 || first_coords[2] != 32, "B(3,3,2) -> Pos(30,31,32)");
+    free(first_coords);
     
     block_3coords[0] = 3, block_3coords[1] = 3, block_3coords[1] = 3;
     first_coords = get_first_combination_in_block(order, block_3coords, stride);
     fail_if(first_coords[0] != 30 || first_coords[1] != 31 || first_coords[2] != 32, "B(3,3,3) -> Pos(30,31,32)");
+    free(first_coords);
 }
 END_TEST
 

@@ -1,11 +1,14 @@
 #include "dataset.h"
 
 
+#define NUM_GENOTYPES   3
+
 uint8_t *epistasis_dataset_process_records(vcf_record_t **variants, size_t num_variants, int *destination, int num_samples) {
     uint8_t *genotypes = malloc (num_variants * num_samples * sizeof(uint8_t));
     for (int i = 0; i < num_variants; i++) {
         vcf_record_t *record = variants[i];
-        int gt_position = get_field_position_in_format("GT", strndup(record->format, record->format_len));
+        char *format_aux = strndup(record->format, record->format_len);
+        int gt_position = get_field_position_in_format("GT", format_aux);
         
         // For each sample, get genotype and increment counters in the dataset
 //         bool missing_found = false;
@@ -31,6 +34,7 @@ uint8_t *epistasis_dataset_process_records(vcf_record_t **variants, size_t num_v
             }
             free(sample);
         }
+        free(format_aux);
     }
     
     return genotypes;
@@ -66,7 +70,7 @@ int get_next_block(int num_blocks, int order, int block_coordinates[order]) {
 }
 
 int* get_first_combination_in_block(int order, int block_coordinates[order], int stride) {
-    int init_coordinates[order];    // TODO broken?
+    int *init_coordinates = malloc(order * sizeof(int));    // TODO broken?
     init_coordinates[0] = block_coordinates[0] * stride;
     
     for (int i = 1; i < order; i++) {
@@ -86,14 +90,7 @@ int* get_first_combination_in_block(int order, int block_coordinates[order], int
 
 
 
-int* initial_combination(int k) {
-    int *comb = malloc (k * sizeof(int));
-    for (int i = 0; i < k; ++i)
-        comb[i] = i;
-    return comb;
-}
-
-static void print_combination(int comb[], unsigned long idx, int k) {
+void print_combination(int comb[], unsigned long idx, int k) {
     printf("%lu -> {", idx);
     int i;
     for (i = 0; i < k; ++i)
@@ -159,12 +156,15 @@ int get_next_combination_in_block(int order, int comb[order], int block_coordina
     return 1;
 }
 
-// bool check_combination(int order, int comb[order], int block_coordinates[order], int stride) {
-//     // TODO optimize combination generation so this step can be avoided
-//     for (int i = 0; i < order; i++) {
-//         if (comb[i] < block_coordinates[i] * stride) {
-//             return false;
-//         }
-//     }
-//     return true;
-// }
+int get_next_genotype_combination(int order, int comb[order]) {
+    for (int i = order - 1; i > 0; i--) {
+        ++comb[i];
+        if (comb[i] < NUM_GENOTYPES) {
+            return 1;
+        } else {
+            comb[i] = 0;
+        }
+    }
+    
+    return comb[0] < NUM_GENOTYPES;
+}
