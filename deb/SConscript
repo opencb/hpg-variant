@@ -7,9 +7,19 @@ DEBNAME = "hpg-variant"
 DEBVERSION = "0.2.1"
 DEBMAINT = "Cristina Yenyxe Gonzalez Garcia <cgonzalez@cipf.es>"
 DEBARCH = "amd64"
-DEBDEPENDS = "libconfig8, libcurl4-openssl-dev, libgsl0ldbl, libxml2, zlib1g" # what are we dependent on?
-DEBDESC = "HPG Variant"
+DEBDEPENDS = "libc6, libconfig8, libcurl4-openssl-dev, libgsl0ldbl, libxml2, zlib1g"
 DEBSECTION = "science"
+DEBDESC = ''.join([ "Bioinformatics tool suite for analyzing genomic variations\n", 
+" HPG Variant is a suite for the analysis of genomic data extracted from Next\n",
+" Generation Sequencing technologies. It uses parallel computing technologies\n",
+" such as CUDA and OpenMP in order to reduce the processing times.\n",
+" It contains three binaries:\n",
+"  * hpg-var-effect retrieves the effect of genome variations.\n",
+"  * hpg-var-gwas conducts genomic-wide association analysis such as chi-square\n",
+"    and Fisher's exact test, and family-based analysis such as transmission\n",
+"    disequilibrium test (TDT).\n",
+"  * hpg-var-vcf allows one to preprocess files containing genome variations in\n",
+"    Variant Call Format." ])
 
 DEBFILES = [
     # Now we specify the files to be included in the .deb
@@ -57,7 +67,7 @@ for f in DEBFILES:
 # Now to create the control file:
 CONTROL_TEMPLATE = """
 Package: %s
-Priority: extra
+Priority: optional
 Section: %s
 Installed-Size: %s
 Maintainer: %s
@@ -76,9 +86,9 @@ def make_conffiles(target=None, source=None, env=None):
     conffile = ''
     for i in CONFFILES:
         conffile += i + '\n'
-    f = open(str(target[0]), 'w')
-    f.write(conffile)
-    f.close()
+    with open(str(target[0]), 'w') as f:
+        os.fchmod(f.fileno(), 0644)
+        f.write(conffile)
 
 # This function creates the control file from the template and info specified 
 # above, and works out the final size of the package.
@@ -89,9 +99,9 @@ def make_control(target=None, source=None, env=None):
     control_info = CONTROL_TEMPLATE % (
         DEBNAME, DEBSECTION, installed_size, DEBMAINT, DEBARCH, DEBVERSION,
         DEBDEPENDS, DEBDESC)
-    f = open(str(target[0]), 'w')
-    f.write(control_info)
-    f.close()
+    with open(str(target[0]), 'w') as f:
+        os.fchmod(f.fileno(), 0644)
+        f.write(control_info)
 
 # The following 2 functions create the md5sums file.
 def md5sum(filename):
@@ -108,9 +118,9 @@ def make_md5sums(target=None, source=None, env=None):
         src_filename = str(env.File(i[0]))
         dest_filename = str(env.File(i[1]))
         md5sums += "%s  ./%s\n" % (md5sum(dest_filename), src_filename)
-    f = open(str(target[0]), 'w')
-    f.write(md5sums)
-    f.close()
+    with open(str(target[0]), 'w') as f:
+        os.fchmod(f.fileno(), 0644)
+        f.write(md5sums)
     
 # We can generate the files in the DEBIAN folder
 env.Command(DEBCONFFILE, None, make_conffiles)
