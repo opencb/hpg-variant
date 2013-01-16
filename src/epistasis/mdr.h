@@ -5,8 +5,8 @@
 
 #include <commons/log.h>
 
-bool mdr_high_risk_combinations(int count_affected, int count_unaffected, 
-                                int samples_affected, int samples_unaffected, void **aux_return_values);
+bool mdr_high_risk_combinations(unsigned int count_affected, unsigned int count_unaffected, 
+                                unsigned int samples_affected, unsigned int samples_unaffected, void **aux_return_values);
 
 
 

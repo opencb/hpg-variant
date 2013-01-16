@@ -129,7 +129,8 @@ int create_dataset_from_vcf(shared_options_data_t* shared_options_data) {
 
                     num_variants += passed_records->size;
                     uint8_t *genotypes = epistasis_dataset_process_records((vcf_record_t**) passed_records->items, passed_records->size, 
-                                                                           destination, get_num_vcf_samples(file));
+                                                                           destination, get_num_vcf_samples(file),
+                                                                           shared_options_data->num_threads);
                     list_item_t *gt_item = list_item_new(1, passed_records->size, genotypes);
                     list_insert_item(gt_item, output_list);
                 }

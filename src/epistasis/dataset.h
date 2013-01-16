@@ -11,7 +11,8 @@
 #include <containers/array_list.h>
 
 
-uint8_t *epistasis_dataset_process_records(vcf_record_t** variants, size_t num_variants, int* destination, int num_samples);
+uint8_t *epistasis_dataset_process_records(vcf_record_t** variants, size_t num_variants, int* destination, 
+                                           int num_samples, int num_threads);
 
 
 int get_block_stride(size_t block_operations, int order);
