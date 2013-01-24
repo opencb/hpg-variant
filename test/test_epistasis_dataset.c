@@ -105,7 +105,7 @@ END_TEST
 
 START_TEST (test_process_records) {
     int *destination = group_individuals_by_phenotype(phenotypes, num_affected, num_unaffected);
-    uint8_t *genotypes = epistasis_dataset_process_records(records, num_records, destination, num_samples);
+    uint8_t *genotypes = epistasis_dataset_process_records(records, num_records, destination, num_samples, 4);
     
     fail_unless(genotypes[0] == 1, "Variant 1:1: Sample 0 must have genotype 0/1");
     fail_unless(genotypes[1] == 0, "Variant 1:1: Sample 1 must have genotype 0/0");

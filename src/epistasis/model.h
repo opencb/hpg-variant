@@ -29,8 +29,8 @@ int* get_counts(int order, uint8_t *genotypes, int num_affected, int num_unaffec
 uint8_t* get_masks(int order, uint8_t *genotypes, int num_samples, int *num_masks);
 
 
-int* get_high_risk_combinations(int *counts, int num_counts, int num_affected, int num_unaffected, 
-                                int *num_risky, array_list_t* aux_ret,
-                                bool (*test_func)(int, int, int, int, void **));
+int* get_high_risk_combinations(unsigned int *counts, unsigned int num_counts, unsigned int num_affected, unsigned int num_unaffected, 
+                                unsigned int *num_risky, array_list_t* aux_ret,
+                                bool (*test_func)(unsigned int, unsigned int, unsigned int, unsigned int, void **));
 
 #endif
