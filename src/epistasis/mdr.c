@@ -23,6 +23,8 @@ bool mdr_high_risk_combinations(unsigned int count_affected, unsigned int count_
     return normalized_affected - normalized_unaffected > 1;
 }
 
+
+
 int** get_k_folds(unsigned int samples_affected, unsigned int samples_unaffected, unsigned int k, unsigned int **sizes) {
     if (samples_affected < k) {
         LOG_WARN("There are less affected samples than folds and they won't be properly distributed");
@@ -42,123 +44,58 @@ int** get_k_folds(unsigned int samples_affected, unsigned int samples_unaffected
     array_shuffle_int(samples, samples_affected);
     array_shuffle_int(samples + samples_affected, samples_unaffected);
     
-//     printf("shuffled = { ");
-//     for (int i = 0; i < num_samples; i++) {
-//         printf("%d ", samples[i]);
-//     }
-//     printf(" }\n");
-    
-    // Get size of each fold (total, affected, unaffected)
-    unsigned int *fold_sizes = malloc(3 * k * sizeof(unsigned int));
+    // Get size of each fold (total, affected, unaffected) and initialize them
+    int **folds = malloc (k * sizeof(unsigned int*));
+    unsigned int *fold_sizes = calloc(3 * k, sizeof(unsigned int));
     unsigned int fold_size = num_samples / k;
     unsigned int mod_folds_size = num_samples % k;
     unsigned int all_folds_size = fold_size * k;
     for (int i = 0; i < k; i++) {
         // If the fold size can't be exactly the same for all folds, make distribution a bit uneven
         fold_sizes[3 * i] = (i < mod_folds_size) ? fold_size + 1 : fold_size ;
-        fold_sizes[3 * i + 1] = 0 ;
-        fold_sizes[3 * i + 2] = 0 ;
+        folds[i] = malloc(fold_sizes[3 * i] * sizeof(int));
     }
-    
-//     printf("fold sizes = { ");
-//     for (int i = 0; i < k; i++) {
-//         printf("%u ", fold_sizes[3*i]);
-//     }
-//     printf(" }\n");
     
     // Fill k-folds array
-    int **folds = malloc (k * sizeof(unsigned int*));
+    int total_affected_assigned = 0, total_unaffected_assigned = 0;
+    int fold_offset[k]; memset(fold_offset, 0, k * sizeof(int));
     
-    unsigned int total_affected_assigned = 0, total_unaffected_assigned = 0;
-    double dbl_affected_per_fold, dbl_unaffected_per_fold;
-    unsigned int affected_per_fold, unaffected_per_fold;
-    for (int i = 0; i < k; i++) {
-        dbl_affected_per_fold = (double) samples_affected * fold_sizes[3 * i] / num_samples;
-        dbl_unaffected_per_fold = (double) samples_unaffected * fold_sizes[3 * i] / num_samples;
-        affected_per_fold = round(dbl_affected_per_fold);
-        unaffected_per_fold = round(dbl_unaffected_per_fold);
-        
-        if (affected_per_fold + unaffected_per_fold < fold_sizes[3 * i]) {
-            // If the number of samples assigned is too small, check which stratum is more 
-            // reasonable to have rounded down, and increment the size of the other one
-            if (fmod(dbl_affected_per_fold, 1.0) < fmod(dbl_unaffected_per_fold, 1.0)) {
-                unaffected_per_fold++;
-            } else {
-                affected_per_fold++;
-            }
-        } else if (affected_per_fold + unaffected_per_fold > fold_sizes[3 * i]) {
-            // If the number of samples assigned is too large, check which stratum is more 
-            // reasonable to have rounded up, and decrement the size of the other one
-            if (fmod(dbl_affected_per_fold, 1.0) > fmod(dbl_unaffected_per_fold, 1.0)) {
-                unaffected_per_fold--;
-            } else {
-                affected_per_fold--;
-            }
-        }
-        
-        LOG_DEBUG_F("[%u] affected = %u\tunaffected = %u\n", i, affected_per_fold, unaffected_per_fold);
-        
-        // Assign affected and unaffected indices to the fold
-        folds[i] = malloc((affected_per_fold + unaffected_per_fold) * sizeof(unsigned int));
-        for (int j = 0; j < affected_per_fold + unaffected_per_fold; j++) {
-            folds[i][j] = -1;
-        }
-        
-        unsigned int fold_affected_assigned = 0, fold_unaffected_assigned = 0;
-        
-        for (int j = 0; j < affected_per_fold && total_affected_assigned + j < samples_affected; j++) {
-            // Affected samples are formerly positioned in the samples array
-            folds[i][j] = samples[total_affected_assigned + j];
-            fold_affected_assigned++;
-        }
-        for (int j = 0; j < unaffected_per_fold && total_unaffected_assigned + j < samples_unaffected; j++) {
-            // Unaffected samples are positioned after affected ones
-            folds[i][affected_per_fold + j] = samples[samples_affected + total_unaffected_assigned + j];
-            fold_unaffected_assigned++;
-        }
-        
-        total_affected_assigned += fold_affected_assigned;
-        total_unaffected_assigned += fold_unaffected_assigned;
-        
-        fold_sizes[3 * i + 1] = fold_affected_assigned;
-        fold_sizes[3 * i + 2] = fold_unaffected_assigned;
-        
-        LOG_DEBUG_F("[%u] affected assigned = %u\tunaffected assigned = %u\n", i, fold_affected_assigned, fold_unaffected_assigned);
-        LOG_DEBUG_F("total [%u] affected assigned = %u\tunaffected assigned = %u\n", i, total_affected_assigned, total_unaffected_assigned);
-        
-    }
-    
-    // Just in case the number of assigned un/affected doesn't match the total,
-    // distribute the missing ones among the k-folds
+    // While the number of assigned samples is less than the total, assign one to each fold
     int i = 0;
-    while (total_affected_assigned < samples_affected) {
-        folds[i] = realloc(folds[i], (fold_sizes[3 * i] + 1) * sizeof(unsigned int));
-        folds[i][fold_sizes[3 * i]] = samples[total_affected_assigned];
+    while (total_affected_assigned + total_unaffected_assigned < num_samples) {
+        for (i = 0; i < k && total_affected_assigned + total_unaffected_assigned < num_samples; i++) {
+            int my_offset = fold_offset[i];
+            
+            if (total_affected_assigned < samples_affected) {
+                if (my_offset == fold_sizes[3 * i]) { 
+                    folds[i] = realloc(folds[i], (fold_sizes[3 * i] + 1) * sizeof(int));
+                }
+                
+                folds[i][my_offset] = samples[total_affected_assigned];
+                (fold_sizes[3 * i + 1])++ ;
+                total_affected_assigned++;
+                my_offset++; fold_offset[i] = my_offset;
+            }
+            
+            if (total_unaffected_assigned < samples_unaffected) {
+                if (my_offset == fold_sizes[3 * i]) {
+                    folds[i] = realloc(folds[i], (fold_sizes[3 * i] + 1) * sizeof(int));
+                }
+                
+                folds[i][my_offset] = samples[samples_affected + total_unaffected_assigned];
+                (fold_sizes[3 * i + 2])++ ;
+                total_unaffected_assigned++;
+                my_offset++; fold_offset[i] = my_offset;
+            }
+        }
         
-        (fold_sizes[3 * i])++;
-        (fold_sizes[3 * i + 1])++;
-        total_affected_assigned++;
-        
-        i = (i < k) ? i + 1 : 0;
-    }
-    
-    i = 0;
-    while (total_unaffected_assigned < samples_unaffected) {
-        folds[i] = realloc(folds[i], (fold_sizes[3 * i] + 1) * sizeof(unsigned int));
-        folds[i][fold_sizes[3 * i]] = samples[samples_affected + total_unaffected_assigned];
-        
-        (fold_sizes[3 * i])++;
-        (fold_sizes[3 * i + 2])++;
-        total_unaffected_assigned++;
+        LOG_DEBUG_F("total [%u] affected assigned = %u\tunaffected assigned = %u\n", i, total_affected_assigned, total_unaffected_assigned);
         
         i = (i < k) ? i + 1 : 0;
     }
     
     // Adjust to true values, compacting the array and removing -1 values
     for (int i = 0; i < k; i++) {
-        int *aux = compact_array(folds[i], fold_sizes[3 * i]);
-        free(folds[i]);
-        folds[i] = aux;
         fold_sizes[3 * i] = fold_sizes[3 * i + 1] + fold_sizes[3 * i + 2];
     }
     
@@ -174,26 +111,4 @@ int** get_k_folds(unsigned int samples_affected, unsigned int samples_unaffected
     
     *sizes = fold_sizes;
     return folds;
-}
-
-int* compact_array(int *array, size_t n) {
-    // Get size of the compacted array
-    int final_size = n;
-    for (int i = 0; i < n; i++) {
-        if (array[i] < 0) {
-            final_size--;
-        }
-    }
-    
-    // Remove elements with value less than zero
-    int *compacted = malloc(final_size * sizeof(int));
-    int k = 0;
-    for (int i = 0; i < n; i++) {
-        if (array[i] >= 0) {
-            compacted[k] = array[i];
-            k++;
-        }
-    }
-    
-    return compacted;
 }

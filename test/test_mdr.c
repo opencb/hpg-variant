@@ -52,8 +52,8 @@ START_TEST (test_get_k_folds) {
     folds = get_k_folds(150, 250, 4, &sizes);
     i = 0; fail_unless (sizes[3 * i] == 101 && sizes[3 * i + 1] == 38 && sizes[3 * i + 2] == 63, "Fold #0 size must be (101,38,63)");
     i = 1; fail_unless (sizes[3 * i] == 101 && sizes[3 * i + 1] == 38 && sizes[3 * i + 2] == 63, "Fold #1 size must be (101,38,63)");
-    i = 2; fail_unless (sizes[3 * i] == 100 && sizes[3 * i + 1] == 37 && sizes[3 * i + 2] == 63, "Fold #2 size must be (100,37,63)");
-    i = 3; fail_unless (sizes[3 * i] == 98 && sizes[3 * i + 1] == 37 && sizes[3 * i + 2] == 61, "Fold #3 size must be (98,37,61)");
+    i = 2; fail_unless (sizes[3 * i] == 99 && sizes[3 * i + 1] == 37 && sizes[3 * i + 2] == 62, "Fold #2 size must be (99,37,62)");
+    i = 3; fail_unless (sizes[3 * i] == 99 && sizes[3 * i + 1] == 37 && sizes[3 * i + 2] == 62, "Fold #3 size must be (99,37,62)");
     
     // 400 { 150 aff, 250 unaff} in 10-fold
     k = 10;
@@ -74,10 +74,11 @@ START_TEST (test_get_k_folds) {
     k = 7;
     folds = get_k_folds(50, 75, k, &sizes);
     i = 0; fail_unless (sizes[3 * i] == 19 && sizes[3 * i + 1] == 8 && sizes[3 * i + 2] == 11, "Fold #0 size must be (19,8,11)");
-    for (i = 1; i < k-1; i++) {
-        fail_unless (sizes[3 * i] == 18 && sizes[3 * i + 1] == 7 && sizes[3 * i + 2] == 11, "Fold size must be (19,7,11)");
+    for (i = 1; i < k-2; i++) {
+        fail_unless (sizes[3 * i] == 18 && sizes[3 * i + 1] == 7 && sizes[3 * i + 2] == 11, "Fold size must be (18,7,11)");
     }
-    i = k-1; fail_unless (sizes[3 * i] == 16 && sizes[3 * i + 1] == 7 && sizes[3 * i + 2] == 9, "Fold #0 size must be (16,7,9)");
+    i = k-2; fail_unless (sizes[3 * i] == 17 && sizes[3 * i + 1] == 7 && sizes[3 * i + 2] == 10, "Fold k-2 size must be (17,7,10)");
+    i = k-1; fail_unless (sizes[3 * i] == 17 && sizes[3 * i + 1] == 7 && sizes[3 * i + 2] == 10, "Fold k-1 size must be (17,7,10)");
     
     // 125 { 50 aff, 75 unaff} in 10-fold
     k = 10;
@@ -128,11 +129,11 @@ START_TEST (test_get_k_folds) {
     for (i = 0; i < 4; i++) {
         fail_unless (sizes[3 * i] == 3 && sizes[3 * i + 1] == 2 && sizes[3 * i + 2] == 1, "Fold size must be (3,2,1)");
     }
-    for (i = 4; i < 8; i++) {
+    for (i = 4; i < 6; i++) {
         fail_unless (sizes[3 * i] == 2 && sizes[3 * i + 1] == 2 && sizes[3 * i + 2] == 0, "Fold size must be (2,2,0)");
     }
-    for (i = 9; i < k; i++) {
-        fail_unless (sizes[3 * i] == 0 && sizes[3 * i + 1] == 0 && sizes[3 * i + 2] == 0, "Fold size must be (0,0,0)");
+    for (i = 6; i < k; i++) {
+        fail_unless (sizes[3 * i] == 1 && sizes[3 * i + 1] == 1 && sizes[3 * i + 2] == 0, "Fold size must be (1,1,0)");
     }
     
 }
