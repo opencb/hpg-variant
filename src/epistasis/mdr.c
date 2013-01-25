@@ -33,17 +33,10 @@ int** get_k_folds(unsigned int samples_affected, unsigned int samples_unaffected
     
     // Fill an array of samples identifiers
     unsigned int num_samples = samples_affected + samples_unaffected;
-//     int *samples = malloc (num_samples * sizeof(int));
     int samples[num_samples];
     for (int i = 0; i < num_samples; i++) {
         samples[i] = i;
     }
-    
-//     printf("before = { ");
-//     for (int i = 0; i < samples_affected; i++) {
-//         printf("%d ", samples[i]);
-//     }
-//     printf(" }\n");
     
     // Shuffle affected and unaffected samples separately in order to guarantee they are not mixed
     array_shuffle_int(samples, samples_affected);
@@ -103,7 +96,7 @@ int** get_k_folds(unsigned int samples_affected, unsigned int samples_unaffected
             }
         }
         
-//         printf("[%u] affected = %u\tunaffected = %u\n", i, affected_per_fold, unaffected_per_fold);
+        LOG_DEBUG_F("[%u] affected = %u\tunaffected = %u\n", i, affected_per_fold, unaffected_per_fold);
         
         // Assign affected and unaffected indices to the fold
         folds[i] = malloc((affected_per_fold + unaffected_per_fold) * sizeof(unsigned int));
@@ -130,8 +123,8 @@ int** get_k_folds(unsigned int samples_affected, unsigned int samples_unaffected
         fold_sizes[3 * i + 1] = fold_affected_assigned;
         fold_sizes[3 * i + 2] = fold_unaffected_assigned;
         
-//         printf("[%u] affected assigned = %u\tunaffected assigned = %u\n", i, fold_affected_assigned, fold_unaffected_assigned);
-//         printf("total [%u] affected assigned = %u\tunaffected assigned = %u\n", i, total_affected_assigned, total_unaffected_assigned);
+        LOG_DEBUG_F("[%u] affected assigned = %u\tunaffected assigned = %u\n", i, fold_affected_assigned, fold_unaffected_assigned);
+        LOG_DEBUG_F("total [%u] affected assigned = %u\tunaffected assigned = %u\n", i, total_affected_assigned, total_unaffected_assigned);
         
     }
     
@@ -146,7 +139,6 @@ int** get_k_folds(unsigned int samples_affected, unsigned int samples_unaffected
         (fold_sizes[3 * i + 1])++;
         total_affected_assigned++;
         
-//         printf("tmp%d -> affected assigned = %u\tunaffected assigned = %u\n", i, total_affected_assigned, total_unaffected_assigned);
         i = (i < k) ? i + 1 : 0;
     }
     
@@ -162,14 +154,14 @@ int** get_k_folds(unsigned int samples_affected, unsigned int samples_unaffected
         i = (i < k) ? i + 1 : 0;
     }
     
-//     // Adjust to true values (TODO consider -1 values!)
-//     for (int i = 0; i < k; i++) {
-//         fold_sizes[3 * i] = fold_sizes[3 * i + 1] + fold_sizes[3 * i + 2];
-//     }
+    // Adjust to true values, compacting the array and removing -1 values
+    for (int i = 0; i < k; i++) {
+        int *aux = compact_array(folds[i], fold_sizes[3 * i]);
+        free(folds[i]);
+        folds[i] = aux;
+        fold_sizes[3 * i] = fold_sizes[3 * i + 1] + fold_sizes[3 * i + 2];
+    }
     
-    
-//     printf("final -> affected assigned = %u\tunaffected assigned = %u\n", total_affected_assigned, total_unaffected_assigned);
-//         
 //     printf("FOLDS:\n");
 //     for (int i = 0; i < k; i++) {
 //         printf("[%d] size (%d,%d,%d) -> ", i, fold_sizes[3 * i], fold_sizes[3 * i + 1], fold_sizes[3 * i + 2]);
@@ -182,4 +174,26 @@ int** get_k_folds(unsigned int samples_affected, unsigned int samples_unaffected
     
     *sizes = fold_sizes;
     return folds;
+}
+
+int* compact_array(int *array, size_t n) {
+    // Get size of the compacted array
+    int final_size = n;
+    for (int i = 0; i < n; i++) {
+        if (array[i] < 0) {
+            final_size--;
+        }
+    }
+    
+    // Remove elements with value less than zero
+    int *compacted = malloc(final_size * sizeof(int));
+    int k = 0;
+    for (int i = 0; i < n; i++) {
+        if (array[i] >= 0) {
+            compacted[k] = array[i];
+            k++;
+        }
+    }
+    
+    return compacted;
 }

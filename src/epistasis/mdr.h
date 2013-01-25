@@ -13,4 +13,6 @@ bool mdr_high_risk_combinations(unsigned int count_affected, unsigned int count_
 
 int** get_k_folds(unsigned int samples_affected, unsigned int samples_unaffected, unsigned int k, unsigned int **sizes);
 
+int* compact_array(int *array, size_t n);
+
 #endif
