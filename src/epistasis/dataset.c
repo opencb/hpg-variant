@@ -98,25 +98,13 @@ int* get_first_combination_in_block(int order, int block_coordinates[order], int
 int get_next_combination_in_block(int order, int comb[order], int block_coordinates[order], int stride) {
     int i = order - 1;
     ++comb[i];
-//     print_combination(comb, (unsigned long) 1000, order);
-    
-//     while ((i > 0) && (comb[i] >= n - k + 1 + i)) {
-//         --i;
-//         ++comb[i];
-//         print_combination(comb, i, k);
-//     }
     
     // comb[i] compared against last position allowed in its block
     while ((i > 0) && (comb[i] >= ((block_coordinates[i] + 1) * stride) - order + 1 + i)) {
         --i;
         ++comb[i];
-//         print_combination(comb, i, order);
     }
     
-//     print_combination(comb, (unsigned long) 2000, order);
-
-//     if (comb[0] > n - k) /* Combination (n-k, n-k+1, ..., n) reached */
-    LOG_DEBUG_F("%d > %d? %d\n", comb[0], (block_coordinates[0] + 1) * stride, comb[0] > (block_coordinates[0] + 1) * stride);
     /* Combination (n-k, n-k+1, ..., n) reached */
     if (comb[0] > (block_coordinates[0] + 1) * stride - 1) {
         return 0; /* No more combinations can be generated */
@@ -131,11 +119,13 @@ int get_next_combination_in_block(int order, int comb[order], int block_coordina
     for (i = i + 1; i < order; ++i) {
         if (block_coordinates[i-1] == block_coordinates[i]) {
             comb[i] = comb[i - 1] + 1;
-//             print_combination(comb, i*10, order);
         } else {
             comb[i] = block_coordinates[i] * stride;
-//             print_combination(comb, i, order);
         }
+    }
+    
+    if (comb[order - 1] > (block_coordinates[order - 1] + 1) * stride - 1) {
+        return 0; /* No more combinations can be generated */
     }
 
 //     print_combination(comb, (unsigned long) 3000, order);
