@@ -25,24 +25,24 @@ bool mdr_high_risk_combinations(unsigned int count_affected, unsigned int count_
 
 
 
-int** get_k_folds(unsigned int samples_affected, unsigned int samples_unaffected, unsigned int k, unsigned int **sizes) {
-    if (samples_affected < k) {
+int** get_k_folds(unsigned int num_samples_affected, unsigned int num_samples_unaffected, unsigned int k, unsigned int **sizes) {
+    if (num_samples_affected < k) {
         LOG_WARN("There are less affected samples than folds and they won't be properly distributed");
     }
-    if (samples_unaffected < k) {
+    if (num_samples_unaffected < k) {
         LOG_WARN("There are less unaffected samples than folds and they won't be properly distributed");
     }
     
     // Fill an array of samples identifiers
-    unsigned int num_samples = samples_affected + samples_unaffected;
+    unsigned int num_samples = num_samples_affected + num_samples_unaffected;
     int samples[num_samples];
     for (int i = 0; i < num_samples; i++) {
         samples[i] = i;
     }
     
     // Shuffle affected and unaffected samples separately in order to guarantee they are not mixed
-    array_shuffle_int(samples, samples_affected);
-    array_shuffle_int(samples + samples_affected, samples_unaffected);
+    array_shuffle_int(samples, num_samples_affected);
+    array_shuffle_int(samples + num_samples_affected, num_samples_unaffected);
     
     // Get size of each fold (total, affected, unaffected) and initialize them
     int **folds = malloc (k * sizeof(unsigned int*));
@@ -53,39 +53,36 @@ int** get_k_folds(unsigned int samples_affected, unsigned int samples_unaffected
     for (int i = 0; i < k; i++) {
         // If the fold size can't be exactly the same for all folds, make distribution a bit uneven
         fold_sizes[3 * i] = (i < mod_folds_size) ? fold_size + 1 : fold_size ;
-        folds[i] = malloc(fold_sizes[3 * i] * sizeof(int));
+    }
+    
+    // Temporary buffers for storing affected and unaffected samples,
+    // that will be merged so they are properly grouped for counting
+    int total_affected_assigned = 0, total_unaffected_assigned = 0;
+    int *samples_affected[k];
+    int *samples_unaffected[k];
+    for (int i = 0; i < k; i++) {
+        samples_affected[i] = malloc(fold_sizes[3 * i] * sizeof(int));
+        samples_unaffected[i] = malloc(fold_sizes[3 * i] * sizeof(int));
     }
     
     // Fill k-folds array
-    int total_affected_assigned = 0, total_unaffected_assigned = 0;
-    int fold_offset[k]; memset(fold_offset, 0, k * sizeof(int));
-    
     // While the number of assigned samples is less than the total, assign one to each fold
     int i = 0;
     while (total_affected_assigned + total_unaffected_assigned < num_samples) {
         for (i = 0; i < k && total_affected_assigned + total_unaffected_assigned < num_samples; i++) {
-            int my_offset = fold_offset[i];
+            int my_offset_aff = fold_sizes[3 * i + 1];
+            int my_offset_unaff = fold_sizes[3 * i + 2];
             
-            if (total_affected_assigned < samples_affected) {
-                if (my_offset == fold_sizes[3 * i]) { 
-                    folds[i] = realloc(folds[i], (fold_sizes[3 * i] + 1) * sizeof(int));
-                }
-                
-                folds[i][my_offset] = samples[total_affected_assigned];
+            if (total_affected_assigned < num_samples_affected) {
+                samples_affected[i][my_offset_aff] = samples[total_affected_assigned];
                 (fold_sizes[3 * i + 1])++ ;
-                total_affected_assigned++;
-                my_offset++; fold_offset[i] = my_offset;
+                total_affected_assigned++ ;
             }
             
-            if (total_unaffected_assigned < samples_unaffected) {
-                if (my_offset == fold_sizes[3 * i]) {
-                    folds[i] = realloc(folds[i], (fold_sizes[3 * i] + 1) * sizeof(int));
-                }
-                
-                folds[i][my_offset] = samples[samples_affected + total_unaffected_assigned];
+            if (total_unaffected_assigned < num_samples_unaffected) {
+                samples_unaffected[i][my_offset_unaff] = samples[num_samples_affected + total_unaffected_assigned];
                 (fold_sizes[3 * i + 2])++ ;
-                total_unaffected_assigned++;
-                my_offset++; fold_offset[i] = my_offset;
+                total_unaffected_assigned++ ;
             }
         }
         
@@ -97,6 +94,20 @@ int** get_k_folds(unsigned int samples_affected, unsigned int samples_unaffected
     // Adjust to true values, compacting the array and removing -1 values
     for (int i = 0; i < k; i++) {
         fold_sizes[3 * i] = fold_sizes[3 * i + 1] + fold_sizes[3 * i + 2];
+        folds[i] = malloc(fold_sizes[3 * i] * sizeof(int));
+        
+        // Insert affected samples
+        memcpy(folds[i], samples_affected[i], fold_sizes[3 * i + 1] * sizeof(int));
+        // Insert unaffected samples
+        memcpy(folds[i] + fold_sizes[3 * i + 1], samples_unaffected[i], fold_sizes[3 * i + 2] * sizeof(int));
+        // Sort them
+        qsort(folds[i], fold_sizes[3 * i], sizeof(int), compare_int);
+    }
+    
+    // Free temporary data
+    for (int i = 0; i < k; i++) {
+        free(samples_affected[i]);
+        free(samples_unaffected[i]);
     }
     
 //     printf("FOLDS:\n");

@@ -175,7 +175,7 @@ START_TEST (test_get_next_block) {
     int num_combinations = 1;
     
     // Order 2 combinations
-    while (!get_next_block(num_blocks, order, block_2coords)) { num_combinations++; }
+    while (get_next_block(num_blocks, order, block_2coords)) { num_combinations++; }
     fail_if(num_combinations != 10, "4 blocks, order 2 -> 10 combinations");
     
     block_2coords[0] = block_2coords[1] = 0;
@@ -196,7 +196,7 @@ START_TEST (test_get_next_block) {
     order = 3;
     num_combinations = 1;
     
-    while (!get_next_block(num_blocks, order, block_3coords)) { num_combinations++; }
+    while (get_next_block(num_blocks, order, block_3coords)) { num_combinations++; }
     fail_if(num_combinations != 20, "4 blocks, order 3 -> 20 combinations");
     
     block_3coords[0] = block_3coords[1] = block_3coords[2] = 0;
