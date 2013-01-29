@@ -9,10 +9,17 @@ int* get_counts(int order, uint8_t* genotypes, int num_affected, int num_unaffec
     uint8_t *masks = get_masks(order, genotypes, num_samples, &num_masks); // Grouped by SNP
     int *counts = malloc((*num_counts) * sizeof(int)); // Affected and unaffected
     
-    int comb[order]; memset(comb, 0, order * sizeof(int));
-    int comb_idx = 0, flag = 1, count = 0;
-    do {
-//         print_combination(comb, comb_idx, order);
+    int *comb;
+    int flag = 1, count = 0;
+    int num_combinations;
+    
+    // TODO Precalculate combinations outside for a given order -> add {combinations} as argument
+    int **combinations = get_genotype_combinations(order, &num_combinations);
+    
+    for (int i = 0; i < num_combinations; i++) {
+        comb = combinations[i];
+//         print_combination(comb, i, order);
+        
         flag = 1, count = 0;
         for (int i = 0; i < num_affected; i++) {
             for (int j = 0; j < order && flag; j++) {
@@ -23,8 +30,8 @@ int* get_counts(int order, uint8_t* genotypes, int num_affected, int num_unaffec
             }
             flag = 1;
         }
-//         printf("aff comb idx (%d) = %d\n", comb_idx * 2, count);
-        counts[comb_idx * 2] = count;
+        LOG_DEBUG_F("aff comb idx (%d) = %d\n", i * 2, count);
+        counts[i * 2] = count;
         
         flag = 1, count = 0;
         for (int i = num_affected; i < num_samples; i++) {
@@ -36,12 +43,9 @@ int* get_counts(int order, uint8_t* genotypes, int num_affected, int num_unaffec
             }
             flag = 1;
         }
-//         printf("unaff comb idx (%d) = %d\n", comb_idx * 2 + 1, count);
-        counts[comb_idx * 2 + 1] = count;
-        
-        comb_idx++;
-    } while (get_next_genotype_combination(order, comb));
-    // TODO Optimization: precalculate combinations for a given order, replace {order,genotypes} by {combinations}
+        LOG_DEBUG_F("unaff comb idx (%d) = %d\n", i * 2 + 1, count);
+        counts[i * 2 + 1] = count;
+    }
     
     return counts;
 }
@@ -50,19 +54,19 @@ uint8_t* get_masks(int order, uint8_t *genotypes, int num_samples, int *num_mask
     /* 
      * Structure: Genotypes of a SNP in each 'row'
      * 
-     * SNP(0) - Mask genotype 0
-     * SNP(0) - Mask genotype 1
-     * SNP(0) - Mask genotype 2
+     * SNP(0) - Mask genotype 0 (all samples)
+     * SNP(0) - Mask genotype 1 (all samples)
+     * SNP(0) - Mask genotype 2 (all samples)
      * 
-     * SNP(1) - Mask genotype 0
-     * SNP(1) - Mask genotype 1
-     * SNP(1) - Mask genotype 2
+     * SNP(1) - Mask genotype 0 (all samples)
+     * SNP(1) - Mask genotype 1 (all samples)
+     * SNP(1) - Mask genotype 2 (all samples)
      * 
      * ...
      * 
-     * SNP(order-1) - Mask genotype 0
-     * SNP(order-1) - Mask genotype 1
-     * SNP(order-1) - Mask genotype 2
+     * SNP(order-1) - Mask genotype 0 (all samples)
+     * SNP(order-1) - Mask genotype 1 (all samples)
+     * SNP(order-1) - Mask genotype 2 (all samples)
      */
     *num_masks = NUM_GENOTYPES * order * num_samples;
     uint8_t *masks = malloc((*num_masks) * sizeof(uint8_t));

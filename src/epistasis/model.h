@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <math.h>
 
+#include <commons/log.h>
 #include <containers/array_list.h>
 
 #include "dataset.h"

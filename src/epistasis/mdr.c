@@ -124,9 +124,9 @@ int** get_k_folds(unsigned int num_samples_affected, unsigned int num_samples_un
     return folds;
 }
 
-int *get_genotypes_for_combination_and_fold(int order, int comb[order], int num_samples, int num_samples_in_fold, int fold_samples[num_samples_in_fold], 
+uint8_t *get_genotypes_for_combination_and_fold(int order, int comb[order], int num_samples, int num_samples_in_fold, int fold_samples[num_samples_in_fold], 
                                             int block_coordinates[order], int stride, uint8_t **block_starts) {
-    int *genotypes = malloc (order * num_samples_in_fold * sizeof(int));
+    uint8_t *genotypes = malloc (order * num_samples_in_fold * sizeof(uint8_t));
     
     LOG_DEBUG_F("start 0 = %d\tstart 1 = %d\n", *block_starts[0], *block_starts[1]);
     

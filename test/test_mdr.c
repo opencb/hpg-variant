@@ -243,7 +243,7 @@ START_TEST (test_get_genotypes_for_combination_and_fold) {
     
     int block_2d[] = { 0, 0 };
     do {
-        printf("BLOCK %d,%d\n", block_2d[0], block_2d[1]);
+//         printf("BLOCK %d,%d\n", block_2d[0], block_2d[1]);
         uint8_t *block_starts[2];
         block_starts[0] = genotypes + block_2d[0] * stride * num_samples;
         block_starts[1] = genotypes + block_2d[1] * stride * num_samples;
@@ -255,19 +255,19 @@ START_TEST (test_get_genotypes_for_combination_and_fold) {
         // Run for each fold
         for (int i = 0; i < num_folds; i++) {
             int next_fold = (i < 2) ? i + 1 : 0 ;
-            int *val = get_genotypes_for_combination_and_fold(order, comb, num_samples, num_samples_in_fold, folds[i], block_2d, stride, block_starts);
+            uint8_t *val = get_genotypes_for_combination_and_fold(order, comb, num_samples, num_samples_in_fold, folds[i], block_2d, stride, block_starts);
            
 //             printf("Combination (%d,%d) and fold %d\n", comb[0], comb[1], i);
             
             // Test first SNP
-//             printf("%d = %d\n", val[0], *(block_starts[0] + snp_offset[0] * num_samples + i * num_samples_in_fold));
+//             printf("%u = %d\n", val[0], *(block_starts[0] + snp_offset[0] * num_samples + i * num_samples_in_fold));
             fail_if(val[0] != *(block_starts[0] + snp_offset[0] * num_samples + i * num_samples_in_fold), "Value 0 must be aligned with offset: fold * 4");
             fail_if(val[1] != *(block_starts[0] + snp_offset[0] * num_samples + i * num_samples_in_fold + 1), "Value 1 must be aligned with offset: fold * 4 + 1");
             fail_if(val[2] != *(block_starts[0] + snp_offset[0] * num_samples + next_fold * num_samples_in_fold + 2), "Value 2 must be aligned with offset: (fold+1) * 4 + 2");
             fail_if(val[3] != *(block_starts[0] + snp_offset[0] * num_samples + next_fold * num_samples_in_fold + 3), "Value 3 must be aligned with offset: (fold+1) * 4 + 3");
             
             // Test second SNP
-//             printf("%d = %d\n", val[4], *(block_starts[1] + snp_offset[1] * num_samples + i * num_samples_in_fold));
+//             printf("%u = %d\n", val[4], *(block_starts[1] + snp_offset[1] * num_samples + i * num_samples_in_fold));
             fail_if(val[4] != *(block_starts[1] + snp_offset[1] * num_samples + i * num_samples_in_fold), "Value 4 must be aligned with offset: fold * 4");
             fail_if(val[5] != *(block_starts[1] + snp_offset[1] * num_samples + i * num_samples_in_fold + 1), "Value 5 must be aligned with offset: fold * 4 + 1");
             fail_if(val[6] != *(block_starts[1] + snp_offset[1] * num_samples + next_fold * num_samples_in_fold + 2), "Value 6 must be aligned with offset: (fold+1) * 4 + 2");
@@ -282,19 +282,19 @@ START_TEST (test_get_genotypes_for_combination_and_fold) {
             
             for (int i = 0; i < num_folds; i++) {
                 int next_fold = (i < 2) ? i + 1 : 0 ;
-                int *val = get_genotypes_for_combination_and_fold(order, comb, num_samples, num_samples_in_fold, folds[i], block_2d, stride, block_starts);
+                uint8_t *val = get_genotypes_for_combination_and_fold(order, comb, num_samples, num_samples_in_fold, folds[i], block_2d, stride, block_starts);
             
-                printf("Combination (%d,%d) and fold %d\n", comb[0], comb[1], i);
+//                 printf("Combination (%d,%d) and fold %d\n", comb[0], comb[1], i);
                 
                 // Test first SNP
-//                 printf("%d = %d\n", val[0], *(block_starts[0] + snp_offset[0] * num_samples + i * num_samples_in_fold));
+//                 printf("%u = %d\n", val[0], *(block_starts[0] + snp_offset[0] * num_samples + i * num_samples_in_fold));
                 fail_if(val[0] != *(block_starts[0] + snp_offset[0] * num_samples + i * num_samples_in_fold), "Value 0 must be aligned with offset: fold * 4");
                 fail_if(val[1] != *(block_starts[0] + snp_offset[0] * num_samples + i * num_samples_in_fold + 1), "Value 1 must be aligned with offset: fold * 4 + 1");
                 fail_if(val[2] != *(block_starts[0] + snp_offset[0] * num_samples + next_fold * num_samples_in_fold + 2), "Value 2 must be aligned with offset: (fold+1) * 4 + 2");
                 fail_if(val[3] != *(block_starts[0] + snp_offset[0] * num_samples + next_fold * num_samples_in_fold + 3), "Value 3 must be aligned with offset: (fold+1) * 4 + 3");
                 
                 // Test second SNP
-//                 printf("[%d] %d = %d\n", val[4], *(block_starts[1] + snp_offset[1] * num_samples + i * num_samples_in_fold));
+//                 printf("%u = %d\n", val[4], *(block_starts[1] + snp_offset[1] * num_samples + i * num_samples_in_fold));
                 fail_if(val[4] != *(block_starts[1] + snp_offset[1] * num_samples + i * num_samples_in_fold), "Value 4 must be aligned with offset: fold * 4");
                 fail_if(val[5] != *(block_starts[1] + snp_offset[1] * num_samples + i * num_samples_in_fold + 1), "Value 5 must be aligned with offset: fold * 4 + 1");
                 fail_if(val[6] != *(block_starts[1] + snp_offset[1] * num_samples + next_fold * num_samples_in_fold + 2), "Value 6 must be aligned with offset: (fold+1) * 4 + 2");
@@ -306,7 +306,7 @@ START_TEST (test_get_genotypes_for_combination_and_fold) {
         
         free(comb);
         
-        printf("\n-----------\n");
+//         printf("\n-----------\n");
     } while (get_next_block(num_blocks, order, block_2d));
 }
 END_TEST
@@ -329,19 +329,27 @@ END_TEST
 
 
 START_TEST (test_mdr_steps_2_5) {
-    // 100 { 30 aff, 70 unaff} in 10-fold
-    const int num_variants = 100, block_size = 10, num_blocks = 10;
-    const int num_affected = 30, num_unaffected = 70;
+    const int order = 2, num_folds = 2;
+    const int num_variants = 9, stride = 3, num_blocks = 3;
+    const int num_affected = 6, num_unaffected = 6;
+    const int aff_per_fold = num_affected / num_folds;
+    const int unaff_per_fold = num_unaffected / num_folds;
     
-    const int order = 2;
-    const int num_folds = 10;
+    int num_samples = 12, num_samples_in_fold = 6;
+    int folds[2][6] = { { 0, 1, 2, 6, 7, 8 }, { 3, 4, 5, 9, 10, 11 } };
     unsigned int *sizes;
     
-    int num_counts;
-    int* counts;
+    uint8_t genotypes[] = { 0, 1, 1, 0, 1, 2, 2, 1, 2, 1, 1, 2,   // First block
+                            1, 2, 2, 1, 2, 0, 0, 2, 0, 2, 2, 0,
+                            2, 0, 0, 2, 0, 1, 1, 0, 1, 0, 0, 1,
+                            0, 1, 0, 1, 1, 2, 1, 2, 2, 0, 2, 0,   // Second block
+                            1, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1,
+                            1, 1, 2, 2, 2, 2, 2, 2, 2, 0, 1, 2,
+                            1, 0, 1, 2, 0, 2, 0, 2, 0, 2, 2, 1,   // Third block
+                            1, 2, 2, 1, 1, 0, 1, 0, 1, 2, 0, 2,
+                            2, 0, 0, 0, 1, 2, 0, 2, 2, 1, 1, 0 };
     
-    int **folds = get_k_folds(num_affected, num_unaffected, num_folds, &sizes);
-    
+    array_list_t* aux_ret = array_list_new(4, 1.2, COLLECTION_MODE_ASYNCHRONIZED);
     
     int comb_idx = 0;
     int block_2d[] = { 0, 0 };
@@ -350,37 +358,55 @@ START_TEST (test_mdr_steps_2_5) {
         printf("BLOCK %d,%d\n", block_2d[0], block_2d[1]);
 //         printf("BLOCK %d,%d,%d\n", block_3d[0], block_3d[1], block_3d[2]);
         
+        uint8_t *block_starts[2];
+        block_starts[0] = genotypes + block_2d[0] * stride * num_samples;
+        block_starts[1] = genotypes + block_2d[1] * stride * num_samples;
+        
         // TODO test first combination in the block
-        int *comb = get_first_combination_in_block(order, block_2d, 10);
-        print_combination(comb, comb_idx, order);
+        int *comb = get_first_combination_in_block(order, block_2d, stride);
+//         print_combination(comb, comb_idx, order);
         
         // TODO run for each fold
         for (int i = 0; i < num_folds; i++) {
-            // TODO get genotypes of that combination
-            /*
-             * arguments needed:
-             * 1) order
-             * 2) combination
-             * 3) block coordinates
-             * 4) stride
-             * 5) block start
-             * 6) fold samples
-             * 7) NUMBER of fold samples
-             */
+            printf("Combination (%d,%d) and fold %d\n", comb[0], comb[1], i);
+            
+            // Get genotypes of that combination
+            uint8_t *val = get_genotypes_for_combination_and_fold(order, comb, num_samples, num_samples_in_fold, folds[i], block_2d, stride, block_starts);
            
+//             printf("genotypes = {\n");
+//             for (int j = 0; j < order; j++) {
+//                 printf("  ");
+//                 for (int k = 0; k <  aff_per_fold + unaff_per_fold; k++) {
+//                     printf("%d ", val[j * (aff_per_fold + unaff_per_fold) + k]);
+//                 }
+//                 printf("\n");
+//             }
+//             printf("}\n");
             
-            // TODO get counts for that combination
-//             counts = get_counts(order, genotypes, num_affected, num_unaffected, &num_counts);
+            // Get counts for those genotypes
+            int num_counts, num_risky;
+            int* counts = get_counts(order, val, aff_per_fold, unaff_per_fold, &num_counts);
             
-            // TODO get high risk pairs for these counts
+//             printf("counts = {\n");
+//             for (int j = 0; j < 3; j++) {
+//                 printf("  ");
+//                 for (int k = 0; k < 6; k++) {
+//                     printf("%d ", counts[j * 6 + k]);
+//                 }
+//                 printf("\n");
+//             }
+//             printf("}\n");
             
+            // TODO Get high risk pairs for those counts
+            int *risky = get_high_risk_combinations(counts, num_counts, num_affected, num_unaffected, 
+                                                           &num_risky, aux_ret, mdr_high_risk_combinations);
             
-//             free(counts);
+            free(counts);
         }
         
         // TODO get next combination
-        while (get_next_combination_in_block(order, comb, block_2d, 10)) {
-            print_combination(comb, comb_idx * 10, order);
+        while (get_next_combination_in_block(order, comb, block_2d, stride)) {
+//             print_combination(comb, comb_idx * 10, order);
         
             // TODO get counts for that combination
 //             counts = get_counts(order, genotypes, num_affected, num_unaffected, &num_counts);
@@ -418,7 +444,7 @@ Suite *create_test_suite(void) {
     TCase *tc_k_fold = tcase_create("k-fold and cross-validation");
     tcase_add_test(tc_k_fold, test_get_k_folds);
     tcase_add_test(tc_k_fold, test_get_genotypes_for_combination_and_fold);
-//     tcase_add_test(tc_k_fold, test_mdr_steps_2_5);
+    tcase_add_test(tc_k_fold, test_mdr_steps_2_5);
     
     TCase *tc_counts = tcase_create("Risk classification");
     tcase_add_test(tc_counts, test_get_high_risk_combinations);

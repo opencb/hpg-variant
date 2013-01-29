@@ -303,7 +303,7 @@ START_TEST (test_get_first_combination_in_block) {
 END_TEST
 
 START_TEST (test_get_next_combination_in_block) {
-    
+    // TODO!
 }
 END_TEST
  
