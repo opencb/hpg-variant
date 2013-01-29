@@ -354,6 +354,11 @@ START_TEST (test_mdr_steps_2_5) {
     int comb_idx = 0;
     int block_2d[] = { 0, 0 };
     int block_3d[] = { 0, 0, 0 };
+    
+    // TODO Precalculate combinations outside for a given order -> add {combinations} as argument
+    int num_genotype_combinations;
+    int **genotype_combinations = get_genotype_combinations(order, &num_genotype_combinations);
+    
     do {
         printf("BLOCK %d,%d\n", block_2d[0], block_2d[1]);
 //         printf("BLOCK %d,%d,%d\n", block_3d[0], block_3d[1], block_3d[2]);
@@ -385,35 +390,93 @@ START_TEST (test_mdr_steps_2_5) {
             
             // Get counts for those genotypes
             int num_counts, num_risky;
-            int* counts = get_counts(order, val, aff_per_fold, unaff_per_fold, &num_counts);
+            int *counts = get_counts(order, val, genotype_combinations, num_genotype_combinations, aff_per_fold, unaff_per_fold, &num_counts);
             
-//             printf("counts = {\n");
-//             for (int j = 0; j < 3; j++) {
-//                 printf("  ");
-//                 for (int k = 0; k < 6; k++) {
-//                     printf("%d ", counts[j * 6 + k]);
-//                 }
-//                 printf("\n");
+            printf("counts = {\n");
+            for (int j = 0; j < 3; j++) {
+                printf("  ");
+                for (int k = 0; k < 6; k++) {
+                    printf("%d ", counts[j * 6 + k]);
+                }
+                printf("\n");
+            }
+            printf("}\n");
+            
+            // Get high risk pairs for those counts
+            int *risky_idx = get_high_risk_combinations(counts, num_counts, aff_per_fold, unaff_per_fold, 
+                                                    &num_risky, aux_ret, mdr_high_risk_combinations);
+            
+//             printf("risky = { ");
+//             for (int j = 0; j < num_risky; j++) {
+//                 printf("%d ", risky[j]);
 //             }
 //             printf("}\n");
             
-            // TODO Get high risk pairs for those counts
-            int *risky = get_high_risk_combinations(counts, num_counts, num_affected, num_unaffected, 
-                                                           &num_risky, aux_ret, mdr_high_risk_combinations);
+            // Put together the info about the SNP combination and its genotype combinations
+            risky_combination *risky_comb = risky_combination_create(order, comb, genotype_combinations, num_risky, risky_idx);
             
+            printf("risky combination = {\n  SNP: ");
+            print_combination(risky_comb->combination, 0, order);
+            printf("  GT: ");
+            for (int j = 0; j < num_risky * 2; j++) {
+                if (j % 2) {
+                    printf("%d), ", risky_comb->genotypes[j]);
+                } else {
+                    printf("(%d ", risky_comb->genotypes[j]);
+                }
+            }
+            printf("\n}\n");
+            
+            free(val);
             free(counts);
+            free(risky_idx);
         }
         
         // TODO get next combination
         while (get_next_combination_in_block(order, comb, block_2d, stride)) {
-//             print_combination(comb, comb_idx * 10, order);
-        
-            // TODO get counts for that combination
-//             counts = get_counts(order, genotypes, num_affected, num_unaffected, &num_counts);
+            for (int i = 0; i < num_folds; i++) {
+                printf("Combination (%d,%d) and fold %d\n", comb[0], comb[1], i);
+                
+                // Get genotypes of that combination
+                uint8_t *val = get_genotypes_for_combination_and_fold(order, comb, num_samples, num_samples_in_fold, folds[i], block_2d, stride, block_starts);
             
-            // TODO get high risk pairs for these counts
-            
-//             free(counts);
+                // Get counts for those genotypes
+                int num_counts, num_risky;
+                int *counts = get_counts(order, val, genotype_combinations, num_genotype_combinations, aff_per_fold, unaff_per_fold, &num_counts);
+                
+                printf("counts = {\n");
+                for (int j = 0; j < 3; j++) {
+                    printf("  ");
+                    for (int k = 0; k < 6; k++) {
+                        printf("%d ", counts[j * 6 + k]);
+                    }
+                    printf("\n");
+                }
+                printf("}\n");
+                
+                // Get high risk pairs for those counts
+                int *risky_idx = get_high_risk_combinations(counts, num_counts, aff_per_fold, unaff_per_fold, 
+                                                        &num_risky, aux_ret, mdr_high_risk_combinations);
+                
+                // Put together the info about the SNP combination and its genotype combinations
+                risky_combination *risky_comb = risky_combination_create(order, comb, genotype_combinations, num_risky, risky_idx);
+                
+                printf("risky combination = {\n  SNP: ");
+                print_combination(risky_comb->combination, 0, order);
+                printf("  GT: ");
+                for (int j = 0; j < num_risky * 2; j++) {
+                    if (j % 2) {
+                        printf("%d), ", risky_comb->genotypes[j]);
+                    } else {
+                        printf("(%d ", risky_comb->genotypes[j]);
+                    }
+                }
+                printf("\n}\n");
+                
+                free(val);
+                free(counts);
+                free(risky_idx);
+            }
         }
         
         free(comb);

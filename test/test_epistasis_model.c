@@ -13,7 +13,6 @@
 
 Suite *create_test_suite(void);
 
-int order = 4;
 int num_samples = 8;
 int num_affected = 4;
 int num_unaffected = 4;
@@ -35,6 +34,8 @@ uint8_t genotypes[] = { 0, 0, 1, 0, 2, 1, 0, 2,
  * ******************************/
 
 START_TEST(test_get_masks) {
+    int order = 4;
+    
     int num_masks;
     uint8_t *masks = get_masks(order, genotypes, num_samples, &num_masks);
     
@@ -81,10 +82,14 @@ START_TEST(test_get_masks) {
 END_TEST
 
 START_TEST(test_get_counts) {
+    int order = 2;
+    
     int num_counts;
+    int num_combinations;
+    int **combinations = get_genotype_combinations(order, &num_combinations);
     
     // Order 2
-    int* counts = get_counts(2, genotypes, num_affected, num_unaffected, &num_counts);
+    int* counts = get_counts(order, genotypes, combinations, num_combinations, num_affected, num_unaffected, &num_counts);
     fail_if(num_counts != 18, "There must be 9 order 2 combinations * 2 phenotypes");
     
     fail_if(counts[0] != 2 && counts[1] != 0, "A(0,0) -> 2,0");
@@ -97,8 +102,12 @@ START_TEST(test_get_counts) {
     fail_if(counts[14] != 0 && counts[15] != 1, "A(2,1) -> 0,1");
     fail_if(counts[16] != 0 && counts[17] != 0, "A(2,2) -> 0,0");
     
+    free(combinations);
+    
     // Order 3
-    counts = get_counts(3, genotypes, num_affected, num_unaffected, &num_counts);
+    order = 3;
+    combinations = get_genotype_combinations(order, &num_combinations);
+    counts = get_counts(order, genotypes, combinations, num_combinations, num_affected, num_unaffected, &num_counts);
     fail_if(num_counts != 54, "There must be 27 order 3 combinations * 2 phenotypes");
     
     int idx = 0;
