@@ -2,6 +2,11 @@
 
 #define NUM_GENOTYPES   3
 
+
+/* **************************
+ *          Counts          *
+ * **************************/
+
 int* get_counts(int order, uint8_t* genotypes, int **genotype_combinations, int num_genotype_combinations, int num_affected, int num_unaffected, int *num_counts) {
     int num_masks;
     int num_samples = num_affected + num_unaffected;
@@ -82,6 +87,9 @@ uint8_t* get_masks(int order, uint8_t *genotypes, int num_samples, int *num_mask
 }
 
 
+/* **************************
+ *         High risk        *
+ * **************************/
 
 int* get_high_risk_combinations(unsigned int* counts, unsigned int num_counts, unsigned int num_affected, unsigned int num_unaffected, 
                                 unsigned int *num_risky, array_list_t* aux_ret, 
@@ -105,9 +113,7 @@ int* get_high_risk_combinations(unsigned int* counts, unsigned int num_counts, u
     return risky;
 }
 
-
-
-risky_combination* risky_combination_create(int order, int comb[order], int** possible_genotypes_combinations, int num_risky, int* risky_idx) {
+risky_combination* risky_combination_new(int order, int comb[order], int** possible_genotypes_combinations, int num_risky, int* risky_idx) {
     risky_combination *risky = malloc(sizeof(risky_combination));
     risky->combination = malloc(order * sizeof(int));
     risky->genotypes = malloc(num_risky * 2 * sizeof(uint8_t));
@@ -128,3 +134,29 @@ void risky_combination_free(risky_combination* combination) {
     free(combination->genotypes);
     free(combination);
 }
+
+
+
+/* **************************
+ *  Evaluation and ranking  *
+ * **************************/
+
+double evaluate_model(unsigned int true_positives, unsigned int true_negatives, unsigned int false_positives, unsigned int false_negatives, enum eval_function function) {
+    double TP = true_positives, TN = true_negatives, FP = false_positives, FN = false_negatives;
+    
+    if (!function) {
+        function = BA;
+    }
+    
+    switch(function) {
+        case CA:
+            return (TP + TN) / (TP + FN + TN + FP);
+        case BA:
+            return ((TP / (TP + FN)) + (TN / (TN + FP))) / 2;
+        case GAMMA:
+            return (TP * TN - FP * FN) / (TP * TN + FP * FN);
+        case TAU_B:
+            return (TP * TN - FP * FN) / sqrt((TP + FN) * (TN + FP) * (TP + FP) * (TN + FN));
+    }
+}
+
