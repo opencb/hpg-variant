@@ -133,22 +133,22 @@ int get_next_combination_in_block(int order, int comb[order], int block_coordina
     return 1;
 }
 
-int **get_genotype_combinations(int order, int *num_combinations) {
+uint8_t **get_genotype_combinations(int order, int *num_combinations) {
     *num_combinations = pow(3, order);
-    int **combinations = malloc (*num_combinations * sizeof(int*));
-    combinations[0] = calloc(order, sizeof(int));
+    uint8_t **combinations = malloc (*num_combinations * sizeof(uint8_t*));
+    combinations[0] = calloc(order, sizeof(uint8_t));
     
     int has_next = 1;
     for (int i = 1; i < *num_combinations && has_next; i++) {
-        combinations[i] = malloc(order * sizeof(int));
-        memcpy(combinations[i], combinations[i-1], order * sizeof(int));
+        combinations[i] = malloc(order * sizeof(uint8_t));
+        memcpy(combinations[i], combinations[i-1], order * sizeof(uint8_t));
         has_next = get_next_genotype_combination(order, combinations[i]);
     }
     
     return combinations;
 }
 
-int get_next_genotype_combination(int order, int comb[order]) {
+uint8_t get_next_genotype_combination(int order, uint8_t comb[order]) {
     for (int i = order - 1; i >= 0; i--) {
         ++comb[i];
         if (comb[i] < NUM_GENOTYPES) {

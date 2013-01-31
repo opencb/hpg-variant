@@ -7,14 +7,14 @@
  *          Counts          *
  * **************************/
 
-int* get_counts(int order, uint8_t* genotypes, int **genotype_combinations, int num_genotype_combinations, int num_affected, int num_unaffected, int *num_counts) {
+int* get_counts(int order, uint8_t* genotypes, uint8_t **genotype_combinations, int num_genotype_combinations, int num_affected, int num_unaffected, int *num_counts) {
     int num_masks;
     int num_samples = num_affected + num_unaffected;
     *num_counts = 2 * pow(NUM_GENOTYPES, order);
     uint8_t *masks = get_masks(order, genotypes, num_samples, &num_masks); // Grouped by SNP
     int *counts = malloc((*num_counts) * sizeof(int)); // Affected and unaffected
     
-    int *comb;
+    uint8_t *comb;
     int flag = 1, count = 0;
     
     for (int i = 0; i < num_genotype_combinations; i++) {
@@ -98,7 +98,7 @@ int* get_high_risk_combinations(unsigned int* counts, unsigned int num_counts, u
     *num_risky = 0;
     
     for (int i = 0; i < num_counts; i += 2) {
-        void *test_return_values;
+        void *test_return_values = NULL;
         bool is_high_risk = test_func(counts[i], counts[i+1], num_affected, num_unaffected, &test_return_values);
         
         if (is_high_risk) {
@@ -113,17 +113,17 @@ int* get_high_risk_combinations(unsigned int* counts, unsigned int num_counts, u
     return risky;
 }
 
-risky_combination* risky_combination_new(int order, int comb[order], int** possible_genotypes_combinations, int num_risky, int* risky_idx) {
+risky_combination* risky_combination_new(int order, int comb[order], uint8_t** possible_genotypes_combinations, int num_risky, int* risky_idx) {
     risky_combination *risky = malloc(sizeof(risky_combination));
     risky->combination = malloc(order * sizeof(int));
-    risky->genotypes = malloc(num_risky * 2 * sizeof(uint8_t));
+    // TODO for SSE, could it be useful to create N arrays, where N = order?
+    risky->genotypes = malloc(num_risky * order * sizeof(uint8_t));
     risky->num_risky = num_risky;
     
     memcpy(risky->combination, comb, order * sizeof(int));
     
     for (int i = 0; i < num_risky; i++) {
-        risky->genotypes[2 * i] = possible_genotypes_combinations[risky_idx[i]][0];
-        risky->genotypes[2 * i + 1] = possible_genotypes_combinations[risky_idx[i]][1];
+        memcpy(risky->genotypes + (order * i), possible_genotypes_combinations[risky_idx[i]], order * sizeof(uint8_t));
     }
     
     return risky;
@@ -140,6 +140,22 @@ void risky_combination_free(risky_combination* combination) {
 /* **************************
  *  Evaluation and ranking  *
  * **************************/
+
+int *get_positive_negative_rates(int order, risky_combination *combination, int num_affected_in_fold, int num_unaffected_in_fold, uint8_t *genotypes) {
+    int *rates = malloc(4 * sizeof(int));
+   
+    int num_samples_in_fold = num_affected_in_fold + num_unaffected_in_fold;
+    for (int i = 0; i < num_affected_in_fold; i++) {
+        
+        for (int j = 0; j < combination->num_risky; j++) {
+            
+        }
+    }
+    
+    assert(rates[0] + rates[1] + rates[2] + rates[3] == num_samples_in_fold);
+    
+    return rates;
+}
 
 double evaluate_model(unsigned int true_positives, unsigned int true_negatives, unsigned int false_positives, unsigned int false_negatives, enum eval_function function) {
     double TP = true_positives, TN = true_negatives, FP = false_positives, FN = false_negatives;

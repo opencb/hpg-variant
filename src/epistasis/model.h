@@ -51,7 +51,7 @@ enum eval_function { CA, BA, wBA, GAMMA, TAU_B };
  * @param num_counts Number of counts returned
  * @return List of counts, paired in (affected,unaffected)
  **/
-int* get_counts(int order, uint8_t* genotypes, int **genotype_combinations, int num_genotype_combinations, int num_affected, int num_unaffected, int *num_counts);
+int* get_counts(int order, uint8_t* genotypes, uint8_t **genotype_combinations, int num_genotype_combinations, int num_affected, int num_unaffected, int *num_counts);
 
 uint8_t* get_masks(int order, uint8_t *genotypes, int num_samples, int *num_masks);
 
@@ -65,7 +65,7 @@ int* get_high_risk_combinations(unsigned int *counts, unsigned int num_counts, u
                                 bool (*test_func)(unsigned int, unsigned int, unsigned int, unsigned int, void **));
 
 
-risky_combination *risky_combination_new(int order, int comb[order], int **possible_genotypes_combinations, int num_risky, int *risky_idx);
+risky_combination *risky_combination_new(int order, int comb[order], uint8_t **possible_genotypes_combinations, int num_risky, int *risky_idx);
 
 void risky_combination_free(risky_combination *combination);
 

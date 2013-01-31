@@ -125,9 +125,35 @@ int** get_k_folds(unsigned int num_samples_affected, unsigned int num_samples_un
     return folds;
 }
 
+
 uint8_t *get_genotypes_for_combination_and_fold(int order, int comb[order], int num_samples, 
                                                 int num_samples_in_fold, int fold_samples[num_samples_in_fold], 
                                                 int stride, uint8_t **block_starts) {
+    uint8_t *genotypes = malloc (order * num_samples_in_fold * sizeof(uint8_t));
+    
+    LOG_DEBUG_F("start 0 = %d\tstart 1 = %d\n", *block_starts[0], *block_starts[1]);
+    
+    int snp_index[order];
+    for (int i = 0; i < order; i++) {
+        // Get 'row' inside block
+        snp_index[i] = comb[i] % stride;
+        LOG_DEBUG_F("snp index %d = %d\t * num_samples = %d\n", i, snp_index[i], snp_index[i] * num_samples);
+        // Get matrix index (a row contains a certain number of samples)
+        snp_index[i] *= num_samples;
+        
+        // Get genotypes by adding the offset of the samples in the fold
+        for (int j = 0; j < num_samples_in_fold; j++) {
+            LOG_DEBUG_F("offset = %d\tcontents = %d\n", snp_index[i] + fold_samples[j], *(block_starts[i] + snp_index[i] + fold_samples[j]));
+            genotypes[i * num_samples_in_fold + j] = *(block_starts[i] + snp_index[i] + fold_samples[j]);
+        }
+    }
+    
+    return genotypes;
+}
+
+uint8_t *get_genotypes_for_combination_exclude_fold(int order, int comb[order], int num_samples, 
+                                                    int num_samples_in_fold, int fold_samples[num_samples_in_fold], 
+                                                    int stride, uint8_t **block_starts) {
     uint8_t *genotypes = malloc (order * (num_samples - num_samples_in_fold) * sizeof(uint8_t));
     int genotypes_copied = 0;
     int subset_length = 0;

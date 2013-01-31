@@ -86,7 +86,7 @@ START_TEST(test_get_counts) {
     
     int num_counts;
     int num_combinations;
-    int **combinations = get_genotype_combinations(order, &num_combinations);
+    uint8_t **combinations = get_genotype_combinations(order, &num_combinations);
     
     // Order 2
     int* counts = get_counts(order, genotypes, combinations, num_combinations, num_affected, num_unaffected, &num_counts);
