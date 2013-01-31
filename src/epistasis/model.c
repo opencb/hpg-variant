@@ -141,22 +141,48 @@ void risky_combination_free(risky_combination* combination) {
  *  Evaluation and ranking  *
  * **************************/
 
-int *get_positive_negative_rates(int order, risky_combination *combination, int num_affected_in_fold, int num_unaffected_in_fold, uint8_t *genotypes) {
-    int *rates = malloc(4 * sizeof(int));
-   
-    int num_samples_in_fold = num_affected_in_fold + num_unaffected_in_fold;
-    for (int i = 0; i < num_affected_in_fold; i++) {
+int *get_confusion_matrix(int order, risky_combination *combination, int num_affected_in_fold, int num_unaffected_in_fold, uint8_t *genotypes) {
+    // TP, FN, FP, TN
+    int *rates = calloc(4, sizeof(int));
+    int num_samples = num_affected_in_fold + num_unaffected_in_fold;
+    
+    for (int i = 0; i < num_samples; i++) {
+        bool marked_affected = 0;
         
-        for (int j = 0; j < combination->num_risky; j++) {
-            
+        // Search through all the possible combinations until one of them applies
+        for (int j = 0; j < combination->num_risky && !marked_affected; j++) {
+            marked_affected = 1;
+            for (int k = 0; k < order && marked_affected; k++) {
+                // If some of the genotypes in a combination does not match, don't keep checking it
+                LOG_DEBUG_F("[%d,%d,%d] %d == %d\n", i, j, k, combination->genotypes[j * order + k], genotypes[k * num_samples + i]);
+                marked_affected = combination->genotypes[j * order + k] == genotypes[k * num_samples + i];
+            }
+        }
+        
+        LOG_DEBUG_F("marked affected? %d\n", marked_affected);
+        
+        if (marked_affected) {
+            if (i < num_affected_in_fold) {
+                (rates[0])++; // TP++
+            } else {
+                (rates[2])++; // FP++
+            }
+        } else {
+            if (i < num_affected_in_fold) {
+                (rates[1])++; // FN++
+            } else {
+                (rates[3])++; // TN++
+            }
         }
     }
     
-    assert(rates[0] + rates[1] + rates[2] + rates[3] == num_samples_in_fold);
+    assert(rates[0] + rates[1] + rates[2] + rates[3] == num_samples);
     
     return rates;
 }
 
+
+// TODO change arguments order to: TP, FN, FP, TN
 double evaluate_model(unsigned int true_positives, unsigned int true_negatives, unsigned int false_positives, unsigned int false_negatives, enum eval_function function) {
     double TP = true_positives, TN = true_negatives, FP = false_positives, FN = false_negatives;
     

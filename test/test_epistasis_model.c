@@ -7,7 +7,6 @@
 
 #include <containers/array_list.h>
 
-// #include "epistasis/mdr.h"
 #include "epistasis/model.h"
 
 
@@ -152,6 +151,61 @@ START_TEST(test_get_counts) {
 END_TEST
 
 
+START_TEST(test_get_confusion_matrix) {
+    int order = 2;
+    int num_combinations;
+    
+    // ---------- order 2 ------------
+    
+    uint8_t genotypes_2d[] = { 1, 1, 0, 2, 2, 2, 1, 0, 0, 0, 1, 2,
+                               0, 0, 1, 1, 2, 2, 0, 0, 1, 1, 2, 2 };
+    uint8_t **possible_2d = get_genotype_combinations(order, &num_combinations);
+    // Risky combinations: (0,1), (2,1), (2,2)
+    risky_combination *combination_2d = risky_combination_new(order, (int[2]){ 0, 1 }, possible_2d, 3, (int[3]){ 3, 7, 8 } );
+    
+    // 7 affected, 5 unaffected
+    int *confusion_matrix = get_confusion_matrix(order, combination_2d, 7, 5, genotypes_2d);
+    
+    fail_if(confusion_matrix[0] != 6, "(7 aff,5 unaff) TP = 6");
+    fail_if(confusion_matrix[1] != 1, "(7 aff,5 unaff) FN = 1");
+    fail_if(confusion_matrix[2] != 1, "(7 aff,5 unaff) FP = 1");
+    fail_if(confusion_matrix[3] != 4, "(7 aff,5 unaff) TN = 4");
+    
+    // 4 affected, 8 unaffected
+    confusion_matrix = get_confusion_matrix(order, combination_2d, 4, 8, genotypes_2d);
+    
+    fail_if(confusion_matrix[0] != 3, "(4 aff,8 unaff) TP = 3");
+    fail_if(confusion_matrix[1] != 1, "(4 aff,8 unaff) FN = 1");
+    fail_if(confusion_matrix[2] != 4, "(4 aff,8 unaff) FP = 4");
+    fail_if(confusion_matrix[3] != 4, "(4 aff,8 unaff) TN = 4");
+    
+    free(confusion_matrix);
+    risky_combination_free(combination_2d);
+    
+    // ---------- order 3 ------------
+    order = 3;
+    uint8_t genotypes_3d[] = { 1, 1, 0, 2, 2, 2, 1, 0, 0, 0, 1, 2,
+                               0, 0, 1, 1, 2, 2, 0, 0, 1, 1, 2, 2,
+                               1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 0, 0 };
+    uint8_t **possible_3d = get_genotype_combinations(order, &num_combinations);
+    // Risky combinations: (1,0,1), (2,1,0), (2,2,1)
+    risky_combination *combination_3d = risky_combination_new(order, (int[3]){ 0, 1, 2 }, possible_3d, 4, (int[4]){ 4, 10, 21, 25 } );
+    
+    // 6 affected, 6 unaffected
+    confusion_matrix = get_confusion_matrix(order, combination_3d, 6, 6, genotypes_3d);
+    
+    fail_if(confusion_matrix[0] != 6, "(6 aff,6 unaff) TP = 6");
+    fail_if(confusion_matrix[1] != 0, "(6 aff,6 unaff) FN = 0");
+    fail_if(confusion_matrix[2] != 3, "(6 aff,6 unaff) FP = 3");
+    fail_if(confusion_matrix[3] != 3, "(6 aff,6 unaff) TN = 3");
+    
+    free(confusion_matrix);
+    risky_combination_free(combination_3d);
+                               
+}
+END_TEST
+
+
 START_TEST(test_model_evaluation_formulas) {
     const unsigned int TP_1 = 40, FP_1 = 4, FN_1 = 2, TN_1 = 10;
     const unsigned int TP_2 = 20, FP_2 = 10, FN_2 = 10, TN_2 = 20;
@@ -175,6 +229,7 @@ START_TEST(test_model_evaluation_formulas) {
 }
 END_TEST
 
+
 /* ******************************
  *      Main entry point        *
  * ******************************/
@@ -196,7 +251,8 @@ Suite *create_test_suite(void) {
     tcase_add_test(tc_counts, test_get_counts);
     
     TCase *tc_ranking = tcase_create("Evaluation and ranking");
-    tcase_add_test(tc_ranking, test_get_masks);
+    tcase_add_test(tc_ranking, test_get_confusion_matrix);
+    tcase_add_test(tc_ranking, test_model_evaluation_formulas);
     
     // Add test cases to a test suite
     Suite *fs = suite_create("Epistasis model");
