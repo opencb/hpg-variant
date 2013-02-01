@@ -19,6 +19,7 @@ typedef struct {
     int *combination;
     uint8_t *genotypes;
     int num_risky;
+    double accuracy;
 } risky_combination;
 
 /**

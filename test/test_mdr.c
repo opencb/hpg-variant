@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -43,6 +44,7 @@ END_TEST
 
 
 START_TEST (test_mdr_steps_2_5) {
+    const int max_ranking_size = 10;
     const int order = 2;
     const int num_variants = 9, stride = 3, num_blocks = 3;
     const int num_affected = 6, num_unaffected = 6;
@@ -73,10 +75,9 @@ START_TEST (test_mdr_steps_2_5) {
     int num_genotype_combinations;
     uint8_t **genotype_combinations = get_genotype_combinations(order, &num_genotype_combinations);
     
-//     array_list_t **risky_combinations = malloc(num_folds * sizeof(risky_combination*));
-    array_list_t *risky_combinations[num_folds];
+    array_list_t *ranking_risky[num_folds];
     for (int i = 0; i < num_folds; i++) {
-        risky_combinations[i] = array_list_new(100, 1.5, COLLECTION_MODE_ASYNCHRONIZED);
+        ranking_risky[i] = array_list_new(100, 1.5, COLLECTION_MODE_ASYNCHRONIZED);
     }
     
     do {
@@ -91,87 +92,97 @@ START_TEST (test_mdr_steps_2_5) {
         int *comb = get_first_combination_in_block(order, block_2d, stride);
 //         print_combination(comb, comb_idx, order);
         
-        // Run for each fold
-        for (int i = 0; i < num_folds; i++) {
-            printf("Combination (%d,%d) and fold %d\n", comb[0], comb[1], i);
-            
-            risky_combination *risky_comb = check_risk_of_combination_in_fold(order, comb, i, folds[i], num_samples_in_fold, 
-                                                                              num_samples, aff_per_training_fold, unaff_per_training_fold,
-                                                                              stride, block_starts,
-                                                                              num_genotype_combinations, genotype_combinations,
-                                                                              aux_ret);
-            
-            if (risky_comb) {
-                // TODO step 5 -> check against the testing dataset
-                // TODO step 6 -> ellaborate a ranking of best N combinations
-                // TODO would be better to filter before inserting into the list of risky combinations?
-                array_list_insert(risky_comb, risky_combinations[i]);
-            }
-        }
-        
-        // Test next combinations
-        while (get_next_combination_in_block(order, comb, block_2d, stride)) {
+        do  {
+            // Run for each fold
             for (int i = 0; i < num_folds; i++) {
                 printf("Combination (%d,%d) and fold %d\n", comb[0], comb[1], i);
                 
                 risky_combination *risky_comb = check_risk_of_combination_in_fold(order, comb, i, folds[i], num_samples_in_fold, 
                                                                                 num_samples, aff_per_training_fold, unaff_per_training_fold,
-                                                                                stride, block_starts,
-                                                                                num_genotype_combinations, genotype_combinations,
+                                                                                stride, block_starts, num_genotype_combinations, genotype_combinations,
                                                                                 aux_ret);
                 
                 if (risky_comb) {
-                    // Insert into the list of risky combination of that fold
-                    array_list_insert(risky_comb, risky_combinations[i]);
+                    // TODO Filter before inserting into the list of risky combinations?
+                    // Step 5 -> Check against the testing dataset
+                    uint8_t *val = get_genotypes_for_combination_and_fold(order, risky_comb->combination, num_samples, num_samples_in_fold, folds[i], stride, block_starts);
+                
+                    // Function for getting the matrix containing {FP,FN,TP,TN}
+                    unsigned int *confusion_matrix = get_confusion_matrix(order, risky_comb, aff_per_fold, unaff_per_fold, val);
+                    
+//                     printf("confusion matrix = { ");
+//                     for (int k = 0; k < 4; k++) {
+//                         printf("%u ", confusion_matrix[k]);
+//                     }
+//                     printf("}\n");
+                    
+                    // Function for evaluating the model, based on the confusion matrix
+                    double eval = evaluate_model(confusion_matrix, BA);
+                    
+                    printf("risky combination = {\n  SNP: ");
+                    print_combination(risky_comb->combination, 0, order);
+                    printf("  GT: ");
+                    for (int j = 0; j < risky_comb->num_risky * 2; j++) {
+                        if (j % 2) {
+                            printf("%d), ", risky_comb->genotypes[j]);
+                        } else {
+                            printf("(%d ", risky_comb->genotypes[j]);
+                        }
+                    }
+                    printf("\n  Balanced accuracy: %.3f\n}\n", eval);
+                    risky_comb->accuracy = eval;
+                    
+                    // Step 6 -> Ellaborate a ranking of the best N combinations
+                    size_t current_ranking_size = ranking_risky[i]->size;
+                    printf("Ranking (size %zu) = { ", current_ranking_size);
+                    for (int k = 0; k < current_ranking_size; k++) {
+                        risky_combination *element = (risky_combination *) array_list_get(k, ranking_risky[i]);
+                        printf("(%d %d - %.3f) ", element->combination[0], element->combination[1], element->accuracy);
+                    }
+                    printf("}\n");
+                    
+                    if (current_ranking_size > 0) {
+                        bool inserted = false;
+                        
+                        risky_combination *element = (risky_combination *) array_list_get(current_ranking_size-1, ranking_risky[i]);
+                        fail_unless(element != NULL, "There must be an element");
+                        
+                        printf("To insert %.3f\tRanking's last is %.3f\n", risky_comb->accuracy, element->accuracy);
+                        
+                        // If accuracy is not greater than the last element, don't bother inserting
+                        if (risky_comb->accuracy > element->accuracy) {
+                            for (int j = 0; j < ranking_risky[i]->size; j++) {
+                                element = (risky_combination *) array_list_get(j, ranking_risky[i]);
+                                
+                                printf("To insert %.3f\tIn ranking (pos #%d) %.3f\n", risky_comb->accuracy, j, element->accuracy);
+                                if (risky_comb->accuracy > element->accuracy) {
+                                    printf("Combination inserted at %d\n", j);
+                                    array_list_insert_at(j, risky_comb, ranking_risky[i]);
+                                    array_list_remove_at(ranking_risky[i]->size-1, ranking_risky[i]);
+                                    inserted = true;
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        if (!inserted && current_ranking_size < max_ranking_size) {
+                            printf("Combination inserted at the end\n");
+                            array_list_insert(risky_comb, ranking_risky[i]);
+                        }
+                    } else {
+                        array_list_insert(risky_comb, ranking_risky[i]);
+                    }
                 }
             }
-        }
+            
+            printf("\n-------------\n");
+            
+        } while (get_next_combination_in_block(order, comb, block_2d, stride)); // Test next combinations
         
         free(comb);
         
         
-        // TODO step 5 -> check against the testing dataset
-        // TODO step 6 -> ellaborate a ranking of best N combinations
-        // TODO would be better to filter before inserting into the list of risky combinations?
-        for (int i = 0; i < num_folds; i++) {
-            printf("Checking against fold %d\n", i);
-            
-            for (int j = 0; j < array_list_size(risky_combinations[i]); j++) {
-                risky_combination *risky_comb = array_list_get(j, risky_combinations[i]);
-                uint8_t *val = get_genotypes_for_combination_and_fold(order, risky_comb->combination, num_samples, num_samples_in_fold, folds[i], stride, block_starts);
-            
-                // Function for getting the matrix containing {FP,FN,TP,TN}
-                unsigned int *confusion_matrix = get_confusion_matrix(order, risky_comb, aff_per_fold, unaff_per_fold, val);
-                
-                printf("confusion matrix = { ");
-                for (int k = 0; k < 4; k++) {
-                    printf("%u ", confusion_matrix[k]);
-                }
-                printf("}\n");
-                
-                // Function for evaluating the model, based on the confusion matrix
-                double eval = evaluate_model(confusion_matrix, BA);
-                
-                printf("risky combination = {\n  SNP: ");
-                print_combination(risky_comb->combination, 0, order);
-                printf("  GT: ");
-                for (int j = 0; j < risky_comb->num_risky * 2; j++) {
-                    if (j % 2) {
-                        printf("%d), ", risky_comb->genotypes[j]);
-                    } else {
-                        printf("(%d ", risky_comb->genotypes[j]);
-                    }
-                }
-                printf("\n  Balanced accuracy: %.3f\n}\n", eval);
-
-            }
-            printf("-------------\n");
-        }
-        
-        
-        
-        
-        printf("\n-----------\n");
+        printf("\n==============\n");
     } while (get_next_block(num_blocks, order, block_2d));
 }
 END_TEST
