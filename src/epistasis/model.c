@@ -7,7 +7,7 @@
  *       Main pipeline      *
  * **************************/
 
-risky_combination *check_risk_of_combination_in_fold(int order, int comb[order], int fold_idx, int *fold_samples, unsigned int fold_size, 
+risky_combination *check_risk_of_combination_in_fold(int order, int comb[order], int *fold_samples, unsigned int fold_size, 
                                                      unsigned int num_samples, unsigned int num_affected_in_training, unsigned int num_unaffected_in_training,
                                                      int stride, uint8_t *block_starts[2],
                                                      int num_genotype_combinations, uint8_t **genotype_combinations,
@@ -67,6 +67,43 @@ risky_combination *check_risk_of_combination_in_fold(int order, int comb[order],
     free(risky_idx);
     
     return risky_comb;
+}
+
+
+double test_model(int order, risky_combination *risky_comb, int *fold_samples, 
+                  unsigned int num_samples, unsigned int num_affected_in_testing, unsigned int num_unaffected_in_testing,
+                  int stride, uint8_t *block_starts[2]) {
+    // Check against the testing dataset
+    uint8_t *val = get_genotypes_for_combination_and_fold(order, risky_comb->combination, 
+                                                          num_samples, num_affected_in_testing + num_unaffected_in_testing, 
+                                                          fold_samples, stride, block_starts);
+    // Get the matrix containing {FP,FN,TP,TN}
+    unsigned int *confusion_matrix = get_confusion_matrix(order, risky_comb, num_affected_in_testing, num_affected_in_testing, val);
+    
+//     printf("confusion matrix = { ");
+//     for (int k = 0; k < 4; k++) {
+//         printf("%u ", confusion_matrix[k]);
+//     }
+//     printf("}\n");
+    
+    // Evaluate the model, basing on the confusion matrix
+    double eval = evaluate_model(confusion_matrix, BA);
+    
+    printf("risky combination = {\n  SNP: ");
+    print_combination(risky_comb->combination, 0, order);
+    printf("  GT: ");
+    for (int j = 0; j < risky_comb->num_risky * 2; j++) {
+        if (j % 2) {
+            printf("%d), ", risky_comb->genotypes[j]);
+        } else {
+            printf("(%d ", risky_comb->genotypes[j]);
+        }
+    }
+    printf("\n}\n", eval);
+    
+    risky_comb->accuracy = eval;
+    
+    return eval;
 }
 
 

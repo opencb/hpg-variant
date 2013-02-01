@@ -97,40 +97,15 @@ START_TEST (test_mdr_steps_2_5) {
             for (int i = 0; i < num_folds; i++) {
                 printf("Combination (%d,%d) and fold %d\n", comb[0], comb[1], i);
                 
-                risky_combination *risky_comb = check_risk_of_combination_in_fold(order, comb, i, folds[i], num_samples_in_fold, 
-                                                                                num_samples, aff_per_training_fold, unaff_per_training_fold,
-                                                                                stride, block_starts, num_genotype_combinations, genotype_combinations,
-                                                                                aux_ret);
+                risky_combination *risky_comb = check_risk_of_combination_in_fold(order, comb, folds[i], num_samples_in_fold, 
+                                                                                  num_samples, aff_per_training_fold, unaff_per_training_fold,
+                                                                                  stride, block_starts, num_genotype_combinations, genotype_combinations,
+                                                                                  aux_ret);
                 
                 if (risky_comb) {
-                    // TODO Filter before inserting into the list of risky combinations?
-                    // Step 5 -> Check against the testing dataset
-                    uint8_t *val = get_genotypes_for_combination_and_fold(order, risky_comb->combination, num_samples, num_samples_in_fold, folds[i], stride, block_starts);
-                
-                    // Function for getting the matrix containing {FP,FN,TP,TN}
-                    unsigned int *confusion_matrix = get_confusion_matrix(order, risky_comb, aff_per_fold, unaff_per_fold, val);
-                    
-//                     printf("confusion matrix = { ");
-//                     for (int k = 0; k < 4; k++) {
-//                         printf("%u ", confusion_matrix[k]);
-//                     }
-//                     printf("}\n");
-                    
-                    // Function for evaluating the model, based on the confusion matrix
-                    double eval = evaluate_model(confusion_matrix, BA);
-                    
-                    printf("risky combination = {\n  SNP: ");
-                    print_combination(risky_comb->combination, 0, order);
-                    printf("  GT: ");
-                    for (int j = 0; j < risky_comb->num_risky * 2; j++) {
-                        if (j % 2) {
-                            printf("%d), ", risky_comb->genotypes[j]);
-                        } else {
-                            printf("(%d ", risky_comb->genotypes[j]);
-                        }
-                    }
-                    printf("\n  Balanced accuracy: %.3f\n}\n", eval);
-                    risky_comb->accuracy = eval;
+                    // Check the model against the testing dataset
+                    double accuracy = test_model(order, risky_comb, folds[i], num_samples, aff_per_fold, unaff_per_fold, stride, block_starts);
+                    printf("*  Balanced accuracy: %.3f\n", accuracy);
                     
                     // Step 6 -> Ellaborate a ranking of the best N combinations
                     size_t current_ranking_size = ranking_risky[i]->size;
