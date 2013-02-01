@@ -10,7 +10,9 @@
 #include <commons/log.h>
 #include <containers/array_list.h>
 
+#include "cross_validation.h"
 #include "dataset.h"
+#include "mdr.h"
 
 
 typedef struct {
@@ -29,6 +31,17 @@ typedef struct {
  * - Tau-b: Kendall rank correlation coefficient
  **/
 enum eval_function { CA, BA, wBA, GAMMA, TAU_B };
+
+
+/* **************************
+ *       Main pipeline      *
+ * **************************/
+
+risky_combination *check_risk_of_combination_in_fold(int order, int comb[order], int fold_idx, int *fold_samples, unsigned int fold_size, 
+                                                     unsigned int num_samples, unsigned int num_affected_in_training, unsigned int num_unaffected_in_training,
+                                                     int stride, uint8_t *block_starts[2],
+                                                     int num_genotype_combinations, uint8_t **genotype_combinations,
+                                                     array_list_t* aux_ret);
 
 
 
@@ -75,8 +88,8 @@ void risky_combination_free(risky_combination *combination);
  *  Evaluation and ranking  *
  * **************************/
 
-int *get_confusion_matrix(int order, risky_combination *combination, int num_affected_in_fold, int num_unaffected_in_fold, uint8_t *genotypes);
+unsigned int *get_confusion_matrix(int order, risky_combination *combination, int num_affected_in_fold, int num_unaffected_in_fold, uint8_t *genotypes);
 
-double evaluate_model(unsigned int true_positives, unsigned int true_negatives, unsigned int false_positives, unsigned int false_negatives, enum eval_function function);
+double evaluate_model(unsigned int *confusion_matrix, enum eval_function function);
 
 #endif

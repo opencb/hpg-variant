@@ -4,6 +4,73 @@
 
 
 /* **************************
+ *       Main pipeline      *
+ * **************************/
+
+risky_combination *check_risk_of_combination_in_fold(int order, int comb[order], int fold_idx, int *fold_samples, unsigned int fold_size, 
+                                                     unsigned int num_samples, unsigned int num_affected_in_training, unsigned int num_unaffected_in_training,
+                                                     int stride, uint8_t *block_starts[2],
+                                                     int num_genotype_combinations, uint8_t **genotype_combinations,
+                                                     array_list_t* aux_ret) {
+    risky_combination *risky_comb = NULL;
+    
+    // Get genotypes of that combination
+    uint8_t *val = get_genotypes_for_combination_exclude_fold(order, comb, num_samples, fold_size, fold_samples, stride, block_starts);
+    
+//     printf("* val = { ");
+//     for (int i = 0; i < order; i++) {
+//         for (int j = 0; j < (num_samples - num_samples_in_fold); j++) {
+//             printf("%u ", val[i * (num_samples - num_samples_in_fold) + j]);
+//         }
+//         printf("\t");
+//     }
+//     printf("}\n\n");
+    
+    // Get counts for those genotypes
+    int num_counts, num_risky;
+    int *counts = get_counts(order, val, genotype_combinations, num_genotype_combinations, num_affected_in_training, num_unaffected_in_training, &num_counts);
+    
+//     printf("counts = {\n");
+//     for (int j = 0; j < 3; j++) {
+//         printf("  ");
+//         for (int k = 0; k < 6; k++) {
+//             printf("%d ", counts[j * 6 + k]);
+//         }
+//         printf("\n");
+//     }
+//     printf("}\n");
+    
+    // Get high risk pairs for those counts
+    int *risky_idx = get_high_risk_combinations(counts, num_counts, num_affected_in_training, num_unaffected_in_training, 
+                                                &num_risky, aux_ret, mdr_high_risk_combinations);
+    
+    // Filter non-risky SNP combinations
+    if (num_risky > 0) {
+        // Put together the info about the SNP combination and its genotype combinations
+        risky_comb = risky_combination_new(order, comb, genotype_combinations, num_risky, risky_idx);
+        
+//         printf("risky combination = {\n  SNP: ");
+//         print_combination(risky_comb->combination, 0, order);
+//         printf("  GT: ");
+//         for (int j = 0; j < num_risky * 2; j++) {
+//             if (j % 2) {
+//                 printf("%d), ", risky_comb->genotypes[j]);
+//             } else {
+//                 printf("(%d ", risky_comb->genotypes[j]);
+//             }
+//         }
+//         printf("\n}\n");
+    }
+    
+    free(val);
+    free(counts);
+    free(risky_idx);
+    
+    return risky_comb;
+}
+
+
+/* **************************
  *          Counts          *
  * **************************/
 
@@ -141,9 +208,9 @@ void risky_combination_free(risky_combination* combination) {
  *  Evaluation and ranking  *
  * **************************/
 
-int *get_confusion_matrix(int order, risky_combination *combination, int num_affected_in_fold, int num_unaffected_in_fold, uint8_t *genotypes) {
+unsigned int *get_confusion_matrix(int order, risky_combination *combination, int num_affected_in_fold, int num_unaffected_in_fold, uint8_t *genotypes) {
     // TP, FN, FP, TN
-    int *rates = calloc(4, sizeof(int));
+    unsigned int *rates = calloc(4, sizeof(unsigned int));
     int num_samples = num_affected_in_fold + num_unaffected_in_fold;
     
     for (int i = 0; i < num_samples; i++) {
@@ -182,9 +249,8 @@ int *get_confusion_matrix(int order, risky_combination *combination, int num_aff
 }
 
 
-// TODO change arguments order to: TP, FN, FP, TN
-double evaluate_model(unsigned int true_positives, unsigned int true_negatives, unsigned int false_positives, unsigned int false_negatives, enum eval_function function) {
-    double TP = true_positives, TN = true_negatives, FP = false_positives, FN = false_negatives;
+double evaluate_model(unsigned int *confusion_matrix, enum eval_function function) {
+    double TP = confusion_matrix[0], FN = confusion_matrix[1], FP = confusion_matrix[2], TN = confusion_matrix[3];
     
     if (!function) {
         function = BA;

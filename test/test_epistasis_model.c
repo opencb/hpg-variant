@@ -207,24 +207,24 @@ END_TEST
 
 
 START_TEST(test_model_evaluation_formulas) {
-    const unsigned int TP_1 = 40, FP_1 = 4, FN_1 = 2, TN_1 = 10;
-    const unsigned int TP_2 = 20, FP_2 = 10, FN_2 = 10, TN_2 = 20;
+    unsigned int confusion_matrix_1[] = { 40, 2, 4, 10 };
+    unsigned int confusion_matrix_2[] = { 20, 10, 10, 20 };
     
     // Accuracy
-    fail_if(evaluate_model(TP_1, TN_1, FP_1, FN_1, CA) - 0.89285714 > 1e-6, "CA(1) = 0.89285714");
-    fail_if(evaluate_model(TP_2, TN_2, FP_2, FN_2, CA) - 0.66666666 > 1e-6, "CA(2) = 0.6666...");
+    fail_if(evaluate_model(confusion_matrix_1, CA) - 0.89285714 > 1e-6, "CA(1) = 0.89285714");
+    fail_if(evaluate_model(confusion_matrix_2, CA) - 0.66666666 > 1e-6, "CA(2) = 0.6666...");
     
     // Balanced accuracy
-    fail_if(evaluate_model(TP_1, TN_1, FP_1, FN_1, BA) - 0.83333333 > 1e-6, "BA(1) = 0.83333...");
-    fail_if(evaluate_model(TP_2, TN_2, FP_2, FN_2, BA) - 0.66666666 > 1e-6, "BA(2) = 0.6666...");
+    fail_if(evaluate_model(confusion_matrix_1, BA) - 0.83333333 > 1e-6, "BA(1) = 0.83333...");
+    fail_if(evaluate_model(confusion_matrix_2, BA) - 0.66666666 > 1e-6, "BA(2) = 0.6666...");
     
     // Gamma
-    fail_if(evaluate_model(TP_1, TN_1, FP_1, FN_1, GAMMA) - 0.96078431 > 1e-6, "GAMMA(1) = 0.96078431");
-    fail_if(evaluate_model(TP_2, TN_2, FP_2, FN_2, GAMMA) - 0.6 > 1e-6, "GAMMA(2) = 0.6");
+    fail_if(evaluate_model(confusion_matrix_1, GAMMA) - 0.96078431 > 1e-6, "GAMMA(1) = 0.96078431");
+    fail_if(evaluate_model(confusion_matrix_2, GAMMA) - 0.6 > 1e-6, "GAMMA(2) = 0.6");
     
     // Kendall's Tau-B
-    fail_if(evaluate_model(TP_1, TN_1, FP_1, FN_1, TAU_B) - 0.70352647 > 1e-6, "TAU_B(1) = 0.70352647");
-    fail_if(evaluate_model(TP_2, TN_2, FP_2, FN_2, TAU_B) - 0.33333333 > 1e-6, "TAU_B(2) = 0.3333...");
+    fail_if(evaluate_model(confusion_matrix_1, TAU_B) - 0.70352647 > 1e-6, "TAU_B(1) = 0.70352647");
+    fail_if(evaluate_model(confusion_matrix_2, TAU_B) - 0.33333333 > 1e-6, "TAU_B(2) = 0.3333...");
     
 }
 END_TEST
