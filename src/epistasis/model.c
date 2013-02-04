@@ -7,11 +7,11 @@
  *       Main pipeline      *
  * **************************/
 
-risky_combination *check_risk_of_combination_in_fold(int order, int comb[order], int *fold_samples, unsigned int fold_size, 
-                                                     unsigned int num_samples, unsigned int num_affected_in_training, unsigned int num_unaffected_in_training,
-                                                     int stride, uint8_t *block_starts[2],
-                                                     int num_genotype_combinations, uint8_t **genotype_combinations,
-                                                     array_list_t* aux_ret) {
+risky_combination *get_model_from_combination_in_fold(int order, int comb[order], int *fold_samples, unsigned int fold_size, 
+                                                      unsigned int num_samples, unsigned int num_affected_in_training, unsigned int num_unaffected_in_training,
+                                                      int stride, uint8_t *block_starts[2],
+                                                      int num_genotype_combinations, uint8_t **genotype_combinations,
+                                                      array_list_t* aux_ret) {
     risky_combination *risky_comb = NULL;
     
     // Get genotypes of that combination
@@ -73,7 +73,7 @@ risky_combination *check_risk_of_combination_in_fold(int order, int comb[order],
 double test_model(int order, risky_combination *risky_comb, int *fold_samples, 
                   unsigned int num_samples, unsigned int num_affected_in_testing, unsigned int num_unaffected_in_testing,
                   int stride, uint8_t *block_starts[2]) {
-    // Check against the testing dataset
+    // Step 5 -> Check against the testing dataset
     uint8_t *val = get_genotypes_for_combination_and_fold(order, risky_comb->combination, 
                                                           num_samples, num_affected_in_testing + num_unaffected_in_testing, 
                                                           fold_samples, stride, block_starts);
@@ -104,6 +104,52 @@ double test_model(int order, risky_combination *risky_comb, int *fold_samples,
     risky_comb->accuracy = eval;
     
     return eval;
+}
+
+
+int add_to_model_ranking(risky_combination *risky_comb, int max_ranking_size, array_list_t *ranking_risky) {
+    // Step 6 -> Ellaborate a ranking of the best N combinations
+    size_t current_ranking_size = ranking_risky->size;
+    printf("Ranking (size %zu) = { ", current_ranking_size);
+    for (int k = 0; k < current_ranking_size; k++) {
+        risky_combination *element = (risky_combination *) array_list_get(k, ranking_risky);
+        printf("(%d %d - %.3f) ", element->combination[0], element->combination[1], element->accuracy);
+    }
+    printf("}\n");
+    
+    if (current_ranking_size > 0) {
+        bool inserted = false;
+        
+        risky_combination *element = (risky_combination *) array_list_get(current_ranking_size-1, ranking_risky);
+        assert(element != NULL);
+        
+        LOG_DEBUG_F("To insert %.3f\tRanking's last is %.3f\n", risky_comb->accuracy, element->accuracy);
+        
+        // If accuracy is not greater than the last element, don't bother inserting
+        if (risky_comb->accuracy > element->accuracy) {
+            for (int j = 0; j < ranking_risky->size; j++) {
+                element = (risky_combination *) array_list_get(j, ranking_risky);
+                
+                LOG_DEBUG_F("To insert %.3f\tIn ranking (pos #%d) %.3f\n", risky_comb->accuracy, j, element->accuracy);
+                if (risky_comb->accuracy > element->accuracy) {
+                    array_list_insert_at(j, risky_comb, ranking_risky);
+                    array_list_remove_at(ranking_risky->size-1, ranking_risky);
+                    inserted = true;
+                    return j;
+                }
+            }
+        }
+        
+        if (!inserted && current_ranking_size < max_ranking_size) {
+            array_list_insert(risky_comb, ranking_risky);
+            return ranking_risky->size - 1;
+        }
+    } else {
+        array_list_insert(risky_comb, ranking_risky);
+        return ranking_risky->size - 1;
+    }
+    
+    return -1;
 }
 
 

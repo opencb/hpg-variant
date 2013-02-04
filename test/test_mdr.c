@@ -97,55 +97,21 @@ START_TEST (test_mdr_steps_2_5) {
             for (int i = 0; i < num_folds; i++) {
                 printf("Combination (%d,%d) and fold %d\n", comb[0], comb[1], i);
                 
-                risky_combination *risky_comb = check_risk_of_combination_in_fold(order, comb, folds[i], num_samples_in_fold, 
-                                                                                  num_samples, aff_per_training_fold, unaff_per_training_fold,
-                                                                                  stride, block_starts, num_genotype_combinations, genotype_combinations,
-                                                                                  aux_ret);
+                risky_combination *risky_comb = get_model_from_combination_in_fold(order, comb, folds[i], num_samples_in_fold, 
+                                                                                   num_samples, aff_per_training_fold, unaff_per_training_fold,
+                                                                                   stride, block_starts, num_genotype_combinations, genotype_combinations,
+                                                                                   aux_ret);
                 
                 if (risky_comb) {
                     // Check the model against the testing dataset
                     double accuracy = test_model(order, risky_comb, folds[i], num_samples, aff_per_fold, unaff_per_fold, stride, block_starts);
                     printf("*  Balanced accuracy: %.3f\n", accuracy);
                     
-                    // Step 6 -> Ellaborate a ranking of the best N combinations
-                    size_t current_ranking_size = ranking_risky[i]->size;
-                    printf("Ranking (size %zu) = { ", current_ranking_size);
-                    for (int k = 0; k < current_ranking_size; k++) {
-                        risky_combination *element = (risky_combination *) array_list_get(k, ranking_risky[i]);
-                        printf("(%d %d - %.3f) ", element->combination[0], element->combination[1], element->accuracy);
-                    }
-                    printf("}\n");
-                    
-                    if (current_ranking_size > 0) {
-                        bool inserted = false;
-                        
-                        risky_combination *element = (risky_combination *) array_list_get(current_ranking_size-1, ranking_risky[i]);
-                        fail_unless(element != NULL, "There must be an element");
-                        
-                        printf("To insert %.3f\tRanking's last is %.3f\n", risky_comb->accuracy, element->accuracy);
-                        
-                        // If accuracy is not greater than the last element, don't bother inserting
-                        if (risky_comb->accuracy > element->accuracy) {
-                            for (int j = 0; j < ranking_risky[i]->size; j++) {
-                                element = (risky_combination *) array_list_get(j, ranking_risky[i]);
-                                
-                                printf("To insert %.3f\tIn ranking (pos #%d) %.3f\n", risky_comb->accuracy, j, element->accuracy);
-                                if (risky_comb->accuracy > element->accuracy) {
-                                    printf("Combination inserted at %d\n", j);
-                                    array_list_insert_at(j, risky_comb, ranking_risky[i]);
-                                    array_list_remove_at(ranking_risky[i]->size-1, ranking_risky[i]);
-                                    inserted = true;
-                                    break;
-                                }
-                            }
-                        }
-                        
-                        if (!inserted && current_ranking_size < max_ranking_size) {
-                            printf("Combination inserted at the end\n");
-                            array_list_insert(risky_comb, ranking_risky[i]);
-                        }
+                    int position = add_to_model_ranking(risky_comb, max_ranking_size, ranking_risky[i]);
+                    if (position >= 0) {
+                        printf("Combination inserted at position %d\n", position);
                     } else {
-                        array_list_insert(risky_comb, ranking_risky[i]);
+                        printf("Combination not inserted\n");
                     }
                 }
             }

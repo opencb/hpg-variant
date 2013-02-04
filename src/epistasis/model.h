@@ -38,15 +38,17 @@ enum eval_function { CA, BA, wBA, GAMMA, TAU_B };
  *       Main pipeline      *
  * **************************/
 
-risky_combination *check_risk_of_combination_in_fold(int order, int comb[order], int *fold_samples, unsigned int fold_size, 
-                                                     unsigned int num_samples, unsigned int num_affected_in_training, unsigned int num_unaffected_in_training,
-                                                     int stride, uint8_t *block_starts[2],
-                                                     int num_genotype_combinations, uint8_t **genotype_combinations,
-                                                     array_list_t* aux_ret);
+risky_combination *get_model_from_combination_in_fold(int order, int comb[order], int *fold_samples, unsigned int fold_size, 
+                                                      unsigned int num_samples, unsigned int num_affected_in_training, unsigned int num_unaffected_in_training,
+                                                      int stride, uint8_t *block_starts[2],
+                                                      int num_genotype_combinations, uint8_t **genotype_combinations,
+                                                      array_list_t* aux_ret);
 
 double test_model(int order, risky_combination *risky_comb, int *fold_samples, 
                   unsigned int num_samples, unsigned int num_affected_in_testing, unsigned int num_unaffected_in_testing,
                   int stride, uint8_t *block_starts[2]);
+
+int add_to_model_ranking(risky_combination *risky_comb, int max_ranking_size, array_list_t *ranking_risky);
 
 
 /* **************************
