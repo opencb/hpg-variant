@@ -7,6 +7,7 @@
 #include <check.h>
 
 #include <containers/array_list.h>
+#include <containers/linked_list.h>
 
 #include "epistasis/cross_validation.h"
 #include "epistasis/mdr.h"
@@ -75,9 +76,9 @@ START_TEST (test_mdr_steps_2_5) {
     int num_genotype_combinations;
     uint8_t **genotype_combinations = get_genotype_combinations(order, &num_genotype_combinations);
     
-    array_list_t *ranking_risky[num_folds];
+    linked_list_t *ranking_risky[num_folds];
     for (int i = 0; i < num_folds; i++) {
-        ranking_risky[i] = array_list_new(100, 1.5, COLLECTION_MODE_ASYNCHRONIZED);
+        ranking_risky[i] = linked_list_new(COLLECTION_MODE_ASYNCHRONIZED);
     }
     
     do {

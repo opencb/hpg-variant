@@ -9,6 +9,7 @@
 
 #include <commons/log.h>
 #include <containers/array_list.h>
+#include <containers/linked_list.h>
 
 #include "cross_validation.h"
 #include "dataset.h"
@@ -48,7 +49,7 @@ double test_model(int order, risky_combination *risky_comb, int *fold_samples,
                   unsigned int num_samples, unsigned int num_affected_in_testing, unsigned int num_unaffected_in_testing,
                   int stride, uint8_t *block_starts[2]);
 
-int add_to_model_ranking(risky_combination *risky_comb, int max_ranking_size, array_list_t *ranking_risky);
+int add_to_model_ranking(risky_combination *risky_comb, int max_ranking_size, linked_list_t *ranking_risky);
 
 
 /* **************************

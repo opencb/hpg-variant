@@ -107,45 +107,48 @@ double test_model(int order, risky_combination *risky_comb, int *fold_samples,
 }
 
 
-int add_to_model_ranking(risky_combination *risky_comb, int max_ranking_size, array_list_t *ranking_risky) {
+int add_to_model_ranking(risky_combination *risky_comb, int max_ranking_size, linked_list_t *ranking_risky) {
     // Step 6 -> Ellaborate a ranking of the best N combinations
+    risky_combination *last_element = linked_list_get_last(ranking_risky);
     size_t current_ranking_size = ranking_risky->size;
     printf("Ranking (size %zu) = { ", current_ranking_size);
-    for (int k = 0; k < current_ranking_size; k++) {
-        risky_combination *element = (risky_combination *) array_list_get(k, ranking_risky);
+    
+    linked_list_iterator_t* iter = linked_list_iterator_new(ranking_risky);
+    risky_combination *element = NULL;
+    while ((element = linked_list_iterator_curr(iter)) != last_element) {
         printf("(%d %d - %.3f) ", element->combination[0], element->combination[1], element->accuracy);
+        element = linked_list_iterator_next(iter);
     }
     printf("}\n");
+    linked_list_iterator_first(iter);
     
     if (current_ranking_size > 0) {
         bool inserted = false;
         
-        risky_combination *element = (risky_combination *) array_list_get(current_ranking_size-1, ranking_risky);
-        assert(element != NULL);
-        
         LOG_DEBUG_F("To insert %.3f\tRanking's last is %.3f\n", risky_comb->accuracy, element->accuracy);
         
         // If accuracy is not greater than the last element, don't bother inserting
-        if (risky_comb->accuracy > element->accuracy) {
-            for (int j = 0; j < ranking_risky->size; j++) {
-                element = (risky_combination *) array_list_get(j, ranking_risky);
-                
-                LOG_DEBUG_F("To insert %.3f\tIn ranking (pos #%d) %.3f\n", risky_comb->accuracy, j, element->accuracy);
+        if (risky_comb->accuracy > last_element->accuracy) {
+            int position = 0;
+            while ((element = linked_list_iterator_curr(iter)) != last_element) {
+                LOG_DEBUG_F("To insert %.3f\tIn ranking (pos #%d) %.3f\n", risky_comb->accuracy, position, element->accuracy);
                 if (risky_comb->accuracy > element->accuracy) {
-                    array_list_insert_at(j, risky_comb, ranking_risky);
-                    array_list_remove_at(ranking_risky->size-1, ranking_risky);
+                    linked_list_iterator_insert(risky_comb, iter);
+                    linked_list_remove_last(ranking_risky);
                     inserted = true;
-                    return j;
+                    return position;
                 }
+                element = linked_list_iterator_next(iter);
+                position++;
             }
         }
         
         if (!inserted && current_ranking_size < max_ranking_size) {
-            array_list_insert(risky_comb, ranking_risky);
+            linked_list_insert_last(risky_comb, ranking_risky);
             return ranking_risky->size - 1;
         }
     } else {
-        array_list_insert(risky_comb, ranking_risky);
+        linked_list_insert_last(risky_comb, ranking_risky);
         return ranking_risky->size - 1;
     }
     
