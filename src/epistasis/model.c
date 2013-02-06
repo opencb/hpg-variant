@@ -89,17 +89,17 @@ double test_model(int order, risky_combination *risky_comb, int *fold_samples,
     // Evaluate the model, basing on the confusion matrix
     double eval = evaluate_model(confusion_matrix, BA);
     
-    printf("risky combination = {\n  SNP: ");
-    print_combination(risky_comb->combination, 0, order);
-    printf("  GT: ");
-    for (int j = 0; j < risky_comb->num_risky * 2; j++) {
-        if (j % 2) {
-            printf("%d), ", risky_comb->genotypes[j]);
-        } else {
-            printf("(%d ", risky_comb->genotypes[j]);
-        }
-    }
-    printf("\n}\n", eval);
+//     printf("risky combination = {\n  SNP: ");
+//     print_combination(risky_comb->combination, 0, order);
+//     printf("  GT: ");
+//     for (int j = 0; j < risky_comb->num_risky * 2; j++) {
+//         if (j % 2) {
+//             printf("%d), ", risky_comb->genotypes[j]);
+//         } else {
+//             printf("(%d ", risky_comb->genotypes[j]);
+//         }
+//     }
+//     printf("\n}\n", eval);
     
     risky_comb->accuracy = eval;
     
@@ -109,33 +109,35 @@ double test_model(int order, risky_combination *risky_comb, int *fold_samples,
 
 int add_to_model_ranking(risky_combination *risky_comb, int max_ranking_size, linked_list_t *ranking_risky) {
     // Step 6 -> Ellaborate a ranking of the best N combinations
-    risky_combination *last_element = linked_list_get_last(ranking_risky);
+    risky_combination *last_element = (linked_list_size(ranking_risky) > 0) ? linked_list_get_last(ranking_risky) : NULL;
     size_t current_ranking_size = ranking_risky->size;
-    printf("Ranking (size %zu) = { ", current_ranking_size);
     
     linked_list_iterator_t* iter = linked_list_iterator_new(ranking_risky);
     risky_combination *element = NULL;
-    while ((element = linked_list_iterator_curr(iter)) != last_element) {
-        printf("(%d %d - %.3f) ", element->combination[0], element->combination[1], element->accuracy);
-        element = linked_list_iterator_next(iter);
-    }
-    printf("}\n");
-    linked_list_iterator_first(iter);
+//     printf("Ranking (size %zu) = { ", current_ranking_size);
+//     while(element = linked_list_iterator_next(iter)) {
+//         printf("(%d %d - %.3f) ", element->combination[0], element->combination[1], element->accuracy);
+//     }
+//     printf("}\n");
+//     linked_list_iterator_first(iter);
     
     if (current_ranking_size > 0) {
-        bool inserted = false;
-        
-        LOG_DEBUG_F("To insert %.3f\tRanking's last is %.3f\n", risky_comb->accuracy, element->accuracy);
+        LOG_DEBUG_F("To insert %.3f\tRanking's last is %.3f\n", risky_comb->accuracy, last_element->accuracy);
         
         // If accuracy is not greater than the last element, don't bother inserting
         if (risky_comb->accuracy > last_element->accuracy) {
             int position = 0;
-            while ((element = linked_list_iterator_curr(iter)) != last_element) {
+            while (element = linked_list_iterator_curr(iter)) {
                 LOG_DEBUG_F("To insert %.3f\tIn ranking (pos #%d) %.3f\n", risky_comb->accuracy, position, element->accuracy);
                 if (risky_comb->accuracy > element->accuracy) {
                     linked_list_iterator_insert(risky_comb, iter);
-                    linked_list_remove_last(ranking_risky);
-                    inserted = true;
+                    
+                    if (current_ranking_size >= max_ranking_size) {
+                        linked_list_iterator_last(iter);
+                        linked_list_iterator_remove(iter);
+                    }
+                    
+                    linked_list_iterator_free(iter);
                     return position;
                 }
                 element = linked_list_iterator_next(iter);
@@ -143,14 +145,19 @@ int add_to_model_ranking(risky_combination *risky_comb, int max_ranking_size, li
             }
         }
         
-        if (!inserted && current_ranking_size < max_ranking_size) {
+        if (current_ranking_size < max_ranking_size) {
+            LOG_DEBUG_F("To insert %.3f at the end", risky_comb->accuracy);
             linked_list_insert_last(risky_comb, ranking_risky);
+            linked_list_iterator_free(iter);
             return ranking_risky->size - 1;
         }
     } else {
         linked_list_insert_last(risky_comb, ranking_risky);
+        linked_list_iterator_free(iter);
         return ranking_risky->size - 1;
     }
+    
+    linked_list_iterator_free(iter);
     
     return -1;
 }
@@ -268,6 +275,7 @@ int* get_high_risk_combinations(unsigned int* counts, unsigned int num_counts, u
 
 risky_combination* risky_combination_new(int order, int comb[order], uint8_t** possible_genotypes_combinations, int num_risky, int* risky_idx) {
     risky_combination *risky = malloc(sizeof(risky_combination));
+    risky->order = order;
     risky->combination = malloc(order * sizeof(int));
     // TODO for SSE, could it be useful to create N arrays, where N = order?
     risky->genotypes = malloc(num_risky * order * sizeof(uint8_t));

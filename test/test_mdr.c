@@ -16,6 +16,9 @@
 
 Suite *create_test_suite(void);
 
+int compare_risky(const void *risky_1, const void *risky_2);
+int compare_accuracies(const void *risky_1, const void *risky_2);
+
 
 /* ******************************
  *      Unchecked fixtures      *
@@ -44,10 +47,9 @@ START_TEST (test_get_high_risk_combinations) {
 END_TEST
 
 
-START_TEST (test_mdr_steps_2_5) {
+START_TEST (test_mdr_steps_2_6) {
     const int max_ranking_size = 10;
-    const int order = 2;
-    const int num_variants = 9, stride = 3, num_blocks = 3;
+    const int order = 2, stride = 3, num_blocks = 3;
     const int num_affected = 6, num_unaffected = 6;
     
     const int num_samples = 12, num_folds = 3, num_samples_in_fold = num_samples / num_folds;
@@ -55,8 +57,6 @@ START_TEST (test_mdr_steps_2_5) {
     const int unaff_per_fold = num_unaffected / num_folds, unaff_per_training_fold = 2 * unaff_per_fold;
     
     int folds[3][4] = { { 0, 1, 6, 7 }, { 4, 5, 10, 11 }, { 2, 3, 8, 9 } };
-    unsigned int *sizes;
-    
     uint8_t genotypes[] = { 0, 1, 1, 0, 1, 2, 2, 1, 2, 1, 1, 2,   // First block
                             1, 2, 2, 1, 2, 0, 0, 2, 0, 2, 2, 0,
                             2, 0, 0, 2, 0, 1, 1, 0, 1, 0, 0, 1,
@@ -68,9 +68,7 @@ START_TEST (test_mdr_steps_2_5) {
                             2, 0, 0, 0, 1, 2, 0, 2, 2, 1, 1, 0 };
     
     array_list_t* aux_ret = array_list_new(4, 1.2, COLLECTION_MODE_ASYNCHRONIZED);
-    
     int block_2d[] = { 0, 0 };
-    int block_3d[] = { 0, 0, 0 };
     
     // Precalculate combinations for a given order
     int num_genotype_combinations;
@@ -82,8 +80,7 @@ START_TEST (test_mdr_steps_2_5) {
     }
     
     do {
-        printf("BLOCK %d,%d\n", block_2d[0], block_2d[1]);
-//         printf("BLOCK %d,%d,%d\n", block_3d[0], block_3d[1], block_3d[2]);
+//         printf("BLOCK %d,%d\n", block_2d[0], block_2d[1]);
         
         uint8_t *block_starts[2];
         block_starts[0] = genotypes + block_2d[0] * stride * num_samples;
@@ -96,7 +93,7 @@ START_TEST (test_mdr_steps_2_5) {
         do  {
             // Run for each fold
             for (int i = 0; i < num_folds; i++) {
-                printf("Combination (%d,%d) and fold %d\n", comb[0], comb[1], i);
+//                 printf("Combination (%d,%d) and fold %d\n", comb[0], comb[1], i);
                 
                 risky_combination *risky_comb = get_model_from_combination_in_fold(order, comb, folds[i], num_samples_in_fold, 
                                                                                    num_samples, aff_per_training_fold, unaff_per_training_fold,
@@ -106,26 +103,197 @@ START_TEST (test_mdr_steps_2_5) {
                 if (risky_comb) {
                     // Check the model against the testing dataset
                     double accuracy = test_model(order, risky_comb, folds[i], num_samples, aff_per_fold, unaff_per_fold, stride, block_starts);
-                    printf("*  Balanced accuracy: %.3f\n", accuracy);
+//                     printf("*  Balanced accuracy: %.3f\n", accuracy);
                     
                     int position = add_to_model_ranking(risky_comb, max_ranking_size, ranking_risky[i]);
-                    if (position >= 0) {
-                        printf("Combination inserted at position %d\n", position);
-                    } else {
-                        printf("Combination not inserted\n");
-                    }
+//                     if (position >= 0) {
+//                         printf("Combination inserted at position %d\n", position);
+//                     } else {
+//                         printf("Combination not inserted\n");
+//                     }
                 }
             }
             
-            printf("\n-------------\n");
+//             printf("-------------\n");
             
         } while (get_next_combination_in_block(order, comb, block_2d, stride)); // Test next combinations
         
         free(comb);
         
         
-        printf("\n==============\n");
+//         printf("\n==============\n");
     } while (get_next_block(num_blocks, order, block_2d));
+}
+END_TEST
+
+
+START_TEST(test_mdr_5_repetitions_5_fold) {
+    const int repetitions = 5, num_variants = 10, num_folds = 5, order = 2, stride = 4, num_blocks = ceil((double) num_variants / stride);
+    const int max_ranking_size = 20;
+    const unsigned int num_samples = 40, num_affected = 20, num_unaffected = 20;
+    
+    const uint8_t genotypes[10 * 40] = { 
+        1, 1, 0, 1, 0, 1, 2, 1, 0, 0, 2, 1, 1, 1, 2, 1, 0, 2, 0, 1, 1, 0, 2, 2, 1, 1, 1, 1, 0, 0, 1, 2, 0, 2, 1, 0, 0, 0, 1, 1,
+        1, 1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 1, 2, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0,
+        0, 1, 1, 1, 1, 1, 0, 0, 2, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 2, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0,
+        0, 0, 2, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 0, 1, 1, 0, 2, 0, 1, 0, 1,
+        0, 0, 2, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 1, 1, 0, 1, 0, 0, 2, 0, 0, 0, 1,
+        0, 0, 2, 1, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 1, 1, 1, 1, 0, 0, 2, 0, 0, 0, 1,
+        0, 0, 2, 1, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 1, 1, 1, 1, 0, 0, 2, 0, 0, 0, 1,
+        0, 0, 2, 1, 0, 0, 0, 0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 1, 1, 1, 1, 0, 0, 2, 0, 0, 0, 1 };
+    
+    // Precalculate combinations for a given order
+    int num_genotype_combinations;
+    uint8_t **genotype_combinations = get_genotype_combinations(order, &num_genotype_combinations);
+    
+    // Not used in basic MDR, so 
+//     array_list_t* aux_ret = array_list_new(4, 1.2, COLLECTION_MODE_ASYNCHRONIZED);
+    
+//     for (int r = 0; r < repetitions; r++) {
+        // Initialize folds, first block coordinates, genotype combinations and rankings for each repetition
+        unsigned int *sizes, *training_sizes;
+        int **folds = get_k_folds(num_affected, num_unaffected, num_folds, &sizes);
+        int block_coords[order]; memset(block_coords, 0, order * sizeof(int));
+        
+        linked_list_t *ranking_risky[num_folds];
+        for (int i = 0; i < num_folds; i++) {
+            ranking_risky[i] = linked_list_new(COLLECTION_MODE_ASYNCHRONIZED);
+        }
+        
+        // Calculate size of training datasets
+        training_sizes = calloc(3 * num_folds, sizeof(unsigned int));
+        for (int i = 0; i < num_folds; i++) {
+            for (int j = 0; j < num_folds; j++) {
+                if (i != j) {
+                    training_sizes[3 * i] += sizes[3 * i];
+                    training_sizes[3 * i + 1] += sizes[3 * i + 1];
+                    training_sizes[3 * i + 2] += sizes[3 * i + 2];
+                }
+            }
+        }
+        
+        // TODO Run MDR steps 2-6
+        do {
+//         printf("BLOCK %d,%d\n", block_coords[0], block_coords[1]);
+        
+        uint8_t *block_starts[2];
+        block_starts[0] = genotypes + block_coords[0] * stride * num_samples;
+        block_starts[1] = genotypes + block_coords[1] * stride * num_samples;
+        
+        // Test first combination in the block
+        int *comb = get_first_combination_in_block(order, block_coords, stride);
+//         print_combination(comb, comb_idx, order);
+        
+        do  {
+            // Run for each fold
+            for (int i = 0; i < num_folds; i++) {
+//                 printf("Combination (%d,%d) and fold %d\n", comb[0], comb[1], i);
+                
+                risky_combination *risky_comb = get_model_from_combination_in_fold(order, comb, folds[i], sizes[3 * i], 
+                                                                                   num_samples, training_sizes[3 * i + 1], training_sizes[3 * i + 2],
+                                                                                   stride, block_starts, num_genotype_combinations, genotype_combinations,
+                                                                                   NULL); // TODO aux_ret needed?
+                
+                if (risky_comb) {
+                    // Check the model against the testing dataset
+                    double accuracy = test_model(order, risky_comb, folds[i], num_samples, sizes[3 * i + 1], sizes[3 * i + 2], stride, block_starts);
+//                     printf("*  Balanced accuracy: %.3f\n", accuracy);
+                    
+                    int position = add_to_model_ranking(risky_comb, max_ranking_size, ranking_risky[i]);
+//                     if (position >= 0) {
+//                         printf("Combination inserted at position %d\n", position);
+//                     } else {
+//                         printf("Combination not inserted\n");
+//                     }
+                }
+            }
+            
+//             printf("-------------\n");
+            
+        } while (get_next_combination_in_block(order, comb, block_coords, stride)); // Test next combinations
+        
+        free(comb);
+        
+        
+//         printf("\n==============\n");
+    } while (get_next_block(num_blocks, order, block_coords));
+        
+    // Print rankings
+    size_t repetition_ranking_size = 0;
+    for (int i = 0; i < num_folds; i++) {
+        size_t current_ranking_size = ranking_risky[i]->size;
+//         linked_list_iterator_t* iter = linked_list_iterator_new(ranking_risky[i]);
+//         risky_combination *last_element = current_ranking_size > 0 ? linked_list_get_last(ranking_risky[i]) : NULL;
+//         risky_combination *element = NULL;
+//         
+//         printf("Ranking %d (size %zu) = { ", i, current_ranking_size);
+//         while(element = linked_list_iterator_next(iter)) {
+//             printf("(%d %d - %.3f) ", element->combination[0], element->combination[1], element->accuracy);
+//         }
+//         printf("}\n");
+        
+        repetition_ranking_size += current_ranking_size;
+    }
+//     printf("\n");
+    
+    // Merge all rankings in one
+    risky_combination *repetition_ranking[repetition_ranking_size];
+    size_t current_index = 0;
+    for (int i = 0; i < num_folds; i++) {
+        size_t current_ranking_size = ranking_risky[i]->size;
+        linked_list_iterator_t* iter = linked_list_iterator_new(ranking_risky[i]);
+        
+        risky_combination *element = NULL;
+        while(element = linked_list_iterator_next(iter)) {
+            repetition_ranking[current_index] = element;
+            current_index++;
+//             printf("(%d %d - %.3f) ", element->combination[0], element->combination[1], element->accuracy);
+        }
+    }
+//     printf("\n\n");
+    
+    // qsort by coordinates
+    qsort(repetition_ranking, repetition_ranking_size, sizeof(risky_combination*), compare_risky);
+//     for (int i = 0; i < repetition_ranking_size; i++) {
+//         risky_combination *element = repetition_ranking[i];
+//         printf("(%d %d - %.3f) ", element->combination[0], element->combination[1], element->accuracy);
+//     }
+//     printf("\n\n");
+    
+    linked_list_t *sorted_repetition_ranking = linked_list_new(COLLECTION_MODE_ASYNCHRONIZED);
+    // Sum all values of each position
+    risky_combination *current = repetition_ranking[0];
+    
+    for (int i = 1; i < repetition_ranking_size; i++) {
+        risky_combination *element = repetition_ranking[i];
+        if (!compare_risky(&current, &element)) {
+            current->accuracy += element->accuracy;
+        } else {
+            current->accuracy /= num_folds;
+            int position = add_to_model_ranking(current, repetition_ranking_size, sorted_repetition_ranking);
+//             printf("(%d %d - %.3f) inserted in position %d\n", current->combination[0], current->combination[1], current->accuracy, position);
+            current = element;
+        }
+    }
+    
+    linked_list_iterator_t* iter = linked_list_iterator_new(sorted_repetition_ranking);
+    risky_combination *element = NULL;
+    while(element = linked_list_iterator_next(iter)) {
+        printf("(%d %d - %.3f) ", element->combination[0], element->combination[1], element->accuracy);
+    }
+    linked_list_iterator_free(iter);
+    
+    // TODO qsort by sum of accuracies
+//     qsort(repetition_ranking, repetition_ranking_size, sizeof(risky_combination*), compare_risky);
+    
+    // TODO Mean of accuracies
+    
+    
+    
+        free(folds);
+//     }
 }
 END_TEST
 
@@ -150,7 +318,8 @@ Suite *create_test_suite(void) {
     tcase_add_test(tc_counts, test_get_high_risk_combinations);
     
     TCase *tc_cv = tcase_create("Cross validation process");
-    tcase_add_test(tc_cv, test_mdr_steps_2_5);
+    tcase_add_test(tc_cv, test_mdr_steps_2_6);
+    tcase_add_test(tc_cv, test_mdr_5_repetitions_5_fold);
     
     // Add test cases to a test suite
     Suite *fs = suite_create("MDR");
@@ -160,3 +329,30 @@ Suite *create_test_suite(void) {
     return fs;
 }
 
+
+/* ******************************
+ *      Auxiliary functions     *
+ * ******************************/
+
+int compare_risky(const void *risky_1, const void *risky_2) {
+    risky_combination *r1 = *((risky_combination**) risky_1);
+    risky_combination *r2 = *((risky_combination**) risky_2);
+    
+    for (int i = 0; i < r1->order; i++) {
+        if (r1->combination[i] < r2->combination[i]) {
+            return -1;
+        }
+        if (r1->combination[i] > r2->combination[i]) {
+            return 1;
+        }
+    }
+    
+    return 0;
+}
+
+int compare_accuracies(const void *risky_1, const void *risky_2) {
+    risky_combination *r1 = *((risky_combination**) risky_1);
+    risky_combination *r2 = *((risky_combination**) risky_2);
+    
+    return (r1->accuracy - r2->accuracy) * 100;
+}

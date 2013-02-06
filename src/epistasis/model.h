@@ -17,6 +17,7 @@
 
 
 typedef struct {
+    int order;
     int *combination;
     uint8_t *genotypes;
     int num_risky;
