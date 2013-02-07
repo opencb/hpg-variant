@@ -7,15 +7,16 @@
  *       Main pipeline      *
  * **************************/
 
-risky_combination *get_model_from_combination_in_fold(int order, int comb[order], int *fold_samples, unsigned int fold_size, 
-                                                      unsigned int num_samples, unsigned int num_affected_in_training, unsigned int num_unaffected_in_training,
-                                                      int stride, uint8_t *block_starts[2],
+// risky_combination *get_model_from_combination_in_fold(int order, int comb[order], int *fold_samples, unsigned int fold_size, 
+//                                                       unsigned int num_samples, unsigned int num_affected_in_training, unsigned int num_unaffected_in_training,
+//                                                       int stride, uint8_t *block_starts[2],
+risky_combination *get_model_from_combination_in_fold(int order, int comb[order], uint8_t *val, unsigned int num_affected_in_training, unsigned int num_unaffected_in_training,
                                                       int num_genotype_combinations, uint8_t **genotype_combinations,
                                                       array_list_t* aux_ret) {
     risky_combination *risky_comb = NULL;
     
     // Get genotypes of that combination
-    uint8_t *val = get_genotypes_for_combination_exclude_fold(order, comb, num_samples, fold_size, fold_samples, stride, block_starts);
+//     uint8_t *val = get_genotypes_for_combination_exclude_fold(order, comb, num_samples, fold_size, fold_samples, stride, block_starts);
     
 //     printf("* val = { ");
 //     for (int i = 0; i < order; i++) {
@@ -62,7 +63,7 @@ risky_combination *get_model_from_combination_in_fold(int order, int comb[order]
 //         printf("\n}\n");
     }
     
-    free(val);
+//     free(val);
     free(counts);
     free(risky_idx);
     
@@ -70,13 +71,15 @@ risky_combination *get_model_from_combination_in_fold(int order, int comb[order]
 }
 
 
-double test_model(int order, risky_combination *risky_comb, int *fold_samples, 
-                  unsigned int num_samples, unsigned int num_affected_in_testing, unsigned int num_unaffected_in_testing,
-                  int stride, uint8_t *block_starts[2]) {
+// double test_model(int order, risky_combination *risky_comb,int *fold_samples, 
+//                   unsigned int num_samples, unsigned int num_affected_in_testing, unsigned int num_unaffected_in_testing,
+//                   int stride, uint8_t *block_starts[2]) {
+double test_model(int order, risky_combination *risky_comb, uint8_t *val, 
+                  unsigned int num_affected_in_testing, unsigned int num_unaffected_in_testing) {
     // Step 5 -> Check against the testing dataset
-    uint8_t *val = get_genotypes_for_combination_and_fold(order, risky_comb->combination, 
-                                                          num_samples, num_affected_in_testing + num_unaffected_in_testing, 
-                                                          fold_samples, stride, block_starts);
+//     uint8_t *val = get_genotypes_for_combination_and_fold(order, risky_comb->combination, 
+//                                                           num_samples, num_affected_in_testing + num_unaffected_in_testing, 
+//                                                           fold_samples, stride, block_starts);
     // Get the matrix containing {FP,FN,TP,TN}
     unsigned int *confusion_matrix = get_confusion_matrix(order, risky_comb, num_affected_in_testing, num_affected_in_testing, val);
     
@@ -102,6 +105,8 @@ double test_model(int order, risky_combination *risky_comb, int *fold_samples,
 //     printf("\n}\n", eval);
     
     risky_comb->accuracy = eval;
+    
+    free(confusion_matrix);
     
     return eval;
 }
