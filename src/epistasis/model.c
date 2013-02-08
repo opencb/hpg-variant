@@ -127,7 +127,11 @@ int add_to_model_ranking(risky_combination *risky_comb, int max_ranking_size, li
 //     linked_list_iterator_first(iter);
     
     if (current_ranking_size > 0) {
-        LOG_DEBUG_F("To insert %.3f\tRanking's last is %.3f\n", risky_comb->accuracy, last_element->accuracy);
+        if (last_element) {
+            LOG_DEBUG_F("To insert %.3f\tRanking's last is %.3f\n", risky_comb->accuracy, last_element->accuracy);
+        } else {
+            LOG_DEBUG_F("To insert %.3\n", risky_comb->accuracy );
+        }
         
         // If accuracy is not greater than the last element, don't bother inserting
         if (risky_comb->accuracy > last_element->accuracy) {
@@ -186,28 +190,28 @@ int* get_counts(int order, uint8_t* genotypes, uint8_t **genotype_combinations, 
         comb = genotype_combinations[i];
 //         print_combination(comb, i, order);
         
-        flag = 1, count = 0;
+        count = 0;
         for (int i = 0; i < num_affected; i++) {
+            flag = 1;
             for (int j = 0; j < order && flag; j++) {
                 flag &= masks[j * NUM_GENOTYPES * num_samples + comb[j] * num_samples + i];
             }
             if (flag) {
                 count++;
             }
-            flag = 1;
         }
         LOG_DEBUG_F("aff comb idx (%d) = %d\n", i * 2, count);
         counts[i * 2] = count;
         
-        flag = 1, count = 0;
+        count = 0;
         for (int i = num_affected; i < num_samples; i++) {
+            flag = 1;
             for (int j = 0; j < order && flag; j++) {
                 flag &= masks[j * NUM_GENOTYPES * num_samples + comb[j] * num_samples + i];
             }
             if (flag) {
                 count++;
             }
-            flag = 1;
         }
         LOG_DEBUG_F("unaff comb idx (%d) = %d\n", i * 2 + 1, count);
         counts[i * 2 + 1] = count;
