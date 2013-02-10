@@ -1,0 +1,48 @@
+Import('env commons_path bioinfo_path math_path')
+
+penv = env.Clone()
+penv['LIBS'] += ['check']
+
+check_fam = penv.Program('checks_family.test', 
+             source = ['test_checks_family.c', 
+                       Glob('#src/*.o'), Glob('#src/gwas/assoc/*.o'), Glob('#src/gwas/tdt/*.o'),
+                       "%s/libcommon.a" % commons_path,
+                       "%s/bioformats/libbioformats.a" % bioinfo_path,
+                       "%s/libhpgmath.a" % math_path
+                      ]
+           )
+
+effect = penv.Program('effect.test', 
+             source = ['test_effect_runner.c', 
+                       Glob('#src/*.o'), '#src/effect/auxiliary_files_writer.o', '#src/effect/effect_options_parsing.o', '#src/effect/effect_runner.o',
+                       "%s/libcommon.a" % commons_path,
+                       "%s/bioformats/libbioformats.a" % bioinfo_path
+                      ]
+           )
+
+epi_data = penv.Program('epistasis_dataset.test', 
+             source = [Glob('test_epistasis_dataset.c'), 
+#                       Glob('#src/*.o'), '#src/epistasis/dataset.o', '#src/epistasis/dataset_creator.o',
+                       Glob('#src/*.o'), '#src/epistasis/dataset.o', 
+                       "%s/libcommon.a" % commons_path,
+                       "%s/bioformats/libbioformats.a" % bioinfo_path
+                      ]
+           )
+
+merge = penv.Program('merge.test', 
+             source = ['test_merge.c',
+                       Glob('#src/*.o'), Glob('#src/vcf-tools/merge/*.o'),
+                       "%s/libcommon.a" % commons_path,
+                       "%s/bioformats/libbioformats.a" % bioinfo_path,
+                       "%s/libhpgmath.a" % math_path
+                      ]
+           )
+
+tdt = penv.Program('tdt.test', 
+             source = ['test_tdt_runner.c',
+                       Glob('#src/*.o'), Glob('#src/gwas/tdt/*.o'),
+                       "%s/libcommon.a" % commons_path,
+                       "%s/bioformats/libbioformats.a" % bioinfo_path,
+                       "%s/libhpgmath.a" % math_path
+                      ]
+           )

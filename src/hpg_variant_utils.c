@@ -181,6 +181,9 @@ array_list_t *sort_config_paths_by_priority(char *config_arg_path, char *home_pa
  * **********************/
 
 char *retrieve_config_file(char *filename, array_list_t *paths_to_search) {
+    assert(filename);
+    assert(paths_to_search);
+    
 	char *filepath = NULL;
     struct stat sb;
 
@@ -222,16 +225,10 @@ void close_job_status_file(FILE* file) {
 
 
 /* ***********************
- *      Miscellaneous    *
+ *        Filtering      *
  * ***********************/
 
-void show_usage(char *tool, void **argtable, int num_arguments) {
-    printf("Usage: %s", tool);
-    arg_print_syntaxv(stdout, argtable, "\n");
-    arg_print_glossary(stdout, argtable, " %-40s %s\n");
-}
-
-int get_output_files(shared_options_data_t *shared_options, FILE** passed_file, FILE** failed_file) {
+int get_filtering_output_files(shared_options_data_t *shared_options, FILE** passed_file, FILE** failed_file) {
     if (shared_options == NULL) {
         return 1;
     }
@@ -266,6 +263,69 @@ int get_output_files(shared_options_data_t *shared_options, FILE** passed_file, 
     free(failed_filename);
     
     return 0;
+}
+
+int write_filtering_output_files(array_list_t *passed_records, array_list_t *failed_records, FILE* passed_file, FILE* failed_file) {
+    int ret_code = 0;
+    if (passed_file) {
+        if (passed_records != NULL && passed_records->size > 0) {
+        #pragma omp critical 
+            {
+                for (int r = 0; r < passed_records->size; r++) {
+                    ret_code |= write_vcf_record(passed_records->items[r], passed_file);
+                }
+            }
+        }
+    }
+    
+    if (failed_file) {
+        if (failed_records != NULL && failed_records->size > 0) {
+        #pragma omp critical 
+            {
+                for (int r = 0; r < failed_records->size; r++) {
+                    ret_code |= write_vcf_record(failed_records->items[r], failed_file);
+                }
+            }
+        }
+    }
+    
+    return ret_code;
+}
+
+array_list_t *filter_records(filter_t** filters, int num_filters, array_list_t *input_records, array_list_t **failed_records) {
+    array_list_t *passed_records = NULL;
+    if (filters == NULL || num_filters == 0) {
+        passed_records = input_records;
+    } else {
+        *failed_records = array_list_new(input_records->size + 1, 1, COLLECTION_MODE_ASYNCHRONIZED);
+        passed_records = run_filter_chain(input_records, *failed_records, filters, num_filters);
+    }
+    return passed_records;
+}
+
+void free_filtered_records(array_list_t *passed_records, array_list_t *failed_records, array_list_t *input_records) {
+    static int i = 0;
+    // Free items in both lists (not their internal data)
+    if (passed_records != input_records) {
+        LOG_DEBUG_F("[Batch %d] %zu passed records\n", i, passed_records->size);
+        array_list_free(passed_records, NULL);
+    }
+    if (failed_records) {
+        LOG_DEBUG_F("[Batch %d] %zu failed records\n", i, failed_records->size);
+        array_list_free(failed_records, NULL);
+    }
+    i++;
+}
+
+
+/* ***********************
+ *      Miscellaneous    *
+ * ***********************/
+
+void show_usage(char *tool, void **argtable, int num_arguments) {
+    printf("Usage: %s", tool);
+    arg_print_syntaxv(stdout, argtable, "\n");
+    arg_print_glossary(stdout, argtable, " %-40s %s\n");
 }
 
 int *create_chunks(int length, int max_chunk_size, int *num_chunks, int **chunk_sizes) {

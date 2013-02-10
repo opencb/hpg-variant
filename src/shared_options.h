@@ -44,17 +44,17 @@
 /**
  * Number of options applicable to the whole application.
  */
-#define NUM_GLOBAL_OPTIONS  21
+#define NUM_GLOBAL_OPTIONS  22
 
 typedef struct shared_options {
-    struct arg_file *vcf_filename; /**< VCF file used as input. */
-    struct arg_file *ped_filename; /**< PED file used as input. */
+    struct arg_file *vcf_filename;    /**< VCF file used as input. */
+    struct arg_file *ped_filename;    /**< PED file used as input. */
     struct arg_file *output_filename; /**< Filename template for the main output file. */
     struct arg_str *output_directory; /**< Directory where the output files will be stored. */
     
     struct arg_str *host_url; /**< URL of the host where the web service runs. */
-    struct arg_str *version; /**< Version of the WS to query. */
-    struct arg_str *species; /**< Species whose genome is taken as reference. */
+    struct arg_str *version;  /**< Version of the WS to query. */
+    struct arg_str *species;  /**< Species whose genome is taken as reference. */
     
     struct arg_int *max_batches; /**< Maximum number of batches stored at the same time. */
     struct arg_int *batch_lines; /**< Maximum size of a batch (in lines). */
@@ -62,13 +62,14 @@ typedef struct shared_options {
     struct arg_int *num_threads; /**< Number of threads when a task runs in parallel. */
     struct arg_int *entries_per_thread; /**< Number of entries in a batch each thread processes. */
     
-    struct arg_int *num_alleles; /**< Filter by number of alleles. */
-    struct arg_int *coverage; /**< Filter by coverage. */
-    struct arg_int *quality; /**< Filter by quality. */
-    struct arg_dbl *maf;    /**< Filter by minimum allele frequency (MAF). */
-    struct arg_str *region; /**< Filter by region */
+    struct arg_int *coverage;     /**< Filter by coverage. */
+    struct arg_dbl *maf;          /**< Filter by minimum allele frequency (MAF). */
+    struct arg_dbl *missing;      /**< Filter by missing values. */
+    struct arg_int *num_alleles;  /**< Filter by number of alleles. */
+    struct arg_int *quality;      /**< Filter by quality. */
+    struct arg_str *region;       /**< Filter by region */
     struct arg_file *region_file; /**< Filter by region (using a GFF file) */
-    struct arg_str *snp; /**< Filter by SNP */
+    struct arg_str *snp;          /**< Filter by SNP */
     
     struct arg_file *config_file; /**< Path to the configuration file */
     

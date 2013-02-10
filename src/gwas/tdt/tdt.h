@@ -46,7 +46,7 @@
 /**
  * Number of options applicable to the TDT tool.
  */
-#define NUM_TDT_OPTIONS  2
+#define NUM_TDT_OPTIONS  0
 
 typedef struct tdt_options {
     int num_options;

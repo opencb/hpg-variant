@@ -21,8 +21,6 @@
 #include "assoc_runner.h"
 
 int run_association_test(shared_options_data_t* shared_options_data, assoc_options_data_t* options_data) {
-    list_t *read_list = (list_t*) malloc(sizeof(list_t));
-    list_init("text", 1, shared_options_data->max_batches, read_list);
     list_t *output_list = (list_t*) malloc (sizeof(list_t));
     list_init("output", shared_options_data->num_threads, INT_MAX, output_list);
 
@@ -36,8 +34,6 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
     if (!ped_file) {
         LOG_FATAL("PED file does not exist!\n");
     }
-    
-    size_t output_directory_len = strlen(shared_options_data->output_directory);
     
     LOG_INFO("About to read PED file...\n");
     // Read PED file before doing any proccessing
@@ -54,20 +50,17 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
     
     LOG_INFO("About to perform basic association test...\n");
 
-#pragma omp parallel sections num_threads(3) private (ret_code)
+#pragma omp parallel sections private(ret_code)
     {
 #pragma omp section
         {
-            LOG_DEBUG_F("Thread %d reads the VCF file\n", omp_get_thread_num());
-            // Reading
+            LOG_DEBUG_F("Level %d: number of threads in the team - %d\n", 0, omp_get_num_threads());
+            
             double start = omp_get_wtime();
 
-            ret_code = 0;
-            if (shared_options_data->batch_bytes > 0) {
-                ret_code = vcf_read_batches_in_bytes(read_list, shared_options_data->batch_bytes, file);
-            } else if (shared_options_data->batch_lines > 0) {
-                ret_code = vcf_read_batches(read_list, shared_options_data->batch_lines, file);
-            }
+            ret_code = vcf_read(file, 0,
+                                (shared_options_data->batch_bytes > 0) ? shared_options_data->batch_bytes : shared_options_data->batch_lines,
+                                shared_options_data->batch_bytes <= 0);
 
             double stop = omp_get_wtime();
             double total = stop - start;
@@ -79,15 +72,14 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
             LOG_INFO_F("[%dR] Time elapsed = %f s\n", omp_get_thread_num(), total);
             LOG_INFO_F("[%dR] Time elapsed = %e ms\n", omp_get_thread_num(), total*1000);
 
-            list_decr_writers(read_list);
+            notify_end_reading(file);
         }
 
 #pragma omp section
         {
+            LOG_DEBUG_F("Level %d: number of threads in the team - %d\n", 10, omp_get_num_threads());
             // Enable nested parallelism
             omp_set_nested(1);
-            
-            LOG_DEBUG_F("Thread %d processes data\n", omp_get_thread_num());
             
             volatile int initialization_done = 0;
             individual_t **individuals;
@@ -99,7 +91,7 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
                 filters = sort_filter_chain(shared_options_data->chain, &num_filters);
             }
             FILE *passed_file = NULL, *failed_file = NULL;
-            get_output_files(shared_options_data, &passed_file, &failed_file);
+            get_filtering_output_files(shared_options_data, &passed_file, &failed_file);
     
             double start = omp_get_wtime();
 
@@ -107,14 +99,12 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
             
 #pragma omp parallel num_threads(shared_options_data->num_threads) shared(initialization_done, factorial_logarithms, filters, individuals)
             {
+            LOG_DEBUG_F("Level %d: number of threads in the team - %d\n", 11, omp_get_num_threads()); 
 
             int i = 0;
-            list_item_t *item = NULL;
-            while ((item = list_remove_item(read_list)) != NULL) {
-                char *text_begin = item->data_p;
-                char *text_end = text_begin + strlen(text_begin);
-                
-                assert(text_end != NULL);
+            char *text_begin, *text_end;
+            while(text_begin = fetch_vcf_text_batch(file)) {
+                text_end = text_begin + strlen(text_begin);
                 
                 vcf_reader_status *status = vcf_reader_status_new(shared_options_data->batch_lines);
                 if (shared_options_data->batch_bytes > 0) {
@@ -125,13 +115,18 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
                 
                 // Initialize structures needed for association tests and write headers of output files
                 if (!initialization_done) {
-//                    sample_ids = associate_samples_and_positions(file);
 # pragma omp critical
                 {
                     // Guarantee that just one thread performs this operation
                     if (!initialization_done) {
                         // Sort individuals in PED as defined in the VCF file
                     	individuals = sort_individuals(file, ped_file);
+                        
+                        // Add headers associated to the defined filters
+                        vcf_header_entry_t **filter_headers = get_filters_as_vcf_headers(filters, num_filters);
+                        for (int j = 0; j < num_filters; j++) {
+                            add_vcf_header_entry(filter_headers[j], file);
+                        }
                         
                         // Write file format, header entries and delimiter
                         if (passed_file != NULL) { write_vcf_header(file, passed_file); }
@@ -149,69 +144,33 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
                 }
                 
                 vcf_batch_t *batch = fetch_vcf_batch(file);
-                array_list_t *input_records = batch->records;
-                array_list_t *passed_records = NULL, *failed_records = NULL;
-
+                
                 if (i % 100 == 0) {
                     LOG_INFO_F("Batch %d reached by thread %d - %zu/%zu records \n", 
                             i, omp_get_thread_num(),
                             batch->records->size, batch->records->capacity);
                 }
 
-                if (filters == NULL) {
-                    passed_records = input_records;
-                } else {
-                    failed_records = array_list_new(input_records->size + 1, 1, COLLECTION_MODE_ASYNCHRONIZED);
-                    passed_records = run_filter_chain(input_records, failed_records, filters, num_filters);
-                }
-
                 // Launch association test over records that passed the filters
+                array_list_t *failed_records = NULL;
+                array_list_t *passed_records = filter_records(filters, num_filters, batch->records, &failed_records);
                 if (passed_records->size > 0) {
-//                     LOG_DEBUG_F("[%d] Test execution\n", omp_get_thread_num());
-                	assert(individuals);
                     assoc_test(options_data->task, (vcf_record_t**) passed_records->items, passed_records->size, 
                                 individuals, get_num_vcf_samples(file), factorial_logarithms, output_list);
                 }
                 
-                // Write records that passed and failed to separate files
-                if (passed_file != NULL && failed_file != NULL) {
-                    if (passed_records != NULL && passed_records->size > 0) {
-                #pragma omp critical 
-                    {
-                        for (int r = 0; r < passed_records->size; r++) {
-                            write_vcf_record(passed_records->items[r], passed_file);
-                        }
-                    }
-                    }
-                    if (failed_records != NULL && failed_records->size > 0) {
-                #pragma omp critical 
-                    {
-                        for (int r = 0; r < passed_records->size; r++) {
-                            write_vcf_record(failed_records->items[r], failed_file);
-                        }
-                    }
-                    }
-                }
-                
-                // Free items in both lists (not their internal data)
-                if (passed_records != input_records) {
-//                     LOG_DEBUG_F("[Batch %d] %zu passed records\n", i, passed_records->size);
-                    array_list_free(passed_records, NULL);
-                }
-                if (failed_records) {
-//                     LOG_DEBUG_F("[Batch %d] %zu failed records\n", i, failed_records->size);
-                    array_list_free(failed_records, NULL);
-                }
+                // Write records that passed and failed filters to separate files, and free them
+                write_filtering_output_files(passed_records, failed_records, passed_file, failed_file);
+                free_filtered_records(passed_records, failed_records, batch->records);
                 
                 // Free batch and its contents
                 vcf_reader_status_free(status);
                 vcf_batch_free(batch);
-                list_item_free(item);
                 
                 i++;
             }  
             
-            list_decr_writers(file->record_batches);
+            notify_end_parsing(file);
             }
 
             double stop = omp_get_wtime();
@@ -236,70 +195,19 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
 
 #pragma omp section
         {
-            // Thread which writes the results to the output file
-            FILE *fd = NULL;
-            char *path = NULL, *filename = NULL;
-            size_t filename_len = 0;
-            
-            // Set whole path to the output file
-            if (options_data->task == CHI_SQUARE) {
-                filename_len = strlen("hpg-variant.chisq");
-                filename = strdup("hpg-variant.chisq");
-            } else if (options_data->task == FISHER) {
-                filename_len = strlen("hpg-variant.fisher");
-                filename = strdup("hpg-variant.fisher");
-            }
-            path = (char*) calloc ((output_directory_len + filename_len + 2), sizeof(char));
-            sprintf(path, "%s/%s", shared_options_data->output_directory, filename);
-            fd = fopen(path, "w");
-            
-            LOG_INFO_F("Association test output filename = %s\n", path);
-            free(filename);
+            // Thread that writes the results to the output file
+            LOG_DEBUG_F("Level %d: number of threads in the team - %d\n", 20, omp_get_num_threads());
             
             double start = omp_get_wtime();
             
-            // Write data: header + one line per variant
-            list_item_t* item = NULL;
+            // Get the file descriptor
+            char *path;
+            FILE *fd = get_output_file(options_data->task, shared_options_data->output_directory, &path);
+            LOG_INFO_F("Association test output filename = %s\n", path);
             
-            if (options_data->task == CHI_SQUARE) {
-                assoc_basic_result_t *result;
-                fprintf(fd, "#CHR         POS       A1      C_A1    C_U1         F_A1            F_U1       A2      C_A2    C_U2         F_A2            F_U2              OR           CHISQ         P-VALUE\n");
-                while ((item = list_remove_item(output_list)) != NULL) {
-                    result = item->data_p;
-                    
-                    fprintf(fd, "%s\t%8ld\t%s\t%3d\t%3d\t%6f\t%6f\t%s\t%3d\t%3d\t%6f\t%6f\t%6f\t%6f\t%6f\n",
-                            result->chromosome, result->position, 
-                            result->reference, result->affected1, result->unaffected1, 
-                            (double) result->affected1 / (result->affected1 + result->affected2), 
-                            (double) result->unaffected1 / (result->unaffected1 + result->unaffected2), 
-                            result->alternate, result->affected2, result->unaffected2, 
-                            (double) result->affected2 / (result->affected1 + result->affected2), 
-                            (double) result->unaffected2 / (result->unaffected1 + result->unaffected2), 
-                            result->odds_ratio, result->chi_square, result->p_value);
-                    
-                    assoc_basic_result_free(result);
-                    list_item_free(item);
-                }
-            } else if (options_data->task == FISHER) {
-                assoc_fisher_result_t *result;
-                fprintf(fd, "#CHR         POS       A1      C_A1    C_U1         F_A1            F_U1       A2      C_A2    C_U2         F_A2            F_U2              OR         P-VALUE\n");
-                while ((item = list_remove_item(output_list)) != NULL) {
-                    result = item->data_p;
-                    
-                    fprintf(fd, "%s\t%8ld\t%s\t%3d\t%3d\t%6f\t%6f\t%s\t%3d\t%3d\t%6f\t%6f\t%6f\t%6f\n",//\t%f\n",
-                            result->chromosome, result->position, 
-                            result->reference, result->affected1, result->unaffected1, 
-                            (double) result->affected1 / (result->affected1 + result->affected2), 
-                            (double) result->unaffected1 / (result->unaffected1 + result->unaffected2), 
-                            result->alternate, result->affected2, result->unaffected2, 
-                            (double) result->affected2 / (result->affected1 + result->affected2), 
-                            (double) result->unaffected2 / (result->unaffected1 + result->unaffected2), 
-                            result->odds_ratio, result->p_value);
-                    
-                    assoc_fisher_result_free(result);
-                    list_item_free(item);
-                }
-            }
+            // Write data: header + one line per variant
+            write_output_header(options_data->task, fd);
+            write_output_body(options_data->task, output_list, fd);
             
             fclose(fd);
             
@@ -309,7 +217,7 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
             
             int sort_ret = system(cmd);
             if (sort_ret) {
-                LOG_WARN("TDT results could not be sorted by chromosome and position, will be shown unsorted\n");
+                LOG_WARN("Association results could not be sorted by chromosome and position, will be shown unsorted\n");
             }
             
             double stop = omp_get_wtime();
@@ -320,7 +228,6 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
         }
     }
    
-    free(read_list);
     free(output_list);
     vcf_close(file);
     // TODO delete conflicts among frees
@@ -329,6 +236,77 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
     return ret_code;
 }
 
+/* *******************
+ * Output generation *
+ * *******************/
+
+FILE *get_output_file(enum ASSOC_task task, char *output_directory, char **path) {
+    char *filename = NULL;
+    if (task == CHI_SQUARE) {
+        filename = "hpg-variant.chisq";
+    } else if (task == FISHER) {
+        filename = "hpg-variant.fisher";
+    }
+    
+    *path = (char*) calloc ((strlen(output_directory) + strlen(filename) + 2), sizeof(char));
+    sprintf(*path, "%s/%s", output_directory, filename);
+    return fopen(*path, "w");
+}
+
+void write_output_header(enum ASSOC_task task, FILE *fd) {
+    assert(fd);
+    if (task == CHI_SQUARE) {
+        fprintf(fd, "#CHR         POS       A1      C_A1    C_U1         F_A1            F_U1       A2      C_A2    C_U2         F_A2            F_U2              OR           CHISQ         P-VALUE\n");
+    } else if (task == FISHER) {
+        fprintf(fd, "#CHR         POS       A1      C_A1    C_U1         F_A1            F_U1       A2      C_A2    C_U2         F_A2            F_U2              OR         P-VALUE\n");
+    }
+}
+
+void write_output_body(enum ASSOC_task task, list_t* output_list, FILE *fd) {
+    assert(fd);
+    list_item_t* item = NULL;
+    
+    if (task == CHI_SQUARE) {
+        while (item = list_remove_item(output_list)) {
+            assoc_basic_result_t *result = item->data_p;
+            
+            fprintf(fd, "%s\t%8ld\t%s\t%3d\t%3d\t%6f\t%6f\t%s\t%3d\t%3d\t%6f\t%6f\t%6f\t%6f\t%6f\n",
+                    result->chromosome, result->position, 
+                    result->reference, result->affected1, result->unaffected1, 
+                    (double) result->affected1 / (result->affected1 + result->affected2), 
+                    (double) result->unaffected1 / (result->unaffected1 + result->unaffected2), 
+                    result->alternate, result->affected2, result->unaffected2, 
+                    (double) result->affected2 / (result->affected1 + result->affected2), 
+                    (double) result->unaffected2 / (result->unaffected1 + result->unaffected2), 
+                    result->odds_ratio, result->chi_square, result->p_value);
+            
+            assoc_basic_result_free(result);
+            list_item_free(item);
+        }
+    } else if (task == FISHER) {
+        while (item = list_remove_item(output_list)) {
+            assoc_fisher_result_t *result = item->data_p;
+            
+            fprintf(fd, "%s\t%8ld\t%s\t%3d\t%3d\t%6f\t%6f\t%s\t%3d\t%3d\t%6f\t%6f\t%6f\t%6f\n",
+                    result->chromosome, result->position, 
+                    result->reference, result->affected1, result->unaffected1, 
+                    (double) result->affected1 / (result->affected1 + result->affected2), 
+                    (double) result->unaffected1 / (result->unaffected1 + result->unaffected2), 
+                    result->alternate, result->affected2, result->unaffected2, 
+                    (double) result->affected2 / (result->affected1 + result->affected2), 
+                    (double) result->unaffected2 / (result->unaffected1 + result->unaffected2), 
+                    result->odds_ratio, result->p_value);
+            
+            assoc_fisher_result_free(result);
+            list_item_free(item);
+        }
+    }
+}
+
+
+/* *******************
+ *      Sorting      *
+ * *******************/
 
 individual_t **sort_individuals(vcf_file_t *vcf, ped_file_t *ped) {
 	family_t *family;
