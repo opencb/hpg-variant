@@ -54,15 +54,15 @@ static size_t output_directory_len;
 static int batch_num;
 
 
-int run_effect(char **urls, shared_options_data_t *shared_options, effect_options_data_t *options_data) {
+int run_effect(char **urls, shared_options_data_t *shared_options_data, effect_options_data_t *options_data) {
     int ret_code = 0;
     double start, stop, total;
-    vcf_file_t *file = vcf_open(shared_options->vcf_filename, shared_options->max_batches);
+    vcf_file_t *file = vcf_open(shared_options_data->vcf_filename, shared_options_data->max_batches);
     if (!file) {
         LOG_FATAL("VCF file does not exist!\n");
     }
     
-    output_directory = shared_options->output_directory;
+    output_directory = shared_options_data->output_directory;
     output_directory_len = strlen(output_directory);
     
     ret_code = create_directory(output_directory);
@@ -83,7 +83,7 @@ int run_effect(char **urls, shared_options_data_t *shared_options, effect_option
     }
     
     // Initialize collections of file descriptors and summary counters
-    ret_code = initialize_ws_output(shared_options, options_data);
+    ret_code = initialize_ws_output(shared_options_data, options_data);
     if (ret_code != 0) {
         return ret_code;
     }
@@ -104,14 +104,12 @@ int run_effect(char **urls, shared_options_data_t *shared_options, effect_option
 #pragma omp section
         {
             LOG_DEBUG_F("Thread %d reads the VCF file\n", omp_get_thread_num());
-            // Reading
+            
             start = omp_get_wtime();
-
-            if (shared_options->batch_bytes > 0) {
-                ret_code = vcf_parse_batches_in_bytes(shared_options->batch_bytes, file);
-            } else if (shared_options->batch_lines > 0) {
-                ret_code = vcf_parse_batches(shared_options->batch_lines, file);
-            }
+            
+            ret_code = vcf_read(file, 1,
+                                (shared_options_data->batch_bytes > 0) ? shared_options_data->batch_bytes : shared_options_data->batch_lines,
+                                shared_options_data->batch_bytes <= 0);
 
             stop = omp_get_wtime();
             total = stop - start;
@@ -123,44 +121,56 @@ int run_effect(char **urls, shared_options_data_t *shared_options, effect_option
             LOG_INFO_F("[%dR] Time elapsed = %f s\n", omp_get_thread_num(), total);
             LOG_INFO_F("[%dR] Time elapsed = %e ms\n", omp_get_thread_num(), total*1000);
 
-            notify_end_reading(file);
+            notify_end_parsing(file);
         }
         
 #pragma omp section
         {
             // Enable nested parallelism and set the number of threads the user has chosen
             omp_set_nested(1);
-            omp_set_num_threads(shared_options->num_threads);
             
             LOG_DEBUG_F("Thread %d processes data\n", omp_get_thread_num());
             
             filter_t **filters = NULL;
             int num_filters = 0;
-            if (shared_options->chain != NULL) {
-                filters = sort_filter_chain(shared_options->chain, &num_filters);
+            if (shared_options_data->chain != NULL) {
+                filters = sort_filter_chain(shared_options_data->chain, &num_filters);
             }
-            FILE *passed_file = NULL, *failed_file = NULL;
-            get_output_files(shared_options, &passed_file, &failed_file);
+            FILE *passed_file = NULL, *failed_file = NULL, *non_processed_file = NULL;
+            get_filtering_output_files(shared_options_data, &passed_file, &failed_file);
+            
+            // Filename structure outdir/vcfname.errors
+            char *prefix_filename = calloc(strlen(shared_options_data->vcf_filename), sizeof(char));
+            get_filename_from_path(shared_options_data->vcf_filename, prefix_filename);
+            char *non_processed_filename = malloc((strlen(shared_options_data->output_directory) + strlen(prefix_filename) + 9) * sizeof(char));
+            sprintf(non_processed_filename, "%s/%s.errors", shared_options_data->output_directory, prefix_filename);
+            non_processed_file = fopen(non_processed_filename, "w");
+            free(non_processed_filename);
     
-            start = omp_get_wtime();
-
             int i = 0;
             vcf_batch_t *batch = NULL;
-            
             int ret_ws_0 = 0, ret_ws_1 = 0, ret_ws_2 = 0;
-            while ((batch = fetch_vcf_batch(file)) != NULL) {
+            
+            start = omp_get_wtime();
+
+            while (batch = fetch_vcf_batch(file)) {
                 if (i == 0) {
+                    // Add headers associated to the defined filters
+                    vcf_header_entry_t **filter_headers = get_filters_as_vcf_headers(filters, num_filters);
+                    for (int j = 0; j < num_filters; j++) {
+                        add_vcf_header_entry(filter_headers[j], file);
+                    }
+                        
                     // Write file format, header entries and delimiter
                     if (passed_file != NULL) { write_vcf_header(file, passed_file); }
                     if (failed_file != NULL) { write_vcf_header(file, failed_file); }
+                    if (non_processed_file != NULL) { write_vcf_header(file, non_processed_file); }
                     
                     LOG_DEBUG("VCF header written\n");
                 }
                 
 //                     printf("batch loaded = '%.*s'\n", 50, batch->text);
 //                     printf("batch text len = %zu\n", strlen(batch->text));
-                array_list_t *input_records = batch->records;
-                array_list_t *passed_records = NULL, *failed_records = NULL;
 
 //                 if (i % 10 == 0) {
                     LOG_INFO_F("Batch %d reached by thread %d - %zu/%zu records \n", 
@@ -168,89 +178,78 @@ int run_effect(char **urls, shared_options_data_t *shared_options, effect_option
                             batch->records->size, batch->records->capacity);
 //                 }
 
-                if (filters == NULL) {
-                    passed_records = input_records;
-                } else {
-                    failed_records = array_list_new(input_records->size + 1, 1, COLLECTION_MODE_ASYNCHRONIZED);
-                    passed_records = run_filter_chain(input_records, failed_records, filters, num_filters);
-                }
+                int reconnections = 0;
+                int max_reconnections = 3; // TODO allow to configure?
 
                 // Write records that passed to a separate file, and query the WS with them as args
+                array_list_t *failed_records = NULL;
+                array_list_t *passed_records = filter_records(filters, num_filters, batch->records, &failed_records);
                 if (passed_records->size > 0) {
                     // Divide the list of passed records in ranges of size defined in config file
                     int num_chunks;
                     int *chunk_sizes;
-                    int *chunk_starts = create_chunks(passed_records->size, shared_options->entries_per_thread, &num_chunks, &chunk_sizes);
+                    int *chunk_starts = create_chunks(passed_records->size, shared_options_data->entries_per_thread, &num_chunks, &chunk_sizes);
                     
-                    
-                    // OpenMP: Launch a thread for each range
-                    #pragma omp parallel for
-                    for (int j = 0; j < num_chunks; j++) {
-                        LOG_DEBUG_F("[%d] WS invocation\n", omp_get_thread_num());
-                        LOG_DEBUG_F("[%d] -- effect WS\n", omp_get_thread_num());
-//                         printf("batch loaded = '%.*s'\n", 50, batch->text);
-//                         printf("[%d] first chromosome pos = %lu\n", omp_get_thread_num(), ((vcf_record_t*) (passed_records->items + chunk_starts[j])[0])->position);
-                        ret_ws_0 = invoke_effect_ws(urls[0], (vcf_record_t**) (passed_records->items + chunk_starts[j]), chunk_sizes[j], options_data->excludes);
-                        if (!options_data->no_phenotypes) {
-                            LOG_DEBUG_F("[%d] -- snp WS\n", omp_get_thread_num());
-                            ret_ws_1 = invoke_snp_phenotype_ws(urls[1], (vcf_record_t**) (passed_records->items + chunk_starts[j]), chunk_sizes[j]);
-                            LOG_DEBUG_F("[%d] -- mutation WS\n", omp_get_thread_num());
-                            ret_ws_2 = invoke_mutation_phenotype_ws(urls[2], (vcf_record_t**) (passed_records->items + chunk_starts[j]), chunk_sizes[j]);
-                        }
-                    }
-                    
-                    free(chunk_starts);
-                    free(chunk_sizes);
-                    
-                    LOG_DEBUG_F("*** %dth web services invocation finished\n", i);
-                    
-                    if (ret_ws_0 || ret_ws_1 || ret_ws_2) {
-                        if (ret_ws_0) {
-                            LOG_ERROR_F("Effect web service error: %s\n", get_last_http_error(ret_ws_0));
-                        }
-                        if (ret_ws_1) {
-                            LOG_ERROR_F("SNP phenotype web service error: %s\n", get_last_http_error(ret_ws_1));
-                        }
-                        if (ret_ws_2) {
-                            LOG_ERROR_F("Mutations phenotype web service error: %s\n", get_last_http_error(ret_ws_2));
+                    do {
+                        // OpenMP: Launch a thread for each range
+                        #pragma omp parallel for num_threads(shared_options_data->num_threads)
+                        for (int j = 0; j < num_chunks; j++) {
+                            LOG_DEBUG_F("[%d] WS invocation\n", omp_get_thread_num());
+                            LOG_DEBUG_F("[%d] -- effect WS\n", omp_get_thread_num());
+                            if (!reconnections || ret_ws_0) {
+                                ret_ws_0 = invoke_effect_ws(urls[0], (vcf_record_t**) (passed_records->items + chunk_starts[j]), chunk_sizes[j], options_data->excludes);
+                            }
+                            
+                            if (!options_data->no_phenotypes) {
+                                if (!reconnections || ret_ws_1) {
+                                    LOG_DEBUG_F("[%d] -- snp WS\n", omp_get_thread_num());
+                                    ret_ws_1 = invoke_snp_phenotype_ws(urls[1], (vcf_record_t**) (passed_records->items + chunk_starts[j]), chunk_sizes[j]);
+                                }
+                                 
+                                if (!reconnections || ret_ws_2) {
+                                    LOG_DEBUG_F("[%d] -- mutation WS\n", omp_get_thread_num());
+                                    ret_ws_2 = invoke_mutation_phenotype_ws(urls[2], (vcf_record_t**) (passed_records->items + chunk_starts[j]), chunk_sizes[j]);
+                                }
+                            }
                         }
                         
-                        LOG_FATAL("Can not continue execution after a web service error occurred");
-                        break;
+                        LOG_DEBUG_F("*** %dth web services invocation finished\n", i);
+                        
+                        if (ret_ws_0 || ret_ws_1 || ret_ws_2) {
+                            if (ret_ws_0) {
+                                LOG_ERROR_F("Effect web service error: %s\n", get_last_http_error(ret_ws_0));
+                            }
+                            if (ret_ws_1) {
+                                LOG_ERROR_F("SNP phenotype web service error: %s\n", get_last_http_error(ret_ws_1));
+                            }
+                            if (ret_ws_2) {
+                                LOG_ERROR_F("Mutations phenotype web service error: %s\n", get_last_http_error(ret_ws_2));
+                            }
+                            
+                            // In presence of errors, wait 4 seconds before retrying
+                            reconnections++;
+                            LOG_ERROR_F("Some errors ocurred, reconnection #%d\n", reconnections);
+                            sleep(4);
+                        } else {
+                            free(chunk_starts);
+                            free(chunk_sizes);
+                        }
+                    } while (reconnections < max_reconnections && (ret_ws_0 || ret_ws_1 || ret_ws_2));
+                }
+                
+                // If the maximum number of reconnections was reached still with errors, 
+                // write the non-processed batch to the corresponding file
+                if (reconnections == max_reconnections && (ret_ws_0 || ret_ws_1 || ret_ws_2)) {
+                #pragma omp critical
+                    {
+                        write_vcf_batch(batch, non_processed_file);
                     }
                 }
                 
-                // Write records that passed and failed to separate files
-                if (passed_file != NULL && failed_file != NULL) {
-                    if (passed_records != NULL && passed_records->size > 0) {
-                #pragma omp critical 
-                    {
-                        for (int r = 0; r < passed_records->size; r++) {
-                            write_vcf_record(passed_records->items[r], passed_file);
-                        }
-//                         write_batch(passed_records, passed_file);
-                    }
-                    }
-                    if (failed_records != NULL && failed_records->size > 0) {
-                #pragma omp critical 
-                    {
-                        for (int r = 0; r < passed_records->size; r++) {
-                            write_vcf_record(failed_records->items[r], failed_file);
-                        }
-//                         write_batch(failed_records, failed_file);
-                    }
-                    }
-                }
+                // Write records that passed and failed filters to separate files, and free them
+                write_filtering_output_files(passed_records, failed_records, passed_file, failed_file);
+                free_filtered_records(passed_records, failed_records, batch->records);
                 
-                // Free items in both lists (not their internal data)
-                if (passed_records != input_records) {
-                    LOG_DEBUG_F("[Batch %d] %zu passed records\n", i, passed_records->size);
-                    array_list_free(passed_records, NULL);
-                }
-                if (failed_records) {
-                    LOG_DEBUG_F("[Batch %d] %zu failed records\n", i, failed_records->size);
-                    array_list_free(failed_records, NULL);
-                }
                 // Free batch and its contents
                 vcf_batch_free(batch);
                 
@@ -267,6 +266,7 @@ int run_effect(char **urls, shared_options_data_t *shared_options, effect_option
             // Free resources
             if (passed_file) { fclose(passed_file); }
             if (failed_file) { fclose(failed_file); }
+            if (non_processed_file) { fclose(non_processed_file); }
             
             // Free filters
             for (i = 0; i < num_filters; i++) {
@@ -276,7 +276,7 @@ int run_effect(char **urls, shared_options_data_t *shared_options, effect_option
             free(filters);
             
             // Decrease list writers count
-            for (i = 0; i < shared_options->num_threads; i++) {
+            for (i = 0; i < shared_options_data->num_threads; i++) {
                 list_decr_writers(output_list);
             }
         }
@@ -330,10 +330,9 @@ int run_effect(char **urls, shared_options_data_t *shared_options, effect_option
 
     write_summary_file(summary_count, summary_file);
     write_genes_with_variants_file(gene_list, output_directory);
-    write_result_file(shared_options, options_data, summary_count, output_directory);
+    write_result_file(shared_options_data, options_data, summary_count, output_directory);
 
-    ret_code = free_ws_output(shared_options->num_threads);
-//     free(read_list);
+    ret_code = free_ws_output(shared_options_data->num_threads);
     free(output_list);
     vcf_close(file);
     

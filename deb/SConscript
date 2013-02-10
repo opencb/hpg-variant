@@ -1,17 +1,27 @@
-import os, shutil, sys
+import hashlib, os, shutil, sys
+
 Import('env') # exported by parent SConstruct
 
 # Here's the core info for the DEBIAN/control file of the package
 DEBNAME = "hpg-variant"
-DEBVERSION = "0.2"
-DEBMAINT = "Cristina Yenyxe Gonzalez Garcia (cgonzalez@cipf.es)"
+DEBVERSION = "0.2.1"
+DEBMAINT = "Cristina Yenyxe Gonzalez Garcia <cgonzalez@cipf.es>"
 DEBARCH = "amd64"
-DEBDEPENDS = "libargtable2-0, libconfig8, libcurl4-openssl-dev, libgsl0ldbl, libxml2, zlib1g" # what are we dependent on?
-DEBDESC = "HPG Variant"
-DEBSECTION = "user/science"
+DEBDEPENDS = "libc6, libconfig8, libcurl4-openssl-dev, libgsl0ldbl, libxml2, zlib1g"
+DEBSECTION = "science"
+DEBDESC = ''.join([ "Bioinformatics tool suite for analyzing genomic variations\n", 
+" HPG Variant is a suite for the analysis of genomic data extracted from Next\n",
+" Generation Sequencing technologies. It uses parallel computing technologies\n",
+" such as CUDA and OpenMP in order to reduce the processing times.\n",
+" It contains three binaries:\n",
+"  * hpg-var-effect retrieves the effect of genome variations.\n",
+"  * hpg-var-gwas conducts genomic-wide association analysis such as chi-square\n",
+"    and Fisher's exact test, and family-based analysis such as transmission\n",
+"    disequilibrium test (TDT).\n",
+"  * hpg-var-vcf allows one to preprocess files containing genome variations in\n",
+"    Variant Call Format." ])
 
 DEBFILES = [
-
     # Now we specify the files to be included in the .deb
     # Where they should go, and where they should be copied from.
     # If you have a lot of files, you may wish to generate this 
@@ -20,10 +30,13 @@ DEBFILES = [
     ("usr/bin/hpg-var-gwas",                    "#bin/hpg-var-gwas"),
     ("usr/bin/hpg-var-vcf",                     "#bin/hpg-var-vcf"),
     
-    # TODO: change names in application from .cfg to .conf!!
-    ("etc/hpg-variant/hpg-variant.conf",        "#bin/hpg-variant.cfg"),
-    ("etc/hpg-variant/vcf-info-fields.conf",    "#bin/vcf-info-fields.cfg"),
-    
+    ("etc/hpg-variant/hpg-variant.conf",        "#bin/hpg-variant.conf"),
+    ("etc/hpg-variant/vcf-info-fields.conf",    "#bin/vcf-info-fields.conf"), 
+]
+
+CONFFILES = [
+    "/etc/hpg-variant/hpg-variant.conf",
+    "/etc/hpg-variant/vcf-info-fields.conf"
 ]
 
 # This is the debian package we're going to create
@@ -33,7 +46,9 @@ debpkg = '#%s_%s-%s.deb' % (DEBNAME, DEBVERSION, DEBARCH)
 # and we want it to be built when we build 'debian'
 env.Alias("debian", debpkg)
 
+DEBCONFFILE = os.path.join(DEBNAME, "DEBIAN/conffiles")
 DEBCONTROLFILE = os.path.join(DEBNAME, "DEBIAN/control")
+DEBMD5FILE = os.path.join(DEBNAME, "DEBIAN/md5sums")
 
 # This copies the necessary files into place into place.
 # Fortunately, SCons creates the necessary directories for us.
@@ -44,15 +59,15 @@ for f in DEBFILES:
     env.Depends(debpkg, dest)
     # Copy from the the source tree.
     env.Command(dest, f[1], Copy('$TARGET','$SOURCE'))
-    # The control file also depends on each source because we'd like
+    # The control and MD5 files also depend on each source because we'd like
     # to know the total installed size of the package
     env.Depends(DEBCONTROLFILE, dest)
+    env.Depends(DEBMD5FILE, dest)
 
 # Now to create the control file:
-
 CONTROL_TEMPLATE = """
 Package: %s
-Priority: extra
+Priority: optional
 Section: %s
 Installed-Size: %s
 Maintainer: %s
@@ -62,14 +77,21 @@ Depends: %s
 Description: %s
 """
 
-env.Depends(debpkg,DEBCONTROLFILE )
+env.Depends(debpkg, DEBCONFFILE)
+env.Depends(debpkg, DEBCONTROLFILE)
+env.Depends(debpkg, DEBMD5FILE)
 
-# Original: The control file should be updated when the SVN version changes
-# Ours (TODO): May the control file change when any of DEBFILES is updated?
-#env.Depends(DEBCONTROLFILE, env.Value(svn_version))
+# This function creates the conffiles file.
+def make_conffiles(target=None, source=None, env=None):
+    conffile = ''
+    for i in CONFFILES:
+        conffile += i + '\n'
+    with open(str(target[0]), 'w') as f:
+        os.fchmod(f.fileno(), 0644)
+        f.write(conffile)
 
-# This function creates the control file from the template and info
-# specified above, and works out the final size of the package.
+# This function creates the control file from the template and info specified 
+# above, and works out the final size of the package.
 def make_control(target=None, source=None, env=None):
     installed_size = 0
     for i in DEBFILES:
@@ -77,13 +99,34 @@ def make_control(target=None, source=None, env=None):
     control_info = CONTROL_TEMPLATE % (
         DEBNAME, DEBSECTION, installed_size, DEBMAINT, DEBARCH, DEBVERSION,
         DEBDEPENDS, DEBDESC)
-    f = open(str(target[0]), 'w')
-    f.write(control_info)
-    f.close()
+    with open(str(target[0]), 'w') as f:
+        os.fchmod(f.fileno(), 0644)
+        f.write(control_info)
+
+# The following 2 functions create the md5sums file.
+def md5sum(filename):
+    md5 = hashlib.md5()
+    with open(filename, 'rb') as f: 
+        for chunk in iter(lambda: f.read(128*md5.block_size), b''): 
+            md5.update(chunk)
+    return md5.hexdigest()
+
+def make_md5sums(target=None, source=None, env=None):
+    md5sums = ''
+    installed_size = 0
+    for i in DEBFILES:
+        src_filename = str(env.File(i[0]))
+        dest_filename = str(env.File(i[1]))
+        md5sums += "%s  ./%s\n" % (md5sum(dest_filename), src_filename)
+    with open(str(target[0]), 'w') as f:
+        os.fchmod(f.fileno(), 0644)
+        f.write(md5sums)
     
-# We can generate the control file by calling make_control
+# We can generate the files in the DEBIAN folder
+env.Command(DEBCONFFILE, None, make_conffiles)
 env.Command(DEBCONTROLFILE, None, make_control)
+env.Command(DEBMD5FILE, None, make_md5sums)
 
 # And we can generate the .deb file by calling dpkg-deb
-env.Command(debpkg, DEBCONTROLFILE,
+env.Command(debpkg, [DEBCONFFILE, DEBCONTROLFILE, DEBMD5FILE],
             "fakeroot dpkg-deb -b %s %s" % ("deb/%s" % DEBNAME, "$TARGET"))
