@@ -35,8 +35,8 @@ int vcf_tool_merge(int argc, char *argv[], const char *configuration_file, array
     void **argtable;
     if (argc == 1 || !strcmp(argv[1], "-h") || !strcmp(argv[1], "--help")) {
         argtable = merge_merge_options(merge_options, shared_options, arg_end(merge_options->num_options + shared_options->num_options));
-        show_usage("hpg-var-vcf", argtable, merge_options->num_options + shared_options->num_options);
-        arg_freetable(argtable, merge_options->num_options + shared_options->num_options - 2);
+        show_usage("hpg-var-vcf merge", argtable, merge_options->num_options + shared_options->num_options);
+        arg_freetable(argtable, merge_options->num_options + shared_options->num_options - 9);
         return 0;
     }
 
@@ -75,7 +75,7 @@ int vcf_tool_merge(int argc, char *argv[], const char *configuration_file, array
 
     free_merge_options_data(options_data);
     free_shared_options_data(shared_options_data);
-    arg_freetable(argtable, merge_options->num_options + shared_options->num_options + 1 - 2);
+    arg_freetable(argtable, merge_options->num_options + shared_options->num_options - 9);
 
     return 0;
 }

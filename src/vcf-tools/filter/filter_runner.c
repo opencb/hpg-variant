@@ -68,7 +68,7 @@ int run_filter(shared_options_data_t *shared_options_data, filter_options_data_t
             }
     
             FILE *passed_file = NULL, *failed_file = NULL;
-            get_output_files(shared_options_data, &passed_file, &failed_file);
+            get_filtering_output_files(shared_options_data, &passed_file, &failed_file);
             if (!options_data->save_rejected) {
                 fclose(failed_file);
             }
@@ -80,6 +80,12 @@ int run_filter(shared_options_data_t *shared_options_data, filter_options_data_t
             vcf_batch_t *batch = NULL;
             while ((batch = fetch_vcf_batch(file)) != NULL) {
                 if (i == 0) {
+                    // Add headers associated to the defined filters
+                    vcf_header_entry_t **filter_headers = get_filters_as_vcf_headers(filters, num_filters);
+                    for (int j = 0; j < num_filters; j++) {
+                        add_vcf_header_entry(filter_headers[j], file);
+                    }
+                    
                     // Write file format, header entries and delimiter
                     write_vcf_header(file, passed_file);
                     if (options_data->save_rejected) {

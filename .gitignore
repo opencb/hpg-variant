@@ -1,19 +1,26 @@
 
 *.o
 *.test
-bin/*
+*.pyc
+*.deb
 *~
 *anjuta*
 *sonar*
 *kdev*
+
 test/tdt_files/job.map
 test/tdt_files/job.ped
 test/tdt_files/job.vcf
+
 .sconsign.dblite
-*.pyc
+
+bin/*
+deb/hpg-variant/*
 hpg-variant-0.2/*
 hpg-variant-0.2.tar.gz
+
 src/effect/hpg-var-effect
+src/epistasis/hpg-var-epistasis
 src/gwas/hpg-var-gwas
 src/vcf-tools/hpg-var-vcf
 
