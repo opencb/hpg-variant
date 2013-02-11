@@ -177,7 +177,7 @@ START_TEST (test_dataset_load) {
         1, 1, 2, 2, 2, 2, 1, 2, 2, 0, 2, 0, 2, 2, 2, 2, 1, 1, 1, 2, 2, 2, 1, 2, 2, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 
         1, 1, 2, 255, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2 };
     
-    uint8_t *contents = epistasis_dataset_load(&num_variants, &num_affected, &num_unaffected, &file_len, &genotypes_offset, filename);
+    uint8_t *contents = epistasis_dataset_load(&num_affected, &num_unaffected, &num_variants, &file_len, &genotypes_offset, filename);
     
     fail_unless(num_variants == 4, "There must be 4 variants");
     fail_unless(num_affected == 49, "There must be 49 affected samples");

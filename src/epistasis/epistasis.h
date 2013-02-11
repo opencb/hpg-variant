@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2012 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
- * Copyright (c) 2012 Ignacio Medina (ICM-CIPF)
+ * Copyright (c) 2012-2013 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
+ * Copyright (c) 2012-2013 Ignacio Medina (ICM-CIPF)
  *
  * This file is part of hpg-variant.
  *
@@ -34,33 +34,43 @@
 
 #include <argtable2.h>
 
-#include <bioformats/vcf/vcf_filters.h>
 #include <commons/log.h>
 
 #include "error.h"
 #include "shared_options.h"
 
+#include "model.h"
+
 /**
  * Number of options applicable to the epistasis tool.
  */
-#define NUM_EPISTASIS_OPTIONS  2
+#define NUM_EPISTASIS_OPTIONS  6
 
 typedef struct epistasis_options {
     int num_options;
     
-    struct arg_lit *no_phenotypes; /**< Flag asking not to retrieve phenotypical information. */
-    struct arg_str *excludes; /**< Comma-separated consequence types to exclude from the query. */
+    struct arg_file *dataset_filename;    /**< Binary file used as input. */
+    struct arg_int *order;
+    struct arg_int *operations_per_block;
+    struct arg_int *num_folds;
+    struct arg_int *num_cv_repetitions;
+    struct arg_int *max_ranking_size;
 } epistasis_options_t;
 
 /**
  * @brief Values for the options of the epistasis tool.
  * 
- * This struct contains the options specific to the epistasis tool, such as configuration of web 
- * services that retrieve phenotypical information, or the epistasiss that will not be retrieved.
+ * This struct contains the options specific to the epistasis tool, such as the 
+ * order of the SNP combinations or the maximum number of cross-validation runs.
  */
 typedef struct epistasis_options_data {
-    int no_phenotypes;  /**< Flag asking not to retrieve phenotypical information. */
-    char *excludes;     /**< Comma-separated consequence types to exclude from the query. */
+    char *dataset_filename;    /**< Binary file used as input. */
+    int order;
+    int stride;
+    int num_folds;
+    int num_cv_repetitions;
+    int max_ranking_size;
+    enum eval_mode evaluation_mode;
 } epistasis_options_data_t;
 
 

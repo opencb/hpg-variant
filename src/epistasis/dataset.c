@@ -40,7 +40,7 @@ uint8_t *epistasis_dataset_process_records(vcf_record_t **variants, size_t num_v
     return genotypes;
 }
 
-uint8_t *epistasis_dataset_load(int *num_variants, int *num_affected, int *num_unaffected, size_t *file_len, size_t *genotypes_offset, char *filename) {
+uint8_t *epistasis_dataset_load(int *num_affected, int *num_unaffected, size_t *num_variants, size_t *file_len, size_t *genotypes_offset, char *filename) {
     uint8_t *contents = mmap_file(file_len, filename);
     
     *num_variants = contents[0];

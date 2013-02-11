@@ -190,8 +190,8 @@ int create_dataset_from_vcf(shared_options_data_t* shared_options_data) {
                 if (!header_written) {
                     num_samples = get_num_vcf_samples(file);
                     if (!fwrite(&num_variants, sizeof(size_t), 1, fp) ||
-                        !fwrite(&num_affected, sizeof(int), 1, fp) ||
-                        !fwrite(&num_unaffected, sizeof(int), 1, fp)) {
+                        !fwrite(&num_affected, sizeof(uint32_t), 1, fp) ||
+                        !fwrite(&num_unaffected, sizeof(uint32_t), 1, fp)) {
                         LOG_ERROR("The header of the dataset could not be written!");
                     }
                     header_written = true;
@@ -221,32 +221,6 @@ int create_dataset_from_vcf(shared_options_data_t* shared_options_data) {
 
         }
     }
-    
-//     FILE *fp = fopen("epistasis_dataset.bin","rb");
-//     
-//     size_t in_variants, in_samples;
-//     
-//     fread(&in_variants, sizeof(size_t), 1, fp);
-//     fread(&num_affected, sizeof(int), 1, fp);
-//     fread(&num_unaffected, sizeof(int), 1, fp);
-//     in_samples = num_affected + num_unaffected;
-//     
-//     printf("variants = %zu\tsamples = %zu\n", in_variants, in_samples);
-//     uint8_t genotypes[in_samples];
-//     
-//     for (size_t i = 0; i < in_variants; i++) {
-//         if (!fread(genotypes, sizeof(uint8_t), in_samples, fp)) {
-//             printf("variant %zu not read\n", i);
-//         } else {
-//             printf("[%zu] { ", i);
-//             for (int j = 0; j < in_samples; j++) {
-//                 printf("%d ", genotypes[j]);
-//             }
-//             printf("}\n");
-//         }
-//     }
-//     
-//     fclose(fp);
     
     free(phenotypes);
     free(output_list);

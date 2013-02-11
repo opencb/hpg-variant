@@ -20,7 +20,7 @@
 uint8_t *epistasis_dataset_process_records(vcf_record_t** variants, size_t num_variants, int* destination, 
                                            int num_samples, int num_threads);
 
-uint8_t *epistasis_dataset_load(int *num_variants, int *num_affected, int *num_unaffected, size_t *file_len, size_t *genotypes_offset, char *filename);
+uint8_t *epistasis_dataset_load(int *num_affected, int *num_unaffected, size_t *num_variants, size_t *file_len, size_t *genotypes_offset, char *filename);
 
 int epistasis_dataset_close(uint8_t *contents, size_t file_len);
 

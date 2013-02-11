@@ -17,11 +17,12 @@
 
 
 typedef struct {
+    double accuracy;
     int order;
     int *combination;
     uint8_t *genotypes;
-    int num_risky;
-    double accuracy;
+    int num_risky_genotypes;
+    void *auxiliary_info;
 } risky_combination;
 
 
@@ -43,16 +44,10 @@ enum eval_function { CA, BA, wBA, GAMMA, TAU_B };
  *       Main pipeline      *
  * **************************/
 
-// risky_combination *get_model_from_combination_in_fold(int order, int comb[order], int *fold_samples, unsigned int fold_size, 
-//                                                       unsigned int num_samples, unsigned int num_affected_in_training, unsigned int num_unaffected_in_training,
-//                                                       int stride, uint8_t *block_starts[2],
 risky_combination *get_model_from_combination_in_fold(int order, int comb[order], uint8_t *val, unsigned int num_affected_in_training, unsigned int num_unaffected_in_training,
                                                       int num_genotype_combinations, uint8_t **genotype_combinations,
                                                       array_list_t* aux_ret);
 
-// double test_model(int order, risky_combination *risky_comb, int *fold_samples, 
-//                   unsigned int num_samples, unsigned int num_affected_in_testing, unsigned int num_unaffected_in_testing,
-//                   int stride, uint8_t *block_starts[2]);
 double test_model(int order, risky_combination *risky_comb, uint8_t *val, 
                   unsigned int num_affected_in_testing, unsigned int num_unaffected_in_testing);
 
