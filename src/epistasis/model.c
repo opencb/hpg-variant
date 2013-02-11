@@ -8,8 +8,7 @@
  * **************************/
 
 risky_combination *get_model_from_combination_in_fold(int order, int comb[order], uint8_t *val, unsigned int num_affected_in_training, unsigned int num_unaffected_in_training,
-                                                      int num_genotype_combinations, uint8_t **genotype_combinations,
-                                                      array_list_t* aux_ret) {
+                                                      int num_genotype_combinations, uint8_t **genotype_combinations) {
     risky_combination *risky_comb = NULL;
     
     // Get counts for the provided genotypes
@@ -27,13 +26,14 @@ risky_combination *get_model_from_combination_in_fold(int order, int comb[order]
 //     printf("}\n");
     
     // Get high risk pairs for those counts
+    void *aux_info;
     int *risky_idx = get_high_risk_combinations(counts, num_counts, num_affected_in_training, num_unaffected_in_training, 
-                                                &num_risky, aux_ret, mdr_high_risk_combinations);
+                                                &num_risky, &aux_info, mdr_high_risk_combinations);
     
     // Filter non-risky SNP combinations
     if (num_risky > 0) {
         // Put together the info about the SNP combination and its genotype combinations
-        risky_comb = risky_combination_new(order, comb, genotype_combinations, num_risky, risky_idx);
+        risky_comb = risky_combination_new(order, comb, genotype_combinations, num_risky, risky_idx, aux_info);
         
 //         printf("risky combination = {\n  SNP: ");
 //         print_combination(risky_comb->combination, 0, order);
@@ -239,7 +239,7 @@ uint8_t* get_masks(int order, uint8_t *genotypes, int num_samples, int *num_mask
  * **************************/
 
 int* get_high_risk_combinations(unsigned int* counts, unsigned int num_counts, unsigned int num_affected, unsigned int num_unaffected, 
-                                unsigned int *num_risky, array_list_t* aux_ret, 
+                                unsigned int *num_risky, void** aux_ret, 
                                 bool (*test_func)(unsigned int, unsigned int, unsigned int, unsigned int, void **)) {
     int *risky = malloc ((num_counts / 2) * sizeof(int));
     *num_risky = 0;
@@ -250,9 +250,7 @@ int* get_high_risk_combinations(unsigned int* counts, unsigned int num_counts, u
         
         if (is_high_risk) {
             risky[*num_risky] = i / 2;
-            if (test_return_values) {
-                array_list_insert(test_return_values, aux_ret);
-            }
+            if (test_return_values) { *aux_ret = test_return_values; }
             (*num_risky)++;
         }
     }
@@ -260,13 +258,14 @@ int* get_high_risk_combinations(unsigned int* counts, unsigned int num_counts, u
     return risky;
 }
 
-risky_combination* risky_combination_new(int order, int comb[order], uint8_t** possible_genotypes_combinations, int num_risky, int* risky_idx) {
+risky_combination* risky_combination_new(int order, int comb[order], uint8_t** possible_genotypes_combinations, int num_risky, int* risky_idx, void *aux_info) {
     risky_combination *risky = malloc(sizeof(risky_combination));
     risky->order = order;
     risky->combination = malloc(order * sizeof(int));
     // TODO for SSE, could it be useful to create N arrays, where N = order?
     risky->genotypes = malloc(num_risky * order * sizeof(uint8_t));
     risky->num_risky_genotypes = num_risky;
+    risky->auxiliary_info = aux_info; // TODO improvement: set this using a method-dependant (MDR, MB-MDR) function
     
     memcpy(risky->combination, comb, order * sizeof(int));
     

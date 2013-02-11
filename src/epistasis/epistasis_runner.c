@@ -69,9 +69,6 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
     // Ranking of best models in each repetition
     linked_list_t *best_models[options_data->num_cv_repetitions];
     
-    // TODO Not used in basic MDR, so not initialized
-//     array_list_t* aux_ret = array_list_new(4, 1.2, COLLECTION_MODE_ASYNCHRONIZED);
-    
     /**************************** End of variables precalculus  ****************************/
     
     
@@ -98,60 +95,55 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
             }
         }
         
-        enum eval_mode mode = TRAINING;
-    
         do {
-//         printf("BLOCK %d,%d\n", block_coords[0], block_coords[1]);
         
-        uint8_t *block_starts[2];
-        block_starts[0] = genotypes + block_coords[0] * options_data->stride * num_samples;
-        block_starts[1] = genotypes + block_coords[1] * options_data->stride * num_samples;
-        
-        // Test first combination in the block
-        int *comb = get_first_combination_in_block(options_data->order, block_coords, options_data->stride);
-//         print_combination(comb, comb_idx, options_data->order);
-        
-        do  {
-            // Run for each fold
-            for (int i = 0; i < options_data->num_folds; i++) {
-//                 printf("Combination (%d,%d) and fold %d\n", comb[0], comb[1], i);
-                
-                // Get genotypes of that combination
-                uint8_t *training_genotypes = get_genotypes_for_combination_exclude_fold(options_data->order, comb, num_samples, sizes[3 * i], folds[i], options_data->stride, block_starts);
-                
-                risky_combination *risky_comb = get_model_from_combination_in_fold(options_data->order, comb, training_genotypes,
-                                                                                   training_sizes[3 * i + 1], training_sizes[3 * i + 2],
-                                                                                   num_genotype_combinations, genotype_combinations, NULL); // TODO aux_ret needed?
-                
-                if (risky_comb) {
-                    // Check the model against the testing dataset
-                    double accuracy = 0.0f;
+            uint8_t *block_starts[2];
+            block_starts[0] = genotypes + block_coords[0] * options_data->stride * num_samples;
+            block_starts[1] = genotypes + block_coords[1] * options_data->stride * num_samples;
+            
+            // Test first combination in the block
+            int *comb = get_first_combination_in_block(options_data->order, block_coords, options_data->stride);
+    //         print_combination(comb, comb_idx, options_data->order);
+            
+            do  {
+                // Run for each fold
+                for (int i = 0; i < options_data->num_folds; i++) {
+                    // Get genotypes of that combination
+                    uint8_t *training_genotypes = get_genotypes_for_combination_exclude_fold(options_data->order, comb, num_samples, sizes[3 * i], folds[i], options_data->stride, block_starts);
                     
-                    if (mode == TESTING) {
-                        uint8_t *testing_genotypes = get_genotypes_for_combination_and_fold(options_data->order, risky_comb->combination, 
-                                                                                            num_samples, sizes[3 * i + 1] + sizes[3 * i + 2], 
-                                                                                            folds[i], options_data->stride, block_starts);
-                        accuracy = test_model(options_data->order, risky_comb, testing_genotypes, sizes[3 * i + 1], sizes[3 * i + 2]);
-                        free(testing_genotypes);
-                    } else {
-                        accuracy = test_model(options_data->order, risky_comb, training_genotypes, training_sizes[3 * i + 1], training_sizes[3 * i + 2]);
+                    risky_combination *risky_comb = get_model_from_combination_in_fold(options_data->order, comb, training_genotypes,
+                                                                                    training_sizes[3 * i + 1], training_sizes[3 * i + 2],
+                                                                                    num_genotype_combinations, genotype_combinations, NULL); // TODO aux_ret needed?
+                    
+                    if (risky_comb) {
+                        // Check the model against the testing dataset
+                        double accuracy = 0.0f;
+                        
+                        if (options_data->evaluation_mode == TESTING) {
+                            uint8_t *testing_genotypes = get_genotypes_for_combination_and_fold(options_data->order, risky_comb->combination, 
+                                                                                                num_samples, sizes[3 * i + 1] + sizes[3 * i + 2], 
+                                                                                                folds[i], options_data->stride, block_starts);
+                            accuracy = test_model(options_data->order, risky_comb, testing_genotypes, sizes[3 * i + 1], sizes[3 * i + 2]);
+                            free(testing_genotypes);
+                        } else {
+                            accuracy = test_model(options_data->order, risky_comb, training_genotypes, training_sizes[3 * i + 1], training_sizes[3 * i + 2]);
+                        }
+    //                     printf("*  Balanced accuracy: %.3f\n", accuracy);
+                        
+                        int position = add_to_model_ranking(risky_comb, options_data->max_ranking_size, ranking_risky[i]);
+    //                     if (position >= 0) {
+    //                         printf("Combination inserted at position %d\n", position);
+    //                     } else {
+    //                         printf("Combination not inserted\n");
+    //                     }
                     }
-//                     printf("*  Balanced accuracy: %.3f\n", accuracy);
                     
-                    int position = add_to_model_ranking(risky_comb, options_data->max_ranking_size, ranking_risky[i]);
-//                     if (position >= 0) {
-//                         printf("Combination inserted at position %d\n", position);
-//                     } else {
-//                         printf("Combination not inserted\n");
-//                     }
+                    free(training_genotypes);
                 }
                 
-                free(training_genotypes);
-            }
+            } while (get_next_combination_in_block(options_data->order, comb, block_coords, options_data->stride)); // Test next combinations
             
-        } while (get_next_combination_in_block(options_data->order, comb, block_coords, options_data->stride)); // Test next combinations
-        
-        free(comb);
+            free(comb);
         
         } while (get_next_block(num_blocks_per_dim, options_data->order, block_coords));
         

@@ -45,8 +45,7 @@ enum eval_function { CA, BA, wBA, GAMMA, TAU_B };
  * **************************/
 
 risky_combination *get_model_from_combination_in_fold(int order, int comb[order], uint8_t *val, unsigned int num_affected_in_training, unsigned int num_unaffected_in_training,
-                                                      int num_genotype_combinations, uint8_t **genotype_combinations,
-                                                      array_list_t* aux_ret);
+                                                      int num_genotype_combinations, uint8_t **genotype_combinations);
 
 double test_model(int order, risky_combination *risky_comb, uint8_t *val, 
                   unsigned int num_affected_in_testing, unsigned int num_unaffected_in_testing);
@@ -83,11 +82,11 @@ uint8_t* get_masks(int order, uint8_t *genotypes, int num_samples, int *num_mask
  * **************************/
 
 int* get_high_risk_combinations(unsigned int *counts, unsigned int num_counts, unsigned int num_affected, unsigned int num_unaffected, 
-                                unsigned int *num_risky, array_list_t* aux_ret,
+                                unsigned int *num_risky, void** aux_ret,
                                 bool (*test_func)(unsigned int, unsigned int, unsigned int, unsigned int, void **));
 
 
-risky_combination *risky_combination_new(int order, int comb[order], uint8_t **possible_genotypes_combinations, int num_risky, int *risky_idx);
+risky_combination *risky_combination_new(int order, int comb[order], uint8_t **possible_genotypes_combinations, int num_risky, int *risky_idx, void *aux_info);
 
 void risky_combination_free(risky_combination *combination);
 

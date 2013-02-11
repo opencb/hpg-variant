@@ -36,10 +36,9 @@ START_TEST (test_get_high_risk_combinations) {
     int num_counts = 6, num_risky = 0;
     int counts[] = { 8, 40, 4, 75, 9, 20, 8, 63 } ;
     int num_affected = 10, num_unaffected = 80;
-    array_list_t* aux_ret = array_list_new(4, 1.2, COLLECTION_MODE_ASYNCHRONIZED);
     
     int *combinations = get_high_risk_combinations(counts, num_counts, num_affected, num_unaffected, 
-                                                   &num_risky, aux_ret, mdr_high_risk_combinations);
+                                                   &num_risky, NULL, mdr_high_risk_combinations);
     
     fail_if(num_risky != 2, "There should be 2 risky combination");
     fail_if(combinations[0] != 0, "Combination 0 (zero) should be risky");
@@ -68,7 +67,6 @@ START_TEST (test_mdr_steps_2_6) {
                             1, 2, 2, 1, 1, 0, 1, 0, 1, 2, 0, 2,
                             2, 0, 0, 0, 1, 2, 0, 2, 2, 1, 1, 0 };
     
-    array_list_t* aux_ret = array_list_new(4, 1.2, COLLECTION_MODE_ASYNCHRONIZED);
     int block_2d[] = { 0, 0 };
     
     // Precalculate combinations for a given order
@@ -99,7 +97,7 @@ START_TEST (test_mdr_steps_2_6) {
                 uint8_t *training_genotypes = get_genotypes_for_combination_exclude_fold(order, comb, num_samples, num_samples_in_fold, folds[i], stride, block_starts);
                 
                 risky_combination *risky_comb = get_model_from_combination_in_fold(order, comb, training_genotypes, aff_per_training_fold, unaff_per_training_fold, 
-                                                                                   num_genotype_combinations, genotype_combinations, aux_ret);
+                                                                                   num_genotype_combinations, genotype_combinations);
                 
                 if (risky_comb) {
                     // Check the model against the testing dataset
@@ -152,9 +150,6 @@ START_TEST(test_mdr_5_repetitions_5_fold) {
     // Ranking of best models in each repetition
     linked_list_t *best_models[num_repetitions];
     
-    // Not used in basic MDR, so not initialized
-//     array_list_t* aux_ret = array_list_new(4, 1.2, COLLECTION_MODE_ASYNCHRONIZED);
-    
     for (int r = 0; r < num_repetitions; r++) {
         // Initialize folds, first block coordinates, genotype combinations and rankings for each repetition
         unsigned int *sizes, *training_sizes;
@@ -202,7 +197,7 @@ START_TEST(test_mdr_5_repetitions_5_fold) {
                 
                 risky_combination *risky_comb = get_model_from_combination_in_fold(order, comb, training_genotypes,
                                                                                    training_sizes[3 * i + 1], training_sizes[3 * i + 2],
-                                                                                   num_genotype_combinations, genotype_combinations, NULL); // TODO aux_ret needed?
+                                                                                   num_genotype_combinations, genotype_combinations);
                 
                 if (risky_comb) {
                     // Check the model against the testing dataset

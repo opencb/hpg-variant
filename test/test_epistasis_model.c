@@ -161,7 +161,7 @@ START_TEST(test_get_confusion_matrix) {
                                0, 0, 1, 1, 2, 2, 0, 0, 1, 1, 2, 2 };
     uint8_t **possible_2d = get_genotype_combinations(order, &num_combinations);
     // Risky combinations: (0,1), (2,1), (2,2)
-    risky_combination *combination_2d = risky_combination_new(order, (int[2]){ 0, 1 }, possible_2d, 3, (int[3]){ 3, 7, 8 } );
+    risky_combination *combination_2d = risky_combination_new(order, (int[2]){ 0, 1 }, possible_2d, 3, (int[3]){ 3, 7, 8 }, NULL);
     
     // 7 affected, 5 unaffected
     int *confusion_matrix = get_confusion_matrix(order, combination_2d, 7, 5, genotypes_2d);
@@ -189,7 +189,7 @@ START_TEST(test_get_confusion_matrix) {
                                1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 0, 0 };
     uint8_t **possible_3d = get_genotype_combinations(order, &num_combinations);
     // Risky combinations: (1,0,1), (2,1,0), (2,2,1)
-    risky_combination *combination_3d = risky_combination_new(order, (int[3]){ 0, 1, 2 }, possible_3d, 4, (int[4]){ 4, 10, 21, 25 } );
+    risky_combination *combination_3d = risky_combination_new(order, (int[3]){ 0, 1, 2 }, possible_3d, 4, (int[4]){ 4, 10, 21, 25 }, NULL);
     
     // 6 affected, 6 unaffected
     confusion_matrix = get_confusion_matrix(order, combination_3d, 6, 6, genotypes_3d);
