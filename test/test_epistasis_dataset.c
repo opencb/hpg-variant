@@ -154,6 +154,46 @@ START_TEST (test_process_records) {
 }
 END_TEST
 
+START_TEST (test_dataset_load) {
+    int num_variants, num_affected, num_unaffected;
+    size_t file_len, genotypes_offset;
+    char *filename = "epistasis_dataset.bin";
+    
+    uint8_t expected[] = { 
+        2, 0, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 1, 2, 1, 2, 2, 1, 2, 2, 1, 1, 1, 2, 2, 255, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 
+        1, 1, 2, 1, 2, 1, 2, 2, 2, 2, 2, 1, 2, 2, 1, 1, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 1, 2, 2, 1, 2, 2, 2, 2, 2, 1, 
+        1, 2, 2, 2, 1, 1, 1, 2, 2, 2, 1, 1, 2, 255, 2, 2, 1, 2, 2, 0, 2, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 2, 
+        2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2, 1, 2, 0, 2, 2, 1, 2, 2, 2, 2, 1, 2, 2, 2, 2, 1, 2, 2, 2, 1, 2, 2, 1, 2, 2, 2, 
+        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 
+        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 255, 2, 2, 2, 2, 2, 2, 2, 2, 2, 255, 
+        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 
+        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 2, 2, 2, 2, 
+        2, 2, 1, 2, 2, 2, 2, 1, 2, 1, 2, 2, 1, 2, 2, 1, 1, 1, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 0, 1, 2, 2, 2, 1, 2, 
+        2, 2, 2, 2, 1, 2, 2, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2, 1, 2, 2, 2, 2, 2, 1, 1, 2, 2, 2, 1, 2, 1, 
+        2, 2, 2, 1, 1, 2, 2, 2, 2, 1, 2, 2, 0, 2, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 
+        2, 2, 2, 1, 1, 2, 0, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 1, 1, 0, 2, 2, 2, 2, 2, 1, 1, 2, 2, 
+        2, 2, 1, 2, 1, 2, 2, 1, 2, 2, 1, 1, 1, 2, 2, 255, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 0, 1, 2, 2, 2, 1, 2, 2, 1, 2, 2, 
+        1, 1, 2, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 2, 1, 2, 2, 1, 2, 2, 2, 2, 2, 1, 1, 1, 255, 2, 1, 1, 1, 2, 2, 2, 
+        1, 1, 2, 2, 2, 2, 1, 2, 2, 0, 2, 0, 2, 2, 2, 2, 1, 1, 1, 2, 2, 2, 1, 2, 2, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 
+        1, 1, 2, 255, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2 };
+    
+    uint8_t *contents = epistasis_dataset_load(&num_variants, &num_affected, &num_unaffected, &file_len, &genotypes_offset, filename);
+    
+    fail_unless(num_variants == 4, "There must be 4 variants");
+    fail_unless(num_affected == 49, "There must be 49 affected samples");
+    fail_unless(num_unaffected == 98, "There must be 98 unaffected samples");
+    fail_unless(file_len == 608, "The file must be 608 bytes long");
+    fail_unless(genotypes_offset == (sizeof(size_t) + sizeof(uint32_t) + sizeof(uint32_t)), "Genotypes should start after a size_t and 2 uint32_t variables");
+    
+    for (int i = 0; i < file_len - genotypes_offset; i++) {
+        fail_unless(expected[i] == contents[genotypes_offset + i], "Content not expected");
+    }
+    
+    epistasis_dataset_close(contents, file_len);
+}
+END_TEST
+
+
 
 START_TEST (test_get_block_stride) {
     fail_unless(get_block_stride(1024, 2) == 32, "1024 operations, order 2 -> stride 32");
@@ -328,6 +368,7 @@ Suite *create_test_suite(void) {
     tcase_add_unchecked_fixture(tc_creation, setup_dataset, teardown_dataset);
     tcase_add_test(tc_creation, test_destination);
     tcase_add_test(tc_creation, test_process_records);
+    tcase_add_test(tc_creation, test_dataset_load);
     
     TCase *tc_balancing = tcase_create("Work distribution and load balancing");
     tcase_add_test(tc_balancing, test_get_block_stride);

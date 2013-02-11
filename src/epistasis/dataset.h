@@ -4,16 +4,30 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
 
 #include <bioformats/vcf/vcf_file_structure.h>
+#include <commons/file_utils.h>
 #include <containers/array_list.h>
 
+
+/* ***************************
+ *  Whole dataset management *
+ * ***************************/
 
 uint8_t *epistasis_dataset_process_records(vcf_record_t** variants, size_t num_variants, int* destination, 
                                            int num_samples, int num_threads);
 
+uint8_t *epistasis_dataset_load(int *num_variants, int *num_affected, int *num_unaffected, size_t *file_len, size_t *genotypes_offset, char *filename);
+
+int epistasis_dataset_close(uint8_t *contents, size_t file_len);
+
+
+/* *********************************************
+ *  Combinations of blocks, SNPs and genotypes *
+ * *********************************************/
 
 int get_block_stride(size_t block_operations, int order);
 
@@ -27,6 +41,10 @@ uint8_t **get_genotype_combinations(int order, int *num_combinations);
 
 uint8_t get_next_genotype_combination(int order, uint8_t comb[order]);
 
+
+/* ***************************
+ *        Input/Output       *
+ * ***************************/
 
 void print_combination(int comb[], unsigned long idx, int k);
 

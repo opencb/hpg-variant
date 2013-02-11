@@ -1,7 +1,11 @@
 #include "dataset.h"
 
-
 #define NUM_GENOTYPES   3
+
+
+/* ***************************
+ *  Whole dataset management *
+ * ***************************/
 
 uint8_t *epistasis_dataset_process_records(vcf_record_t **variants, size_t num_variants, int *destination,
                                            int num_samples, int threads) {
@@ -36,8 +40,28 @@ uint8_t *epistasis_dataset_process_records(vcf_record_t **variants, size_t num_v
     return genotypes;
 }
 
+uint8_t *epistasis_dataset_load(int *num_variants, int *num_affected, int *num_unaffected, size_t *file_len, size_t *genotypes_offset, char *filename) {
+    uint8_t *contents = mmap_file(file_len, filename);
+    
+    *num_variants = contents[0];
+    *num_affected = contents[sizeof(size_t)];
+    *num_unaffected = contents[sizeof(size_t) + sizeof(uint32_t)];
+    *genotypes_offset = sizeof(size_t) + sizeof(uint32_t) + sizeof(uint32_t);
+    
+    return contents;
+}
+
+int epistasis_dataset_close(uint8_t *contents, size_t file_len) {
+    assert(contents);
+    assert(file_len > 0);
+    return munmap((void*) contents, file_len);
+}
 
 
+
+/* *********************************************
+ *  Combinations of blocks, SNPs and genotypes *
+ * *********************************************/
 
 int get_block_stride(size_t block_operations, int order) {
     return ceil(pow(block_operations, ((double) 1/order)));
@@ -82,8 +106,6 @@ int* get_first_combination_in_block(int order, int block_coordinates[order], int
     
     return init_coordinates;
 }
-
-
 
 
 /**
@@ -162,6 +184,12 @@ uint8_t get_next_genotype_combination(int order, uint8_t comb[order]) {
     
     return comb[0] < NUM_GENOTYPES;
 }
+
+
+
+/* ***************************
+ *        Input/Output       *
+ * ***************************/
 
 void print_combination(int comb[], unsigned long idx, int k) {
     printf("%lu -> {", idx);
