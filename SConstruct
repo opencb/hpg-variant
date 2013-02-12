@@ -24,7 +24,7 @@ env['objects'] = []
 # bioinfo-libs compilation
 formats = [ 'family', 'features', 'gff', 'ped', 'vcf' ]
 aligners = []
-
+compiler = 'gcc'
 
 ##### Targets
 
@@ -32,7 +32,7 @@ aligners = []
 SConscript(['%s/bioformats/SConscript' % bioinfo_path,
             '%s/SConscript' % commons_path,
             '%s/SConscript' % math_path
-            ], exports = ['env', 'debug', 'formats', 'aligners'])
+            ], exports = ['env', 'debug', 'formats', 'aligners', 'compiler'])
 
 # Create binaries and copy them to 'bin' folder
 progs = SConscript(['src/effect/SConscript',
