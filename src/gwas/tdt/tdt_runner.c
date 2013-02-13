@@ -95,6 +95,7 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
     
             double start = omp_get_wtime();
             
+            int i = 0;
 #pragma omp parallel num_threads(shared_options_data->num_threads) shared(initialization_done, sample_ids, filters)
             {
             LOG_DEBUG_F("Level %d: number of threads in the team - %d\n", 11, omp_get_num_threads());
@@ -102,12 +103,17 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
             family_t **families = (family_t**) cp_hashtable_get_values(ped_file->families);
             int num_families = get_num_families(ped_file);
             
-            int i = 0;
             char *text_begin, *text_end;
+            vcf_reader_status *status;
             while(text_begin = fetch_vcf_text_batch(file)) {
                 text_end = text_begin + strlen(text_begin);
                 
-                vcf_reader_status *status = vcf_reader_status_new(shared_options_data->batch_lines);
+#pragma omp critical 
+                {
+                    status = vcf_reader_status_new(shared_options_data->batch_lines, i);
+                    i++;
+                }
+                
                 if (shared_options_data->batch_bytes > 0) {
                     ret_code = run_vcf_parser(text_begin, text_end, 0, file, status);
                 } else if (shared_options_data->batch_lines > 0) {
@@ -120,7 +126,7 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
                 
                 // Initialize structures needed for TDT and write headers of output files
                 if (!initialization_done) {
-# pragma omp critical
+#pragma omp critical
                 {
                     // Guarantee that just one thread performs this operation
                     if (!initialization_done) {
@@ -171,9 +177,6 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
                 // Free batch and its contents
                 vcf_reader_status_free(status);
                 vcf_batch_free(batch);
-                
-                i++;
-                
             }
             
             notify_end_parsing(file);
