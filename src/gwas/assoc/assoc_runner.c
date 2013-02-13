@@ -97,16 +97,22 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
 
             double *factorial_logarithms = NULL;
             
+            int i = 0;
 #pragma omp parallel num_threads(shared_options_data->num_threads) shared(initialization_done, factorial_logarithms, filters, individuals)
             {
             LOG_DEBUG_F("Level %d: number of threads in the team - %d\n", 11, omp_get_num_threads()); 
 
-            int i = 0;
             char *text_begin, *text_end;
+            vcf_reader_status *status;
             while(text_begin = fetch_vcf_text_batch(file)) {
                 text_end = text_begin + strlen(text_begin);
                 
-                vcf_reader_status *status = vcf_reader_status_new(shared_options_data->batch_lines);
+# pragma omp critical
+                {
+                    status = vcf_reader_status_new(shared_options_data->batch_lines, i);
+                    i++;
+                }
+                
                 if (shared_options_data->batch_bytes > 0) {
                     ret_code = run_vcf_parser(text_begin, text_end, 0, file, status);
                 } else if (shared_options_data->batch_lines > 0) {
@@ -166,8 +172,6 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
                 // Free batch and its contents
                 vcf_reader_status_free(status);
                 vcf_batch_free(batch);
-                
-                i++;
             }  
             
             notify_end_parsing(file);
