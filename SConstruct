@@ -36,7 +36,6 @@ SConscript(['%s/bioformats/SConscript' % bioinfo_path,
 
 # Create binaries and copy them to 'bin' folder
 progs = SConscript(['src/effect/SConscript',
-            'src/epistasis/SConscript',
             'src/gwas/SConscript',
             'src/vcf-tools/SConscript'
             ], exports = ['env', 'debug', 'commons_path', 'bioinfo_path', 'math_path'])
