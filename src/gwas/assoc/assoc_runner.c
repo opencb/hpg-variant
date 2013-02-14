@@ -125,8 +125,9 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
                 {
                     // Guarantee that just one thread performs this operation
                     if (!initialization_done) {
+    
                         // Sort individuals in PED as defined in the VCF file
-                    	individuals = sort_individuals(file, ped_file);
+                        individuals = sort_individuals(file, ped_file);
                         
                         // Add headers associated to the defined filters
                         vcf_header_entry_t **filter_headers = get_filters_as_vcf_headers(filters, num_filters);
@@ -321,7 +322,7 @@ individual_t **sort_individuals(vcf_file_t *vcf, ped_file_t *ped) {
 
     individual_t **individuals = calloc (get_num_vcf_samples(vcf), sizeof(individual_t*));
     cp_hashtable *positions = associate_samples_and_positions(vcf);
-    int *pos;
+    int *pos = NULL;
 
     for (int f = 0; f < num_families; f++) {
         family = families[f];
@@ -330,6 +331,8 @@ individual_t **sort_individuals(vcf_file_t *vcf, ped_file_t *ped) {
         cp_list *children = family->children;
 
         if (father != NULL) {
+            pos = NULL;
+            LOG_DEBUG_F("father ID = %s\n", father->id);
             pos = cp_hashtable_get(positions, father->id);
             if (pos) {
                 individuals[*pos] = father;
@@ -337,19 +340,39 @@ individual_t **sort_individuals(vcf_file_t *vcf, ped_file_t *ped) {
         }
 
         if (mother != NULL) {
+            pos = NULL;
+            LOG_DEBUG_F("mother ID = %s\n", mother->id);
             pos = cp_hashtable_get(positions, mother->id);
             if (pos) {
                 individuals[*pos] = mother;
             }
         }
 
-        cp_list_iterator *children_iterator = cp_list_create_iterator(family->children, COLLECTION_LOCK_READ);
+        cp_list_iterator *iterator = cp_list_create_iterator(family->children, COLLECTION_LOCK_READ);
         individual_t *child = NULL;
-        while ((child = cp_list_iterator_next(children_iterator)) != NULL) {
+        while (child = cp_list_iterator_next(iterator)) {
+            pos = NULL;
+            LOG_DEBUG_F("child ID = %s\n", child->id);
             pos = cp_hashtable_get(positions, child->id);
-            individuals[*pos] = child;
+            if (pos) {
+                individuals[*pos] = child;
+            }
         }
-        cp_list_iterator_destroy(children_iterator);
+        cp_list_iterator_destroy(iterator);
+        
+        iterator = cp_list_create_iterator(family->unknown, COLLECTION_LOCK_READ);
+        individual_t *unknown = NULL;
+        while (unknown = cp_list_iterator_next(iterator)) {
+            pos = NULL;
+            LOG_DEBUG_F("unknown ID = %s\n", unknown->id);
+            pos = cp_hashtable_get(positions, unknown->id);
+            if (pos) {
+                individuals[*pos] = unknown;
+            }
+        }
+        cp_list_iterator_destroy(iterator);
+        
+        assert(father || mother || !cp_list_is_empty(family->unknown));
     }
 
     cp_hashtable_destroy(positions);

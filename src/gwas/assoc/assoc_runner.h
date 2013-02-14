@@ -21,6 +21,7 @@
 #ifndef ASSOC_RUNNER_H
 #define ASSOC_RUNNER_H
 
+#include <assert.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
