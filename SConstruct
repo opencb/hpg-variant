@@ -49,14 +49,14 @@ t = SConscript("test/SConscript", exports = ['env', 'debug', 'commons_path', 'bi
 # For the packaging manager: Don't forget to point the XXX_INCLUDE_PATH and XXX_LIBRARY_PATH 
 # variables to the application libraries folder!!
 tb = env.Package(NAME          = 'hpg-variant',
-                VERSION        = '0.2.1',
+                VERSION        = '0.3',
                 PACKAGEVERSION = 0,
                 PACKAGETYPE    = 'src_targz',
                 source         = env.FindSourceFiles() + env.FindHeaderFiles(progs) + 
                              [ '#libs/libargtable2.a', '#libs/libcprops.a',
                                Glob('#include/*.h'), Glob('#include/cprops/*.h'),
                                '#buildaux.py', '#buildvars.py', '#libs/common-libs/buildvars.py', '#libs/bioinfo-libs/buildvars.py',
-                               '#deb/SConscript', '#rpm/SConscript',
+                               '#deb/SConscript', '#rpm/SConscript', '#rpm/hpg-variant.spec',
                                '#COPYING', '#INSTALL' ] )
 Alias('tarball', tb)
   
