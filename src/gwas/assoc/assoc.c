@@ -87,6 +87,8 @@ void assoc_count_individual(individual_t *individual, vcf_record_t *record, int 
     int A1 = 0, A2 = 0, A0 = 0;
     int U1 = 0, U2 = 0, U0 = 0;
     
+    assert(individual);
+    
     if (!strncmp("X", record->chromosome, record->chromosome_len)) {
         if (individual->condition == AFFECTED) { // if affected 
             if (!allele1 && !allele2) {
