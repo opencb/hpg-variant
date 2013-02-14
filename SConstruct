@@ -49,7 +49,7 @@ t = SConscript("test/SConscript", exports = ['env', 'debug', 'commons_path', 'bi
 # For the packaging manager: Don't forget to point the XXX_INCLUDE_PATH and XXX_LIBRARY_PATH 
 # variables to the application libraries folder!!
 tb = env.Package(NAME          = 'hpg-variant',
-                VERSION        = '0.3',
+                VERSION        = '0.3.1',
                 PACKAGEVERSION = 0,
                 PACKAGETYPE    = 'src_targz',
                 source         = env.FindSourceFiles() + env.FindHeaderFiles(progs) + 
