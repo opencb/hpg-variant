@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
+ * Copyright (c) 2012-2013 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
  * Copyright (c) 2012 Ignacio Medina (ICM-CIPF)
  *
  * This file is part of hpg-variant.
@@ -97,16 +97,22 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
 
             double *factorial_logarithms = NULL;
             
+            int i = 0;
 #pragma omp parallel num_threads(shared_options_data->num_threads) shared(initialization_done, factorial_logarithms, filters, individuals)
             {
             LOG_DEBUG_F("Level %d: number of threads in the team - %d\n", 11, omp_get_num_threads()); 
 
-            int i = 0;
             char *text_begin, *text_end;
+            vcf_reader_status *status;
             while(text_begin = fetch_vcf_text_batch(file)) {
                 text_end = text_begin + strlen(text_begin);
                 
-                vcf_reader_status *status = vcf_reader_status_new(shared_options_data->batch_lines);
+# pragma omp critical
+                {
+                    status = vcf_reader_status_new(shared_options_data->batch_lines, i);
+                    i++;
+                }
+                
                 if (shared_options_data->batch_bytes > 0) {
                     ret_code = run_vcf_parser(text_begin, text_end, 0, file, status);
                 } else if (shared_options_data->batch_lines > 0) {
@@ -166,8 +172,6 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
                 // Free batch and its contents
                 vcf_reader_status_free(status);
                 vcf_batch_free(batch);
-                
-                i++;
             }  
             
             notify_end_parsing(file);
@@ -270,14 +274,15 @@ void write_output_body(enum ASSOC_task task, list_t* output_list, FILE *fd) {
         while (item = list_remove_item(output_list)) {
             assoc_basic_result_t *result = item->data_p;
             
+            double freq_a1 = (result->affected1 + result->affected2 > 0) ? (double) result->affected1 / (result->affected1 + result->affected2) : 0.0f;
+            double freq_u1 = (result->unaffected1 + result->unaffected2 > 0) ? (double) result->unaffected1 / (result->unaffected1 + result->unaffected2) : 0.0f;
+            double freq_a2 = (result->affected1 + result->affected2 > 0) ? (double) result->affected2 / (result->affected1 + result->affected2) : 0.0f;
+            double freq_u2 = (result->unaffected1 + result->unaffected2 > 0) ? (double) result->unaffected2 / (result->unaffected1 + result->unaffected2) : 0.0f;
+            
             fprintf(fd, "%s\t%8ld\t%s\t%3d\t%3d\t%6f\t%6f\t%s\t%3d\t%3d\t%6f\t%6f\t%6f\t%6f\t%6f\n",
                     result->chromosome, result->position, 
-                    result->reference, result->affected1, result->unaffected1, 
-                    (double) result->affected1 / (result->affected1 + result->affected2), 
-                    (double) result->unaffected1 / (result->unaffected1 + result->unaffected2), 
-                    result->alternate, result->affected2, result->unaffected2, 
-                    (double) result->affected2 / (result->affected1 + result->affected2), 
-                    (double) result->unaffected2 / (result->unaffected1 + result->unaffected2), 
+                    result->reference, result->affected1, result->unaffected1, freq_a1, freq_u1,
+                    result->alternate, result->affected2, result->unaffected2, freq_a2, freq_u2,
                     result->odds_ratio, result->chi_square, result->p_value);
             
             assoc_basic_result_free(result);
@@ -287,14 +292,15 @@ void write_output_body(enum ASSOC_task task, list_t* output_list, FILE *fd) {
         while (item = list_remove_item(output_list)) {
             assoc_fisher_result_t *result = item->data_p;
             
+            double freq_a1 = (result->affected1 + result->affected2 > 0) ? (double) result->affected1 / (result->affected1 + result->affected2) : 0.0f;
+            double freq_u1 = (result->unaffected1 + result->unaffected2 > 0) ? (double) result->unaffected1 / (result->unaffected1 + result->unaffected2) : 0.0f;
+            double freq_a2 = (result->affected1 + result->affected2 > 0) ? (double) result->affected2 / (result->affected1 + result->affected2) : 0.0f;
+            double freq_u2 = (result->unaffected1 + result->unaffected2 > 0) ? (double) result->unaffected2 / (result->unaffected1 + result->unaffected2) : 0.0f;
+            
             fprintf(fd, "%s\t%8ld\t%s\t%3d\t%3d\t%6f\t%6f\t%s\t%3d\t%3d\t%6f\t%6f\t%6f\t%6f\n",
                     result->chromosome, result->position, 
-                    result->reference, result->affected1, result->unaffected1, 
-                    (double) result->affected1 / (result->affected1 + result->affected2), 
-                    (double) result->unaffected1 / (result->unaffected1 + result->unaffected2), 
-                    result->alternate, result->affected2, result->unaffected2, 
-                    (double) result->affected2 / (result->affected1 + result->affected2), 
-                    (double) result->unaffected2 / (result->unaffected1 + result->unaffected2), 
+                    result->reference, result->affected1, result->unaffected1, freq_a1, freq_u1,
+                    result->alternate, result->affected2, result->unaffected2, freq_a2, freq_u2,
                     result->odds_ratio, result->p_value);
             
             assoc_fisher_result_free(result);
@@ -309,42 +315,46 @@ void write_output_body(enum ASSOC_task task, list_t* output_list, FILE *fd) {
  * *******************/
 
 individual_t **sort_individuals(vcf_file_t *vcf, ped_file_t *ped) {
-	family_t *family;
-	family_t **families = (family_t**) cp_hashtable_get_values(ped->families);
-	int num_families = get_num_families(ped);
+    family_t *family;
+    family_t **families = (family_t**) cp_hashtable_get_values(ped->families);
+    int num_families = get_num_families(ped);
 
-	individual_t **individuals = calloc (get_num_vcf_samples(vcf), sizeof(individual_t*));
-	cp_hashtable *positions = associate_samples_and_positions(vcf);
-	int *pos;
+    individual_t **individuals = calloc (get_num_vcf_samples(vcf), sizeof(individual_t*));
+    cp_hashtable *positions = associate_samples_and_positions(vcf);
+    int *pos;
 
-	for (int f = 0; f < num_families; f++) {
-		family = families[f];
-		individual_t *father = family->father;
-		individual_t *mother = family->mother;
-		cp_list *children = family->children;
+    for (int f = 0; f < num_families; f++) {
+        family = families[f];
+        individual_t *father = family->father;
+        individual_t *mother = family->mother;
+        cp_list *children = family->children;
 
-		if (father != NULL) {
-			pos = cp_hashtable_get(positions, father->id);
-			individuals[*pos] = father;
-		}
+        if (father != NULL) {
+            pos = cp_hashtable_get(positions, father->id);
+            if (pos) {
+                individuals[*pos] = father;
+            }
+        }
 
-		if (mother != NULL) {
-			pos = cp_hashtable_get(positions, mother->id);
-			individuals[*pos] = mother;
-		}
+        if (mother != NULL) {
+            pos = cp_hashtable_get(positions, mother->id);
+            if (pos) {
+                individuals[*pos] = mother;
+            }
+        }
 
-		cp_list_iterator *children_iterator = cp_list_create_iterator(family->children, COLLECTION_LOCK_READ);
-		individual_t *child = NULL;
-		while ((child = cp_list_iterator_next(children_iterator)) != NULL) {
-			pos = cp_hashtable_get(positions, child->id);
-			individuals[*pos] = child;
-		}
+        cp_list_iterator *children_iterator = cp_list_create_iterator(family->children, COLLECTION_LOCK_READ);
+        individual_t *child = NULL;
+        while ((child = cp_list_iterator_next(children_iterator)) != NULL) {
+            pos = cp_hashtable_get(positions, child->id);
+            individuals[*pos] = child;
+        }
         cp_list_iterator_destroy(children_iterator);
-	}
+    }
 
-	cp_hashtable_destroy(positions);
+    cp_hashtable_destroy(positions);
 
-	return individuals;
+    return individuals;
 }
 
 
