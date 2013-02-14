@@ -21,7 +21,7 @@
 #include "epistasis.h"
 #include "dataset_creator.h"
 
-int main(int argc, char *argv[]) {
+int vcf_tool_vcf2epi(int argc, char *argv[], const char *configuration_file) {
 
     /* ******************************
      * 	    Modifiable options	    *
@@ -29,26 +29,21 @@ int main(int argc, char *argv[]) {
 
     shared_options_t *shared_options = new_shared_cli_options();
     epistasis_options_t *epistasis_options = new_epistasis_cli_options();
-    void **argtable;
 
     // If no arguments or only -h / --help are provided, show usage
+    void **argtable;
     if (argc == 1 || !strcmp(argv[1], "-h") || !strcmp(argv[1], "--help")) {
         argtable = merge_epistasis_options(epistasis_options, shared_options, arg_end(epistasis_options->num_options + shared_options->num_options));
-        show_usage(argv[0], argtable, epistasis_options->num_options + shared_options->num_options);
+        show_usage("hpg-vcf-var vcf2epi", argtable, epistasis_options->num_options + shared_options->num_options);
         arg_freetable(argtable, epistasis_options->num_options + shared_options->num_options);
         return 0;
     }
 
+    
     /* ******************************
-     * 	    Execution steps	        *
+     *       Execution steps        *
      * ******************************/
 
-    init_log_custom(2, 1, "hpg-var-epistasis.log", "w");
-    
-//    const char *configuration_file = find_configuration_file(argc, argv);
-    array_list_t *config_search_paths = get_configuration_search_paths(argc, argv);
-    const char *configuration_file = retrieve_config_file("hpg-variant.conf", config_search_paths);
-    
     // Step 1: read options from configuration file
     int config_errors = read_shared_configuration(configuration_file, shared_options);
     config_errors &= read_epistasis_configuration(configuration_file, epistasis_options, shared_options);
@@ -88,19 +83,17 @@ int main(int argc, char *argv[]) {
 epistasis_options_t *new_epistasis_cli_options(void) {
     epistasis_options_t *options = (epistasis_options_t*) malloc (sizeof(epistasis_options_t));
     options->num_options = NUM_EPISTASIS_OPTIONS;
-    options->no_phenotypes = arg_lit0(NULL, "no-phenotypes", "Flag asking not to retrieve phenotypical information");
-    options->excludes = arg_str0(NULL, "exclude", NULL, "Consequence types to exclude from the query (comma-separated)");
+    // TODO initialize options!
     return options;
 }
 
 epistasis_options_data_t *new_epistasis_options_data(epistasis_options_t *options) {
     epistasis_options_data_t *options_data = (epistasis_options_data_t*) malloc (sizeof(epistasis_options_data_t));
-    options_data->no_phenotypes = options->no_phenotypes->count;
-    options_data->excludes = strdup(*(options->excludes->sval));
+    // TODO initialize options!
     return options_data;
 }
 
 void free_epistasis_options_data(epistasis_options_data_t *options_data) {
-    if (options_data->excludes) { free(options_data->excludes); }
+    // TODO free options!
     free(options_data);
 }

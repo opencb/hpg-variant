@@ -48,5 +48,7 @@ int vcf_tool_split(int argc, char *argv[], const char *configuration_file);
 
 int vcf_tool_stats(int argc, char *argv[], const char *configuration_file);
 
+int vcf_tool_vcf2epi(int argc, char *argv[], const char *configuration_file);
+
 
 #endif

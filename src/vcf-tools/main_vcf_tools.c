@@ -49,6 +49,9 @@ int main(int argc, char *argv[]) {
     } else if (strcmp(tool, "stats") == 0) {
         exit_code = vcf_tool_stats(argc - 1, argv + 1, config);
         
+    } else if (strcmp(tool, "vcf2epi") == 0) {
+        exit_code = vcf_tool_vcf2epi(argc - 1, argv + 1, config);
+        
     } else {
         fprintf(stderr, "The requested VCF handling tool does not exist! (%s)\n", tool);
         exit_code = NOT_IMPLEMENTED_TOOL;

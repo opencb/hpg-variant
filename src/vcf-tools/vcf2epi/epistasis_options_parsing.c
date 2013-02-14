@@ -99,10 +99,6 @@ void **merge_epistasis_options(epistasis_options_t *epistasis_options, shared_op
     // Species
     tool_options[4] = shared_options->species;
     
-    // Effect arguments
-    tool_options[5] = epistasis_options->no_phenotypes;
-    tool_options[6] = epistasis_options->excludes;
-    
     // Filter arguments
     tool_options[7] = shared_options->num_alleles;
     tool_options[8] = shared_options->coverage;

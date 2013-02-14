@@ -14,21 +14,21 @@
 #include <commons/file_utils.h>
 #include <containers/list.h>
 
-#include "dataset.h"
+// #include "dataset.h"
 #include "hpg_variant_utils.h"
 #include "shared_options.h"
 
 int create_dataset_from_vcf(shared_options_data_t* shared_options_data);
 
 
+uint8_t *epistasis_dataset_process_records(vcf_record_t** variants, size_t num_variants, int* destination, 
+                                           int num_samples, int num_threads);
 
-static int flatten_phenotypes(vcf_file_t *vcf, ped_file_t *ped, int *num_affected, int *num_unaffected);
+
 
 static uint8_t *get_individual_phenotypes(vcf_file_t* vcf, ped_file_t* ped, int* num_affected, int* num_unaffected);
 
 static int *group_individuals_by_phenotype(uint8_t *phenotypes, int num_affected, int num_unaffected);
-
-
 
 static individual_t **sort_individuals(vcf_file_t *vcf, ped_file_t *ped);
 
