@@ -1,9 +1,9 @@
 %define name hpg-variant
-%define version 0.3
+%define version 0.3.1
 Name:           %{name}
 Version:        %{version}
 Release:        1%{?dist}
-Summary:        HPG Variant
+Summary:        Bioinformatics tool suite for analyzing genomic variations
 
 License:        GPLv2
 URL:            http://bioinfo.cipf.es
