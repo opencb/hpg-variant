@@ -30,6 +30,7 @@
 
 #include <cprops/linked_list.h>
 #include <libconfig.h>
+#include <khash.h>
 
 #include <bioformats/vcf/vcf_file_structure.h>
 #include <bioformats/vcf/vcf_file.h>
@@ -49,6 +50,8 @@
 #define MERGED_RECORD       1
 #define MERGED_HEADER       2
 #define MERGED_DELIMITER    3
+
+KHASH_SET_INIT_STR(names);
 
 enum missing_mode { MISSING, REFERENCE };
 

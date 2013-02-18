@@ -308,31 +308,31 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
             // When a token is present, it means a set of batches has been merged. The token contains the number of records merged.
             // In this case, the records must be sorted by chromosome and position, and written afterwards.
             while ((item1 = list_remove_item(merge_tokens)) != NULL) {
-				num_records = item1->data_p;
-				vcf_record_t *records[*num_records];
-				for (int i = 0; i < *num_records; i++) {
-					item2 = list_remove_item(output_list);
-					if (!item2) {
-						break;
-					}
+                num_records = item1->data_p;
+                vcf_record_t *records[*num_records];
+                for (int i = 0; i < *num_records; i++) {
+                    item2 = list_remove_item(output_list);
+                    if (!item2) {
+                        break;
+                    }
 
-					records[i] = item2->data_p;
-					list_item_free(item2);
-				}
+                    records[i] = item2->data_p;
+                    list_item_free(item2);
+                }
 
-				// Sort records
-				qsort(records, *num_records, sizeof(vcf_record_t*), record_cmp);
+                // Sort records
+                qsort(records, *num_records, sizeof(vcf_record_t*), record_cmp);
 
-				// Write and free sorted records
-				for (int i = 0; i < *num_records; i++) {
-					record = records[i];
-					write_vcf_record(record, merge_fd);
-					vcf_record_free_deep(record);
-				}
+                // Write and free sorted records
+                for (int i = 0; i < *num_records; i++) {
+                    record = records[i];
+                    write_vcf_record(record, merge_fd);
+                    vcf_record_free_deep(record);
+                }
 
-				free(num_records);
-				list_item_free(item1);
-			}
+                free(num_records);
+                list_item_free(item1);
+            }
             
             // Close file
             if (merge_fd != NULL) { fclose(merge_fd); }
