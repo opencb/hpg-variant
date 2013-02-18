@@ -30,7 +30,6 @@
 
 #include <cprops/linked_list.h>
 #include <libconfig.h>
-#include <khash.h>
 
 #include <bioformats/vcf/vcf_file_structure.h>
 #include <bioformats/vcf/vcf_file.h>
@@ -38,6 +37,7 @@
 #include <bioformats/vcf/vcf_util.h>
 #include <commons/log.h>
 #include <commons/string_utils.h>
+#include <containers/khash.h>
 #include <containers/list.h>
 
 #include "error.h"
