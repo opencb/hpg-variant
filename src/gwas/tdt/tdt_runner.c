@@ -306,6 +306,11 @@ cp_hashtable* associate_samples_and_positions(vcf_file_t* file) {
     for (int i = 0; i < sample_names->size; i++) {
         name = sample_names->items[i];
         index = (int*) malloc (sizeof(int)); *index = i;
+        
+        if (cp_hashtable_get(sample_ids, name)) {
+            LOG_FATAL_F("Sample %s appears more than once. File can not be analyzed.\n", name);
+        }
+        
         cp_hashtable_put(sample_ids, name, index);
     }
 //     char **keys = (char**) cp_hashtable_get_keys(sample_names);

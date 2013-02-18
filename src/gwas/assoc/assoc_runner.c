@@ -125,9 +125,16 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
                 {
                     // Guarantee that just one thread performs this operation
                     if (!initialization_done) {
-    
                         // Sort individuals in PED as defined in the VCF file
                         individuals = sort_individuals(file, ped_file);
+                        
+//                         printf("num samples = %d\n", get_num_vcf_samples(file));
+//                         printf("pos = { ");
+//                         for (int j = 0; j < get_num_vcf_samples(file); j++) {
+//                             assert(individuals[j]);
+//                             printf("%s ", individuals[j]->id);
+//                         }
+//                         printf("}\n");
                         
                         // Add headers associated to the defined filters
                         vcf_header_entry_t **filter_headers = get_filters_as_vcf_headers(filters, num_filters);
@@ -391,9 +398,15 @@ cp_hashtable* associate_samples_and_positions(vcf_file_t* file) {
     
     int *index;
     char *name;
+    
     for (int i = 0; i < sample_names->size; i++) {
         name = sample_names->items[i];
         index = (int*) malloc (sizeof(int)); *index = i;
+        
+        if (cp_hashtable_get(sample_ids, name)) {
+            LOG_FATAL_F("Sample %s appears more than once. File can not be analyzed.\n", name);
+        }
+        
         cp_hashtable_put(sample_ids, name, index);
     }
 //     char **keys = (char**) cp_hashtable_get_keys(sample_ids);
