@@ -279,15 +279,13 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
             start = omp_get_wtime();
 
             // Create file streams for results
-            char merge_filename[1024];
-            memset(merge_filename, 0, 1024 * sizeof(char));
-            if (shared_options_data->output_filename && strlen(shared_options_data->output_filename) > 0) {
-                sprintf(merge_filename, "%s/%s", shared_options_data->output_directory, shared_options_data->output_filename);
-            } else {
-                sprintf(merge_filename, "%s/merge_from_%d_files.vcf", shared_options_data->output_directory, options_data->num_files);
-            }
+            char aux_filename[32]; memset(aux_filename, 0, 32 * sizeof(char));
+            sprintf(aux_filename, "merge_from_%d_files.vcf", options_data->num_files);
+            
+            char *merge_filename;
+            FILE *merge_fd = get_output_file(shared_options_data, aux_filename, &merge_filename);
             LOG_INFO_F("Output filename = %s\n", merge_filename);
-            FILE *merge_fd = fopen(merge_filename, "w");
+            free(merge_filename);
             
             list_item_t *item1 = NULL, *item2 = NULL;
             vcf_header_entry_t *entry;

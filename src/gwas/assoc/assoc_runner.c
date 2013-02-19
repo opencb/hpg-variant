@@ -214,7 +214,7 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
             
             // Get the file descriptor
             char *path;
-            FILE *fd = get_output_file(options_data->task, shared_options_data->output_directory, &path);
+            FILE *fd = get_assoc_output_file(options_data->task, shared_options_data, &path);
             LOG_INFO_F("Association test output filename = %s\n", path);
             
             // Write data: header + one line per variant
@@ -252,17 +252,14 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
  * Output generation *
  * *******************/
 
-FILE *get_output_file(enum ASSOC_task task, char *output_directory, char **path) {
-    char *filename = NULL;
+static FILE *get_assoc_output_file(enum ASSOC_task task, shared_options_data_t *global_options_data, char **path) {
     if (task == CHI_SQUARE) {
-        filename = "hpg-variant.chisq";
+        return get_output_file(global_options_data, "hpg-variant.chisq", path);
     } else if (task == FISHER) {
-        filename = "hpg-variant.fisher";
+        return get_output_file(global_options_data, "hpg-variant.fisher", path);
+    } else {
+        LOG_FATAL("Requested association test is not recognized as a valid test.");
     }
-    
-    *path = (char*) calloc ((strlen(output_directory) + strlen(filename) + 2), sizeof(char));
-    sprintf(*path, "%s/%s", output_directory, filename);
-    return fopen(*path, "w");
 }
 
 void write_output_header(enum ASSOC_task task, FILE *fd) {
