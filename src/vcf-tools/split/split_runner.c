@@ -71,7 +71,7 @@ int run_split(shared_options_data_t *shared_options_data, split_options_data_t *
             LOG_INFO_F("[%dR] Time elapsed = %f s\n", omp_get_thread_num(), total);
             LOG_INFO_F("[%dR] Time elapsed = %e ms\n", omp_get_thread_num(), total*1000);
 
-            notify_end_reading(file);
+            notify_end_parsing(file);
         }
         
 #pragma omp section

@@ -211,7 +211,7 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
             
             // Get the file descriptor
             char *path;
-            FILE *fd = get_output_file(shared_options_data->output_directory, &path);
+            FILE *fd = get_output_file(shared_options_data, "hpg-variant.tdt", &path);
             LOG_INFO_F("TDT output filename = %s\n", path);
             
             double start = omp_get_wtime();
@@ -255,13 +255,6 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
 /* *******************
  * Output generation *
  * *******************/
-
-FILE *get_output_file(char *output_directory, char **path) {
-    char *filename = "hpg-variant.tdt";
-    *path = (char*) calloc ((strlen(output_directory) + strlen(filename) + 2), sizeof(char));
-    sprintf(*path, "%s/%s", output_directory, filename);
-    return fopen(*path, "w");
-}
 
 void write_output_header(FILE *fd) {
     assert(fd);
