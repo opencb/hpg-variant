@@ -3,21 +3,24 @@
 *.test
 *.pyc
 *.deb
+*.rpm
+*.log
+*.map
+*.ped
+*.vcf
 *~
 *anjuta*
 *sonar*
 *kdev*
-
-test/tdt_files/job.map
-test/tdt_files/job.ped
-test/tdt_files/job.vcf
+*.cproject
+*.project
 
 .sconsign.dblite
 
 bin/*
 deb/hpg-variant/*
-hpg-variant-0.2/*
-hpg-variant-0.2.tar.gz
+rpm/rpmbuild/*
+hpg-variant-0.*
 
 src/effect/hpg-var-effect
 src/epistasis/hpg-var-epistasis
