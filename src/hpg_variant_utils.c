@@ -49,12 +49,12 @@
 //}
 
 array_list_t *get_configuration_search_paths(int argc, char *argv[]) {
-	char *c = get_config_path_from_args(argc, argv);
-	char *config_dirpaths[3] = { c, getcwd(NULL, 0), "/etc/hpg-variant" };
+    char *c = get_config_path_from_args(argc, argv);
+    char *config_dirpaths[3] = { c, getcwd(NULL, 0), "/etc/hpg-variant" };
 
-	char *h = get_config_home_folder(config_dirpaths, 3);
+    char *h = get_config_home_folder(config_dirpaths, 3);
 
-	return sort_config_paths_by_priority(c, h);
+    return sort_config_paths_by_priority(c, h);
 }
 
 char *get_config_path_from_args(int argc, char *argv[]) {
@@ -184,19 +184,20 @@ char *retrieve_config_file(char *filename, array_list_t *paths_to_search) {
     assert(filename);
     assert(paths_to_search);
     
-	char *filepath = NULL;
+    char *filepath = NULL;
     struct stat sb;
 
-	char aux_filepath[1024];
-	for (int i = 0; i < paths_to_search->size; i++) {
-		sprintf(aux_filepath, "%s/%s", (char*) array_list_get(i, paths_to_search), filename);
-		if (!stat(aux_filepath, &sb)) {
-			filepath = strdup(aux_filepath);
-			break;
-		}
-	}
+    char aux_filepath[1024];
+    for (int i = 0; i < paths_to_search->size; i++) {
+        sprintf(aux_filepath, "%s/%s", (char*) array_list_get(i, paths_to_search), filename);
+        if (!stat(aux_filepath, &sb)) {
+            filepath = strdup(aux_filepath);
+            break;
+        }
+    }
 
-	return filepath;
+    LOG_INFO_F("Configuration file is in path %s\n", filepath);
+    return filepath;
 }
 
 

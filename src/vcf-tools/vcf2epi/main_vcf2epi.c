@@ -18,7 +18,7 @@
  * along with hpg-variant. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "epistasis.h"
+#include "vcf2epi.h"
 #include "dataset_creator.h"
 
 int vcf_tool_vcf2epi(int argc, char *argv[], const char *configuration_file) {
@@ -28,14 +28,14 @@ int vcf_tool_vcf2epi(int argc, char *argv[], const char *configuration_file) {
      * ******************************/
 
     shared_options_t *shared_options = new_shared_cli_options();
-    epistasis_options_t *epistasis_options = new_epistasis_cli_options();
+    vcf2epi_options_t *vcf2epi_options = new_vcf2epi_cli_options();
 
     // If no arguments or only -h / --help are provided, show usage
     void **argtable;
     if (argc == 1 || !strcmp(argv[1], "-h") || !strcmp(argv[1], "--help")) {
-        argtable = merge_epistasis_options(epistasis_options, shared_options, arg_end(epistasis_options->num_options + shared_options->num_options));
-        show_usage("hpg-vcf-var vcf2epi", argtable, epistasis_options->num_options + shared_options->num_options);
-        arg_freetable(argtable, epistasis_options->num_options + shared_options->num_options);
+        argtable = merge_vcf2epi_options(vcf2epi_options, shared_options, arg_end(vcf2epi_options->num_options + shared_options->num_options));
+        show_usage("hpg-vcf-var vcf2epi", argtable, vcf2epi_options->num_options + shared_options->num_options);
+        arg_freetable(argtable, vcf2epi_options->num_options + shared_options->num_options);
         return 0;
     }
 
@@ -46,7 +46,7 @@ int vcf_tool_vcf2epi(int argc, char *argv[], const char *configuration_file) {
 
     // Step 1: read options from configuration file
     int config_errors = read_shared_configuration(configuration_file, shared_options);
-    config_errors &= read_epistasis_configuration(configuration_file, epistasis_options, shared_options);
+    config_errors &= read_vcf2epi_configuration(configuration_file, vcf2epi_options, shared_options);
     
     if (config_errors) {
         LOG_FATAL("Configuration file read with errors\n");
@@ -54,46 +54,41 @@ int vcf_tool_vcf2epi(int argc, char *argv[], const char *configuration_file) {
     }
 
     // Step 2: parse command-line options
-    argtable = parse_epistasis_options(argc, argv, epistasis_options, shared_options);
+    argtable = parse_vcf2epi_options(argc, argv, vcf2epi_options, shared_options);
     
     // Step 3: check that all options are set with valid values
     // Mandatory options that couldn't be read from the config file must be set via command-line
     // If not, return error code!
-    int check_epistasis_opts = verify_epistasis_options(epistasis_options, shared_options);
-    if (check_epistasis_opts > 0) {
-        return check_epistasis_opts;
+    int check_vcf2epi_opts = verify_vcf2epi_options(vcf2epi_options, shared_options);
+    if (check_vcf2epi_opts > 0) {
+        return check_vcf2epi_opts;
     }
     
     // Step 4: Create XXX_options_data_t structures from valid XXX_options_t
     shared_options_data_t *shared_options_data = new_shared_options_data(shared_options);
-    epistasis_options_data_t *epistasis_options_data = new_epistasis_options_data(epistasis_options);
+    vcf2epi_options_data_t *vcf2epi_options_data = new_vcf2epi_options_data(vcf2epi_options);
 
     // Step 5: Execute request and manage its response (as CURL request callback function)
     int result = create_dataset_from_vcf(shared_options_data);
     
-    free_epistasis_options_data(epistasis_options_data);
+    free_vcf2epi_options_data(vcf2epi_options_data);
     free_shared_options_data(shared_options_data);
-    arg_freetable(argtable, epistasis_options->num_options + shared_options->num_options - 1);
+    arg_freetable(argtable, vcf2epi_options->num_options + shared_options->num_options - 1);
 
-    stop_log();
-    
     return 0;
 }
 
-epistasis_options_t *new_epistasis_cli_options(void) {
-    epistasis_options_t *options = (epistasis_options_t*) malloc (sizeof(epistasis_options_t));
+vcf2epi_options_t *new_vcf2epi_cli_options(void) {
+    vcf2epi_options_t *options = (vcf2epi_options_t*) malloc (sizeof(vcf2epi_options_t));
     options->num_options = NUM_EPISTASIS_OPTIONS;
-    // TODO initialize options!
     return options;
 }
 
-epistasis_options_data_t *new_epistasis_options_data(epistasis_options_t *options) {
-    epistasis_options_data_t *options_data = (epistasis_options_data_t*) malloc (sizeof(epistasis_options_data_t));
-    // TODO initialize options!
+vcf2epi_options_data_t *new_vcf2epi_options_data(vcf2epi_options_t *options) {
+    vcf2epi_options_data_t *options_data = (vcf2epi_options_data_t*) malloc (sizeof(vcf2epi_options_data_t));
     return options_data;
 }
 
-void free_epistasis_options_data(epistasis_options_data_t *options_data) {
-    // TODO free options!
+void free_vcf2epi_options_data(vcf2epi_options_data_t *options_data) {
     free(options_data);
 }

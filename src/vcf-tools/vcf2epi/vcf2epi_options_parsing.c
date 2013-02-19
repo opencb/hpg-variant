@@ -18,11 +18,11 @@
  * along with hpg-variant. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "epistasis.h"
+#include "vcf2epi.h"
 
 
-int read_epistasis_configuration(const char *filename, epistasis_options_t *epistasis_options, shared_options_t *shared_options) {
-    if (filename == NULL || epistasis_options == NULL || shared_options == NULL) {
+int read_vcf2epi_configuration(const char *filename, vcf2epi_options_t *vcf2epi_options, shared_options_t *shared_options) {
+    if (filename == NULL || vcf2epi_options == NULL || shared_options == NULL) {
         return -1;
     }
     
@@ -36,7 +36,7 @@ int read_epistasis_configuration(const char *filename, epistasis_options_t *epis
     const char *tmp_string;
     
     // Read number of threads that will make request to the web service
-    ret_code = config_lookup_int(config, "epistasis.num-threads", shared_options->num_threads->ival);
+    ret_code = config_lookup_int(config, "vcf-tools.vcf2epi.num-threads", shared_options->num_threads->ival);
     if (ret_code == CONFIG_FALSE) {
         LOG_WARN("Number of threads not found in config file, must be set via command-line");
     } else {
@@ -44,7 +44,7 @@ int read_epistasis_configuration(const char *filename, epistasis_options_t *epis
     }
 
     // Read maximum number of batches that can be stored at certain moment
-    ret_code = config_lookup_int(config, "epistasis.max-batches", shared_options->max_batches->ival);
+    ret_code = config_lookup_int(config, "vcf-tools.vcf2epi.max-batches", shared_options->max_batches->ival);
     if (ret_code == CONFIG_FALSE) {
         LOG_WARN("Maximum number of batches not found in configuration file, must be set via command-line");
     } else {
@@ -52,21 +52,10 @@ int read_epistasis_configuration(const char *filename, epistasis_options_t *epis
     }
     
     // Read size of a batch (in lines or bytes)
-    ret_code = config_lookup_int(config, "epistasis.batch-lines", shared_options->batch_lines->ival);
-    ret_code |= config_lookup_int(config, "epistasis.batch-bytes", shared_options->batch_bytes->ival);
+    ret_code = config_lookup_int(config, "vcf-tools.vcf2epi.batch-lines", shared_options->batch_lines->ival);
+    ret_code |= config_lookup_int(config, "vcf-tools.vcf2epi.batch-bytes", shared_options->batch_bytes->ival);
     if (ret_code == CONFIG_FALSE) {
         LOG_WARN("Neither batch lines nor bytes found in configuration file, must be set via command-line");
-    } 
-    /*else {
-        LOG_DEBUG_F("batch-lines = %ld\n", *(shared_options->batch_size->ival));
-    }*/
-    
-    // Read number of variants per request to the web service
-    ret_code = config_lookup_int(config, "epistasis.entries-per-thread", shared_options->entries_per_thread->ival);
-    if (ret_code == CONFIG_FALSE) {
-        LOG_WARN("Entries per thread not found in configuration file, must be set via command-line");
-    } else {
-        LOG_DEBUG_F("entries-per-thread = %ld\n", *(shared_options->entries_per_thread->ival));
     }
 
     config_destroy(config);
@@ -75,20 +64,20 @@ int read_epistasis_configuration(const char *filename, epistasis_options_t *epis
     return 0;
 }
 
-void **parse_epistasis_options(int argc, char *argv[], epistasis_options_t *epistasis_options, shared_options_t *shared_options) {
-    struct arg_end *end = arg_end(epistasis_options->num_options + shared_options->num_options);
-    void **argtable = merge_epistasis_options(epistasis_options, shared_options, end);
+void **parse_vcf2epi_options(int argc, char *argv[], vcf2epi_options_t *vcf2epi_options, shared_options_t *shared_options) {
+    struct arg_end *end = arg_end(vcf2epi_options->num_options + shared_options->num_options);
+    void **argtable = merge_vcf2epi_options(vcf2epi_options, shared_options, end);
     
     int num_errors = arg_parse(argc, argv, argtable);
     if (num_errors > 0) {
-        arg_print_errors(stdout, end, "hpg-var-epistasis");
+        arg_print_errors(stdout, end, "hpg-var-vcf2epi");
     }
     
     return argtable;
 }
 
-void **merge_epistasis_options(epistasis_options_t *epistasis_options, shared_options_t *shared_options, struct arg_end *arg_end) {
-    size_t opts_size = epistasis_options->num_options + shared_options->num_options + 1;
+void **merge_vcf2epi_options(vcf2epi_options_t *vcf2epi_options, shared_options_t *shared_options, struct arg_end *arg_end) {
+    size_t opts_size = vcf2epi_options->num_options + shared_options->num_options;
     void **tool_options = malloc (opts_size * sizeof(void*));
     // Input/output files
     tool_options[0] = shared_options->vcf_filename;
@@ -100,34 +89,34 @@ void **merge_epistasis_options(epistasis_options_t *epistasis_options, shared_op
     tool_options[4] = shared_options->species;
     
     // Filter arguments
-    tool_options[7] = shared_options->num_alleles;
-    tool_options[8] = shared_options->coverage;
-    tool_options[9] = shared_options->quality;
-    tool_options[10] = shared_options->maf;
-    tool_options[11] = shared_options->region;
-    tool_options[12] = shared_options->region_file;
-    tool_options[13] = shared_options->snp;
+    tool_options[5] = shared_options->num_alleles;
+    tool_options[6] = shared_options->coverage;
+    tool_options[7] = shared_options->quality;
+    tool_options[8] = shared_options->maf;
+    tool_options[9] = shared_options->missing;
+    tool_options[10] = shared_options->region;
+    tool_options[11] = shared_options->region_file;
+    tool_options[12] = shared_options->snp;
     
     // Configuration file
-    tool_options[14] = shared_options->config_file;
+    tool_options[13] = shared_options->config_file;
     
     // Advanced configuration
-    tool_options[15] = shared_options->host_url;
-    tool_options[16] = shared_options->version;
-    tool_options[17] = shared_options->max_batches;
-    tool_options[18] = shared_options->batch_lines;
-    tool_options[19] = shared_options->batch_bytes;
-    tool_options[20] = shared_options->num_threads;
-    tool_options[21] = shared_options->entries_per_thread;
-    tool_options[22] = shared_options->mmap_vcf_files;
+    tool_options[14] = shared_options->host_url;
+    tool_options[15] = shared_options->version;
+    tool_options[16] = shared_options->max_batches;
+    tool_options[17] = shared_options->batch_lines;
+    tool_options[18] = shared_options->batch_bytes;
+    tool_options[19] = shared_options->num_threads;
+    tool_options[20] = shared_options->mmap_vcf_files;
     
-    tool_options[23] = arg_end;
+    tool_options[21] = arg_end;
     
     return tool_options;
 }
 
 
-int verify_epistasis_options(epistasis_options_t *epistasis_options, shared_options_t *shared_options) {
+int verify_vcf2epi_options(vcf2epi_options_t *vcf2epi_options, shared_options_t *shared_options) {
     // Check whether the input VCF file is defined
     if (shared_options->vcf_filename->count == 0) {
         LOG_ERROR("Please specify the input VCF file.\n");

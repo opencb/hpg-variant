@@ -18,14 +18,14 @@
  * along with hpg-variant. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef EPISTASIS_H
-#define EPISTASIS_H
+#ifndef VCF2EPI_H
+#define VCF2EPI_H
 
 /** 
- * @file epistasis.h
- * @brief Structures and functions associated to the options for the epistasis tool
+ * @file vcf2epi.h
+ * @brief Structures and functions associated to the options for the vcf2epi tool
  * 
- * This file defines the structures which store the options for the epistasis tool, and also 
+ * This file defines the structures which store the options for the vcf2epi tool, and also 
  * functions to read their value from a configuration file or the command line.
  */ 
 
@@ -41,56 +41,42 @@
 #include "shared_options.h"
 
 /**
- * Number of options applicable to the epistasis tool.
+ * Number of options applicable to the vcf2epi tool.
  */
 #define NUM_EPISTASIS_OPTIONS  0
 
-typedef struct epistasis_options {
+typedef struct vcf2epi_options {
     int num_options;
-    
-//     struct arg_file *dataset_filename;    /**< Binary file used as input. */
-//     struct arg_int *order;
-//     struct arg_int *operations_per_block;
-//     struct arg_int *num_folds;
-//     struct arg_int *num_cv_repetitions;
-//     struct arg_int *max_ranking_size;
-} epistasis_options_t;
+} vcf2epi_options_t;
 
 /**
- * @brief Values for the options of the epistasis tool.
+ * @brief Values for the options of the vcf2epi tool.
  * 
- * This struct contains the options specific to the epistasis tool, such as the 
+ * This struct contains the options specific to the vcf2epi tool, such as the 
  * order of the SNP combinations or the maximum number of cross-validation runs.
  */
-typedef struct epistasis_options_data {
-//     char *dataset_filename;    /**< Binary file used as input. */
-//     int order;
-//     int stride;
-//     int num_folds;
-//     int num_cv_repetitions;
-//     int max_ranking_size;
-//     enum eval_mode evaluation_mode;
-} epistasis_options_data_t;
+typedef struct vcf2epi_options_data {
+} vcf2epi_options_data_t;
 
 
-static epistasis_options_t *new_epistasis_cli_options(void);
+static vcf2epi_options_t *new_vcf2epi_cli_options(void);
 
 /**
- * @brief Initializes an epistasis_options_data_t structure mandatory members.
- * @return A new epistasis_options_data_t structure.
+ * @brief Initializes an vcf2epi_options_data_t structure mandatory members.
+ * @return A new vcf2epi_options_data_t structure.
  * 
- * Initializes a new epistasis_options_data_t structure mandatory members, which are the buffers for 
+ * Initializes a new vcf2epi_options_data_t structure mandatory members, which are the buffers for 
  * the URL parts, as well as its numerical ones.
  */
-static epistasis_options_data_t *new_epistasis_options_data(epistasis_options_t *options);
+static vcf2epi_options_data_t *new_vcf2epi_options_data(vcf2epi_options_t *options);
 
 /**
- * @brief Free memory associated to a epistasis_options_data_t structure.
+ * @brief Free memory associated to a vcf2epi_options_data_t structure.
  * @param options_data the structure to be freed
  * 
- * Free memory associated to a epistasis_options_data_t structure, including its text buffers.
+ * Free memory associated to a vcf2epi_options_data_t structure, including its text buffers.
  */
-static void free_epistasis_options_data(epistasis_options_data_t *options_data);
+static void free_vcf2epi_options_data(vcf2epi_options_data_t *options_data);
 
 
 /* **********************************************
@@ -98,7 +84,7 @@ static void free_epistasis_options_data(epistasis_options_data_t *options_data);
  * **********************************************/
 
 /**
- * @brief Reads the configuration parameters of the epistasis tool.
+ * @brief Reads the configuration parameters of the vcf2epi tool.
  * @param filename file the options data are read from
  * @param options_data local options values (host URL, species, num-threads...)
  * @return Zero if the configuration has been successfully read, non-zero otherwise
@@ -107,7 +93,7 @@ static void free_epistasis_options_data(epistasis_options_data_t *options_data);
  * file can't be read, these parameters should be provided via the command-line
  * interface.
  */
-int read_epistasis_configuration(const char *filename, epistasis_options_t *epistasis_options, shared_options_t *shared_options);
+int read_vcf2epi_configuration(const char *filename, vcf2epi_options_t *vcf2epi_options, shared_options_t *shared_options);
 
 /**
  * @brief Parses the tool options from the command-line.
@@ -117,11 +103,11 @@ int read_epistasis_configuration(const char *filename, epistasis_options_t *epis
  * @param[out] global_options_data Struct where the application options are stored in
  * 
  * Reads the arguments from the command-line, checking they correspond to an option for the 
- * epistasis tool, and stores them in the local or global structure, depending on their scope.
+ * vcf2epi tool, and stores them in the local or global structure, depending on their scope.
  */
-void **parse_epistasis_options(int argc, char *argv[], epistasis_options_t *epistasis_options, shared_options_t *shared_options);
+void **parse_vcf2epi_options(int argc, char *argv[], vcf2epi_options_t *vcf2epi_options, shared_options_t *shared_options);
 
-void **merge_epistasis_options(epistasis_options_t *epistasis_options, shared_options_t *shared_options, struct arg_end *arg_end);
+void **merge_vcf2epi_options(vcf2epi_options_t *vcf2epi_options, shared_options_t *shared_options, struct arg_end *arg_end);
 
 /**
  * @brief Checks semantic dependencies among the tool options.
@@ -132,7 +118,7 @@ void **merge_epistasis_options(epistasis_options_t *epistasis_options, shared_op
  * Checks that all dependencies among options are satisfied, i.e.: option A is mandatory, 
  * option B can't be provided at the same time as option C, and so on.
  */
-int verify_epistasis_options(epistasis_options_t *epistasis_options, shared_options_t *shared_options);
+int verify_vcf2epi_options(vcf2epi_options_t *vcf2epi_options, shared_options_t *shared_options);
 
 
 #endif
