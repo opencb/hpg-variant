@@ -53,8 +53,6 @@
 int run_tdt_test(shared_options_data_t *global_options_data);
 
 
-static FILE *get_output_file(char *output_directory, char **path);
-
 static void write_output_header(FILE *fd);
 
 static void write_output_body(list_t* output_list, FILE *fd);

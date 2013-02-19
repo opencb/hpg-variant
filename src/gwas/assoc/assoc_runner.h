@@ -51,7 +51,7 @@
 
 int run_association_test(shared_options_data_t *global_options_data, assoc_options_data_t *options_data);
 
-static FILE *get_output_file(enum ASSOC_task task, char *output_directory, char **path);
+static FILE *get_assoc_output_file(enum ASSOC_task task, shared_options_data_t *global_options_data, char **path);
 
 static void write_output_header(enum ASSOC_task task, FILE *fd);
 
