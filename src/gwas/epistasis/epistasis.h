@@ -35,6 +35,7 @@
 #include <argtable2.h>
 
 #include <commons/log.h>
+#include <math/math_utils.h>
 
 #include "error.h"
 #include "shared_options.h"
@@ -55,6 +56,7 @@ typedef struct epistasis_options {
     struct arg_int *num_folds;
     struct arg_int *num_cv_repetitions;
     struct arg_int *max_ranking_size;
+    struct arg_str *evaluation_mode;
 } epistasis_options_t;
 
 /**

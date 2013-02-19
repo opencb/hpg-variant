@@ -28,7 +28,6 @@ int main(int argc, char *argv[]) {
     
     init_log_custom(2, 1, "hpg-var-gwas.log", "w");
 
-//    const char *config = find_configuration_file(argc, argv);
     array_list_t *config_search_paths = get_configuration_search_paths(argc, argv);
     const char *config = retrieve_config_file("hpg-variant.conf", config_search_paths);
     
@@ -39,6 +38,9 @@ int main(int argc, char *argv[]) {
     // Parse tool args and run tool
     if (strcmp(tool, "assoc") == 0) {
         exit_code = association(argc - 1, argv + 1, config);
+        
+    if (strcmp(tool, "epi") == 0) {
+        exit_code = epistasis(argc - 1, argv + 1, config);
         
     } else if (strcmp(tool, "tdt") == 0) {
         exit_code = tdt(argc - 1, argv + 1, config);

@@ -39,6 +39,8 @@
 
 int association(int argc, char *argv[], const char *configuration_file);
 
+int epistasis(int argc, char *argv[], const char *configuration_file);
+
 int tdt(int argc, char *argv[], const char *configuration_file);
 
 
