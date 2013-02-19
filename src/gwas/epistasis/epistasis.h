@@ -35,7 +35,7 @@
 #include <argtable2.h>
 
 #include <commons/log.h>
-#include <math/math_utils.h>
+#include <math_utils.h>
 
 #include "error.h"
 #include "shared_options.h"

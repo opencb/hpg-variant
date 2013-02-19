@@ -41,6 +41,12 @@
 #define GWAS_TASK_NOT_SPECIFIED                 200
 #define GWAS_MANY_TASKS_SPECIFIED               201
 
+#define EPISTASIS_DATASET_NOT_SPECIFIED         210
+#define EPISTASIS_ORDER_NOT_SPECIFIED           211
+#define EPISTASIS_FOLDS_NOT_SPECIFIED           212
+#define EPISTASIS_CV_RUNS_NOT_SPECIFIED         213
+#define EPISTASIS_EVAL_MODE_NOT_SPECIFIED       214
+#define EPISTASIS_OPS_PER_BLOCK_NOT_SPECIFIED   215
 
 // VCF tools errors
 // -- Filter tool errors

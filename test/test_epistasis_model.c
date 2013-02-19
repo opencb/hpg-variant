@@ -7,7 +7,7 @@
 
 #include <containers/array_list.h>
 
-#include "epistasis/model.h"
+#include "gwas/epistasis/model.h"
 
 
 Suite *create_test_suite(void);

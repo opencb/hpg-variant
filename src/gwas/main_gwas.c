@@ -22,7 +22,7 @@
 
 int main(int argc, char *argv[]) {
     if (argc == 1 || !strcmp(argv[1], "-h") || !strcmp(argv[1], "--help")) {
-        printf("Usage: %s < assoc | tdt > < tool-options >\nFor more information about a certain tool, type %s tool-name --help\n", argv[0], argv[0]);
+        printf("Usage: %s < assoc | epi | tdt > < tool-options >\nFor more information about a certain tool, type %s tool-name --help\n", argv[0], argv[0]);
         return 0;
     }
     
@@ -39,7 +39,7 @@ int main(int argc, char *argv[]) {
     if (strcmp(tool, "assoc") == 0) {
         exit_code = association(argc - 1, argv + 1, config);
         
-    if (strcmp(tool, "epi") == 0) {
+    } else if (strcmp(tool, "epi") == 0) {
         exit_code = epistasis(argc - 1, argv + 1, config);
         
     } else if (strcmp(tool, "tdt") == 0) {
@@ -58,4 +58,3 @@ int main(int argc, char *argv[]) {
     
     return exit_code;
 }
-

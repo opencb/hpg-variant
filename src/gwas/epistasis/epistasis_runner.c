@@ -20,6 +20,8 @@
 
 #include "epistasis_runner.h"
 
+KHASH_MAP_INIT_INT(cvc, int);
+
 int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_data_t* options_data) {
     int ret_code = 0;
     
@@ -48,7 +50,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
     int num_affected, num_unaffected;
     size_t num_variants, file_len, genotypes_offset;
     
-    uint8_t *input_file = epistasis_dataset_load(&num_variants, &num_affected, &num_unaffected, &file_len, &genotypes_offset, options_data->dataset_filename);
+    uint8_t *input_file = epistasis_dataset_load(&num_affected, &num_unaffected, &num_variants, &file_len, &genotypes_offset, options_data->dataset_filename);
     uint8_t *genotypes = input_file + genotypes_offset;
     
     // Try to create the directory where the output files will be stored
@@ -113,7 +115,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                     
                     risky_combination *risky_comb = get_model_from_combination_in_fold(options_data->order, comb, training_genotypes,
                                                                                     training_sizes[3 * i + 1], training_sizes[3 * i + 2],
-                                                                                    num_genotype_combinations, genotype_combinations, NULL); // TODO aux_ret needed?
+                                                                                    num_genotype_combinations, genotype_combinations);
                     
                     if (risky_comb) {
                         // Check the model against the testing dataset
@@ -256,13 +258,6 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
 /* *******************
  * Output generation *
  * *******************/
-
-FILE *get_output_file(char *output_directory, char **path) {
-    char *filename = "hpg-variant.epi";
-    *path = (char*) calloc ((strlen(output_directory) + strlen(filename) + 2), sizeof(char));
-    sprintf(*path, "%s/%s", output_directory, filename);
-    return fopen(*path, "w");
-}
 
 void write_output_header(FILE *fd) {
     assert(fd);

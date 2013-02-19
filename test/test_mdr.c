@@ -5,14 +5,14 @@
 #include <unistd.h>
 
 #include <check.h>
-#include <khash.h>
 
 #include <containers/array_list.h>
+#include <containers/khash.h>
 #include <containers/linked_list.h>
 
-#include "epistasis/cross_validation.h"
-#include "epistasis/mdr.h"
-#include "epistasis/model.h"
+#include "gwas/epistasis/cross_validation.h"
+#include "gwas/epistasis/mdr.h"
+#include "gwas/epistasis/model.h"
 
 
 Suite *create_test_suite(void);

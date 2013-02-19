@@ -76,7 +76,7 @@ int read_epistasis_configuration(const char *filename, epistasis_options_t *epis
     }
     
     // Read whether the training of testing partitions will be used for evaluating best models
-    ret_code = config_lookup_string(config, "vcf-tools.merge.evaluation-mode", &tmp_string);
+    ret_code = config_lookup_string(config, "gwas.epistasis.evaluation-mode", &tmp_string);
     if (ret_code == CONFIG_FALSE) {
         LOG_WARN("Evaluation mode not found in configuration file, must be set via command-line");
     } else {
@@ -129,40 +129,42 @@ void **merge_epistasis_options(epistasis_options_t *epistasis_options, shared_op
 
 
 int verify_epistasis_options(epistasis_options_t *epistasis_options, shared_options_t *shared_options) {
-    // Check whether the input VCF file is defined
-    if (shared_options->vcf_filename->count == 0) {
-        LOG_ERROR("Please specify the input VCF file.\n");
-        return VCF_FILE_NOT_SPECIFIED;
+    // Check whether the input dataset file is defined
+    if (epistasis_options->dataset_filename->count == 0) {
+        LOG_ERROR("Please specify the dataset file.\n");
+        return EPISTASIS_DATASET_NOT_SPECIFIED;
     }
     
-    // Check whether the host URL is defined
-    if (shared_options->host_url->sval == NULL || strlen(*(shared_options->host_url->sval)) == 0) {
-        LOG_ERROR("Please specify the host URL to the web service.\n");
-        return HOST_URL_NOT_SPECIFIED;
-    }
-
-    // Check whether the version is defined
-    if (shared_options->version->sval == NULL || strlen(*(shared_options->version->sval)) == 0) {
-        LOG_ERROR("Please specify the version.\n");
-        return VERSION_NOT_SPECIFIED;
-    }
-
-    // Check whether the species is defined
-    if (shared_options->species->sval == NULL || strlen(*(shared_options->species->sval)) == 0) {
-        LOG_ERROR("Please specify the species to take as reference.\n");
-        return SPECIES_NOT_SPECIFIED;
-    }
-
-    // Checker whether batch lines or bytes are defined
-    if (*(shared_options->batch_lines->ival) == 0 && *(shared_options->batch_bytes->ival) == 0) {
-        LOG_ERROR("Please specify the size of the reading batches (in lines or bytes).\n");
-        return BATCH_SIZE_NOT_SPECIFIED;
+    // Check whether the order of combinations is defined
+    if (epistasis_options->order->count == 0 || *(epistasis_options->order->ival) == 0) {
+        LOG_ERROR("Please specify the number of SNPs to be combined at the same time.\n");
+        return EPISTASIS_ORDER_NOT_SPECIFIED;
     }
     
-    // Checker if both batch lines or bytes are defined
-    if (*(shared_options->batch_lines->ival) > 0 && *(shared_options->batch_bytes->ival) > 0) {
-        LOG_WARN("The size of reading batches has been specified both in lines and bytes. The size in bytes will be used.\n");
-        return 0;
+    // Checker whether the number of folds in k-fold CV is defined
+    if (*(epistasis_options->num_folds->ival) == 0) {
+        LOG_ERROR("Please specify the number of folds in a k-fold cross-validation.\n");
+        return EPISTASIS_FOLDS_NOT_SPECIFIED;
+    }
+    
+    // Checker whether the number of CV runs is defined
+    if (*(epistasis_options->num_cv_repetitions->ival) == 0) {
+        LOG_ERROR("Please specify the times the cross-validation will be run.\n");
+        return EPISTASIS_CV_RUNS_NOT_SPECIFIED;
+    }
+    
+    printf("eval mode = %s\n", *(epistasis_options->evaluation_mode->sval));
+    // Checker whether to use the training or testing partition for evaluating the best models
+    if (*(epistasis_options->evaluation_mode->sval) == NULL || 
+        (strcmp(*(epistasis_options->evaluation_mode->sval), "training") && strcmp(*(epistasis_options->evaluation_mode->sval), "testing")) ) {
+        LOG_ERROR("Please specify the dataset partition for evaluating the best models (training/testing).\n");
+        return EPISTASIS_EVAL_MODE_NOT_SPECIFIED;
+    }
+    
+    // Checker whether the number of operations per block partition of the dataset
+    if (*(epistasis_options->operations_per_block->ival) == 0) {
+        LOG_ERROR("Please specify the number of operations per block partition of the dataset.\n");
+        return EPISTASIS_OPS_PER_BLOCK_NOT_SPECIFIED;
     }
     
     return 0;
