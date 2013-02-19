@@ -87,6 +87,13 @@ void free_filtered_records(array_list_t *passed_records, array_list_t *failed_re
 
 
 /* ***********************
+ *         Output        *
+ * ***********************/
+
+FILE *get_output_file(shared_options_data_t *shared_options_data, char *default_name, char **path);
+
+
+/* ***********************
  *      Miscellaneous    *
  * ***********************/
 

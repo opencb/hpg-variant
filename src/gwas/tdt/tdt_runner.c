@@ -211,7 +211,7 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
             
             // Get the file descriptor
             char *path;
-            FILE *fd = get_output_file(shared_options_data->output_directory, &path);
+            FILE *fd = get_output_file(shared_options_data, "hpg-variant.tdt", &path);
             LOG_INFO_F("TDT output filename = %s\n", path);
             
             double start = omp_get_wtime();
@@ -256,13 +256,6 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
  * Output generation *
  * *******************/
 
-FILE *get_output_file(char *output_directory, char **path) {
-    char *filename = "hpg-variant.tdt";
-    *path = (char*) calloc ((strlen(output_directory) + strlen(filename) + 2), sizeof(char));
-    sprintf(*path, "%s/%s", output_directory, filename);
-    return fopen(*path, "w");
-}
-
 void write_output_header(FILE *fd) {
     assert(fd);
     fprintf(fd, "#CHR         POS       A1      A2         T       U           OR           CHISQ         P-VALUE\n");
@@ -306,6 +299,11 @@ cp_hashtable* associate_samples_and_positions(vcf_file_t* file) {
     for (int i = 0; i < sample_names->size; i++) {
         name = sample_names->items[i];
         index = (int*) malloc (sizeof(int)); *index = i;
+        
+        if (cp_hashtable_get(sample_ids, name)) {
+            LOG_FATAL_F("Sample %s appears more than once. File can not be analyzed.\n", name);
+        }
+        
         cp_hashtable_put(sample_ids, name, index);
     }
 //     char **keys = (char**) cp_hashtable_get_keys(sample_names);

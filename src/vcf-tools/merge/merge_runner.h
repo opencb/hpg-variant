@@ -28,18 +28,18 @@
 
 #include <cprops/hashtable.h>
 #include <cprops/linked_list.h>
-#include <khash.h>
 #include <omp.h>
 
-#include <commons/file_utils.h>
-#include <commons/log.h>
-#include <containers/array_list.h>
-#include <containers/list.h>
 #include <bioformats/features/region/region.h>
 #include <bioformats/vcf/vcf_file_structure.h>
 #include <bioformats/vcf/vcf_file.h>
 #include <bioformats/vcf/vcf_filters.h>
 #include <bioformats/vcf/vcf_reader.h>
+#include <commons/file_utils.h>
+#include <commons/log.h>
+#include <containers/array_list.h>
+#include <containers/khash.h>
+#include <containers/list.h>
 
 #include "hpg_variant_utils.h"
 #include "merge.h"

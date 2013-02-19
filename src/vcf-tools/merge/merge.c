@@ -122,11 +122,29 @@ int merge_vcf_headers(vcf_file_t** files, int num_files, merge_options_data_t* o
 
 
 array_list_t *merge_vcf_sample_names(vcf_file_t **files, int num_files) {
-    array_list_t *samples = array_list_new(get_num_vcf_samples(files[0]) * 2, 2, COLLECTION_MODE_ASYNCHRONIZED);
+    khash_t(names) *samples = kh_init(names);
+    // Use a khash for checking repeated samples
     for (int i = 0; i < num_files; i++) {
-        array_list_insert_all(files[i]->samples_names->items, files[i]->samples_names->size, samples);
+        for (int j = 0; j < files[i]->samples_names->size; j++) {
+            char *sample_name = array_list_get(j, files[i]->samples_names);
+            khiter_t iter = kh_get(names, samples, sample_name);
+            if (iter != kh_end(samples)) {
+                kh_destroy(names, samples);
+                LOG_FATAL_F("Sample %s appears more than once. Files can not be merged.\n", sample_name);
+            } else {
+                int ret;
+                iter = kh_put(names, samples, strdup(sample_name), &ret);
+            }
+        }
     }
-    return samples;
+    kh_destroy(names, samples);
+    
+    // If no errors were found, return the list of all sample names
+    array_list_t *sample_names = array_list_new(get_num_vcf_samples(files[0]) * 2, 2, COLLECTION_MODE_ASYNCHRONIZED);
+    for (int i = 0; i < num_files; i++) {
+        array_list_insert_all(files[i]->samples_names->items, files[i]->samples_names->size, sample_names);
+    }
+    return sample_names;
 }
 
 

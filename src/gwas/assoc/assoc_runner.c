@@ -126,7 +126,15 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
                     // Guarantee that just one thread performs this operation
                     if (!initialization_done) {
                         // Sort individuals in PED as defined in the VCF file
-                    	individuals = sort_individuals(file, ped_file);
+                        individuals = sort_individuals(file, ped_file);
+                        
+//                         printf("num samples = %d\n", get_num_vcf_samples(file));
+//                         printf("pos = { ");
+//                         for (int j = 0; j < get_num_vcf_samples(file); j++) {
+//                             assert(individuals[j]);
+//                             printf("%s ", individuals[j]->id);
+//                         }
+//                         printf("}\n");
                         
                         // Add headers associated to the defined filters
                         vcf_header_entry_t **filter_headers = get_filters_as_vcf_headers(filters, num_filters);
@@ -206,7 +214,7 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
             
             // Get the file descriptor
             char *path;
-            FILE *fd = get_output_file(options_data->task, shared_options_data->output_directory, &path);
+            FILE *fd = get_assoc_output_file(options_data->task, shared_options_data, &path);
             LOG_INFO_F("Association test output filename = %s\n", path);
             
             // Write data: header + one line per variant
@@ -244,17 +252,14 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
  * Output generation *
  * *******************/
 
-FILE *get_output_file(enum ASSOC_task task, char *output_directory, char **path) {
-    char *filename = NULL;
+static FILE *get_assoc_output_file(enum ASSOC_task task, shared_options_data_t *global_options_data, char **path) {
     if (task == CHI_SQUARE) {
-        filename = "hpg-variant.chisq";
+        return get_output_file(global_options_data, "hpg-variant.chisq", path);
     } else if (task == FISHER) {
-        filename = "hpg-variant.fisher";
+        return get_output_file(global_options_data, "hpg-variant.fisher", path);
+    } else {
+        LOG_FATAL("Requested association test is not recognized as a valid test.");
     }
-    
-    *path = (char*) calloc ((strlen(output_directory) + strlen(filename) + 2), sizeof(char));
-    sprintf(*path, "%s/%s", output_directory, filename);
-    return fopen(*path, "w");
 }
 
 void write_output_header(enum ASSOC_task task, FILE *fd) {
@@ -321,7 +326,7 @@ individual_t **sort_individuals(vcf_file_t *vcf, ped_file_t *ped) {
 
     individual_t **individuals = calloc (get_num_vcf_samples(vcf), sizeof(individual_t*));
     cp_hashtable *positions = associate_samples_and_positions(vcf);
-    int *pos;
+    int *pos = NULL;
 
     for (int f = 0; f < num_families; f++) {
         family = families[f];
@@ -330,6 +335,8 @@ individual_t **sort_individuals(vcf_file_t *vcf, ped_file_t *ped) {
         cp_list *children = family->children;
 
         if (father != NULL) {
+            pos = NULL;
+            LOG_DEBUG_F("father ID = %s\n", father->id);
             pos = cp_hashtable_get(positions, father->id);
             if (pos) {
                 individuals[*pos] = father;
@@ -337,19 +344,39 @@ individual_t **sort_individuals(vcf_file_t *vcf, ped_file_t *ped) {
         }
 
         if (mother != NULL) {
+            pos = NULL;
+            LOG_DEBUG_F("mother ID = %s\n", mother->id);
             pos = cp_hashtable_get(positions, mother->id);
             if (pos) {
                 individuals[*pos] = mother;
             }
         }
 
-        cp_list_iterator *children_iterator = cp_list_create_iterator(family->children, COLLECTION_LOCK_READ);
+        cp_list_iterator *iterator = cp_list_create_iterator(family->children, COLLECTION_LOCK_READ);
         individual_t *child = NULL;
-        while ((child = cp_list_iterator_next(children_iterator)) != NULL) {
+        while (child = cp_list_iterator_next(iterator)) {
+            pos = NULL;
+            LOG_DEBUG_F("child ID = %s\n", child->id);
             pos = cp_hashtable_get(positions, child->id);
-            individuals[*pos] = child;
+            if (pos) {
+                individuals[*pos] = child;
+            }
         }
-        cp_list_iterator_destroy(children_iterator);
+        cp_list_iterator_destroy(iterator);
+        
+        iterator = cp_list_create_iterator(family->unknown, COLLECTION_LOCK_READ);
+        individual_t *unknown = NULL;
+        while (unknown = cp_list_iterator_next(iterator)) {
+            pos = NULL;
+            LOG_DEBUG_F("unknown ID = %s\n", unknown->id);
+            pos = cp_hashtable_get(positions, unknown->id);
+            if (pos) {
+                individuals[*pos] = unknown;
+            }
+        }
+        cp_list_iterator_destroy(iterator);
+        
+        assert(father || mother || !cp_list_is_empty(family->unknown));
     }
 
     cp_hashtable_destroy(positions);
@@ -368,9 +395,15 @@ cp_hashtable* associate_samples_and_positions(vcf_file_t* file) {
     
     int *index;
     char *name;
+    
     for (int i = 0; i < sample_names->size; i++) {
         name = sample_names->items[i];
         index = (int*) malloc (sizeof(int)); *index = i;
+        
+        if (cp_hashtable_get(sample_ids, name)) {
+            LOG_FATAL_F("Sample %s appears more than once. File can not be analyzed.\n", name);
+        }
+        
         cp_hashtable_put(sample_ids, name, index);
     }
 //     char **keys = (char**) cp_hashtable_get_keys(sample_ids);
