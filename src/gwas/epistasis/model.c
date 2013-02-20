@@ -195,6 +195,8 @@ int* get_counts(int order, uint8_t* genotypes, uint8_t **genotype_combinations, 
         counts[i * 2 + 1] = count;
     }
     
+    free(masks);
+    
     return counts;
 }
 
@@ -225,7 +227,12 @@ uint8_t* get_masks(int order, uint8_t *genotypes, int num_samples, int *num_mask
             for (int k = 0; k < num_samples; k++) {
                 // group by SNP (better spatial locality than grouping by genotype (0/1/2))
                 // num_samples allows to get the row inside a group
-                masks[j * NUM_GENOTYPES * num_samples + i * num_samples + k] = (genotypes[j * num_samples + k] == i);
+//                 assert((j * num_samples + k) < (order * num_samples));
+//                 assert((j * NUM_GENOTYPES * num_samples + i * num_samples + k) < (*num_masks));
+//                 masks[j * NUM_GENOTYPES * num_samples + i * num_samples + k] = (genotypes[j * num_samples + k] == i);
+                uint8_t gt = genotypes[j * num_samples + k];
+                uint8_t equals = gt == i;
+                masks[j * NUM_GENOTYPES * num_samples + i * num_samples + k] = equals;
             }
         }
     }

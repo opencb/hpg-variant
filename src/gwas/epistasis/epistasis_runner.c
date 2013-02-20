@@ -25,28 +25,7 @@ KHASH_MAP_INIT_INT(cvc, int);
 int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_data_t* options_data) {
     int ret_code = 0;
     
-//     list_t *output_list = (list_t*) malloc (sizeof(list_t));
-//     list_init("output", shared_options_data->num_threads, INT_MAX, output_list);
-// 
-//     int ret_code = 0;
-//     vcf_file_t *file = vcf_open(shared_options_data->vcf_filename, shared_options_data->max_batches);
-//     if (!file) {
-//         LOG_FATAL("VCF file does not exist!\n");
-//     }
-//     
-//     ped_file_t *ped_file = ped_open(shared_options_data->ped_filename);
-//     if (!ped_file) {
-//         LOG_FATAL("PED file does not exist!\n");
-//     }
-//     
-//     LOG_INFO("About to read PED file...\n");
-//     // Read PED file before doing any proccessing
-//     ret_code = ped_read(ped_file);
-//     if (ret_code != 0) {
-//         LOG_FATAL_F("Can't read PED file: %s\n", ped_file->filename);
-//     }
-    
-    // TODO load binary input dataset
+    // Load binary input dataset
     int num_affected, num_unaffected;
     size_t num_variants, file_len, genotypes_offset;
     
@@ -64,6 +43,8 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
     int num_samples = num_affected + num_unaffected;
     int num_blocks_per_dim = ceil((double) num_variants / options_data->stride);
     
+    printf("num variants = %zu\tnum block per dim = %d\n", num_variants, num_blocks_per_dim);
+    
     // Precalculate combinations for a given options_data->order
     int num_genotype_combinations;
     uint8_t **genotype_combinations = get_genotype_combinations(options_data->order, &num_genotype_combinations);
@@ -75,6 +56,8 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
     
     
     for (int r = 0; r < options_data->num_cv_repetitions; r++) {
+        printf("CV NUMBER %d\n", r);
+        
         // Initialize folds, first block coordinates, genotype combinations and rankings for each repetition
         unsigned int *sizes, *training_sizes;
         int **folds = get_k_folds(num_affected, num_unaffected, options_data->num_folds, &sizes);
@@ -98,10 +81,14 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
         }
         
         do {
-        
-            uint8_t *block_starts[2];
-            block_starts[0] = genotypes + block_coords[0] * options_data->stride * num_samples;
-            block_starts[1] = genotypes + block_coords[1] * options_data->stride * num_samples;
+            uint8_t *block_starts[options_data->order];
+//             printf("block = { ");
+            for (int s = 0; s < options_data->order; s++) {
+                block_starts[s] = genotypes + block_coords[s] * options_data->stride * num_samples;
+//                 printf("%d ", block_coords[s] * options_data->stride);
+            }
+//             printf("}\n");
+            
             
             // Test first combination in the block
             int *comb = get_first_combination_in_block(options_data->order, block_coords, options_data->stride);
@@ -138,6 +125,11 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
     //                     } else {
     //                         printf("Combination not inserted\n");
     //                     }
+                        
+                        // If not inserted it means it is not among the most risky combinations, so free it
+                        if (position < 0) {
+                            risky_combination_free(risky_comb);
+                        }
                     }
                     
                     free(training_genotypes);
@@ -167,6 +159,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                 current_index++;
 //                 printf("(%d %d - %.3f) ", element->combination[0], element->combination[1], element->accuracy);
             }
+            linked_list_iterator_free(iter);
         }
         
         // qsort by coordinates
@@ -190,19 +183,27 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
         // Save the models ranking
         best_models[r] = sorted_repetition_ranking;
         
-        free(folds);
         printf("\n\n");
+        
+        // Free data por this repetition
+        for (int i = 0; i < options_data->num_folds; i++) {
+            free(folds[i]);
+            linked_list_free(ranking_risky[i], risky_combination_free);   // TODO invoke callback?
+        }
+        free(folds);
+        free(sizes);
+        free(training_sizes);
     }
     
     
     
-//     // Show the best model of each repetition
-//     for (int r = 0; r < options_data->num_cv_repetitions; r++) {
-//         risky_combination *element = linked_list_get(0, best_models[r]);
-//         assert(element);
-//         assert(element->combination);
-//         printf("CV %d\t(%d %d - %.3f)\n", r, element->combination[0], element->combination[1], element->accuracy);
-//     }
+    // Show the best model of each repetition
+    for (int r = 0; r < options_data->num_cv_repetitions; r++) {
+        risky_combination *element = linked_list_get(0, best_models[r]);
+        assert(element);
+        assert(element->combination);
+        printf("CV %d\t(%d %d - %.3f)\n", r, element->combination[0], element->combination[1], element->accuracy);
+    }
     
     // CVC (get the model that appears more times in the first ranking position)
     khash_t(cvc) *models_for_cvc = kh_init(cvc);
@@ -232,7 +233,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
         if (kh_exist(models_for_cvc, k)) {
             int key = kh_key(models_for_cvc, k);
             int value = kh_value(models_for_cvc, k);
-            printf("%d -> %d\n", key, value);
+//             printf("%d -> %d\n", key, value);
             if (value > bestvalue) {
                 bestkey = key;
                 bestvalue = value;
@@ -249,6 +250,11 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
     printf("Best model is (%d %d) with a CVC of %d/%d\n", bestcomb[0], bestcomb[1], bestvalue, options_data->num_cv_repetitions);
     kh_destroy(cvc, models_for_cvc);
     
+    // Free data for the whole epistasis check
+    for (int i = 0; i < num_genotype_combinations; i++) {
+        free(genotype_combinations[i]);
+    }
+    free(genotype_combinations);
     epistasis_dataset_close(input_file, file_len);
     
     return ret_code;

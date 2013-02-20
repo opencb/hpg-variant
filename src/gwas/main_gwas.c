@@ -30,6 +30,7 @@ int main(int argc, char *argv[]) {
 
     array_list_t *config_search_paths = get_configuration_search_paths(argc, argv);
     const char *config = retrieve_config_file("hpg-variant.conf", config_search_paths);
+    array_list_free(config_search_paths, free);
     
     // Get sub-tool
     char *tool = argv[1];

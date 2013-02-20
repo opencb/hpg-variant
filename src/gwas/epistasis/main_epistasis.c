@@ -100,6 +100,7 @@ epistasis_options_data_t *new_epistasis_options_data(epistasis_options_t *option
     options_data->num_folds = *(options->num_folds->ival);
     options_data->order = *(options->order->ival);
     options_data->stride = (options_data->order > 0) ? log_base(*(options->operations_per_block->ival), options_data->order) : 0;
+    printf("order = %d\tstride = %d\n", options_data->order, options_data->stride); 
     return options_data;
 }
 

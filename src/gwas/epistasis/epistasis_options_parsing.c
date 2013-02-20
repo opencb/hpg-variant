@@ -153,7 +153,6 @@ int verify_epistasis_options(epistasis_options_t *epistasis_options, shared_opti
         return EPISTASIS_CV_RUNS_NOT_SPECIFIED;
     }
     
-    printf("eval mode = %s\n", *(epistasis_options->evaluation_mode->sval));
     // Checker whether to use the training or testing partition for evaluating the best models
     if (*(epistasis_options->evaluation_mode->sval) == NULL || 
         (strcmp(*(epistasis_options->evaluation_mode->sval), "training") && strcmp(*(epistasis_options->evaluation_mode->sval), "testing")) ) {

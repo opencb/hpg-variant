@@ -8,14 +8,15 @@
  * ***************************/
 
 uint8_t *epistasis_dataset_load(int *num_affected, int *num_unaffected, size_t *num_variants, size_t *file_len, size_t *genotypes_offset, char *filename) {
-    uint8_t *contents = mmap_file(file_len, filename);
+    FILE *fp = fopen(filename, "rb");
+    fread(num_variants, 1, sizeof(size_t), fp);
+    fread(num_affected, 1, sizeof(uint32_t), fp);
+    fread(num_unaffected, 1, sizeof(uint32_t), fp);
+    fclose(fp);
     
-    *num_variants = contents[0];
-    *num_affected = contents[sizeof(size_t)];
-    *num_unaffected = contents[sizeof(size_t) + sizeof(uint32_t)];
     *genotypes_offset = sizeof(size_t) + sizeof(uint32_t) + sizeof(uint32_t);
     
-    return contents;
+    return mmap_file(file_len, filename);
 }
 
 int epistasis_dataset_close(uint8_t *contents, size_t file_len) {

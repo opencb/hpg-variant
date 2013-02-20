@@ -307,6 +307,9 @@ FILE *get_output_file(shared_options_data_t *shared_options_data, char *default_
     
     *path = (char*) malloc ((strlen(output_directory) + strlen(output_filename) + 2) * sizeof(char));
     sprintf(*path, "%s/%s", output_directory, output_filename);
+    
+    LOG_INFO_F("Output file will be saved in path %s\n", *path);
+    
     return fopen(*path, "w");
 }
 

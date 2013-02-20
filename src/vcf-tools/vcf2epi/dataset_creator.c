@@ -174,11 +174,12 @@ int create_dataset_from_vcf(shared_options_data_t* shared_options_data) {
             // Thread which writes the results to the output file
             LOG_DEBUG_F("Level %d: number of threads in the team - %d\n", 20, omp_get_num_threads());
             
-            FILE *fp = fopen("epistasis_dataset.bin","wb");
+            char *filename;
+            FILE *fp = get_output_file(shared_options_data, "epistasis_dataset.bin", &filename);
             
             double start = omp_get_wtime();
             
-            // TODO write binary file with dataset
+            // Write binary file with dataset
             
             size_t num_samples;
             bool header_written = false;

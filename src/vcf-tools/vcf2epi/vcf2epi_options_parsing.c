@@ -70,7 +70,7 @@ void **parse_vcf2epi_options(int argc, char *argv[], vcf2epi_options_t *vcf2epi_
     
     int num_errors = arg_parse(argc, argv, argtable);
     if (num_errors > 0) {
-        arg_print_errors(stdout, end, "hpg-var-vcf2epi");
+        arg_print_errors(stdout, end, "hpg-var-vcf vcf2epi");
     }
     
     return argtable;
