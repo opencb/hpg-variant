@@ -115,7 +115,7 @@ START_TEST (test_mdr_steps_2_6) {
             
 //             printf("-------------\n");
             
-        } while (get_next_combination_in_block(order, comb, block_2d, stride)); // Test next combinations
+        } while (get_next_combination_in_block(order, comb, block_2d, stride, 9)); // Test next combinations
         
         free(comb);
         
@@ -228,7 +228,7 @@ START_TEST(test_mdr_5_repetitions_5_fold) {
             
 //             printf("-------------\n");
             
-        } while (get_next_combination_in_block(order, comb, block_coords, stride)); // Test next combinations
+        } while (get_next_combination_in_block(order, comb, block_coords, stride, num_variants)); // Test next combinations
         
         free(comb);
         

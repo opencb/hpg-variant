@@ -131,7 +131,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                     free(training_genotypes);
                 }
                 
-            } while (get_next_combination_in_block(options_data->order, comb, block_coords, options_data->stride)); // Test next combinations
+            } while (get_next_combination_in_block(options_data->order, comb, block_coords, options_data->stride, num_variants)); // Test next combinations
             
             free(comb);
         

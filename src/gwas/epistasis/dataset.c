@@ -85,18 +85,21 @@ int* get_first_combination_in_block(int order, int block_coordinates[order], int
  * @param stride the size of the original set
  * @return 1 if a valid combination was found, 0 otherwise
  **/
-int get_next_combination_in_block(int order, int comb[order], int block_coordinates[order], int stride) {
+int get_next_combination_in_block(int order, int comb[order], int block_coordinates[order], int stride, int num_variants) {
     int i = order - 1;
     ++comb[i];
     
-    // comb[i] compared against last position allowed in its block
-    while ((i > 0) && (comb[i] >= ((block_coordinates[i] + 1) * stride) - order + 1 + i)) {
+    // comb[i] compared against last position allowed in its block,
+    // or in the whole dataset, if the last index in the block exceeds the number of variants
+    while (i > 0 && comb[i] >= MIN((block_coordinates[i] + 1) * stride - order + 1 + i, num_variants)) {
+//         printf("** comb[i] = %d\tlimit = %d\n", comb[i], ((block_coordinates[i] + 1) * stride) - order + 1 + i);
         --i;
         ++comb[i];
     }
     
     /* Combination (n-k, n-k+1, ..., n) reached */
-    if (comb[0] > (block_coordinates[0] + 1) * stride - 1) {
+    if (comb[0] > (block_coordinates[0] + 1) * stride - 1 || comb[0] >= num_variants) {
+//         printf("-- comb[i] = %d\tlimit = %d\n", comb[i], ((block_coordinates[i] + 1) * stride) - order + 1 + i);
         return 0; /* No more combinations can be generated */
     }
 
@@ -114,11 +117,12 @@ int get_next_combination_in_block(int order, int comb[order], int block_coordina
         }
     }
     
-    if (comb[order - 1] > (block_coordinates[order - 1] + 1) * stride - 1) {
+    if (comb[order - 1] > (block_coordinates[order - 1] + 1) * stride - 1 || comb[order - 1] >= num_variants) {
+//         printf("++ comb[i] = %d\tlimit = %d\n", comb[order - 1], ((block_coordinates[order - 1] + 1) * stride) - order + 1 + i);
         return 0; /* No more combinations can be generated */
     }
 
-//     print_combination(comb, (unsigned long) 3000, order);
+//     print_combination(comb, 1, order);
 
     return 1;
 }

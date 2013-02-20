@@ -12,6 +12,7 @@
 #include <commons/file_utils.h>
 #include <containers/array_list.h>
 
+#define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
 
 /* ***************************
  *  Whole dataset management *
@@ -32,7 +33,7 @@ int get_next_block(int num_blocks, int order, int block_coordinates[order]);
 
 int* get_first_combination_in_block(int order, int block_coordinates[order], int stride);
 
-int get_next_combination_in_block(int order, int comb[order], int block_coordinates[order], int stride);
+int get_next_combination_in_block(int order, int comb[order], int block_coordinates[order], int stride, int num_variants);
 
 uint8_t **get_genotype_combinations(int order, int *num_combinations);
 
