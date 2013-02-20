@@ -76,13 +76,6 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
             training_sizes[3 * i + 2] = num_unaffected - sizes[3 * i + 2];
         }
         
-//         for (int i = 0; i < options_data->num_folds; i++) {
-//             printf("%d size = %d\taff = %d\tunaff = %d\n", i, sizes[3 * i], sizes[3 * i + 1], sizes[3 * i + 2]);
-//         }
-//         for (int i = 0; i < options_data->num_folds; i++) {
-//             printf("%d train size = %d\taff = %d\tunaff = %d\n", i, training_sizes[3 * i], training_sizes[3 * i + 1], training_sizes[3 * i + 2]);
-//         }
-        
         do {
             uint8_t *block_starts[options_data->order];
 //             printf("block = { ");
@@ -95,10 +88,9 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
             
             // Test first combination in the block
             int *comb = get_first_combination_in_block(options_data->order, block_coords, options_data->stride);
-    //         print_combination(comb, comb_idx, options_data->order);
+    //         print_combination(comb, 0, options_data->order);
             
             do  {
-                print_combination(comb, 0, options_data->order);
                 // Run for each fold
                 for (int i = 0; i < options_data->num_folds; i++) {
                     // Get genotypes of that combination

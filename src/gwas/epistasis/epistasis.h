@@ -45,7 +45,7 @@
 /**
  * Number of options applicable to the epistasis tool.
  */
-#define NUM_EPISTASIS_OPTIONS  6
+#define NUM_EPISTASIS_OPTIONS  7
 
 typedef struct epistasis_options {
     int num_options;

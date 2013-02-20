@@ -113,16 +113,17 @@ void **merge_epistasis_options(epistasis_options_t *epistasis_options, shared_op
     tool_options[1] = epistasis_options->order;
     tool_options[2] = epistasis_options->num_folds;
     tool_options[3] = epistasis_options->num_cv_repetitions;
-    tool_options[4] = epistasis_options->evaluation_mode;
-    tool_options[5] = epistasis_options->operations_per_block;
+    tool_options[4] = epistasis_options->max_ranking_size;
+    tool_options[5] = epistasis_options->evaluation_mode;
+    tool_options[6] = epistasis_options->operations_per_block;
     
     // Configuration file
-    tool_options[6] = shared_options->config_file;
+    tool_options[7] = shared_options->config_file;
     
     // Advanced configuration
-    tool_options[7] = shared_options->num_threads;
+    tool_options[8] = shared_options->num_threads;
     
-    tool_options[8] = arg_end;
+    tool_options[9] = arg_end;
     
     return tool_options;
 }
