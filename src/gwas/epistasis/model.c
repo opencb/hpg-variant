@@ -1,19 +1,16 @@
 #include "model.h"
 
-#define NUM_GENOTYPES   3
-
 
 /* **************************
  *       Main pipeline      *
  * **************************/
 
 risky_combination *get_model_from_combination_in_fold(int order, int comb[order], uint8_t *val, unsigned int num_affected_in_training, unsigned int num_unaffected_in_training,
-                                                      int num_genotype_combinations, uint8_t **genotype_combinations) {
+                                                      int num_genotype_combinations, uint8_t **genotype_combinations, int num_counts) {
     risky_combination *risky_comb = NULL;
     
     // Get counts for the provided genotypes
-    int num_counts, num_risky;
-    int *counts = get_counts(order, val, genotype_combinations, num_genotype_combinations, num_affected_in_training, num_unaffected_in_training, &num_counts);
+    int *counts = get_counts(order, val, genotype_combinations, num_genotype_combinations, num_affected_in_training, num_unaffected_in_training, num_counts);
     
 //     printf("counts = {\n");
 //     for (int j = 0; j < 3; j++) {
@@ -27,6 +24,7 @@ risky_combination *get_model_from_combination_in_fold(int order, int comb[order]
     
     // Get high risk pairs for those counts
     void *aux_info;
+    int num_risky;
     int *risky_idx = get_high_risk_combinations(counts, num_counts, num_affected_in_training, num_unaffected_in_training, 
                                                 &num_risky, &aux_info, mdr_high_risk_combinations);
     
@@ -155,12 +153,11 @@ int add_to_model_ranking(risky_combination *risky_comb, int max_ranking_size, li
  *          Counts          *
  * **************************/
 
-int* get_counts(int order, uint8_t* genotypes, uint8_t **genotype_combinations, int num_genotype_combinations, int num_affected, int num_unaffected, int *num_counts) {
+int* get_counts(int order, uint8_t* genotypes, uint8_t **genotype_combinations, int num_genotype_combinations, int num_affected, int num_unaffected, int num_counts) {
     int num_masks;
     int num_samples = num_affected + num_unaffected;
-    *num_counts = 2 * pow(NUM_GENOTYPES, order);
     uint8_t *masks = get_masks(order, genotypes, num_samples, &num_masks); // Grouped by SNP
-    int *counts = malloc((*num_counts) * sizeof(int)); // Affected and unaffected
+    int *counts = malloc(num_counts * sizeof(int)); // Affected and unaffected
     
     uint8_t *comb;
     int flag = 1, count = 0;

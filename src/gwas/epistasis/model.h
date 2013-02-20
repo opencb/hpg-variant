@@ -15,6 +15,8 @@
 #include "dataset.h"
 #include "mdr.h"
 
+#define NUM_GENOTYPES   3
+
 
 typedef struct {
     double accuracy;
@@ -45,7 +47,7 @@ enum eval_function { CA, BA, wBA, GAMMA, TAU_B };
  * **************************/
 
 risky_combination *get_model_from_combination_in_fold(int order, int comb[order], uint8_t *val, unsigned int num_affected_in_training, unsigned int num_unaffected_in_training,
-                                                      int num_genotype_combinations, uint8_t **genotype_combinations);
+                                                      int num_genotype_combinations, uint8_t **genotype_combinations, int num_counts);
 
 double test_model(int order, risky_combination *risky_comb, uint8_t *val, 
                   unsigned int num_affected_in_testing, unsigned int num_unaffected_in_testing);
@@ -72,7 +74,7 @@ int add_to_model_ranking(risky_combination *risky_comb, int max_ranking_size, li
  * @param num_counts Number of counts returned
  * @return List of counts, paired in (affected,unaffected)
  **/
-int* get_counts(int order, uint8_t* genotypes, uint8_t **genotype_combinations, int num_genotype_combinations, int num_affected, int num_unaffected, int *num_counts);
+int* get_counts(int order, uint8_t* genotypes, uint8_t **genotype_combinations, int num_genotype_combinations, int num_affected, int num_unaffected, int num_counts);
 
 uint8_t* get_masks(int order, uint8_t *genotypes, int num_samples, int *num_masks);
 

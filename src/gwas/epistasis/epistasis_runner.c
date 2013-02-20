@@ -42,6 +42,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
     
     int num_samples = num_affected + num_unaffected;
     int num_blocks_per_dim = ceil((double) num_variants / options_data->stride);
+    int num_counts_per_combination = 2 * pow(NUM_GENOTYPES, options_data->order);
     
     printf("num variants = %zu\tnum block per dim = %d\n", num_variants, num_blocks_per_dim);
     
@@ -91,14 +92,16 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
     //         print_combination(comb, 0, options_data->order);
             
             do  {
+//                 print_combination(comb, 0, options_data->order);
                 // Run for each fold
+//                 #pragma omp parallel for
                 for (int i = 0; i < options_data->num_folds; i++) {
                     // Get genotypes of that combination
                     uint8_t *training_genotypes = get_genotypes_for_combination_exclude_fold(options_data->order, comb, num_samples, sizes[3 * i], folds[i], options_data->stride, block_starts);
                     
                     risky_combination *risky_comb = get_model_from_combination_in_fold(options_data->order, comb, training_genotypes,
                                                                                     training_sizes[3 * i + 1], training_sizes[3 * i + 2],
-                                                                                    num_genotype_combinations, genotype_combinations);
+                                                                                    num_genotype_combinations, genotype_combinations, num_counts_per_combination);
                     
                     if (risky_comb) {
                         // Check the model against the testing dataset
@@ -134,7 +137,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
             } while (get_next_combination_in_block(options_data->order, comb, block_coords, options_data->stride, num_variants)); // Test next combinations
             
             free(comb);
-        
+            
         } while (get_next_block(num_blocks_per_dim, options_data->order, block_coords));
         
         
@@ -181,12 +184,10 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
         // Save the models ranking
         best_models[r] = sorted_repetition_ranking;
         
-        printf("\n\n");
-        
         // Free data por this repetition
         for (int i = 0; i < options_data->num_folds; i++) {
             free(folds[i]);
-            linked_list_free(ranking_risky[i], NULL);   // TODO invoke callback?
+            linked_list_free(ranking_risky[i], NULL);
         }
         free(folds);
         free(sizes);
