@@ -71,14 +71,17 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
         // Calculate size of training datasets
         training_sizes = calloc(3 * options_data->num_folds, sizeof(unsigned int));
         for (int i = 0; i < options_data->num_folds; i++) {
-            for (int j = 0; j < options_data->num_folds; j++) {
-                if (i != j) {
-                    training_sizes[3 * i] += sizes[3 * i];
-                    training_sizes[3 * i + 1] += sizes[3 * i + 1];
-                    training_sizes[3 * i + 2] += sizes[3 * i + 2];
-                }
-            }
+            training_sizes[3 * i] = num_samples - sizes[3 * i];
+            training_sizes[3 * i + 1] = num_affected - sizes[3 * i + 1];
+            training_sizes[3 * i + 2] = num_unaffected - sizes[3 * i + 2];
         }
+        
+//         for (int i = 0; i < options_data->num_folds; i++) {
+//             printf("%d size = %d\taff = %d\tunaff = %d\n", i, sizes[3 * i], sizes[3 * i + 1], sizes[3 * i + 2]);
+//         }
+//         for (int i = 0; i < options_data->num_folds; i++) {
+//             printf("%d train size = %d\taff = %d\tunaff = %d\n", i, training_sizes[3 * i], training_sizes[3 * i + 1], training_sizes[3 * i + 2]);
+//         }
         
         do {
             uint8_t *block_starts[options_data->order];
@@ -95,6 +98,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
     //         print_combination(comb, comb_idx, options_data->order);
             
             do  {
+                print_combination(comb, 0, options_data->order);
                 // Run for each fold
                 for (int i = 0; i < options_data->num_folds; i++) {
                     // Get genotypes of that combination
@@ -161,6 +165,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
             }
             linked_list_iterator_free(iter);
         }
+        assert(current_index == repetition_ranking_size);
         
         // qsort by coordinates
         qsort(repetition_ranking, repetition_ranking_size, sizeof(risky_combination*), compare_risky);
@@ -173,6 +178,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
             risky_combination *element = repetition_ranking[i];
             if (!compare_risky(&current, &element)) {
                 current->accuracy += element->accuracy;
+                risky_combination_free(element);
             } else {
                 current->accuracy /= options_data->num_folds;
                 int position = add_to_model_ranking(current, repetition_ranking_size, sorted_repetition_ranking);
@@ -188,7 +194,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
         // Free data por this repetition
         for (int i = 0; i < options_data->num_folds; i++) {
             free(folds[i]);
-            linked_list_free(ranking_risky[i], risky_combination_free);   // TODO invoke callback?
+            linked_list_free(ranking_risky[i], NULL);   // TODO invoke callback?
         }
         free(folds);
         free(sizes);
@@ -202,7 +208,11 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
         risky_combination *element = linked_list_get(0, best_models[r]);
         assert(element);
         assert(element->combination);
-        printf("CV %d\t(%d %d - %.3f)\n", r, element->combination[0], element->combination[1], element->accuracy);
+        printf("CV %d\t(", r);
+        for (int i = 0; i < options_data->order; i++) {
+            printf(" %d ", element->combination[i]);
+        }
+        printf(") - %.3f)\n", element->accuracy);
     }
     
     // CVC (get the model that appears more times in the first ranking position)
@@ -247,7 +257,12 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
         bestkey -= bestcomb[i] * pow(num_samples, options_data->order - i);
     }
     
-    printf("Best model is (%d %d) with a CVC of %d/%d\n", bestcomb[0], bestcomb[1], bestvalue, options_data->num_cv_repetitions);
+    printf("Best model is (");
+    for (int i = 0; i < options_data->order; i++) {
+        printf(" %d ", bestcomb[i]);
+    }
+    printf(") with a CVC of %d/%d\n", bestvalue, options_data->num_cv_repetitions);
+    
     kh_destroy(cvc, models_for_cvc);
     
     // Free data for the whole epistasis check
