@@ -47,7 +47,7 @@ enum eval_function { CA, BA, wBA, GAMMA, TAU_B };
  * **************************/
 
 risky_combination *get_model_from_combination_in_fold(int order, int comb[order], uint8_t *val, unsigned int num_affected_in_training, unsigned int num_unaffected_in_training,
-                                                      int num_genotype_combinations, uint8_t **genotype_combinations, int num_counts);
+                                                      int num_genotype_combinations, uint8_t **genotype_combinations, int num_counts, double *masks_time, double *counts_time);
 
 double test_model(int order, risky_combination *risky_comb, uint8_t *val, unsigned int num_affected, unsigned int num_unaffected);
 
