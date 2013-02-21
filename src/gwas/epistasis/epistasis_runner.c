@@ -23,6 +23,7 @@
 KHASH_MAP_INIT_STR(cvc, int);
 
 int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_data_t* options_data) {
+    double masks_time = 0.0f, counts_time = 0.0f;
     int ret_code = 0;
     
     // Load binary input dataset
@@ -104,7 +105,8 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                     
                     risky_combination *risky_comb = get_model_from_combination_in_fold(order, comb, training_genotypes,
                                                                                     training_sizes[3 * i + 1], training_sizes[3 * i + 2],
-                                                                                    num_genotype_combinations, genotype_combinations, num_counts_per_combination);
+                                                                                    num_genotype_combinations, genotype_combinations, num_counts_per_combination,
+                                                                                    &masks_time, &counts_time);
                     
                     if (risky_comb) {
                         // Check the model against the testing dataset
@@ -298,6 +300,11 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
     }
     free(genotype_combinations);
     epistasis_dataset_close(input_file, file_len);
+    
+    printf("\nTIME CONSUMPTION IN GETTING MASKS AND COUNTS\n");
+    printf("--------------------------------------------\n");
+    printf("Masks = %.6f s\tCounts = %.6f s\n", masks_time, counts_time);
+    
     
     return ret_code;
 }

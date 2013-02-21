@@ -6,13 +6,19 @@
  * **************************/
 
 risky_combination *get_model_from_combination_in_fold(int order, int comb[order], uint8_t *val, unsigned int num_affected_in_training, unsigned int num_unaffected_in_training,
-                                                      int num_genotype_combinations, uint8_t **genotype_combinations, int num_counts) {
+                                                      int num_genotype_combinations, uint8_t **genotype_combinations, int num_counts, double *masks_time, double *counts_time) {
     risky_combination *risky_comb = NULL;
     
     // Get counts for the provided genotypes
     int num_masks;
+    double start_masks = omp_get_wtime();
     uint8_t *masks = get_masks(order, val, num_affected_in_training + num_unaffected_in_training, &num_masks); // Grouped by SNP
+    *masks_time += omp_get_wtime() - start_masks;
+    
+    double start_counts = omp_get_wtime();
     int *counts = get_counts(order, val, masks, genotype_combinations, num_genotype_combinations, num_affected_in_training, num_unaffected_in_training, num_counts);
+    *counts_time += omp_get_wtime() - start_counts;
+    
     free(masks);
     
 //     printf("counts = {\n");
