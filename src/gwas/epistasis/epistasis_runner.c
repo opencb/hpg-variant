@@ -97,7 +97,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
             do  {
 //                 print_combination(comb, 0, order);
                 // Run for each fold
-//                 #pragma omp parallel for
+                #pragma omp parallel for
                 for (int i = 0; i < options_data->num_folds; i++) {
                     // Get genotypes of that combination
                     uint8_t *training_genotypes = get_genotypes_for_combination_exclude_fold(order, comb, num_samples, sizes[3 * i], folds[i], options_data->stride, block_starts);
@@ -255,6 +255,35 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
             if (value > bestvalue) {
                 bestkey = key;
                 bestvalue = value;
+            } else if (value == bestvalue) {
+                // If CVC(best) == CVC(candidate) ---> use CV-a
+                double acc_best = 0.0f;
+                double acc_candidate = 0.0f;
+                
+                // Sum all accuracies for the best and the candidate
+                for (int r = 0; r < options_data->num_cv_repetitions; r++) {
+                    risky_combination *element = linked_list_get(0, best_models[r]);
+                    
+                    // maybe_key = snp1_snp2_..._snpN
+                    char *maybe_key = calloc(order * (max_val_len + 1), sizeof(char));
+                    
+                    for (int i = 0; i < order-1; i++) {
+                        sprintf(maybe_key + strlen(maybe_key), "%d_", element->combination[i]);
+                    }
+                    sprintf(maybe_key + strlen(maybe_key), "%d", element->combination[order-1]);
+                    
+                    if (!strcmp(maybe_key, key)) {
+                        acc_candidate += element->accuracy;
+                    } else if (!strcmp(maybe_key, bestkey)) {
+                        acc_best += element->accuracy;
+                    }
+                }
+                
+                // Check which one is greater
+                if (acc_candidate > acc_best) {
+                    bestkey = key;
+                    bestvalue = value;
+                }
             }
         }
     }
