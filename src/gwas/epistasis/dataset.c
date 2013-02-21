@@ -57,8 +57,7 @@ int get_next_block(int num_blocks, int order, int block_coordinates[order]) {
     return 0; // No more blocks available
 }
 
-int* get_first_combination_in_block(int order, int block_coordinates[order], int stride) {
-    int *init_coordinates = malloc(order * sizeof(int));
+void get_first_combination_in_block(int order, int init_coordinates[order], int block_coordinates[order], int stride) {
     init_coordinates[0] = block_coordinates[0] * stride;
     
     for (int i = 1; i < order; i++) {
@@ -71,8 +70,6 @@ int* get_first_combination_in_block(int order, int block_coordinates[order], int
             init_coordinates[i] = init_coordinates[i-1] + 1;
         }
     }
-    
-    return init_coordinates;
 }
 
 

@@ -20,7 +20,7 @@
 
 #include "epistasis_runner.h"
 
-KHASH_MAP_INIT_INT(cvc, int);
+KHASH_MAP_INIT_STR(cvc, int);
 
 int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_data_t* options_data) {
     int ret_code = 0;
@@ -40,15 +40,17 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
     
     /*************** Precalculate the rest of variables the algorithm needs  ***************/
     
+    int order = options_data->order;
     int num_samples = num_affected + num_unaffected;
     int num_blocks_per_dim = ceil((double) num_variants / options_data->stride);
-    int num_counts_per_combination = 2 * pow(NUM_GENOTYPES, options_data->order);
+    int num_counts_per_combination = 2 * pow(NUM_GENOTYPES, order);
     
     printf("num variants = %zu\tnum block per dim = %d\n", num_variants, num_blocks_per_dim);
     
-    // Precalculate combinations for a given options_data->order
+    // Precalculate combinations for a given order
+    int comb[order];
     int num_genotype_combinations;
-    uint8_t **genotype_combinations = get_genotype_combinations(options_data->order, &num_genotype_combinations);
+    uint8_t **genotype_combinations = get_genotype_combinations(order, &num_genotype_combinations);
     
     // Ranking of best models in each repetition
     linked_list_t *best_models[options_data->num_cv_repetitions];
@@ -57,12 +59,12 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
     
     
     for (int r = 0; r < options_data->num_cv_repetitions; r++) {
-        printf("CV NUMBER %d\n", r);
+        LOG_INFO_F("Running cross-validation #%d...\n", r+1);
         
         // Initialize folds, first block coordinates, genotype combinations and rankings for each repetition
         unsigned int *sizes, *training_sizes;
         int **folds = get_k_folds(num_affected, num_unaffected, options_data->num_folds, &sizes);
-        int block_coords[options_data->order]; memset(block_coords, 0, options_data->order * sizeof(int));
+        int block_coords[order]; memset(block_coords, 0, order * sizeof(int));
         
         linked_list_t *ranking_risky[options_data->num_folds];
         for (int i = 0; i < options_data->num_folds; i++) {
@@ -77,10 +79,11 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
             training_sizes[3 * i + 2] = num_unaffected - sizes[3 * i + 2];
         }
         
+        
         do {
-            uint8_t *block_starts[options_data->order];
+            uint8_t *block_starts[order];
 //             printf("block = { ");
-            for (int s = 0; s < options_data->order; s++) {
+            for (int s = 0; s < order; s++) {
                 block_starts[s] = genotypes + block_coords[s] * options_data->stride * num_samples;
 //                 printf("%d ", block_coords[s] * options_data->stride);
             }
@@ -88,18 +91,18 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
             
             
             // Test first combination in the block
-            int *comb = get_first_combination_in_block(options_data->order, block_coords, options_data->stride);
-    //         print_combination(comb, 0, options_data->order);
+            get_first_combination_in_block(order, comb, block_coords, options_data->stride);
+//             print_combination(comb, 0, order);
             
             do  {
-//                 print_combination(comb, 0, options_data->order);
+//                 print_combination(comb, 0, order);
                 // Run for each fold
 //                 #pragma omp parallel for
                 for (int i = 0; i < options_data->num_folds; i++) {
                     // Get genotypes of that combination
-                    uint8_t *training_genotypes = get_genotypes_for_combination_exclude_fold(options_data->order, comb, num_samples, sizes[3 * i], folds[i], options_data->stride, block_starts);
+                    uint8_t *training_genotypes = get_genotypes_for_combination_exclude_fold(order, comb, num_samples, sizes[3 * i], folds[i], options_data->stride, block_starts);
                     
-                    risky_combination *risky_comb = get_model_from_combination_in_fold(options_data->order, comb, training_genotypes,
+                    risky_combination *risky_comb = get_model_from_combination_in_fold(order, comb, training_genotypes,
                                                                                     training_sizes[3 * i + 1], training_sizes[3 * i + 2],
                                                                                     num_genotype_combinations, genotype_combinations, num_counts_per_combination);
                     
@@ -108,15 +111,15 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                         double accuracy = 0.0f;
                         
                         if (options_data->evaluation_mode == TESTING) {
-                            uint8_t *testing_genotypes = get_genotypes_for_combination_and_fold(options_data->order, risky_comb->combination, 
+                            uint8_t *testing_genotypes = get_genotypes_for_combination_and_fold(order, risky_comb->combination, 
                                                                                                 num_samples, sizes[3 * i + 1] + sizes[3 * i + 2], 
                                                                                                 folds[i], options_data->stride, block_starts);
-                            accuracy = test_model(options_data->order, risky_comb, testing_genotypes, sizes[3 * i + 1], sizes[3 * i + 2]);
+                            accuracy = test_model(order, risky_comb, testing_genotypes, sizes[3 * i + 1], sizes[3 * i + 2]);
                             free(testing_genotypes);
                         } else {
-                            accuracy = test_model(options_data->order, risky_comb, training_genotypes, training_sizes[3 * i + 1], training_sizes[3 * i + 2]);
+                            accuracy = test_model(order, risky_comb, training_genotypes, training_sizes[3 * i + 1], training_sizes[3 * i + 2]);
                         }
-    //                     printf("*  Balanced accuracy: %.3f\n", accuracy);
+//                         printf("*  Balanced accuracy: %.3f\n", accuracy);
                         
                         int position = add_to_model_ranking(risky_comb, options_data->max_ranking_size, ranking_risky[i]);
     //                     if (position >= 0) {
@@ -134,11 +137,9 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                     free(training_genotypes);
                 }
                 
-            } while (get_next_combination_in_block(options_data->order, comb, block_coords, options_data->stride, num_variants)); // Test next combinations
+            } while (get_next_combination_in_block(order, comb, block_coords, options_data->stride, num_variants)); // Test next combinations
             
-            free(comb);
-            
-        } while (get_next_block(num_blocks_per_dim, options_data->order, block_coords));
+        } while (get_next_block(num_blocks_per_dim, order, block_coords));
         
         
         // Merge all rankings in one
@@ -181,6 +182,15 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
             }
         }
         
+//         // Show full ranking
+//         linked_list_iterator_t* iter = linked_list_iterator_new(sorted_repetition_ranking);
+//         risky_combination *element = NULL;
+//         while(element = linked_list_iterator_next(iter)) {
+//             printf("(%d %d - %.3f) ", element->combination[0], element->combination[1], element->accuracy);
+//         }
+//         printf("\n");
+//         linked_list_iterator_free(iter);
+        
         // Save the models ranking
         best_models[r] = sorted_repetition_ranking;
         
@@ -202,21 +212,25 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
         assert(element);
         assert(element->combination);
         printf("CV %d\t(", r);
-        for (int i = 0; i < options_data->order; i++) {
+        for (int i = 0; i < order; i++) {
             printf(" %d ", element->combination[i]);
         }
         printf(") - %.3f)\n", element->accuracy);
     }
     
     // CVC (get the model that appears more times in the first ranking position)
+    int max_val_len = log10f(num_variants);
     khash_t(cvc) *models_for_cvc = kh_init(cvc);
     for (int r = 0; r < options_data->num_cv_repetitions; r++) {
         risky_combination *element = linked_list_get(0, best_models[r]);
         
-        int key = 0;
-        for (int i = 0; i < options_data->order; i++) {
-            key += element->combination[i] * pow(num_samples, options_data->order - i);
+        // key = snp1_snp2_..._snpN
+        char *key = calloc(order * (max_val_len + 1), sizeof(char));
+        
+        for (int i = 0; i < order-1; i++) {
+            sprintf(key + strlen(key), "%d_", element->combination[i]);
         }
+        sprintf(key + strlen(key), "%d", element->combination[order-1]);
         
         int ret;
         khiter_t iter = kh_get(cvc, models_for_cvc, key);
@@ -231,12 +245,13 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
         linked_list_free(best_models[r], risky_combination_free);
     }
     
-    int bestkey, bestvalue = 0;
+    char *bestkey;
+    int bestvalue = 0;
     for (int k = kh_begin(models_for_cvc); k < kh_end(models_for_cvc); k++) {
         if (kh_exist(models_for_cvc, k)) {
-            int key = kh_key(models_for_cvc, k);
+            char *key = kh_key(models_for_cvc, k);
             int value = kh_value(models_for_cvc, k);
-//             printf("%d -> %d\n", key, value);
+//             printf("%s -> %d\n", key, value);
             if (value > bestvalue) {
                 bestkey = key;
                 bestvalue = value;
@@ -244,17 +259,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
         }
     }
     
-    int bestcomb[options_data->order];
-    for (int i = 0; i < options_data->order; i++) {
-        bestcomb[i] = bestkey / pow(num_samples, options_data->order - i);
-        bestkey -= bestcomb[i] * pow(num_samples, options_data->order - i);
-    }
-    
-    printf("Best model is (");
-    for (int i = 0; i < options_data->order; i++) {
-        printf(" %d ", bestcomb[i]);
-    }
-    printf(") with a CVC of %d/%d\n", bestvalue, options_data->num_cv_repetitions);
+    LOG_INFO_F("Best model is %s with a CVC of %d/%d\n", bestkey, bestvalue, options_data->num_cv_repetitions);
     
     kh_destroy(cvc, models_for_cvc);
     

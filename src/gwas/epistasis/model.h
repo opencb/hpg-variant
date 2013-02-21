@@ -49,8 +49,7 @@ enum eval_function { CA, BA, wBA, GAMMA, TAU_B };
 risky_combination *get_model_from_combination_in_fold(int order, int comb[order], uint8_t *val, unsigned int num_affected_in_training, unsigned int num_unaffected_in_training,
                                                       int num_genotype_combinations, uint8_t **genotype_combinations, int num_counts);
 
-double test_model(int order, risky_combination *risky_comb, uint8_t *val, 
-                  unsigned int num_affected_in_testing, unsigned int num_unaffected_in_testing);
+double test_model(int order, risky_combination *risky_comb, uint8_t *val, unsigned int num_affected, unsigned int num_unaffected);
 
 int add_to_model_ranking(risky_combination *risky_comb, int max_ranking_size, linked_list_t *ranking_risky);
 
@@ -91,7 +90,6 @@ int* get_high_risk_combinations(unsigned int *counts, unsigned int num_counts, u
 risky_combination *risky_combination_new(int order, int comb[order], uint8_t **possible_genotypes_combinations, int num_risky, int *risky_idx, void *aux_info);
 
 void risky_combination_free(risky_combination *combination);
-
 
 
 /* **************************

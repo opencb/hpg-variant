@@ -21,6 +21,6 @@ bool mdr_high_risk_combinations(unsigned int count_affected, unsigned int count_
     LOG_DEBUG_F("affected = %d/%d, unaffected = %d/%d -> %f\n", count_affected, samples_affected, 
                 count_unaffected, samples_unaffected, normalized_affected - normalized_unaffected);
 //     return normalized_affected - normalized_unaffected > 1;
-    return normalized_affected > normalized_unaffected;
+    return normalized_affected >= normalized_unaffected;
 }
 

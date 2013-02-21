@@ -31,7 +31,7 @@ int get_block_stride(size_t block_operations, int order);
 
 int get_next_block(int num_blocks, int order, int block_coordinates[order]);
 
-int* get_first_combination_in_block(int order, int block_coordinates[order], int stride);
+void get_first_combination_in_block(int order, int init_coordinates[order], int block_coordinates[order], int stride);
 
 int get_next_combination_in_block(int order, int comb[order], int block_coordinates[order], int stride, int num_variants);
 

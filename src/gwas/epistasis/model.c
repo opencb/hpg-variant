@@ -54,10 +54,10 @@ risky_combination *get_model_from_combination_in_fold(int order, int comb[order]
 
 
 double test_model(int order, risky_combination *risky_comb, uint8_t *val, 
-                  unsigned int num_affected_in_testing, unsigned int num_unaffected_in_testing) {
+                  unsigned int num_affected, unsigned int num_unaffected) {
     // Step 5 -> Check against a testing partition
     // Get the matrix containing {FP,FN,TP,TN}
-    unsigned int *confusion_matrix = get_confusion_matrix(order, risky_comb, num_affected_in_testing, num_affected_in_testing, val);
+    unsigned int *confusion_matrix = get_confusion_matrix(order, risky_comb, num_affected, num_unaffected, val);
     
 //     printf("confusion matrix = { ");
 //     for (int k = 0; k < 4; k++) {
@@ -281,7 +281,6 @@ void risky_combination_free(risky_combination* combination) {
     free(combination->genotypes);
     free(combination);
 }
-
 
 
 /* **************************
