@@ -73,7 +73,7 @@ int add_to_model_ranking(risky_combination *risky_comb, int max_ranking_size, li
  * @param num_counts Number of counts returned
  * @return List of counts, paired in (affected,unaffected)
  **/
-int* get_counts(int order, uint8_t* genotypes, uint8_t **genotype_combinations, int num_genotype_combinations, int num_affected, int num_unaffected, int num_counts);
+int* get_counts(int order, uint8_t* genotypes, uint8_t *masks, uint8_t **genotype_combinations, int num_genotype_combinations, int num_affected, int num_unaffected, int num_counts);
 
 uint8_t* get_masks(int order, uint8_t *genotypes, int num_samples, int *num_masks);
 

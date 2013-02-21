@@ -1,5 +1,5 @@
-#ifndef EPISTASIS_DATASET
-#define EPISTASIS_DATASET
+#ifndef EPISTASIS_DATASET_H
+#define EPISTASIS_DATASET_H
 
 #include <stdbool.h>
 #include <stddef.h>

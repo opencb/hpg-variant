@@ -10,7 +10,10 @@ risky_combination *get_model_from_combination_in_fold(int order, int comb[order]
     risky_combination *risky_comb = NULL;
     
     // Get counts for the provided genotypes
-    int *counts = get_counts(order, val, genotype_combinations, num_genotype_combinations, num_affected_in_training, num_unaffected_in_training, num_counts);
+    int num_masks;
+    uint8_t *masks = get_masks(order, val, num_affected_in_training + num_unaffected_in_training, &num_masks); // Grouped by SNP
+    int *counts = get_counts(order, val, masks, genotype_combinations, num_genotype_combinations, num_affected_in_training, num_unaffected_in_training, num_counts);
+    free(masks);
     
 //     printf("counts = {\n");
 //     for (int j = 0; j < 3; j++) {
@@ -153,10 +156,8 @@ int add_to_model_ranking(risky_combination *risky_comb, int max_ranking_size, li
  *          Counts          *
  * **************************/
 
-int* get_counts(int order, uint8_t* genotypes, uint8_t **genotype_combinations, int num_genotype_combinations, int num_affected, int num_unaffected, int num_counts) {
-    int num_masks;
+int* get_counts(int order, uint8_t* genotypes, uint8_t *masks, uint8_t **genotype_combinations, int num_genotype_combinations, int num_affected, int num_unaffected, int num_counts) {
     int num_samples = num_affected + num_unaffected;
-    uint8_t *masks = get_masks(order, genotypes, num_samples, &num_masks); // Grouped by SNP
     int *counts = malloc(num_counts * sizeof(int)); // Affected and unaffected
     
     uint8_t *comb;
@@ -192,8 +193,6 @@ int* get_counts(int order, uint8_t* genotypes, uint8_t **genotype_combinations, 
         LOG_DEBUG_F("unaff comb idx (%d) = %d\n", i * 2 + 1, count);
         counts[i * 2 + 1] = count;
     }
-    
-    free(masks);
     
     return counts;
 }
