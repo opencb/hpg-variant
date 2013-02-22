@@ -19,7 +19,7 @@ risky_combination *get_model_from_combination_in_fold(int order, int comb[order]
     int *counts = get_counts(order, val, masks, genotype_combinations, num_genotype_combinations, num_affected_in_training, num_unaffected_in_training, num_counts);
     *counts_time += omp_get_wtime() - start_counts;
     
-    free(masks);
+    _mm_free(masks);
     
 //     printf("counts = {\n");
 //     for (int j = 0; j < 3; j++) {
@@ -222,7 +222,7 @@ uint8_t* get_masks(int order, uint8_t *genotypes, int num_samples, int *num_mask
      * SNP(order-1) - Mask genotype 2 (all samples)
      */
     *num_masks = NUM_GENOTYPES * order * num_samples;
-    uint8_t *masks = malloc((*num_masks) * sizeof(uint8_t));
+    uint8_t *masks = _mm_malloc((*num_masks) * sizeof(uint8_t), 16);
     
     for (int j = 0; j < order; j++) {
         // Genotypes in the range (0,2)

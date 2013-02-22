@@ -7,6 +7,9 @@
 #include <stdlib.h>
 #include <math.h>
 
+#include <omp.h>
+#include <xmmintrin.h>
+
 #include <commons/log.h>
 #include <containers/array_list.h>
 #include <containers/linked_list.h>
