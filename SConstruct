@@ -6,7 +6,7 @@ commons_path = '#libs/common-libs'
 math_path = '#libs/math'
 
 env = Environment(tools = ['default', 'packaging'],
-                  CFLAGS = '-std=c99 -D_XOPEN_SOURCE=600 -D_GNU_SOURCE -fopenmp',
+                  CFLAGS = '-std=c99 -D_XOPEN_SOURCE=600 -D_GNU_SOURCE -msse4.2 -fopenmp',
                   CPPPATH = ['#', '#src', '/usr/include', '/usr/local/include', '/usr/include/libxml2', '#include', bioinfo_path, commons_path, math_path ],
                   LIBPATH = ['/usr/lib', '/usr/local/lib', '#libs', commons_path ],
                   LIBS = ['argtable2', 'common', 'config', 'cprops', 'curl', 'gsl', 'gslcblas', 'm', 'xml2', 'z'],

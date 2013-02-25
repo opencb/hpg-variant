@@ -9,6 +9,8 @@
 
 #include <omp.h>
 #include <xmmintrin.h>
+#include <smmintrin.h>
+#include <popcntintrin.h>
 
 #include <commons/log.h>
 #include <containers/array_list.h>
@@ -77,7 +79,8 @@ int add_to_model_ranking(risky_combination *risky_comb, int max_ranking_size, li
  **/
 int* get_counts(int order, uint8_t *masks, uint8_t **genotype_combinations, int num_genotype_combinations, int num_affected, int num_unaffected, int num_samples_per_mask, int num_counts);
 
-uint8_t* get_masks(int order, uint8_t *genotypes, int num_samples, int *num_masks, int *num_samples_per_mask);
+uint8_t* get_masks(int order, uint8_t *genotypes, int num_affected, int num_unaffected, int *num_masks, 
+                   int *num_samples_per_mask, int *num_affected_with_padding, int *num_unaffected_with_padding);
 
 
 /* **************************

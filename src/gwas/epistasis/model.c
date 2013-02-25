@@ -10,24 +10,27 @@ risky_combination *get_model_from_combination_in_fold(int order, int comb[order]
     risky_combination *risky_comb = NULL;
     
     // Get counts for the provided genotypes
-    int num_masks, num_samples_per_mask;
+    int num_masks, num_samples_per_mask, num_affected_with_padding, num_unaffected_with_padding;
     double start_masks = omp_get_wtime();
-    uint8_t *masks = get_masks(order, val, num_affected_in_training + num_unaffected_in_training, &num_masks, &num_samples_per_mask); // Grouped by SNP
+    uint8_t *masks = get_masks(order, val, num_affected_in_training, num_unaffected_in_training, &num_masks, 
+                               &num_samples_per_mask, &num_affected_with_padding, &num_unaffected_with_padding); // Grouped by SNP
     *masks_time += omp_get_wtime() - start_masks;
     
-    printf("masks (%d) = {\n", num_masks);
-    printf("%d ", masks[0]);
-    for (int i = 1; i < num_masks; i++) {
-        if (i % num_samples_per_mask == 0) {
-            printf("\n");
-        }
-        printf("%d ", masks[i]);
-    }
-    printf("}\n");
+//     printf("masks (%d) = {\n", num_masks);
+//     printf("%d ", masks[0]);
+//     for (int i = 1; i < num_masks; i++) {
+//         if (i % num_samples_per_mask == 0) {
+//             printf("\n");
+//         }
+//         printf("%d ", masks[i]);
+//     }
+//     printf("}\n");
     
     double start_counts = omp_get_wtime();
+//     int *counts = get_counts(order, masks, genotype_combinations, num_genotype_combinations, 
+//                              num_affected_in_training, num_unaffected_in_training, num_samples_per_mask, num_counts);
     int *counts = get_counts(order, masks, genotype_combinations, num_genotype_combinations, 
-                             num_affected_in_training, num_unaffected_in_training, num_samples_per_mask, num_counts);
+                             num_affected_with_padding, num_unaffected_with_padding, num_samples_per_mask, num_counts);
     *counts_time += omp_get_wtime() - start_counts;
     
     _mm_free(masks);
@@ -175,15 +178,13 @@ int add_to_model_ranking(risky_combination *risky_comb, int max_ranking_size, li
 
 int* get_counts(int order, uint8_t *masks, uint8_t **genotype_combinations, int num_genotype_combinations, 
                 int num_affected, int num_unaffected, int num_samples_per_mask, int num_counts) {
-    int num_samples = num_affected + num_unaffected;
-//     int *counts = malloc(num_counts * sizeof(int)); // Affected and unaffected
-    int *counts = calloc(num_counts, sizeof(int)); // Affected and unaffected
+    // TODO now that num_affected, num_unaffected are padded, num_samples_per_mask should not be neccesary
+    int *counts = malloc(num_counts * sizeof(int)); // Affected and unaffected
     
     uint8_t *comb;
     int flag = 1, count = 0;
     
     __m128i snp_and, snp_cmp;
-    uint8_t *tmp = _mm_malloc(16 * sizeof(uint8_t), 16);
     
     for (int c = 0; c < num_genotype_combinations; c++) {
         comb = genotype_combinations[c];
@@ -201,57 +202,38 @@ int* get_counts(int order, uint8_t *masks, uint8_t **genotype_combinations, int 
                 snp_and = _mm_and_si128(snp_and, snp_cmp);
             }
             
-            _mm_store_si128(tmp + i, snp_and);
-            
-            printf("tmp (%d) = {", i);
-            for (int j = 0; j < 16; j++) {
-                printf("%d ", tmp[j]);
-                if (tmp[j]) {
-//                     printf("(Y) ");
-//                     count++;
-                    if (i + j < num_affected) {
-                        (counts[c * 2])++;
-                    } else {
-                        (counts[c * 2 + 1])++;
-                    }
-                }
-            }
-            printf("}\n");
+            count += _mm_popcnt_u64(_mm_extract_epi64(snp_and, 0)) + 
+                     _mm_popcnt_u64(_mm_extract_epi64(snp_and, 1));
         }
-            
         
-//         for (int i = 0; i < num_affected; i++) {
-//             flag = 1;
-//             for (int j = 0; j < order && flag; j++) {
-//                 flag &= masks[j * NUM_GENOTYPES * num_samples_per_mask + comb[j] * num_samples_per_mask + i];
-//             }
-//             if (flag) {
-//                 count++;
-//             }
-//         }
-        LOG_INFO_F("aff comb idx (%d) = %d\n", c * 2, counts[c * 2]);
-        LOG_INFO_F("unaff comb idx (%d) = %d\n", c * 2 + 1, counts[c * 2 + 1]);
-//         counts[c * 2] = count;
+        LOG_DEBUG_F("aff comb idx (%d) = %d, %d\n", c * 2, count);
+        counts[c * 2] = count;
         
         count = 0;
-        for (int i = num_affected; i < num_samples; i++) {
-            flag = 1;
-            for (int j = 0; j < order && flag; j++) {
-                flag &= masks[j * NUM_GENOTYPES * num_samples_per_mask + comb[j] * num_samples_per_mask + i];
+        
+        for (int i = 0; i < num_unaffected; i += 16) {
+            // Aligned loading
+            snp_and = _mm_load_si128(masks + comb[0] * num_samples_per_mask + num_affected + i);
+            
+            // Perform AND operation with all SNPs in the combination
+            for (int j = 0; j < order; j++) {
+                snp_cmp = _mm_load_si128(masks + j * NUM_GENOTYPES * num_samples_per_mask + comb[j] * num_samples_per_mask + num_affected + i);
+                snp_and = _mm_and_si128(snp_and, snp_cmp);
             }
-            if (flag) {
-                count++;
-            }
+            
+            count += _mm_popcnt_u64(_mm_extract_epi64(snp_and, 0)) + 
+                     _mm_popcnt_u64(_mm_extract_epi64(snp_and, 1));
         }
+        
         LOG_DEBUG_F("unaff comb idx (%d) = %d\n", c * 2 + 1, count);
         counts[c * 2 + 1] = count;
     }
     
-    exit(1);
     return counts;
 }
 
-uint8_t* get_masks(int order, uint8_t *genotypes, int num_samples, int *num_masks, int *num_samples_per_mask) {
+uint8_t* get_masks(int order, uint8_t *genotypes, int num_affected, int num_unaffected, int *num_masks, 
+                   int *num_samples_per_mask, int *num_affected_with_padding, int *num_unaffected_with_padding) {
     /* 
      * Structure: Genotypes of a SNP in each 'row'
      * 
@@ -269,7 +251,13 @@ uint8_t* get_masks(int order, uint8_t *genotypes, int num_samples, int *num_mask
      * SNP(order-1) - Mask genotype 1 (all samples)
      * SNP(order-1) - Mask genotype 2 (all samples)
      */
+    int num_samples = num_affected + num_unaffected;
+    *num_affected_with_padding = 16 * (int) ceil(((double) num_affected) / 16);
+    *num_unaffected_with_padding = 16 * (int) ceil(((double) num_unaffected) / 16);
     *num_samples_per_mask = 16 * (int) ceil(((double) num_samples) / 16);   // 16-bytes alignment
+    
+    assert(*num_samples_per_mask == *num_affected_with_padding + *num_unaffected_with_padding);
+    
 //     printf("samples per line = %d\n", *num_samples_per_mask);
     *num_masks = NUM_GENOTYPES * order * (*num_samples_per_mask);
 //     printf("num masks prev = %d\tnext 16 = %d\n", *num_masks, (int) ceil(((double) *num_masks) / 16));
@@ -281,13 +269,17 @@ uint8_t* get_masks(int order, uint8_t *genotypes, int num_samples, int *num_mask
         // Genotypes in the range (0,2)
         for (int i = 0; i < NUM_GENOTYPES; i++) {
             int k = 0;
-            for (; k < num_samples; k++) {
-                // group by SNP (better spatial locality than grouping by genotype (0/1/2))
-                // num_samples allows to get the row inside a group
+            for (; k < num_affected; k++) {
                 masks[j * NUM_GENOTYPES * (*num_samples_per_mask) + i * (*num_samples_per_mask) + k] = (genotypes[j * num_samples + k] == i);
             }
-            for (; k < *num_samples_per_mask; k++) {
+            for (; k < *num_affected_with_padding; k++) {
                 masks[j * NUM_GENOTYPES * (*num_samples_per_mask) + i * (*num_samples_per_mask) + k] = 0;
+            }
+            for (k = 0; k < num_unaffected; k++) {
+                masks[j * NUM_GENOTYPES * (*num_samples_per_mask) + i * (*num_samples_per_mask) + *num_affected_with_padding + k] = (genotypes[j * num_samples + k] == i);
+            }
+            for (; k < *num_unaffected_with_padding; k++) {
+                masks[j * NUM_GENOTYPES * (*num_samples_per_mask) + i * (*num_samples_per_mask) + *num_affected_with_padding + k] = 0;
             }
         }
     }
