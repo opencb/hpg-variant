@@ -351,7 +351,7 @@ void risky_combination_free(risky_combination* combination) {
  *  Evaluation and ranking  *
  * **************************/
 
-unsigned int *get_confusion_matrix(int order, risky_combination *combination, int num_affected_in_fold, int num_unaffected_in_fold, uint8_t *genotypes) {
+unsigned int *get_confusion_matrix(int order, risky_combination *combination, int num_affected_in_fold, int num_unaffected_in_fold, uint8_t **genotypes) {
     // TP, FN, FP, TN
     unsigned int *rates = calloc(4, sizeof(unsigned int));
     int num_samples = num_affected_in_fold + num_unaffected_in_fold;
@@ -365,7 +365,8 @@ unsigned int *get_confusion_matrix(int order, risky_combination *combination, in
             for (int k = 0; k < order && marked_affected; k++) {
                 // If some of the genotypes in a combination does not match, don't keep checking it
 //                 LOG_DEBUG_F("[%d,%d,%d] %d == %d\n", i, j, k, combination->genotypes[j * order + k], genotypes[k * num_samples + i]);
-                marked_affected = combination->genotypes[j * order + k] == genotypes[k * num_samples + i];
+//                 marked_affected = combination->genotypes[j * order + k] == genotypes[k * num_samples + i];
+                marked_affected = combination->genotypes[j * order + k] == genotypes[k][i];
 //                 marked_affected = combination->genotypes[j * order + k] == genotypes[i][k];
             }
         }

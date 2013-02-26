@@ -123,7 +123,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                 // TODO initialize for first coordinate
                 block_genotypes[0] = get_genotypes_for_block_exclude_fold(num_variants, num_samples, sizes[3 * i], folds[i], 
                                                                           options_data->stride, block_coords[0], block_starts[0]);
-                transposed_block_genotypes[0] = transpose(options_data->stride, training_sizes[3 * i], block_genotypes[0]);
+//                 transposed_block_genotypes[0] = transpose(options_data->stride, training_sizes[3 * i], block_genotypes[0]);
                 
 //                 uint8_t *orig = block_genotypes[0];
 //                 uint8_t *transposed = transposed_block_genotypes[0];
@@ -140,7 +140,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                         if (block_coords[m] == block_coords[n]) {
 //                             printf("taking %d -> %d\n", n, m);
                             block_genotypes[m] = block_genotypes[n];
-                            transposed_block_genotypes[m] = transposed_block_genotypes[n];
+//                             transposed_block_genotypes[m] = transposed_block_genotypes[n];
                             alreadypresent = true;
                             break;
                         } 
@@ -152,7 +152,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                         block_genotypes[m] = get_genotypes_for_block_exclude_fold(num_variants, num_samples, sizes[3 * i], folds[i], 
                                                                                     options_data->stride, block_coords[m], block_starts[m]);
                         
-                        transposed_block_genotypes[m] = transpose(options_data->stride, training_sizes[3 * i], block_genotypes[m]);
+//                         transposed_block_genotypes[m] = transpose(options_data->stride, training_sizes[3 * i], block_genotypes[m]);
                     }
                     
                 }
@@ -191,7 +191,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                 do {
 //                     print_combination(comb, 0, order);
                         // Get genotypes of that combination
-                    uint8_t *reference = get_genotypes_for_combination_exclude_fold(order, comb, num_samples, sizes[3 * i], folds[i], options_data->stride, block_starts);
+//                     uint8_t *reference = get_genotypes_for_combination_exclude_fold(order, comb, num_samples, sizes[3 * i], folds[i], options_data->stride, block_starts);
 //                     
 //                     printf("reference = {\n");
 //                     for (int s = 0; s < order; s++) {
@@ -263,8 +263,8 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
 //                             accuracy = test_model(order, risky_comb, genotypes_for_testing, training_sizes[3 * i + 1], training_sizes[3 * i + 2], &confusion_time);
                             
                             
-//                             accuracy = test_model(order, risky_comb, combination_genotypes, training_sizes[3 * i + 1], training_sizes[3 * i + 2], &confusion_time);
-                            accuracy = test_model(order, risky_comb, reference, training_sizes[3 * i + 1], training_sizes[3 * i + 2], &confusion_time);
+                            accuracy = test_model(order, risky_comb, combination_genotypes, training_sizes[3 * i + 1], training_sizes[3 * i + 2], &confusion_time);
+//                             accuracy = test_model(order, risky_comb, reference, training_sizes[3 * i + 1], training_sizes[3 * i + 2], &confusion_time);
                             
                         }
 //                         printf("*  Balanced accuracy: %.3f\n", accuracy);
