@@ -23,7 +23,7 @@
 KHASH_MAP_INIT_STR(cvc, int);
 
 int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_data_t* options_data) {
-    double masks_time = 0.0f, counts_time = 0.0f;
+    double masks_time = 0.0f, counts_time = 0.0f, confusion_time = 0.0f;
     int ret_code = 0;
     
     // Load binary input dataset
@@ -56,6 +56,9 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
     // Ranking of best models in each repetition
     linked_list_t *best_models[options_data->num_cv_repetitions];
     
+    // Masks information (num (un)affected with padding, masks buffers...)
+    masks_info masks_infos[options_data->num_folds];
+    
     /**************************** End of variables precalculus  ****************************/
     
     
@@ -80,6 +83,9 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
             training_sizes[3 * i + 2] = num_unaffected - sizes[3 * i + 2];
         }
         
+        for (int i = 0; i < options_data->num_folds; i++) {
+            masks_info_new(order, training_sizes[3 * i + 1], training_sizes[3 * i + 2], &(masks_infos[i]));
+        }
         
         do {
             uint8_t *block_starts[order];
@@ -106,6 +112,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                     risky_combination *risky_comb = get_model_from_combination_in_fold(order, comb, training_genotypes,
                                                                                     training_sizes[3 * i + 1], training_sizes[3 * i + 2],
                                                                                     num_genotype_combinations, genotype_combinations, num_counts_per_combination,
+                                                                                    masks_infos[i],
                                                                                     &masks_time, &counts_time);
                     
                     if (risky_comb) {
@@ -116,10 +123,10 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                             uint8_t *testing_genotypes = get_genotypes_for_combination_and_fold(order, risky_comb->combination, 
                                                                                                 num_samples, sizes[3 * i + 1] + sizes[3 * i + 2], 
                                                                                                 folds[i], options_data->stride, block_starts);
-                            accuracy = test_model(order, risky_comb, testing_genotypes, sizes[3 * i + 1], sizes[3 * i + 2]);
+                            accuracy = test_model(order, risky_comb, testing_genotypes, sizes[3 * i + 1], sizes[3 * i + 2], &confusion_time);
                             free(testing_genotypes);
                         } else {
-                            accuracy = test_model(order, risky_comb, training_genotypes, training_sizes[3 * i + 1], training_sizes[3 * i + 2]);
+                            accuracy = test_model(order, risky_comb, training_genotypes, training_sizes[3 * i + 1], training_sizes[3 * i + 2], &confusion_time);
                         }
 //                         printf("*  Balanced accuracy: %.3f\n", accuracy);
                         
@@ -200,6 +207,8 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
         for (int i = 0; i < options_data->num_folds; i++) {
             free(folds[i]);
             linked_list_free(ranking_risky[i], NULL);
+            _mm_free(masks_infos[i].masks);
+    
         }
         free(folds);
         free(sizes);
@@ -303,7 +312,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
     
     printf("\nTIME CONSUMPTION IN GETTING MASKS AND COUNTS\n");
     printf("--------------------------------------------\n");
-    printf("Masks = %.6f s\tCounts = %.6f s\n", masks_time, counts_time);
+    printf("Masks = %.6f s\tCounts = %.6f s\tConfusion = %.6f s\n", masks_time, counts_time, confusion_time);
     
     
     return ret_code;
