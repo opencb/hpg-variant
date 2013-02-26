@@ -126,6 +126,66 @@ uint8_t *get_genotypes_for_combination_and_fold(int order, int comb[order], int 
     return genotypes;
 }
 
+uint8_t *get_genotypes_for_block_exclude_fold(int num_variants, int num_samples, int num_samples_in_fold, int fold_samples[num_samples_in_fold], 
+                                              int stride, int block_coord, uint8_t *block_start) {
+//     uint8_t *genotypes = malloc (order * (num_samples - num_samples_in_fold) * sizeof(uint8_t));
+//     uint8_t *genotypes = malloc (MIN(stride, num_variants - block_coord) * (num_samples - num_samples_in_fold) * sizeof(uint8_t));   // TODO complicates transposition
+    uint8_t *genotypes = malloc (stride * (num_samples - num_samples_in_fold) * sizeof(uint8_t));
+    int genotypes_copied = 0;
+    int subset_length = 0;
+    
+//     LOG_DEBUG_F("start 0 = %d\tstart 1 = %d\n", *block_starts[0], *block_starts[1]);
+    
+//     int snp_index[order];
+    for (int i = 0; i < stride && block_coord + i < num_variants; i++) {
+        // Get 'row' inside block
+//         snp_index = comb[i] % stride;
+        int snp_index = i * num_samples;
+        LOG_DEBUG_F("snp index %d = %d\t by num_samples = %d\n", i, snp_index, snp_index * num_samples);
+        // Get matrix index (a row contains a certain number of samples)
+        
+        // ------- Copy all samples NOT included in that fold ---------
+        
+        subset_length = 0;
+        
+        // Copy from first sample to first in the fold
+        if (fold_samples[0] > 0) {
+            LOG_DEBUG_F("[%d] copy from %d to %d\n", i, 0, fold_samples[0]);
+            memcpy(genotypes + genotypes_copied, block_start + snp_index, fold_samples[0] * sizeof(uint8_t));
+            genotypes_copied += fold_samples[0];
+        }
+        
+        // Copy contents between each pair of samples in the fold
+        for (int j = 1; j < num_samples_in_fold; j++) {
+            subset_length = fold_samples[j] - (fold_samples[j-1] + 1);
+            // For example, if the current subset ends in index 4 
+            // and the next one starts in 5, nothing is copied
+            if (subset_length > 0) {
+                LOG_DEBUG_F("[%d] copy from %d to %d\n", i, fold_samples[j-1] + 1, fold_samples[j]);
+                memcpy(genotypes + genotypes_copied, block_start + snp_index + fold_samples[j-1] + 1, subset_length * sizeof(uint8_t));
+                genotypes_copied += subset_length;
+            }
+        }
+        
+        // Copy from the last sample in the fold to the last one in the whole dataset
+        subset_length = num_samples - (fold_samples[num_samples_in_fold - 1] + 1);
+        if (subset_length > 0) {
+            LOG_DEBUG_F("[%d] copy from %d to %d\n", i, fold_samples[num_samples_in_fold - 1] + 1, num_samples);
+            memcpy(genotypes + genotypes_copied, block_start + snp_index + fold_samples[num_samples_in_fold - 1] + 1, subset_length * sizeof(uint8_t));
+            genotypes_copied += subset_length;
+        }
+        
+        LOG_DEBUG_F("[%d] genotypes copied = %d\n\n", i, genotypes_copied);
+        assert(genotypes_copied == (num_samples - num_samples_in_fold) * (i+1));
+    }
+    
+//     printf("copied = { ");
+//     for (int k = 0; k < 20; k++) {
+//         printf("%d ", genotypes[k]);
+//     }
+//     printf("... }\n");
+    return genotypes;
+}
 
 uint8_t *get_genotypes_for_combination_exclude_fold(int order, int comb[order], int num_samples, 
                                                     int num_samples_in_fold, int fold_samples[num_samples_in_fold], 

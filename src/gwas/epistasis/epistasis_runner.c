@@ -22,6 +22,24 @@
 
 KHASH_MAP_INIT_STR(cvc, int);
 
+uint8_t *transpose(int rows, int cols, uint8_t *orig) {
+    uint8_t *transposed = malloc(rows * cols * sizeof(uint8_t*));
+    
+    for (int i = 0; i < rows; i++) {
+        for (int j = 0; j < cols; j++) {
+            transposed[j * rows + i] = orig[i * cols + j];
+        }
+    }
+    
+//     for (int m = 0; m < rows; m++) {
+//         for (int n = 0; n < cols; n++) {
+//             assert(orig[m * cols + n] == transposed[n * rows + m]);
+//         }
+//     }
+    
+    return transposed;
+}
+
 int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_data_t* options_data) {
     double masks_time = 0.0f, counts_time = 0.0f, confusion_time = 0.0f;
     int ret_code = 0;
@@ -68,7 +86,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
         // Initialize folds, first block coordinates, genotype combinations and rankings for each repetition
         unsigned int *sizes, *training_sizes;
         int **folds = get_k_folds(num_affected, num_unaffected, options_data->num_folds, &sizes);
-        int block_coords[order]; memset(block_coords, 0, order * sizeof(int));
+//         int block_coords[order]; memset(block_coords, 0, order * sizeof(int));
         
         linked_list_t *ranking_risky[options_data->num_folds];
         for (int i = 0; i < options_data->num_folds; i++) {
@@ -87,29 +105,124 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
             masks_info_new(order, training_sizes[3 * i + 1], training_sizes[3 * i + 2], &(masks_infos[i]));
         }
         
-        do {
-            uint8_t *block_starts[order];
-//             printf("block = { ");
-            for (int s = 0; s < order; s++) {
-                block_starts[s] = genotypes + block_coords[s] * options_data->stride * num_samples;
-//                 printf("%d ", block_coords[s] * options_data->stride);
-            }
-//             printf("}\n");
-            
-            
-            // Test first combination in the block
-            get_first_combination_in_block(order, comb, block_coords, options_data->stride);
-//             print_combination(comb, 0, order);
-            
-            do  {
-//                 print_combination(comb, 0, order);
-                // Run for each fold
-                #pragma omp parallel for
-                for (int i = 0; i < options_data->num_folds; i++) {
-                    // Get genotypes of that combination
-                    uint8_t *training_genotypes = get_genotypes_for_combination_exclude_fold(order, comb, num_samples, sizes[3 * i], folds[i], options_data->stride, block_starts);
+        // Run for each fold
+//         #pragma omp parallel for
+        for (int i = 0; i < options_data->num_folds; i++) {
+            int block_coords[order]; memset(block_coords, 0, order * sizeof(int));
+            do {
+                uint8_t *block_starts[order];
+    //             printf("block = { ");
+                for (int s = 0; s < order; s++) {
+                    block_starts[s] = genotypes + block_coords[s] * options_data->stride * num_samples;
+    //                 printf("%d ", block_coords[s] * options_data->stride);
+                }
+    //             printf("}\n");
+                
+                uint8_t *block_genotypes[order];
+                uint8_t *transposed_block_genotypes[order];
+                // TODO initialize for first coordinate
+                block_genotypes[0] = get_genotypes_for_block_exclude_fold(num_variants, num_samples, sizes[3 * i], folds[i], 
+                                                                          options_data->stride, block_coords[0], block_starts[0]);
+                transposed_block_genotypes[0] = transpose(options_data->stride, training_sizes[3 * i], block_genotypes[0]);
+                
+//                 uint8_t *orig = block_genotypes[0];
+//                 uint8_t *transposed = transposed_block_genotypes[0];
+//                 for (int m = 0; m < options_data->stride; m++) {
+//                     for (int n = 0; n < training_sizes[3 * i]; n++) {
+//                         assert(orig[m][n] == transposed[n][m]);
+//                     }
+//                 }
+    
+                // TODO initialize for the rest of coordinates (if some of them is the same as a previous one, don't copy but reference)
+                for (int m = 1; m < order; m++) {
+                    bool alreadypresent = false;
+                    for (int n = 0; n < m; n++) {
+                        if (block_coords[m] == block_coords[n]) {
+//                             printf("taking %d -> %d\n", n, m);
+                            block_genotypes[m] = block_genotypes[n];
+                            transposed_block_genotypes[m] = transposed_block_genotypes[n];
+                            alreadypresent = true;
+                            break;
+                        } 
+                    }
                     
-                    risky_combination *risky_comb = get_model_from_combination_in_fold(order, comb, training_genotypes,
+                    if (!alreadypresent) {
+//                         printf("getting %d\n", m);
+                        // TODO if not equals to a previous one, retrieve data
+                        block_genotypes[m] = get_genotypes_for_block_exclude_fold(num_variants, num_samples, sizes[3 * i], folds[i], 
+                                                                                    options_data->stride, block_coords[m], block_starts[m]);
+                        
+                        transposed_block_genotypes[m] = transpose(options_data->stride, training_sizes[3 * i], block_genotypes[m]);
+                    }
+                    
+                }
+                
+                
+//                 for (int t = 0; t < order; t++) {
+//                     printf("Checking transposition %d...\n", t);
+//                     uint8_t *orig = block_genotypes[t];
+//                     uint8_t *transposed = transposed_block_genotypes[t];
+// //                     printf("Original = {\n");
+//                     for (int m = 0; m < options_data->stride; m++) {
+//                         for (int n = 0; n < training_sizes[3 * i]; n++) {
+//                             assert(orig[m * training_sizes[3 * i] + n] == transposed[n * options_data->stride + m]);
+// //                             printf("%d ", orig[m * training_sizes[3 * i] + n]);
+//                         }
+// //                         printf("\n");
+//                     }
+// //                     printf("}\n");
+//                     
+// //                     printf("Tranposed = {\n");
+// //                     for (int m = 0; m < training_sizes[3 * i]; m++) {
+// //                         for (int n = 0; n < options_data->stride; n++) {
+// // //                             assert(orig[m * training_sizes[3 * i] + n] == transposed[n * options_data->stride + m]);
+// //                             printf("%d ", transposed[m * options_data->stride + n]);
+// //                         }
+// //                         printf("\n");
+// //                     }
+// //                     printf("}\n");
+//                     
+//                 }
+    
+                
+                // Test first combination in the block
+                get_first_combination_in_block(order, comb, block_coords, options_data->stride);
+                
+                do {
+//                     print_combination(comb, 0, order);
+                        // Get genotypes of that combination
+                    uint8_t *reference = get_genotypes_for_combination_exclude_fold(order, comb, num_samples, sizes[3 * i], folds[i], options_data->stride, block_starts);
+//                     
+//                     printf("reference = {\n");
+//                     for (int s = 0; s < order; s++) {
+//                         for (int t = 0; t < training_sizes[3 * i]; t++) {
+//                             printf("%d ", reference[s * training_sizes[3 * i] + t]);
+//                         }
+//                         printf("\n");
+//                     }
+//                     printf("}\n\n");
+                    
+                    uint8_t *combination_genotypes[order];
+                    for (int s = 0; s < order; s++) {
+                        // Get combination address from block
+                        combination_genotypes[s] = block_genotypes[s] + (comb[s] % options_data->stride) * training_sizes[3 * i];
+                    }
+                    
+//                     printf("training = {\n");
+//                     for (int s = 0; s < order; s++) {
+//                         for (int t = 0; t < training_sizes[3 * i]; t++) {
+// //                             assert(reference[s * training_sizes[3 * i] + t] == training_genotypes[s][t]);
+//                             printf("%d ", combination_genotypes[s][t]);
+// //                             if(reference[s * training_sizes[3 * i] + t] != combination_genotypes[s][t]) {
+// //                                 printf("exp %d but get %d\n", reference[s * training_sizes[3 * i] + t], combination_genotypes[s][t]);
+// //                                 exit(1);
+// //                             }
+//                         }
+//                         printf("--- \n");
+//                     }
+//                     printf("}\n\n");
+                    
+                    risky_combination *risky_comb = get_model_from_combination_in_fold(order, comb, combination_genotypes,
                                                                                     training_sizes[3 * i + 1], training_sizes[3 * i + 2],
                                                                                     num_genotype_combinations, genotype_combinations, num_counts_per_combination,
                                                                                     masks_infos[i],
@@ -120,13 +233,39 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                         double accuracy = 0.0f;
                         
                         if (options_data->evaluation_mode == TESTING) {
-                            uint8_t *testing_genotypes = get_genotypes_for_combination_and_fold(order, risky_comb->combination, 
-                                                                                                num_samples, sizes[3 * i + 1] + sizes[3 * i + 2], 
-                                                                                                folds[i], options_data->stride, block_starts);
-                            accuracy = test_model(order, risky_comb, testing_genotypes, sizes[3 * i + 1], sizes[3 * i + 2], &confusion_time);
-                            free(testing_genotypes);
+//                             uint8_t *testing_genotypes = get_genotypes_for_combination_and_fold(order, risky_comb->combination, 
+//                                                                                                 num_samples, sizes[3 * i + 1] + sizes[3 * i + 2], 
+//                                                                                                 folds[i], options_data->stride, block_starts);
+//                             accuracy = test_model(order, risky_comb, testing_genotypes, sizes[3 * i + 1], sizes[3 * i + 2], &confusion_time);
+//                             free(testing_genotypes);
                         } else {
-                            accuracy = test_model(order, risky_comb, training_genotypes, training_sizes[3 * i + 1], training_sizes[3 * i + 2], &confusion_time);
+                            // TODO get genotypes_for_testing from transposed_blocks_genotypes
+//                             uint8_t *genotypes_for_testing[order];
+//                             for (int s = 0; s < order; s++) {
+//                                 // Get combination address from block
+//                                 genotypes_for_testing[s] = transposed_block_genotypes[s] + (comb[s] % training_sizes[3 * i]) * options_data->stride;
+//                             }
+//                             
+//                             printf("for testing = {\n");
+// //                             printf("%d ", genotypes_for_testing[0][0]);
+//                             for (int t = 0; t < training_sizes[3 * i]; t++) {
+//                                 for (int s = 0; s < order; s++) {
+// //         //                             assert(reference[s * training_sizes[3 * i] + t] == training_genotypes[s][t]);
+//                                     printf("%d ", genotypes_for_testing[s][t]);
+// //         //                             if(reference[s * training_sizes[3 * i] + t] != combination_genotypes[s][t]) {
+// //         //                                 printf("exp %d but get %d\n", reference[s * training_sizes[3 * i] + t], combination_genotypes[s][t]);
+// //         //                                 exit(1);
+// //         //                             }
+//                                 }
+//                                 printf("--- \n");
+//                             }
+//                             printf("}\n\n");
+//                             accuracy = test_model(order, risky_comb, genotypes_for_testing, training_sizes[3 * i + 1], training_sizes[3 * i + 2], &confusion_time);
+                            
+                            
+//                             accuracy = test_model(order, risky_comb, combination_genotypes, training_sizes[3 * i + 1], training_sizes[3 * i + 2], &confusion_time);
+                            accuracy = test_model(order, risky_comb, reference, training_sizes[3 * i + 1], training_sizes[3 * i + 2], &confusion_time);
+                            
                         }
 //                         printf("*  Balanced accuracy: %.3f\n", accuracy);
                         
@@ -143,13 +282,30 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                         }
                     }
                     
-                    free(training_genotypes);
+//                     free(reference);
+                    
+//                     for (int c = 0; c < num_samples; c++) {
+//                         free(genotypes_for_testing[c]);
+//                     }
+//                     free(genotypes_for_testing);
+                    
+                } while (get_next_combination_in_block(order, comb, block_coords, options_data->stride, num_variants)); // Test next combinations
+                
+                for (int s = 0; s < order; s++) {
+                    int letsfree = 1;
+                    for (int t = 0; t < s; t++) {
+                        if (block_coords[s] == block_coords[t]) {
+                            letsfree = 0;
+                            break;
+                        }
+                    }
+                    if (letsfree) {
+                        free(block_genotypes[s]);
+                    }
                 }
                 
-            } while (get_next_combination_in_block(order, comb, block_coords, options_data->stride, num_variants)); // Test next combinations
-            
-        } while (get_next_block(num_blocks_per_dim, order, block_coords));
-        
+            } while (get_next_block(num_blocks_per_dim, order, block_coords));
+        }
         
         // Merge all rankings in one
         size_t repetition_ranking_size = 0;

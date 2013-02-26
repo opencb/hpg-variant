@@ -12,7 +12,7 @@
 #include <commons/file_utils.h>
 #include <containers/array_list.h>
 
-#define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
+#include "hpg_variant_utils.h"
 
 /* ***************************
  *  Whole dataset management *

@@ -7,9 +7,9 @@
 
 #include <containers/array_list.h>
 
-#include "epistasis/cross_validation.h"
-#include "epistasis/mdr.h"
-#include "epistasis/model.h"
+#include "gwas/epistasis/cross_validation.h"
+#include "gwas/epistasis/mdr.h"
+#include "gwas/epistasis/model.h"
 
 
 Suite *create_test_suite(void);
@@ -221,11 +221,126 @@ START_TEST (test_get_k_folds) {
 END_TEST
 
 
-START_TEST (test_get_genotypes_for_combination_and_fold) {
+START_TEST (test_get_genotypes_for_block_exclude_fold) {
     int order = 2, num_folds = 3, stride = 3, num_blocks = 3;
     unsigned int *sizes;
     
-    int num_samples = 12, num_samples_in_fold = 4;
+    int num_variants = 9, num_samples = 12, num_samples_in_fold = 4;
+    int folds[3][4] = { { 0, 1, 6, 7 }, { 4, 5, 10, 11 }, { 2, 3, 8, 9 } };
+    
+    
+    uint8_t genotypes[] = { 0, 1, 1, 0, 1, 2, 2, 1, 2, 1, 1, 2,   // First block
+                            1, 2, 2, 1, 2, 0, 0, 2, 0, 2, 2, 0,
+                            2, 0, 0, 2, 0, 1, 1, 0, 1, 0, 0, 1,
+                            0, 1, 0, 1, 1, 2, 1, 2, 2, 0, 2, 0,   // Second block
+                            1, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1,
+                            1, 1, 2, 2, 2, 2, 2, 2, 2, 0, 1, 2,
+                            1, 0, 1, 2, 0, 2, 0, 2, 0, 2, 2, 1,   // Third block
+                            1, 2, 2, 1, 1, 0, 1, 0, 1, 2, 0, 2,
+                            2, 0, 0, 0, 1, 2, 0, 2, 2, 1, 1, 0 };
+        
+    int block_2d[] = { 0, 0 };
+    do {
+        printf("BLOCK %d,%d\n", block_2d[0], block_2d[1]);
+        uint8_t *block_starts[2];
+        block_starts[0] = genotypes + block_2d[0] * stride * num_samples;
+        block_starts[1] = genotypes + block_2d[1] * stride * num_samples;
+        
+        // Test first combination in the block
+        int comb[order];
+        get_first_combination_in_block(order, comb, block_2d, stride);
+        int snp_offset[] = { comb[0] % stride, comb[1] % stride };
+        
+        // Run for each fold
+        for (int f = 0; f < num_folds; f++) {
+            printf("Combination (%d,%d) and fold %d\n", comb[0], comb[1], f);
+            
+            int next_fold = (f < 2) ? f + 1 : 0 ;
+            uint8_t *val[order];
+            for (int i = 0; i < order; i++) {
+                val[i] = get_genotypes_for_block_exclude_fold(num_variants, num_samples, num_samples_in_fold, folds[f], stride, block_2d[i], block_starts[i]);
+            }
+            
+//             for (int i = 0; i < order; i++) {
+//                 printf("* val (%d) = { ", i);
+//                 for (int k = 0; k < stride; k++) {
+//                     for (int j = 0; j < (num_samples - num_samples_in_fold); j++) {
+//                         printf("%u ", val[i][k * (num_samples - num_samples_in_fold) + j]);
+//                     }
+//                     printf("\t");
+//                 }
+//                 printf("}\n");
+//             }
+//             printf("\n");
+            
+            // TODO add real tests for this function!
+//             if (f == 0) {
+//                 check_copied_genotypes_fold_0(val, block_starts, snp_offset, num_samples);
+//             } else if (f == 1) {
+//                 check_copied_genotypes_fold_1(val, block_starts, snp_offset, num_samples);
+//             } else if (f == 2) {
+//                 check_copied_genotypes_fold_2(val, block_starts, snp_offset, num_samples);
+//             }
+            
+            for (int i = 0; i < order; i++) {
+                free(val[i]);
+            }
+        }
+        
+        // Test next combinations
+        while (get_next_combination_in_block(order, comb, block_2d, stride, num_variants)) {
+            int snp_offset[] = { comb[0] % stride, comb[1] % stride };
+            
+            for (int f = 0; f < num_folds; f++) {
+                printf("Combination (%d,%d) and fold %d\n", comb[0], comb[1], f);
+            
+                int next_fold = (f < 2) ? f + 1 : 0 ;
+                uint8_t *val[order];
+            for (int i = 0; i < order; i++) {
+                val[i] = get_genotypes_for_block_exclude_fold(num_variants, num_samples, num_samples_in_fold, folds[f], stride, block_2d[i], block_starts[i]);
+            }
+            
+//             for (int i = 0; i < order; i++) {
+//                 printf("* val (%d) = { ", i);
+//                 for (int k = 0; k < stride; k++) {
+//                     for (int j = 0; j < (num_samples - num_samples_in_fold); j++) {
+//                         printf("%u ", val[i][k * (num_samples - num_samples_in_fold) + j]);
+//                     }
+//                     printf("\t");
+//                 }
+//                 printf("}\n");
+//             }
+//             printf("\n");
+            
+            // TODO add real tests for this function!
+//             if (f == 0) {
+//                 check_copied_genotypes_fold_0(val, block_starts, snp_offset, num_samples);
+//             } else if (f == 1) {
+//                 check_copied_genotypes_fold_1(val, block_starts, snp_offset, num_samples);
+//             } else if (f == 2) {
+//                 check_copied_genotypes_fold_2(val, block_starts, snp_offset, num_samples);
+//             }
+            
+            
+                for (int i = 0; i < order; i++) {
+                    free(val[i]);
+                }
+            }
+        }
+//         
+//         free(comb);
+        
+//         printf("\n-----------\n");
+    } while (get_next_block(num_blocks, order, block_2d));
+}
+END_TEST
+
+
+START_TEST (test_get_genotypes_for_combination_exclude_fold) {
+    int order = 2, num_folds = 3, stride = 3, num_blocks = 3;
+    unsigned int *sizes;
+    
+    int num_variants = 9, num_samples = 12, num_samples_in_fold = 4;
     int folds[3][4] = { { 0, 1, 6, 7 }, { 4, 5, 10, 11 }, { 2, 3, 8, 9 } };
     
     uint8_t genotypes[] = { 0, 1, 1, 0, 1, 2, 2, 1, 2, 1, 1, 2,   // First block
@@ -256,7 +371,8 @@ START_TEST (test_get_genotypes_for_combination_and_fold) {
         block_starts[1] = genotypes + block_2d[1] * stride * num_samples;
         
         // Test first combination in the block
-        int *comb = get_first_combination_in_block(order, block_2d, stride);
+        int comb[order];
+        get_first_combination_in_block(order, comb, block_2d, stride);
         int snp_offset[] = { comb[0] % stride, comb[1] % stride };
         
         // Run for each fold
@@ -287,7 +403,7 @@ START_TEST (test_get_genotypes_for_combination_and_fold) {
         }
         
         // Test next combinations
-        while (get_next_combination_in_block(order, comb, block_2d, stride)) {
+        while (get_next_combination_in_block(order, comb, block_2d, stride, num_variants)) {
             int snp_offset[] = { comb[0] % stride, comb[1] % stride };
             
             for (int f = 0; f < num_folds; f++) {
@@ -317,7 +433,7 @@ START_TEST (test_get_genotypes_for_combination_and_fold) {
             }
         }
         
-        free(comb);
+//         free(comb);
         
 //         printf("\n-----------\n");
     } while (get_next_block(num_blocks, order, block_2d));
@@ -346,7 +462,8 @@ Suite *create_test_suite(void) {
     tcase_add_test(tc_k_fold, test_get_k_folds);
     
     TCase *tc_genotypes = tcase_create("Genotype and fold association");
-    tcase_add_test(tc_genotypes, test_get_genotypes_for_combination_and_fold);
+    tcase_add_test(tc_genotypes, test_get_genotypes_for_block_exclude_fold);
+    tcase_add_test(tc_genotypes, test_get_genotypes_for_combination_exclude_fold);
     
     // Add test cases to a test suite
     Suite *fs = suite_create("k-fold cross validation");

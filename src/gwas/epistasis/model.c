@@ -5,7 +5,7 @@
  *       Main pipeline      *
  * **************************/
 
-risky_combination *get_model_from_combination_in_fold(int order, int comb[order], uint8_t *val, unsigned int num_affected_in_training, unsigned int num_unaffected_in_training,
+risky_combination *get_model_from_combination_in_fold(int order, int comb[order], uint8_t **val, unsigned int num_affected_in_training, unsigned int num_unaffected_in_training,
                                                       int num_genotype_combinations, uint8_t **genotype_combinations, int num_counts, masks_info info, double *masks_time, double *counts_time) {
     risky_combination *risky_comb = NULL;
     
@@ -14,10 +14,10 @@ risky_combination *get_model_from_combination_in_fold(int order, int comb[order]
     uint8_t *masks = get_masks(order, val, num_affected_in_training, num_unaffected_in_training, info); // Grouped by SNP
     *masks_time += omp_get_wtime() - start_masks;
     
-//     printf("masks (%d) = {\n", num_masks);
+//     printf("masks (%d) = {\n", info.num_masks);
 //     printf("%d ", masks[0]);
-//     for (int i = 1; i < num_masks; i++) {
-//         if (i % num_samples_per_mask == 0) {
+//     for (int i = 1; i < info.num_masks; i++) {
+//         if (i % info.num_samples_per_mask == 0) {
 //             printf("\n");
 //         }
 //         printf("%d ", masks[i]);
@@ -72,7 +72,7 @@ risky_combination *get_model_from_combination_in_fold(int order, int comb[order]
 }
 
 
-double test_model(int order, risky_combination *risky_comb, uint8_t *val, 
+double test_model(int order, risky_combination *risky_comb, uint8_t **val, 
                   unsigned int num_affected, unsigned int num_unaffected, double *confusion_time) {
     // Step 5 -> Check against a testing partition
     // Get the matrix containing {FP,FN,TP,TN}
@@ -230,7 +230,7 @@ int* get_counts(int order, uint8_t *masks, uint8_t **genotype_combinations, int 
     return counts;
 }
 
-uint8_t* get_masks(int order, uint8_t *genotypes, int num_affected, int num_unaffected, masks_info info) {
+uint8_t* get_masks(int order, uint8_t **genotypes, int num_affected, int num_unaffected, masks_info info) {
     /* 
      * Structure: Genotypes of a SNP in each 'row'
      * 
@@ -254,21 +254,31 @@ uint8_t* get_masks(int order, uint8_t *genotypes, int num_affected, int num_unaf
     assert(masks);
     
     for (int j = 0; j < order; j++) {
+        
+//         printf("snp %d = {\n", j);
+        
         // Genotypes in the range (0,2)
         for (int i = 0; i < NUM_GENOTYPES; i++) {
             int k = 0;
+//             printf("(1) ");
             for (; k < num_affected; k++) {
-                masks[j * NUM_GENOTYPES * (info.num_samples_per_mask) + i * (info.num_samples_per_mask) + k] = (genotypes[j * num_samples + k] == i);
+//                 printf("%d ", genotypes[j][k]);
+                masks[j * NUM_GENOTYPES * (info.num_samples_per_mask) + i * (info.num_samples_per_mask) + k] = (genotypes[j][k] == i);
             }
+//             printf("(2-");
             for (; k < info.num_affected_with_padding; k++) {
                 masks[j * NUM_GENOTYPES * (info.num_samples_per_mask) + i * (info.num_samples_per_mask) + k] = 0;
             }
+//             printf("3) ");
             for (k = 0; k < num_unaffected; k++) {
-                masks[j * NUM_GENOTYPES * (info.num_samples_per_mask) + i * (info.num_samples_per_mask) + info.num_affected_with_padding + k] = (genotypes[j * num_samples + k] == i);
+//                 printf("%d ", genotypes[j][num_affected + k]);
+                masks[j * NUM_GENOTYPES * (info.num_samples_per_mask) + i * (info.num_samples_per_mask) + info.num_affected_with_padding + k] = (genotypes[j][num_affected + k] == i);
             }
+//             printf("(4) ");
             for (; k < info.num_unaffected_with_padding; k++) {
                 masks[j * NUM_GENOTYPES * (info.num_samples_per_mask) + i * (info.num_samples_per_mask) + info.num_affected_with_padding + k] = 0;
             }
+//             printf("\n");
         }
     }
     
@@ -356,6 +366,7 @@ unsigned int *get_confusion_matrix(int order, risky_combination *combination, in
                 // If some of the genotypes in a combination does not match, don't keep checking it
 //                 LOG_DEBUG_F("[%d,%d,%d] %d == %d\n", i, j, k, combination->genotypes[j * order + k], genotypes[k * num_samples + i]);
                 marked_affected = combination->genotypes[j * order + k] == genotypes[k * num_samples + i];
+//                 marked_affected = combination->genotypes[j * order + k] == genotypes[i][k];
             }
         }
         

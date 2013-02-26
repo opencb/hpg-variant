@@ -32,6 +32,8 @@
 
 #include "shared_options.h"
 
+#define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
+
 /* ***********************
  *     Initialization    *
  * ***********************/
