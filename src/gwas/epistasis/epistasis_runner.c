@@ -24,7 +24,7 @@ KHASH_MAP_INIT_STR(cvc, int);
 
 
 int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_data_t* options_data) {
-    double masks_time = 0.0f, counts_time = 0.0f, confusion_time = 0.0f;
+    double masks_time = 0.0f, counts_time = 0.0f, confusion_time = 0.0f, copy_time = 0.0f;
     int ret_code = 0;
     
     // Load binary input dataset
@@ -104,6 +104,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
     //             printf("}\n");
                 
                 
+                double start_copy = omp_get_wtime();
                 // Retrieve the genotypes for the current block (and excluding this fold)
                 uint8_t *block_genotypes[order];
                 // Initialize first coordinate
@@ -128,8 +129,8 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                         block_genotypes[m] = get_genotypes_for_block_exclude_fold(num_variants, num_samples, sizes[3 * i], folds[i], 
                                                                                     options_data->stride, block_coords[m], block_starts[m]);
                     }
-                    
                 }
+                copy_time += omp_get_wtime() - start_copy;
                 
                 // Test first combination in the block
                 get_first_combination_in_block(order, comb, block_coords, options_data->stride);
@@ -363,7 +364,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
     
     printf("\nTIME CONSUMPTION IN GETTING MASKS AND COUNTS\n");
     printf("--------------------------------------------\n");
-    printf("Masks = %.6f s\tCounts = %.6f s\tConfusion = %.6f s\n", masks_time, counts_time, confusion_time);
+    printf("Masks = %.4f s\tCounts = %.4f s\tConfusion = %.4f s\tCopy = %.4f\n", masks_time, counts_time, confusion_time, copy_time);
     
     
     return ret_code;
