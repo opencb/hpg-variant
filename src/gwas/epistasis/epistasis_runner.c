@@ -51,16 +51,12 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
     
     printf("num variants = %zu\tnum block per dim = %d\n", num_variants, num_blocks_per_dim);
     
-    // Precalculate combinations for a given order
-    int comb[order];
+    // Precalculate which genotype combinations can be tested for a given order (order 2 -> {(0,0), (0,1), ... , (2,1), (2,2)})
     int num_genotype_combinations;
     uint8_t **genotype_combinations = get_genotype_combinations(order, &num_genotype_combinations);
     
     // Ranking of best models in each repetition
     linked_list_t *best_models[options_data->num_cv_repetitions];
-    
-    // Masks information (num (un)affected with padding, masks buffers...)
-    masks_info masks_infos[options_data->num_folds];
     
     /**************************** End of variables precalculus  ****************************/
     
@@ -71,12 +67,6 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
         // Initialize folds, first block coordinates, genotype combinations and rankings for each repetition
         unsigned int *sizes, *training_sizes;
         int **folds = get_k_folds(num_affected, num_unaffected, options_data->num_folds, &sizes);
-//         int block_coords[order]; memset(block_coords, 0, order * sizeof(int));
-        
-        linked_list_t *ranking_risky[options_data->num_folds];
-        for (int i = 0; i < options_data->num_folds; i++) {
-            ranking_risky[i] = linked_list_new(COLLECTION_MODE_ASYNCHRONIZED);
-        }
         
         // Calculate size of training datasets
         training_sizes = calloc(3 * options_data->num_folds, sizeof(unsigned int));
@@ -86,14 +76,23 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
             training_sizes[3 * i + 2] = num_unaffected - sizes[3 * i + 2];
         }
         
+        // Initialize rankings for each repetition
+        linked_list_t *ranking_risky[options_data->num_folds];
         for (int i = 0; i < options_data->num_folds; i++) {
-            masks_info_new(order, training_sizes[3 * i + 1], training_sizes[3 * i + 2], &(masks_infos[i]));
+            ranking_risky[i] = linked_list_new(COLLECTION_MODE_ASYNCHRONIZED);
         }
         
         // Run for each fold
-//         #pragma omp parallel for
+        // TODO remove the timers private declaration (valgrind screams, but they are not critical)
+        #pragma omp parallel for private(masks_time, counts_time, confusion_time, copy_time) firstprivate(sizes, training_sizes)
         for (int i = 0; i < options_data->num_folds; i++) {
+            // Coordinates of the block being tested
             int block_coords[order]; memset(block_coords, 0, order * sizeof(int));
+            // Combination of variants being tested
+            int comb[order];
+            // Masks information (num (un)affected with padding, buffers, and so on)
+            masks_info info; masks_info_new(order, training_sizes[3 * i + 1], training_sizes[3 * i + 2], &info);
+            
             do {
                 uint8_t *block_starts[order];
     //             printf("block = { ");
@@ -130,6 +129,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                                                                                     options_data->stride, block_coords[m], block_starts[m]);
                     }
                 }
+                
                 copy_time += omp_get_wtime() - start_copy;
                 
                 // Test first combination in the block
@@ -147,8 +147,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                     risky_combination *risky_comb = get_model_from_combination_in_fold(order, comb, combination_genotypes,
                                                                                     training_sizes[3 * i + 1], training_sizes[3 * i + 2],
                                                                                     num_genotype_combinations, genotype_combinations, num_counts_per_combination,
-                                                                                    masks_infos[i],
-                                                                                    &masks_time, &counts_time);
+                                                                                    info, &masks_time, &counts_time);
                     
                     if (risky_comb) {
                         // Check the model against the testing dataset
@@ -201,6 +200,8 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                 }
                 
             } while (get_next_block(num_blocks_per_dim, order, block_coords));
+            
+            _mm_free(info.masks);
         }
         
         // Merge all rankings in one
@@ -259,8 +260,6 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
         for (int i = 0; i < options_data->num_folds; i++) {
             free(folds[i]);
             linked_list_free(ranking_risky[i], NULL);
-            _mm_free(masks_infos[i].masks);
-    
         }
         free(folds);
         free(sizes);
