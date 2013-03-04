@@ -27,7 +27,7 @@
 
 array_list_t *get_configuration_search_paths(int argc, char *argv[]) {
     char *c = get_config_path_from_args(argc, argv);
-    char *config_dirpaths[3] = { c, getcwd(NULL, 0), "/etc/hpg-variant" };
+    char *config_dirpaths[3] = { c, getcwd(NULL, 0), strdup("/etc/hpg-variant") };
 
     char *h = get_config_home_folder(config_dirpaths, 3);
 
