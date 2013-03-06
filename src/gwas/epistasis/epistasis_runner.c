@@ -42,8 +42,6 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
     
     /*************** Precalculate the rest of variables the algorithm needs  ***************/
     
-    options_data->stride = num_variants;
-    
     int order = options_data->order;
     int num_samples = num_affected + num_unaffected;
     int num_blocks_per_dim = ceil((double) num_variants / options_data->stride);

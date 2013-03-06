@@ -37,6 +37,7 @@
 #include "shared_options.h"
 #include "hpg_variant_utils.h"
 
+#include "cross_validation.h"
 #include "dataset.h"
 #include "epistasis.h"
 #include "model.h"

@@ -16,7 +16,6 @@
 #include <containers/array_list.h>
 #include <containers/linked_list.h>
 
-#include "cross_validation.h"
 #include "dataset.h"
 #include "mdr.h"
 
@@ -34,6 +33,8 @@ typedef struct {
 
 
 typedef struct {
+    int num_affected;
+    int num_unaffected;
     int num_affected_with_padding;
     int num_unaffected_with_padding;
     int num_samples_per_mask;
@@ -80,12 +81,10 @@ int add_to_model_ranking(risky_combination *risky_comb, int max_ranking_size, li
  * @param order Number of SNPs combined
  * @param genotype_combinations Possible genotype combinations for the given order
  * @param num_genotype_combinations Number of genotype combinations for the given order
- * @param num_affected Number of affected samples
- * @param num_unaffected Number of unaffected samples
- * @param num_counts Number of counts returned
+ * @param num_counts Number of counts that will be calculated
  * @return List of counts, paired in (affected,unaffected)
  **/
-int* get_counts(int order, uint8_t *masks, uint8_t **genotype_combinations, int num_genotype_combinations, int num_affected, int num_unaffected, int num_samples_per_mask, int num_counts);
+int* get_counts(int order, uint8_t *masks, uint8_t **genotype_combinations, int num_genotype_combinations, int num_counts, masks_info info);
 
 uint8_t* get_masks(int order, uint8_t **genotypes, int num_affected, int num_unaffected, masks_info info);
 
