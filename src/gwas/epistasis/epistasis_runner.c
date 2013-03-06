@@ -82,7 +82,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
         
         // Run for each fold
         // TODO remove the timers private declaration (valgrind screams, but they are not critical)
-        #pragma omp parallel for private(masks_time, counts_time, confusion_time, copy_time) firstprivate(sizes, training_sizes)
+//         #pragma omp parallel for private(masks_time, counts_time, confusion_time, copy_time) firstprivate(sizes, training_sizes)
         for (int i = 0; i < options_data->num_folds; i++) {
             // Coordinates of the block being tested
             int block_coords[order]; memset(block_coords, 0, order * sizeof(int));
@@ -105,7 +105,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                 // Retrieve the genotypes for the current block (and excluding this fold)
                 uint8_t *block_genotypes[order];
                 // Initialize first coordinate
-                block_genotypes[0] = get_genotypes_for_block_exclude_fold(num_variants, num_samples, sizes[3 * i], folds[i], 
+                block_genotypes[0] = get_genotypes_for_block_exclude_fold(num_variants, num_samples, info, sizes[3 * i], folds[i], 
                                                                           options_data->stride, block_coords[0], block_starts[0]);
                 
                 // Initialize the rest of coordinates. If any of them is the same as a previous one, don't copy, but reference directly
@@ -123,7 +123,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                     if (!already_present) {
                         // If not equals to a previous one, retrieve data
 //                         printf("getting %d\n", m);
-                        block_genotypes[m] = get_genotypes_for_block_exclude_fold(num_variants, num_samples, sizes[3 * i], folds[i], 
+                        block_genotypes[m] = get_genotypes_for_block_exclude_fold(num_variants, num_samples, info, sizes[3 * i], folds[i], 
                                                                                     options_data->stride, block_coords[m], block_starts[m]);
                     }
                 }

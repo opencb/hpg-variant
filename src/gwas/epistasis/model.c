@@ -312,8 +312,11 @@ uint8_t* get_masks(int order, uint8_t **genotypes, int num_affected, int num_una
             }
 //             printf("(3) ");
             for (k = 0; k < num_unaffected; k++) {
-//                 printf("%d ", genotypes[j][info.num_affected_with_padding + k]);
-                masks[j * NUM_GENOTYPES * (info.num_samples_per_mask) + i * (info.num_samples_per_mask) + info.num_affected_with_padding + k] = (genotypes[j][info.num_affected_with_padding + k] == i);
+//                 printf("%d ", genotypes[j][info.num_affected + k]);
+                uint8_t *gt = genotypes[j][info.num_affected + k];
+//                 printf("%d ", genotypes[j][info.num_affected_with_padding + k]); // TODO when input block is padded
+//                 uint8_t *gt = genotypes[j][info.num_affected_with_padding + k];
+                masks[j * NUM_GENOTYPES * (info.num_samples_per_mask) + i * (info.num_samples_per_mask) + info.num_affected_with_padding + k] = (gt == i);
             }
 //             printf("(4) ");
             for (; k < info.num_unaffected_with_padding; k++) {
@@ -323,7 +326,6 @@ uint8_t* get_masks(int order, uint8_t **genotypes, int num_affected, int num_una
 //             printf("\n");
         }
     }
-    
     
     return masks;
 }
