@@ -128,6 +128,50 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                     }
                 }
                 
+                printf("original block (%d*%d) = {\n", options_data->stride, num_samples - sizes[3 * i]);
+                for (int m = 0; m < MIN(options_data->stride, num_variants); m++) {
+                    for (int n = 0; n < num_samples - sizes[3 * i]; n++) {
+                        printf("%d ", block_genotypes[0][m * (num_samples - sizes[3 * i]) + n]);
+                    }
+                    printf("\n");
+                }
+                printf("}\n");
+                
+                uint8_t *block_genotypes2[order];
+                // Initialize first coordinate
+                block_genotypes2[0] = get_genotypes_for_block_exclude_fold2(num_variants, num_samples, info, sizes[3 * i], folds[i], 
+                                                                          options_data->stride, block_coords[0], block_starts[0]);
+                
+                // Initialize the rest of coordinates. If any of them is the same as a previous one, don't copy, but reference directly
+                for (int m = 1; m < order; m++) {
+                    bool already_present = false;
+                    for (int n = 0; n < m; n++) {
+                        if (block_coords[m] == block_coords[n]) {
+//                             printf("taking %d -> %d\n", n, m);
+                            block_genotypes2[m] = block_genotypes2[n];
+                            already_present = true;
+                            break;
+                        } 
+                    }
+                    
+                    if (!already_present) {
+                        // If not equals to a previous one, retrieve data
+//                         printf("getting %d\n", m);
+                        block_genotypes2[m] = get_genotypes_for_block_exclude_fold2(num_variants, num_samples, info, sizes[3 * i], folds[i], 
+                                                                                    options_data->stride, block_coords[m], block_starts[m]);
+                    }
+                }
+                
+                printf("padded block (%d*%d) = {\n", options_data->stride, info.num_samples_per_mask);
+                for (int m = 0; m < MIN(options_data->stride, num_variants); m++) {
+                    for (int n = 0; n < info.num_samples_per_mask; n++) {
+                        printf("%d ", block_genotypes2[0][m * info.num_samples_per_mask + n]);
+                    }
+                    printf("\n");
+                }
+                printf("}\n");
+                
+                
                 copy_time += omp_get_wtime() - start_copy;
                 
                 // Test first combination in the block
@@ -147,6 +191,19 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                                                                                     num_genotype_combinations, genotype_combinations, num_counts_per_combination,
                                                                                     info, &masks_time, &counts_time);
                     
+                   uint8_t *combination_genotypes2[order];
+                   for (int s = 0; s < order; s++) {
+                       // Get combination address from block
+                       combination_genotypes2[s] = block_genotypes2[s] + (comb[s] % options_data->stride) * training_sizes[3 * i];
+                   }
+                   info.num_affected = info.num_affected_with_padding;
+                   risky_combination *risky_comb2 = get_model_from_combination_in_fold(order, comb, combination_genotypes2,
+                                                                                   training_sizes[3 * i + 1], training_sizes[3 * i + 2],
+                                                                                   num_genotype_combinations, genotype_combinations, num_counts_per_combination,
+                                                                                   info, &masks_time, &counts_time);
+                    
+                    exit(0);
+    
                     if (risky_comb) {
                         // Check the model against the testing dataset
                         double accuracy = 0.0f;

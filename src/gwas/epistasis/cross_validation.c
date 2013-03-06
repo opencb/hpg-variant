@@ -165,6 +165,7 @@ uint8_t *get_genotypes_for_block_exclude_fold(int num_variants, int num_samples,
             // For example, if the current subset ends in index 4 
             // and the next one starts in 5, nothing is copied
             if (subset_length > 0) {
+                assert(block_start + snp_index + previous + subset_length > stride * (num_samples - num_samples_in_fold));
                 LOG_DEBUG_F("[%d] copy %d from %d to %d\n", i, subset_length, previous, fold_samples[j]);
                 LOG_DEBUG_F("gt in this snp = %d\tplus subset_length = %d\n", 
                             genotypes_copied % (num_samples - num_samples_in_fold), 
@@ -197,104 +198,115 @@ uint8_t *get_genotypes_for_block_exclude_fold(int num_variants, int num_samples,
     return genotypes;
 }
 
-// uint8_t *get_genotypes_for_block_exclude_fold(int num_variants, int num_samples, masks_info info, int num_samples_in_fold, int fold_samples[num_samples_in_fold], 
-//                                               int stride, int block_coord, uint8_t *block_start) {
-//     uint8_t *genotypes = malloc (stride * (info.num_affected_with_padding + info.num_unaffected_with_padding) * sizeof(uint8_t));
-//     int genotypes_copied = 0;   // Copied genotypes of a SNP
-//     int bytes_copied = 0;       // Total bytes copied (all genotypes and padding)
-//     int subset_length = 0, max_subset_length = 0;
-//     int previous = 0, padding = 0;
-//     
-// //     int fold_samples[] = {17, 22, 23, 54, 67, 69, 72, 77};
-// //     int fold_samples[] = {21, 25, 28, 44, 46, 53, 58, 59};
-//     
-// //     printf("num aff = %d\tnum unaff = %d\n", info.num_affected, info.num_unaffected);
-// //     printf("num aff wpad = %d\tnum unaff wpad = %d\n", info.num_affected_with_padding, info.num_unaffected_with_padding);
-// //     printf("samples in fold = { ");
-// //     for (int i = 0; i < num_samples_in_fold; i++) {
-// //         printf("%d ", fold_samples[i]);
-// //     }
-// //     printf("}\n");
-//     
-// //     LOG_DEBUG_F("start 0 = %d\tstart 1 = %d\n", *block_starts[0], *block_starts[1]);
-//     
-//     for (int i = 0; i < stride && block_coord + i < num_variants; i++) {
-//         int snp_index = i * num_samples;    // Get 'row' inside block
-//         LOG_DEBUG_F("snp index %d = %d\t by num_samples = %d\n", i, snp_index, snp_index * num_samples);
-//         
-//         // ------- Copy all samples NOT included in that fold ---------
-//         
-//         subset_length = 0;
-//         genotypes_copied = 0;
-//         previous = 0;
-//         
-//         for (int j = 0; j < num_samples_in_fold; j++) {
-//             LOG_DEBUG_F("[%d] interval from %d to %d\n", i, previous, fold_samples[j]);
-//             
-//             max_subset_length = fold_samples[j] - previous;
-//             
-//             if (genotypes_copied < info.num_affected) {
-//                 subset_length = MIN(info.num_affected - previous + j, max_subset_length);
-//                 memcpy(genotypes + bytes_copied, block_start + snp_index, subset_length * sizeof(uint8_t));
-//                 genotypes_copied += subset_length;
-//                 bytes_copied += subset_length;
-//                 
-//                 LOG_DEBUG_F("[%d] - copy %d\n", i, subset_length);
-//                 
-//                 if (genotypes_copied == info.num_affected) {
-//                     padding = info.num_affected_with_padding - info.num_affected;
-//                     memset(genotypes + bytes_copied, 0, padding * sizeof(uint8_t));
-//                     bytes_copied += padding;
-//                     LOG_DEBUG_F("[%d] - pad %d\n", i, padding);
-//                     
-//                     subset_length = max_subset_length - subset_length;
-//                     memcpy(genotypes + bytes_copied, block_start + snp_index + genotypes_copied, subset_length * sizeof(uint8_t));
-//                     LOG_DEBUG_F("[%d] - copy %d\n", i, subset_length);
-//                     genotypes_copied += subset_length;
-//                     bytes_copied += subset_length;
-//                 }
-//             } else {
-//                 subset_length = max_subset_length;
-//                 memcpy(genotypes + bytes_copied, block_start + snp_index + genotypes_copied, subset_length * sizeof(uint8_t));
-//                 genotypes_copied += subset_length;
-//                 bytes_copied += subset_length;
-//                 LOG_DEBUG_F("[%d] + copy %d\n", i, subset_length);
-//             }
-//             
-//             previous = fold_samples[j] + 1;
-//         }
-//         
-//         // Copy from the last sample in the fold to the last one in the whole dataset
-//         subset_length = num_samples - (fold_samples[num_samples_in_fold - 1] + 1);
-//         if (subset_length > 0) {
-//             LOG_DEBUG_F("[%d] copy from %d to %d\n", i, fold_samples[num_samples_in_fold - 1] + 1, num_samples);
-//             memcpy(genotypes + bytes_copied, block_start + snp_index + fold_samples[num_samples_in_fold - 1] + 1, subset_length * sizeof(uint8_t));
-//             genotypes_copied += subset_length;
-//             bytes_copied += subset_length;
-//             LOG_DEBUG_F("[%d] + last copy %d\n", i, subset_length);
-//         }
-// 
-//         // TODO Insert final padding
-//         padding = info.num_unaffected_with_padding - info.num_unaffected;
-//         memset(genotypes + bytes_copied, 0, padding * sizeof(uint8_t));
-//         bytes_copied += padding;
-//         LOG_DEBUG_F("[%d] + pad %d\n", i, padding);
-//         
-//         
-//         LOG_DEBUG_F("[%d] genotypes copied = %d\tbytes copied = %d\n\n", i, genotypes_copied, bytes_copied);
-//         assert(genotypes_copied == (num_samples - num_samples_in_fold));
-//         assert(bytes_copied == (info.num_affected_with_padding + info.num_unaffected_with_padding) * (i+1));
-//         
+uint8_t *get_genotypes_for_block_exclude_fold2(int num_variants, int num_samples, masks_info info, int num_samples_in_fold, int fold_samples[num_samples_in_fold], 
+                                              int stride, int block_coord, uint8_t *block_start) {
+    uint8_t *genotypes = malloc (stride * (info.num_affected_with_padding + info.num_unaffected_with_padding) * sizeof(uint8_t));
+    int genotypes_copied = 0;   // Copied genotypes of a SNP
+    int bytes_copied = 0;       // Total bytes copied (all genotypes and padding)
+    int subset_length = 0, max_subset_length = 0;
+    int previous = 0, padding = 0;
+    
+//     int fold_samples[] = {17, 22, 23, 54, 67, 69, 72, 77};
+//     int fold_samples[] = {21, 25, 28, 44, 46, 53, 58, 59};
+    
+//     printf("num aff = %d\tnum unaff = %d\n", info.num_affected, info.num_unaffected);
+//     printf("num aff wpad = %d\tnum unaff wpad = %d\n", info.num_affected_with_padding, info.num_unaffected_with_padding);
+//     printf("samples in fold = { ");
+//     for (int i = 0; i < num_samples_in_fold; i++) {
+//         printf("%d ", fold_samples[i]);
 //     }
-//     
-// //     printf("copied = { ");
-// //     for (int k = 0; k < 20; k++) {
-// //         printf("%d ", genotypes[k]);
-// //     }
-// //     printf("... }\n");
+//     printf("}\n");
+    
+//     LOG_DEBUG_F("start 0 = %d\tstart 1 = %d\n", *block_starts[0], *block_starts[1]);
+    
+    for (int i = 0; i < stride && block_coord + i < num_variants; i++) {
+        int snp_index = i * num_samples;    // Get 'row' inside block
+        LOG_DEBUG_F("snp index %d = %d\t by num_samples = %d\n", i, snp_index, snp_index * num_samples);
+        
+        // ------- Copy all samples NOT included in that fold ---------
+        
+        subset_length = 0;
+        genotypes_copied = 0;
+        previous = 0;
+        
+        for (int j = 0; j < num_samples_in_fold; j++) {
+            LOG_DEBUG_F("[%d] interval from %d to %d\n", i, previous, fold_samples[j]);
+            
+            max_subset_length = fold_samples[j] - previous;
+            
+            if (genotypes_copied < info.num_affected) {
+                subset_length = MIN(info.num_affected - previous + j, max_subset_length);
+                memcpy(genotypes + bytes_copied, block_start + snp_index + previous, subset_length * sizeof(uint8_t));
+                genotypes_copied += subset_length;
+                bytes_copied += subset_length;
+                
+                LOG_DEBUG_F("[%d] - copy %d (total %d)\n", i, subset_length, bytes_copied);
+                
+                if (genotypes_copied == info.num_affected) {
+                    padding = info.num_affected_with_padding - info.num_affected;
+                    memset(genotypes + bytes_copied, 0, padding * sizeof(uint8_t));
+                    bytes_copied += padding;
+                    LOG_DEBUG_F("[%d] - pad %d (total %d)\n", i, padding, bytes_copied);
+                    
+                    subset_length = max_subset_length - subset_length;
+                    
+                    // TODO genotypes_copied esta desfasado respecto a los avances (porque no tiene en cuenta restar los extremos)
+                    memcpy(genotypes + bytes_copied, block_start + snp_index + genotypes_copied + j, subset_length * sizeof(uint8_t));
+//                     memcpy(genotypes + bytes_copied, block_start + snp_index + previous, subset_length * sizeof(uint8_t));
+                    LOG_DEBUG_F("[%d] - copy %d (total %d)\n", i, subset_length, bytes_copied);
+                    genotypes_copied += subset_length;
+                    bytes_copied += subset_length;
+                }
+            } else {
+                subset_length = max_subset_length;
+//                 memcpy(genotypes + bytes_copied, block_start + snp_index + genotypes_copied, subset_length * sizeof(uint8_t));
+                memcpy(genotypes + bytes_copied, block_start + snp_index + previous, subset_length * sizeof(uint8_t));
+                genotypes_copied += subset_length;
+                bytes_copied += subset_length;
+                LOG_DEBUG_F("[%d] + copy %d (total %d)\n", i, subset_length, bytes_copied);
+            }
+            
+            previous = fold_samples[j] + 1;
+        }
+        
+        // Copy from the last sample in the fold to the last one in the whole dataset
+        subset_length = num_samples - (fold_samples[num_samples_in_fold - 1] + 1);
+        if (subset_length > 0) {
+            LOG_DEBUG_F("[%d] copy from %d to %d (total %d)\n", i, fold_samples[num_samples_in_fold - 1] + 1, num_samples, bytes_copied);
+            memcpy(genotypes + bytes_copied, block_start + snp_index + fold_samples[num_samples_in_fold - 1] + 1, subset_length * sizeof(uint8_t));
+            genotypes_copied += subset_length;
+            bytes_copied += subset_length;
+            LOG_DEBUG_F("[%d] + last copy %d (total %d)\n", i, subset_length, bytes_copied);
+        }
+
+        // TODO Insert final padding
+        padding = info.num_unaffected_with_padding - info.num_unaffected;
+        memset(genotypes + bytes_copied, 0, padding * sizeof(uint8_t));
+        bytes_copied += padding;
+        LOG_DEBUG_F("[%d] + pad %d (total %d)\n", i, padding, bytes_copied);
+        
+        
+        LOG_DEBUG_F("[%d] genotypes copied = %d\tbytes copied = %d\n\n", i, genotypes_copied, bytes_copied);
+        assert(genotypes_copied == (num_samples - num_samples_in_fold));
+        assert(bytes_copied == (info.num_affected_with_padding + info.num_unaffected_with_padding) * (i+1));
+        
+    }
+    
+//     printf("samples = { ");
+//     for (int i = 0; i < (info.num_affected_with_padding + info.num_unaffected_with_padding); i++) {
+//         printf("%d ", block_start[i]);
+//     }
+//     printf("}\n");
+//     printf("copied  = { ");
+//     for (int k = 0; k < (info.num_affected_with_padding + info.num_unaffected_with_padding); k++) {
+//         printf("%d ", genotypes[k]);
+//     }
+//     printf("... }\n");
 // 
-//     return genotypes;
-// }
+//     exit(1);
+    
+    return genotypes;
+}
 
 uint8_t *get_genotypes_for_combination_exclude_fold(int order, int comb[order], int num_samples, 
                                                     int num_samples_in_fold, int fold_samples[num_samples_in_fold], 

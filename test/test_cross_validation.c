@@ -14,7 +14,7 @@
 
 Suite *create_test_suite(void);
 
-void check_copied_genotypes_fold_0(uint8_t *genotypes, uint8_t *block_starts[2], int snp_offset[2], int num_samples);
+void check_copied_genotypes_fold_0(uint8_t **genotypes, uint8_t *block_starts[2], int snp_offset[2], int num_samples);
 
 void check_copied_genotypes_fold_1(uint8_t *genotypes, uint8_t *block_starts[2], int snp_offset[2], int num_samples);
 
@@ -228,6 +228,7 @@ START_TEST (test_get_genotypes_for_block_exclude_fold) {
     int num_variants = 9, num_samples = 12, num_samples_in_fold = 4;
     int folds[3][4] = { { 0, 1, 6, 7 }, { 4, 5, 10, 11 }, { 2, 3, 8, 9 } };
     
+    masks_info info; masks_info_new(order, 4, 4, &info);
     
     uint8_t genotypes[] = { 0, 1, 1, 0, 1, 2, 2, 1, 2, 1, 1, 2,   // First block
                             1, 2, 2, 1, 2, 0, 0, 2, 0, 2, 2, 0,
@@ -253,19 +254,23 @@ START_TEST (test_get_genotypes_for_block_exclude_fold) {
         
         // Run for each fold
         for (int f = 0; f < num_folds; f++) {
-            printf("Combination (%d,%d) and fold %d\n", comb[0], comb[1], f);
+//             printf("Combination (%d,%d) and fold %d\n", comb[0], comb[1], f);
             
             int next_fold = (f < 2) ? f + 1 : 0 ;
             uint8_t *val[order];
             for (int i = 0; i < order; i++) {
-                val[i] = get_genotypes_for_block_exclude_fold(num_variants, num_samples, num_samples_in_fold, folds[f], stride, block_2d[i], block_starts[i]);
+                val[i] = get_genotypes_for_block_exclude_fold(num_variants, num_samples, info, num_samples_in_fold, folds[f], stride, block_2d[i], block_starts[i]);
             }
             
 //             for (int i = 0; i < order; i++) {
 //                 printf("* val (%d) = { ", i);
 //                 for (int k = 0; k < stride; k++) {
-//                     for (int j = 0; j < (num_samples - num_samples_in_fold); j++) {
-//                         printf("%u ", val[i][k * (num_samples - num_samples_in_fold) + j]);
+// //                     for (int j = 0; j < (num_samples - num_samples_in_fold); j++) {
+// //                         printf("%u ", val[i][k * (num_samples - num_samples_in_fold) + j]);
+// //                     }
+// 
+//                     for (int j = 0; j < info.num_samples_per_mask; j++) {
+//                         printf("%u ", val[i][k * info.num_samples_per_mask + j]);
 //                     }
 //                     printf("\t");
 //                 }
@@ -274,13 +279,13 @@ START_TEST (test_get_genotypes_for_block_exclude_fold) {
 //             printf("\n");
             
             // TODO add real tests for this function!
-//             if (f == 0) {
-//                 check_copied_genotypes_fold_0(val, block_starts, snp_offset, num_samples);
-//             } else if (f == 1) {
-//                 check_copied_genotypes_fold_1(val, block_starts, snp_offset, num_samples);
-//             } else if (f == 2) {
-//                 check_copied_genotypes_fold_2(val, block_starts, snp_offset, num_samples);
-//             }
+            if (f == 0) {
+                check_copied_genotypes_fold_0(val, block_starts, snp_offset, num_samples);
+            }/* else if (f == 1) {
+                check_copied_genotypes_fold_1(val, block_starts, snp_offset, num_samples);
+            } else if (f == 2) {
+                check_copied_genotypes_fold_2(val, block_starts, snp_offset, num_samples);
+            }*/
             
             for (int i = 0; i < order; i++) {
                 free(val[i]);
@@ -288,47 +293,45 @@ START_TEST (test_get_genotypes_for_block_exclude_fold) {
         }
         
         // Test next combinations
-        while (get_next_combination_in_block(order, comb, block_2d, stride, num_variants)) {
-            int snp_offset[] = { comb[0] % stride, comb[1] % stride };
-            
-            for (int f = 0; f < num_folds; f++) {
-                printf("Combination (%d,%d) and fold %d\n", comb[0], comb[1], f);
-            
-                int next_fold = (f < 2) ? f + 1 : 0 ;
-                uint8_t *val[order];
-            for (int i = 0; i < order; i++) {
-                val[i] = get_genotypes_for_block_exclude_fold(num_variants, num_samples, num_samples_in_fold, folds[f], stride, block_2d[i], block_starts[i]);
-            }
-            
+//         while (get_next_combination_in_block(order, comb, block_2d, stride, num_variants)) {
+//             int snp_offset[] = { comb[0] % stride, comb[1] % stride };
+//             
+//             for (int f = 0; f < num_folds; f++) {
+//                 printf("Combination (%d,%d) and fold %d\n", comb[0], comb[1], f);
+//             
+//                 int next_fold = (f < 2) ? f + 1 : 0 ;
+//                 uint8_t *val[order];
 //             for (int i = 0; i < order; i++) {
-//                 printf("* val (%d) = { ", i);
-//                 for (int k = 0; k < stride; k++) {
-//                     for (int j = 0; j < (num_samples - num_samples_in_fold); j++) {
-//                         printf("%u ", val[i][k * (num_samples - num_samples_in_fold) + j]);
-//                     }
-//                     printf("\t");
+//                 val[i] = get_genotypes_for_block_exclude_fold(num_variants, num_samples, info, num_samples_in_fold, folds[f], stride, block_2d[i], block_starts[i]);
+//             }
+//             
+// //             for (int i = 0; i < order; i++) {
+// //                 printf("* val (%d) = { ", i);
+// //                 for (int k = 0; k < stride; k++) {
+// //                     for (int j = 0; j < (num_samples - num_samples_in_fold); j++) {
+// //                         printf("%u ", val[i][k * (num_samples - num_samples_in_fold) + j]);
+// //                     }
+// //                     printf("\t");
+// //                 }
+// //                 printf("}\n");
+// //             }
+// //             printf("\n");
+//             
+//             // TODO add real tests for this function!
+// //             if (f == 0) {
+// //                 check_copied_genotypes_fold_0(val, block_starts, snp_offset, num_samples);
+// //             } else if (f == 1) {
+// //                 check_copied_genotypes_fold_1(val, block_starts, snp_offset, num_samples);
+// //             } else if (f == 2) {
+// //                 check_copied_genotypes_fold_2(val, block_starts, snp_offset, num_samples);
+// //             }
+//             
+//             
+//                 for (int i = 0; i < order; i++) {
+//                     free(val[i]);
 //                 }
-//                 printf("}\n");
 //             }
-//             printf("\n");
-            
-            // TODO add real tests for this function!
-//             if (f == 0) {
-//                 check_copied_genotypes_fold_0(val, block_starts, snp_offset, num_samples);
-//             } else if (f == 1) {
-//                 check_copied_genotypes_fold_1(val, block_starts, snp_offset, num_samples);
-//             } else if (f == 2) {
-//                 check_copied_genotypes_fold_2(val, block_starts, snp_offset, num_samples);
-//             }
-            
-            
-                for (int i = 0; i < order; i++) {
-                    free(val[i]);
-                }
-            }
-        }
-//         
-//         free(comb);
+//         }
         
 //         printf("\n-----------\n");
     } while (get_next_block(num_blocks, order, block_2d));
@@ -463,7 +466,7 @@ Suite *create_test_suite(void) {
     
     TCase *tc_genotypes = tcase_create("Genotype and fold association");
     tcase_add_test(tc_genotypes, test_get_genotypes_for_block_exclude_fold);
-    tcase_add_test(tc_genotypes, test_get_genotypes_for_combination_exclude_fold);
+//     tcase_add_test(tc_genotypes, test_get_genotypes_for_combination_exclude_fold);
     
     // Add test cases to a test suite
     Suite *fs = suite_create("k-fold cross validation");
@@ -478,28 +481,51 @@ Suite *create_test_suite(void) {
  *          Auxiliary           *
  * *****************************/
 
-void check_copied_genotypes_fold_0(uint8_t *genotypes, uint8_t *block_starts[2], int snp_offset[2], int num_samples) {
+void check_copied_genotypes_fold_0(uint8_t **genotypes, uint8_t *block_starts[2], int snp_offset[2], int num_samples) {
     // Test first SNP
-//     printf("%u = %u\n", genotypes[0], *(block_starts[0] + snp_offset[0] * num_samples + 2));
-    fail_if(genotypes[0] != *(block_starts[0] + snp_offset[0] * num_samples + 2), "F0: Value 0 must be aligned with offset 2");
-    fail_if(genotypes[1] != *(block_starts[0] + snp_offset[0] * num_samples + 3), "F0: Value 1 must be aligned with offset 3");
-    fail_if(genotypes[2] != *(block_starts[0] + snp_offset[0] * num_samples + 4), "F0: Value 2 must be aligned with offset 4");
-    fail_if(genotypes[3] != *(block_starts[0] + snp_offset[0] * num_samples + 5), "F0: Value 3 must be aligned with offset 5");
-    fail_if(genotypes[4] != *(block_starts[0] + snp_offset[0] * num_samples + 8), "F0: Value 4 must be aligned with offset 8");
-    fail_if(genotypes[5] != *(block_starts[0] + snp_offset[0] * num_samples + 9), "F0: Value 5 must be aligned with offset 9");
-    fail_if(genotypes[6] != *(block_starts[0] + snp_offset[0] * num_samples + 10), "F0: Value 6 must be aligned with offset 10");
-    fail_if(genotypes[7] != *(block_starts[0] + snp_offset[0] * num_samples + 11), "F0: Value 7 must be aligned with offset 11");
+//     printf("%u = %u\n", genotypes[0], *(block_starts[0] + 2));
+    fail_if(genotypes[0][0] != *(block_starts[0] + 2), "F0S0: Value 0 must be aligned with offset 2");
+    fail_if(genotypes[0][1] != *(block_starts[0] + 3), "F0S0: Value 1 must be aligned with offset 3");
+    fail_if(genotypes[0][2] != *(block_starts[0] + 4), "F0S0: Value 2 must be aligned with offset 4");
+    fail_if(genotypes[0][3] != *(block_starts[0] + 5), "F0S0: Value 3 must be aligned with offset 5");
+    
+    // Test padding (affected group)
+    for (int i = 4; i < 16; i++) {
+        fail_if(genotypes[0][i] != 0, "F0S0: Values 4-15 must be zero (padding)");
+    }
+    
+    fail_if(genotypes[0][16] != *(block_starts[0] + 8), "F0S0: Value 4 must be aligned with offset 8");
+    fail_if(genotypes[0][17] != *(block_starts[0] + 9), "F0S0: Value 5 must be aligned with offset 9");
+    fail_if(genotypes[0][18] != *(block_starts[0] + 10), "F0S0: Value 6 must be aligned with offset 10");
+    fail_if(genotypes[0][19] != *(block_starts[0] + 11), "F0S0: Value 7 must be aligned with offset 11");
 
+    // Test padding (unaffected group)
+    for (int i = 20; i < 32; i++) {
+        fail_if(genotypes[0][i] != 0, "F0S0: Values 20-31 must be zero (padding)");
+    }
+    
     // Test second SNP
-//     printf("%u = %d\n", genotypes[8], *(block_starts[1] + snp_offset[1] * num_samples + 2));
-    fail_if(genotypes[8] != *(block_starts[1] + snp_offset[1] * num_samples + 2), "F0: Value 8 must be aligned with offset 2");
-    fail_if(genotypes[9] != *(block_starts[1] + snp_offset[1] * num_samples + 3), "F0: Value 9 must be aligned with offset 3");
-    fail_if(genotypes[10] != *(block_starts[1] + snp_offset[1] * num_samples + 4), "F0: Value 10 must be aligned with offset 4");
-    fail_if(genotypes[11] != *(block_starts[1] + snp_offset[1] * num_samples + 5), "F0: Value 11 must be aligned with offset 5");
-    fail_if(genotypes[12] != *(block_starts[1] + snp_offset[1] * num_samples + 8), "F0: Value 12 must be aligned with offset 8");
-    fail_if(genotypes[13] != *(block_starts[1] + snp_offset[1] * num_samples + 9), "F0: Value 13 must be aligned with offset 9");
-    fail_if(genotypes[14] != *(block_starts[1] + snp_offset[1] * num_samples + 10), "F0: Value 14 must be aligned with offset 10");
-    fail_if(genotypes[15] != *(block_starts[1] + snp_offset[1] * num_samples + 11), "F0: Value 15 must be aligned with offset 11");
+//     printf("%u = %d\n", genotypes[1][0], *(block_starts[1] + 2));
+    fail_if(genotypes[1][0] != *(block_starts[1] + 2), "F0S1: Value 0 must be aligned with offset 2");
+    fail_if(genotypes[1][1] != *(block_starts[1] + 3), "F0S1: Value 1 must be aligned with offset 3");
+    fail_if(genotypes[1][2] != *(block_starts[1] + 4), "F0S1: Value 2 must be aligned with offset 4");
+    fail_if(genotypes[1][3] != *(block_starts[1] + 5), "F0S1: Value 3 must be aligned with offset 5");
+    
+    // Test padding (affected group)
+    for (int i = 4; i < 16; i++) {
+        fail_if(genotypes[1][i] != 0, "F0S1: Values 4-15 must be zero (padding)");
+    }
+    
+    fail_if(genotypes[1][16] != *(block_starts[1] + 8), "F0S1: Value 16 must be aligned with offset 8");
+    fail_if(genotypes[1][17] != *(block_starts[1] + 9), "F0S1: Value 17 must be aligned with offset 9");
+    fail_if(genotypes[1][18] != *(block_starts[1] + 10), "F0S1: Value 18 must be aligned with offset 10");
+    fail_if(genotypes[1][19] != *(block_starts[1] + 11), "F0S1: Value 19 must be aligned with offset 11");
+    
+    // Test padding (unaffected group)
+    for (int i = 20; i < 32; i++) {
+        fail_if(genotypes[1][i] != 0, "F0S1: Values 20-32 must be zero (padding)");
+    }
+    
 }
 
 void check_copied_genotypes_fold_1(uint8_t *genotypes, uint8_t *block_starts[2], int snp_offset[2], int num_samples) {
@@ -515,15 +541,15 @@ void check_copied_genotypes_fold_1(uint8_t *genotypes, uint8_t *block_starts[2],
     fail_if(genotypes[7] != *(block_starts[0] + snp_offset[0] * num_samples + 9), "F1: Value 7 must be aligned with offset 9");
     
     // Test second SNP
-//     printf("%u = %d\n", genotypes[8], *(block_starts[1] + snp_offset[1] * num_samples + 2));
-    fail_if(genotypes[8] != *(block_starts[1] + snp_offset[1] * num_samples + 0), "F1: Value 8 must be aligned with offset 0");
-    fail_if(genotypes[9] != *(block_starts[1] + snp_offset[1] * num_samples + 1), "F1: Value 9 must be aligned with offset 1");
-    fail_if(genotypes[10] != *(block_starts[1] + snp_offset[1] * num_samples + 2), "F1: Value 10 must be aligned with offset 2");
-    fail_if(genotypes[11] != *(block_starts[1] + snp_offset[1] * num_samples + 3), "F1: Value 11 must be aligned with offset 3");
-    fail_if(genotypes[12] != *(block_starts[1] + snp_offset[1] * num_samples + 6), "F1: Value 12 must be aligned with offset 6");
-    fail_if(genotypes[13] != *(block_starts[1] + snp_offset[1] * num_samples + 7), "F1: Value 13 must be aligned with offset 7");
-    fail_if(genotypes[14] != *(block_starts[1] + snp_offset[1] * num_samples + 8), "F1: Value 14 must be aligned with offset 8");
-    fail_if(genotypes[15] != *(block_starts[1] + snp_offset[1] * num_samples + 9), "F1: Value 15 must be aligned with offset 9");
+//     printf("%u = %d\n", genotypes[8], *(block_starts[1] + 2));
+    fail_if(genotypes[8] != *(block_starts[1] + 0), "F1: Value 8 must be aligned with offset 0");
+    fail_if(genotypes[9] != *(block_starts[1] + 1), "F1: Value 9 must be aligned with offset 1");
+    fail_if(genotypes[10] != *(block_starts[1] + 2), "F1: Value 10 must be aligned with offset 2");
+    fail_if(genotypes[11] != *(block_starts[1] + 3), "F1: Value 11 must be aligned with offset 3");
+    fail_if(genotypes[12] != *(block_starts[1] + 6), "F1: Value 12 must be aligned with offset 6");
+    fail_if(genotypes[13] != *(block_starts[1] + 7), "F1: Value 13 must be aligned with offset 7");
+    fail_if(genotypes[14] != *(block_starts[1] + 8), "F1: Value 14 must be aligned with offset 8");
+    fail_if(genotypes[15] != *(block_starts[1] + 9), "F1: Value 15 must be aligned with offset 9");
 }
 
 void check_copied_genotypes_fold_2(uint8_t *genotypes, uint8_t *block_starts[2], int snp_offset[2], int num_samples) {
@@ -539,13 +565,13 @@ void check_copied_genotypes_fold_2(uint8_t *genotypes, uint8_t *block_starts[2],
     fail_if(genotypes[7] != *(block_starts[0] + snp_offset[0] * num_samples + 11), "F2: Value 7 must be aligned with offset 11");
     
     // Test second SNP
-//     printf("%u = %d\n", genotypes[8], *(block_starts[1] + snp_offset[1] * num_samples + 2));
-    fail_if(genotypes[8] != *(block_starts[1] + snp_offset[1] * num_samples + 0), "F2: Value 8 must be aligned with offset 0");
-    fail_if(genotypes[9] != *(block_starts[1] + snp_offset[1] * num_samples + 1), "F2: Value 9 must be aligned with offset 1");
-    fail_if(genotypes[10] != *(block_starts[1] + snp_offset[1] * num_samples + 4), "F2: Value 10 must be aligned with offset 4");
-    fail_if(genotypes[11] != *(block_starts[1] + snp_offset[1] * num_samples + 5), "F2: Value 11 must be aligned with offset 5");
-    fail_if(genotypes[12] != *(block_starts[1] + snp_offset[1] * num_samples + 6), "F2: Value 12 must be aligned with offset 6");
-    fail_if(genotypes[13] != *(block_starts[1] + snp_offset[1] * num_samples + 7), "F2: Value 13 must be aligned with offset 7");
-    fail_if(genotypes[14] != *(block_starts[1] + snp_offset[1] * num_samples + 10), "F2: Value 14 must be aligned with offset 10");
-    fail_if(genotypes[15] != *(block_starts[1] + snp_offset[1] * num_samples + 11), "F2: Value 15 must be aligned with offset 11");
+//     printf("%u = %d\n", genotypes[8], *(block_starts[1] + 2));
+    fail_if(genotypes[8] != *(block_starts[1] + 0), "F2: Value 8 must be aligned with offset 0");
+    fail_if(genotypes[9] != *(block_starts[1] + 1), "F2: Value 9 must be aligned with offset 1");
+    fail_if(genotypes[10] != *(block_starts[1] + 4), "F2: Value 10 must be aligned with offset 4");
+    fail_if(genotypes[11] != *(block_starts[1] + 5), "F2: Value 11 must be aligned with offset 5");
+    fail_if(genotypes[12] != *(block_starts[1] + 6), "F2: Value 12 must be aligned with offset 6");
+    fail_if(genotypes[13] != *(block_starts[1] + 7), "F2: Value 13 must be aligned with offset 7");
+    fail_if(genotypes[14] != *(block_starts[1] + 10), "F2: Value 14 must be aligned with offset 10");
+    fail_if(genotypes[15] != *(block_starts[1] + 11), "F2: Value 15 must be aligned with offset 11");
 }

@@ -21,6 +21,9 @@ uint8_t *get_genotypes_for_combination_and_fold(int order, int comb[order], int 
 uint8_t *get_genotypes_for_block_exclude_fold(int num_variants, int num_samples, masks_info info, int num_samples_in_fold, int fold_samples[num_samples_in_fold], 
                                               int stride, int block_coord, uint8_t *block_start);
 
+uint8_t *get_genotypes_for_block_exclude_fold2(int num_variants, int num_samples, masks_info info, int num_samples_in_fold, int fold_samples[num_samples_in_fold], 
+                                              int stride, int block_coord, uint8_t *block_start);
+
 /**
  * @brief Retrieves the genotypes of all samples except for the ones in the specified fold_samples
  *

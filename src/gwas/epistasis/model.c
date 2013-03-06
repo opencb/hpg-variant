@@ -14,15 +14,15 @@ risky_combination *get_model_from_combination_in_fold(int order, int comb[order]
     uint8_t *masks = get_masks(order, val, num_affected_in_training, num_unaffected_in_training, info); // Grouped by SNP
     *masks_time += omp_get_wtime() - start_masks;
     
-//     printf("masks (%d) = {\n", info.num_masks);
-//     printf("%d ", masks[0]);
-//     for (int i = 1; i < info.num_masks; i++) {
-//         if (i % info.num_samples_per_mask == 0) {
-//             printf("\n");
-//         }
-//         printf("%d ", masks[i]);
-//     }
-//     printf("}\n");
+    printf("masks (%d) = {\n", info.num_masks);
+    printf("%d ", masks[0]);
+    for (int i = 1; i < info.num_masks; i++) {
+        if (i % info.num_samples_per_mask == 0) {
+            printf("\n");
+        }
+        printf("%d ", masks[i]);
+    }
+    printf("}\n");
     
     double start_counts = omp_get_wtime();
     int *counts = get_counts(order, masks, genotype_combinations, num_genotype_combinations, num_counts, info);
@@ -313,9 +313,9 @@ uint8_t* get_masks(int order, uint8_t **genotypes, int num_affected, int num_una
 //             printf("(3) ");
             for (k = 0; k < num_unaffected; k++) {
 //                 printf("%d ", genotypes[j][info.num_affected + k]);
-                uint8_t *gt = genotypes[j][info.num_affected + k];
+//                 uint8_t *gt = genotypes[j][info.num_affected + k];
 //                 printf("%d ", genotypes[j][info.num_affected_with_padding + k]); // TODO when input block is padded
-//                 uint8_t *gt = genotypes[j][info.num_affected_with_padding + k];
+                uint8_t *gt = genotypes[j][info.num_affected_with_padding + k];
                 masks[j * NUM_GENOTYPES * (info.num_samples_per_mask) + i * (info.num_samples_per_mask) + info.num_affected_with_padding + k] = (gt == i);
             }
 //             printf("(4) ");
@@ -326,6 +326,8 @@ uint8_t* get_masks(int order, uint8_t **genotypes, int num_affected, int num_una
 //             printf("\n");
         }
     }
+    
+//     exit(1);
     
     return masks;
 }
@@ -342,6 +344,7 @@ void masks_info_new(int order, int num_affected, int num_unaffected, masks_info 
     assert(info->masks);
     assert(info->num_affected_with_padding);
     assert(info->num_unaffected_with_padding);
+    printf("nawp = %d\tnuwp = %d\n", info->num_affected_with_padding, info->num_unaffected_with_padding);
 }
 
 
