@@ -19,6 +19,7 @@
  */
 
 #include "epistasis_runner.h"
+#include "gwas/assoc/assoc.h"
 
 KHASH_MAP_INIT_STR(cvc, int);
 
@@ -128,6 +129,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                     }
                 }
                 
+/*
                 printf("original block (%d*%d) = {\n", options_data->stride, num_samples - sizes[3 * i]);
                 for (int m = 0; m < MIN(options_data->stride, num_variants); m++) {
                     for (int n = 0; n < num_samples - sizes[3 * i]; n++) {
@@ -136,6 +138,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                     printf("\n");
                 }
                 printf("}\n");
+*/
                 
                 uint8_t *block_genotypes2[order];
                 // Initialize first coordinate
@@ -162,6 +165,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                     }
                 }
                 
+/*
                 printf("padded block (%d*%d) = {\n", options_data->stride, info.num_samples_per_mask);
                 for (int m = 0; m < MIN(options_data->stride, num_variants); m++) {
                     for (int n = 0; n < info.num_samples_per_mask; n++) {
@@ -170,6 +174,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                     printf("\n");
                 }
                 printf("}\n");
+*/
                 
                 
                 copy_time += omp_get_wtime() - start_copy;
@@ -180,6 +185,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                 do {
 //                     print_combination(comb, 0, order);
                     // Get genotypes of that combination
+
                     uint8_t *combination_genotypes[order];
                     for (int s = 0; s < order; s++) {
                         // Get combination address from block
@@ -189,21 +195,26 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                     risky_combination *risky_comb = get_model_from_combination_in_fold(order, comb, combination_genotypes,
                                                                                     training_sizes[3 * i + 1], training_sizes[3 * i + 2],
                                                                                     num_genotype_combinations, genotype_combinations, num_counts_per_combination,
-                                                                                    info, &masks_time, &counts_time);
+                                                                                    info, &masks_time, &counts_time, 0);
+
                     
                    uint8_t *combination_genotypes2[order];
                    for (int s = 0; s < order; s++) {
                        // Get combination address from block
-                       combination_genotypes2[s] = block_genotypes2[s] + (comb[s] % options_data->stride) * training_sizes[3 * i];
+                       combination_genotypes2[s] = block_genotypes2[s] + (comb[s] % options_data->stride) * info.num_samples_per_mask;
                    }
-                   info.num_affected = info.num_affected_with_padding;
                    risky_combination *risky_comb2 = get_model_from_combination_in_fold(order, comb, combination_genotypes2,
                                                                                    training_sizes[3 * i + 1], training_sizes[3 * i + 2],
                                                                                    num_genotype_combinations, genotype_combinations, num_counts_per_combination,
-                                                                                   info, &masks_time, &counts_time);
-                    
-                    exit(0);
-    
+                                                                                   info, &masks_time, &counts_time, 1);
+                   
+                   // If equals, it means that get_masks and get_counts are correct! :-)
+                   assert(risky_comb->num_risky_genotypes == risky_comb2->num_risky_genotypes);
+                   for (int g = 0; g < risky_comb->num_risky_genotypes; g++) {
+                        assert(risky_comb->genotypes[g] == risky_comb2->genotypes[g]);
+                   }
+                   
+                   //printf("\n----------------------\n");
                     if (risky_comb) {
                         // Check the model against the testing dataset
                         double accuracy = 0.0f;
@@ -254,6 +265,8 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                     }
                 }
                 
+//                exit(0);
+    
             } while (get_next_block(num_blocks_per_dim, order, block_coords));
             
             _mm_free(info.masks);

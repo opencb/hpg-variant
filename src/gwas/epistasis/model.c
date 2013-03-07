@@ -6,14 +6,16 @@
  * **************************/
 
 risky_combination *get_model_from_combination_in_fold(int order, int comb[order], uint8_t **val, unsigned int num_affected_in_training, unsigned int num_unaffected_in_training,
-                                                      int num_genotype_combinations, uint8_t **genotype_combinations, int num_counts, masks_info info, double *masks_time, double *counts_time) {
+                                                      int num_genotype_combinations, uint8_t **genotype_combinations, int num_counts, masks_info info, double *masks_time, double *counts_time,
+                                                      int testpadding) {
     risky_combination *risky_comb = NULL;
     
     // Get counts for the provided genotypes
     double start_masks = omp_get_wtime();
-    uint8_t *masks = get_masks(order, val, num_affected_in_training, num_unaffected_in_training, info); // Grouped by SNP
+    uint8_t *masks = get_masks(order, val, num_affected_in_training, num_unaffected_in_training, info, testpadding); // Grouped by SNP
     *masks_time += omp_get_wtime() - start_masks;
     
+/*
     printf("masks (%d) = {\n", info.num_masks);
     printf("%d ", masks[0]);
     for (int i = 1; i < info.num_masks; i++) {
@@ -23,6 +25,7 @@ risky_combination *get_model_from_combination_in_fold(int order, int comb[order]
         printf("%d ", masks[i]);
     }
     printf("}\n");
+*/
     
     double start_counts = omp_get_wtime();
     int *counts = get_counts(order, masks, genotype_combinations, num_genotype_combinations, num_counts, info);
@@ -270,7 +273,7 @@ int* get_counts(int order, uint8_t *masks, uint8_t **genotype_combinations, int 
 //     return counts;
 // }
 
-uint8_t* get_masks(int order, uint8_t **genotypes, int num_affected, int num_unaffected, masks_info info) {
+uint8_t* get_masks(int order, uint8_t **genotypes, int num_affected, int num_unaffected, masks_info info, int testpadding) {
     /* 
      * Structure: Genotypes of a SNP in each 'row'
      * 
@@ -312,10 +315,14 @@ uint8_t* get_masks(int order, uint8_t **genotypes, int num_affected, int num_una
             }
 //             printf("(3) ");
             for (k = 0; k < num_unaffected; k++) {
-//                 printf("%d ", genotypes[j][info.num_affected + k]);
-//                 uint8_t *gt = genotypes[j][info.num_affected + k];
-//                 printf("%d ", genotypes[j][info.num_affected_with_padding + k]); // TODO when input block is padded
-                uint8_t *gt = genotypes[j][info.num_affected_with_padding + k];
+                uint8_t *gt = testpadding ? genotypes[j][info.num_affected_with_padding + k] : genotypes[j][info.num_affected + k];
+/*
+                if (testpadding) {
+                    printf("%d ", genotypes[j][info.num_affected_with_padding + k]);
+                } else {
+                    printf("%d ", genotypes[j][info.num_affected + k]);
+                }
+*/
                 masks[j * NUM_GENOTYPES * (info.num_samples_per_mask) + i * (info.num_samples_per_mask) + info.num_affected_with_padding + k] = (gt == i);
             }
 //             printf("(4) ");
@@ -344,7 +351,7 @@ void masks_info_new(int order, int num_affected, int num_unaffected, masks_info 
     assert(info->masks);
     assert(info->num_affected_with_padding);
     assert(info->num_unaffected_with_padding);
-    printf("nawp = %d\tnuwp = %d\n", info->num_affected_with_padding, info->num_unaffected_with_padding);
+//    printf("nawp = %d\tnuwp = %d\n", info->num_affected_with_padding, info->num_unaffected_with_padding);
 }
 
 
