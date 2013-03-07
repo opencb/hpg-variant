@@ -60,10 +60,11 @@ enum eval_function { CA, BA, wBA, GAMMA, TAU_B };
  *       Main pipeline      *
  * **************************/
 
-risky_combination *get_model_from_combination_in_fold(int order, int comb[order], uint8_t **val, unsigned int num_affected_in_training, unsigned int num_unaffected_in_training,
-                                                      int num_genotype_combinations, uint8_t **genotype_combinations, int num_counts, masks_info info, double *masks_time, double *counts_time);
+risky_combination *get_model_from_combination_in_fold(int order, int comb[order], uint8_t **val, 
+                                                      int num_genotype_combinations, uint8_t **genotype_combinations, 
+                                                      int num_counts, masks_info info, double *masks_time, double *counts_time);
 
-double test_model(int order, risky_combination *risky_comb, uint8_t **val, unsigned int num_affected, unsigned int num_unaffected, masks_info info, double *confusion_time);
+double test_model(int order, risky_combination *risky_comb, uint8_t **val, masks_info info, double *confusion_time);
 
 int add_to_model_ranking(risky_combination *risky_comb, int max_ranking_size, linked_list_t *ranking_risky);
 
@@ -86,7 +87,7 @@ int add_to_model_ranking(risky_combination *risky_comb, int max_ranking_size, li
  **/
 int* get_counts(int order, uint8_t *masks, uint8_t **genotype_combinations, int num_genotype_combinations, int num_counts, masks_info info);
 
-uint8_t* get_masks(int order, uint8_t **genotypes, int num_affected, int num_unaffected, masks_info info);
+uint8_t* get_masks(int order, uint8_t **genotypes, masks_info info);
 
 void masks_info_new(int order, int num_affected, int num_unaffected, masks_info *info);
 
@@ -108,7 +109,7 @@ void risky_combination_free(risky_combination *combination);
  *  Evaluation and ranking  *
  * **************************/
 
-unsigned int *get_confusion_matrix(int order, risky_combination *combination, int num_affected_in_fold, int num_unaffected_in_fold, masks_info info, uint8_t **genotypes);
+unsigned int *get_confusion_matrix(int order, risky_combination *combination, masks_info info, uint8_t **genotypes);
 
 double evaluate_model(unsigned int *confusion_matrix, enum eval_function function);
 

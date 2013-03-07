@@ -5,13 +5,13 @@
  *       Main pipeline      *
  * **************************/
 
-risky_combination *get_model_from_combination_in_fold(int order, int comb[order], uint8_t **val, unsigned int num_affected_in_training, unsigned int num_unaffected_in_training,
-                                                      int num_genotype_combinations, uint8_t **genotype_combinations, int num_counts, masks_info info, double *masks_time, double *counts_time) {
+    risky_combination *get_model_from_combination_in_fold(int order, int comb[order], uint8_t **val, int num_genotype_combinations, uint8_t **genotype_combinations, 
+                                                      int num_counts, masks_info info, double *masks_time, double *counts_time) {
     risky_combination *risky_comb = NULL;
     
     // Get counts for the provided genotypes
     double start_masks = omp_get_wtime();
-    uint8_t *masks = get_masks(order, val, num_affected_in_training, num_unaffected_in_training, info); // Grouped by SNP
+    uint8_t *masks = get_masks(order, val, info); // Grouped by SNP
     *masks_time += omp_get_wtime() - start_masks;
     
 /*
@@ -45,7 +45,7 @@ risky_combination *get_model_from_combination_in_fold(int order, int comb[order]
     // Get high risk pairs for those counts
     void *aux_info;
     int num_risky;
-    int *risky_idx = get_high_risk_combinations(counts, num_counts, num_affected_in_training, num_unaffected_in_training, 
+    int *risky_idx = get_high_risk_combinations(counts, num_counts, info.num_affected, info.num_unaffected, 
                                                 &num_risky, &aux_info, mdr_high_risk_combinations);
     
     // Filter non-risky SNP combinations
@@ -73,12 +73,11 @@ risky_combination *get_model_from_combination_in_fold(int order, int comb[order]
 }
 
 
-double test_model(int order, risky_combination *risky_comb, uint8_t **val, 
-                  unsigned int num_affected, unsigned int num_unaffected, masks_info info, double *confusion_time) {
+double test_model(int order, risky_combination *risky_comb, uint8_t **val, masks_info info, double *confusion_time) {
     // Step 5 -> Check against a testing partition
     // Get the matrix containing {FP,FN,TP,TN}
     double start_conf = omp_get_wtime();
-    unsigned int *confusion_matrix = get_confusion_matrix(order, risky_comb, num_affected, num_unaffected, info, val);
+    unsigned int *confusion_matrix = get_confusion_matrix(order, risky_comb, info, val);
     *confusion_time += omp_get_wtime() - start_conf;
     
 //     printf("confusion matrix = { ");
@@ -229,7 +228,7 @@ int* get_counts(int order, uint8_t *masks, uint8_t **genotype_combinations, int 
     return counts;
 }
 
-uint8_t* get_masks(int order, uint8_t **genotypes, int num_affected, int num_unaffected, masks_info info) {
+uint8_t* get_masks(int order, uint8_t **genotypes, masks_info info) {
     /* 
      * Structure: Genotypes of a SNP in each 'row'
      * 
@@ -247,7 +246,6 @@ uint8_t* get_masks(int order, uint8_t **genotypes, int num_affected, int num_una
      * SNP(order-1) - Mask genotype 1 (all samples)
      * SNP(order-1) - Mask genotype 2 (all samples)
      */
-    int num_samples = num_affected + num_unaffected;
     uint8_t *masks = info.masks;
     
     assert(masks);
@@ -260,7 +258,7 @@ uint8_t* get_masks(int order, uint8_t **genotypes, int num_affected, int num_una
         for (int i = 0; i < NUM_GENOTYPES; i++) {
             int k = 0;
 //             printf("(1) ");
-            for (; k < num_affected; k++) {
+            for (; k < info.num_affected; k++) {
 //                 printf("%d ", genotypes[j][k]);
                 masks[j * NUM_GENOTYPES * (info.num_samples_per_mask) + i * (info.num_samples_per_mask) + k] = (genotypes[j][k] == i);
             }
@@ -270,9 +268,9 @@ uint8_t* get_masks(int order, uint8_t **genotypes, int num_affected, int num_una
                 masks[j * NUM_GENOTYPES * (info.num_samples_per_mask) + i * (info.num_samples_per_mask) + k] = 0;
             }
 //             printf("(3) ");
-            for (k = 0; k < num_unaffected; k++) {
+            for (k = 0; k < info.num_unaffected; k++) {
 //                 printf("%d ", genotypes[j][info.num_affected_with_padding + k]);
-                uint8_t *gt = genotypes[j][info.num_affected_with_padding + k];
+                uint8_t gt = genotypes[j][info.num_affected_with_padding + k];
                 masks[j * NUM_GENOTYPES * (info.num_samples_per_mask) + i * (info.num_samples_per_mask) + info.num_affected_with_padding + k] = (gt == i);
             }
 //             printf("(4) ");
@@ -357,10 +355,7 @@ void risky_combination_free(risky_combination* combination) {
  *  Evaluation and ranking  *
  * **************************/
 
-unsigned int *get_confusion_matrix(int order, risky_combination *combination, int num_affected_in_fold, int num_unaffected_in_fold, masks_info info, uint8_t **genotypes) {
-/*
-    int num_samples = num_affected_in_fold + num_unaffected_in_fold;
-*/
+unsigned int *get_confusion_matrix(int order, risky_combination *combination, masks_info info, uint8_t **genotypes) {
     int num_samples = info.num_samples_per_mask;
     // TP, FN, FP, TN
     unsigned int *rates = calloc(4, sizeof(unsigned int));
@@ -427,17 +422,6 @@ unsigned int *get_confusion_matrix(int order, risky_combination *combination, in
 */
     
     // Get the counts
-/*
-    for (int k = 0; k < num_affected_in_fold; k++) {
-        // newrates[0] = TP, newrates[1] = FN
-        (final_masks[k]) ? (rates[0])++ : (rates[1])++;
-    }
-    for (int k = num_affected_in_fold; k < num_samples; k++) {
-        // newrates[2] = FP, newrates[3] = TN
-        (final_masks[k]) ? (rates[2])++ : (rates[3])++;
-    }
-*/
-    
     for (int k = 0; k < info.num_affected; k++) {
         // newrates[0] = TP, newrates[1] = FN
         (final_masks[k]) ? (rates[0])++ : (rates[1])++;
@@ -447,10 +431,6 @@ unsigned int *get_confusion_matrix(int order, risky_combination *combination, in
         (final_masks[info.num_affected_with_padding + k]) ? (rates[2])++ : (rates[3])++;
     }
     
-/*
-    assert(rates[0] + rates[1] + rates[2] + rates[3] == num_samples);
-    printf("rates = %d\texpected = %d\n", rates[0] + rates[1] + rates[2] + rates[3], info.num_affected + info.num_unaffected);
-*/
     assert(rates[0] + rates[1] + rates[2] + rates[3] == info.num_affected + info.num_unaffected);
     
     return rates;

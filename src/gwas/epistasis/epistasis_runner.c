@@ -155,9 +155,8 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                        combination_genotypes[s] = block_genotypes[s] + (comb[s] % options_data->stride) * info.num_samples_per_mask;
                    }
                    risky_combination *risky_comb = get_model_from_combination_in_fold(order, comb, combination_genotypes,
-                                                                                   training_sizes[3 * i + 1], training_sizes[3 * i + 2],
-                                                                                   num_genotype_combinations, genotype_combinations, num_counts_per_combination,
-                                                                                   info, &masks_time, &counts_time);
+                                                                                      num_genotype_combinations, genotype_combinations, 
+                                                                                      num_counts_per_combination, info, &masks_time, &counts_time);
                    
                     if (risky_comb) {
                         // Check the model against the testing dataset
@@ -170,7 +169,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
 //                             accuracy = test_model(order, risky_comb, testing_genotypes, sizes[3 * i + 1], sizes[3 * i + 2], &confusion_time);
 //                             free(testing_genotypes);
                         } else {
-                            accuracy = test_model(order, risky_comb, combination_genotypes, training_sizes[3 * i + 1], training_sizes[3 * i + 2], info, &confusion_time);
+                            accuracy = test_model(order, risky_comb, combination_genotypes, info, &confusion_time);
                         }
 //                         printf("*  Balanced accuracy: %.3f\n", accuracy);
                         
