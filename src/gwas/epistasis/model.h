@@ -64,7 +64,7 @@ risky_combination *get_model_from_combination_in_fold(int order, int comb[order]
                                                       int num_genotype_combinations, uint8_t **genotype_combinations, int num_counts, masks_info info, double *masks_time, double *counts_time,
                                                       int testpadding);
 
-double test_model(int order, risky_combination *risky_comb, uint8_t **val, unsigned int num_affected, unsigned int num_unaffected, double *confusion_time);
+double test_model(int order, risky_combination *risky_comb, uint8_t **val, unsigned int num_affected, unsigned int num_unaffected, masks_info info, double *confusion_time, int testpadding);
 
 int add_to_model_ranking(risky_combination *risky_comb, int max_ranking_size, linked_list_t *ranking_risky);
 
@@ -109,7 +109,7 @@ void risky_combination_free(risky_combination *combination);
  *  Evaluation and ranking  *
  * **************************/
 
-unsigned int *get_confusion_matrix(int order, risky_combination *combination, int num_affected_in_fold, int num_unaffected_in_fold, uint8_t **genotypes);
+unsigned int *get_confusion_matrix(int order, risky_combination *combination, int num_affected_in_fold, int num_unaffected_in_fold, masks_info info, uint8_t **genotypes);
 
 double evaluate_model(unsigned int *confusion_matrix, enum eval_function function);
 

@@ -83,7 +83,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
         
         // Run for each fold
         // TODO remove the timers private declaration (valgrind screams, but they are not critical)
-//         #pragma omp parallel for private(masks_time, counts_time, confusion_time, copy_time) firstprivate(sizes, training_sizes)
+        #pragma omp parallel for private(masks_time, counts_time, confusion_time, copy_time) firstprivate(sizes, training_sizes)
         for (int i = 0; i < options_data->num_folds; i++) {
             // Coordinates of the block being tested
             int block_coords[order]; memset(block_coords, 0, order * sizeof(int));
@@ -130,52 +130,15 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                 }
                 
 /*
-                printf("original block (%d*%d) = {\n", options_data->stride, num_samples - sizes[3 * i]);
-                for (int m = 0; m < MIN(options_data->stride, num_variants); m++) {
-                    for (int n = 0; n < num_samples - sizes[3 * i]; n++) {
-                        printf("%d ", block_genotypes[0][m * (num_samples - sizes[3 * i]) + n]);
-                    }
-                    printf("\n");
-                }
-                printf("}\n");
-*/
-                
-                uint8_t *block_genotypes2[order];
-                // Initialize first coordinate
-                block_genotypes2[0] = get_genotypes_for_block_exclude_fold2(num_variants, num_samples, info, sizes[3 * i], folds[i], 
-                                                                          options_data->stride, block_coords[0], block_starts[0]);
-                
-                // Initialize the rest of coordinates. If any of them is the same as a previous one, don't copy, but reference directly
-                for (int m = 1; m < order; m++) {
-                    bool already_present = false;
-                    for (int n = 0; n < m; n++) {
-                        if (block_coords[m] == block_coords[n]) {
-//                             printf("taking %d -> %d\n", n, m);
-                            block_genotypes2[m] = block_genotypes2[n];
-                            already_present = true;
-                            break;
-                        } 
-                    }
-                    
-                    if (!already_present) {
-                        // If not equals to a previous one, retrieve data
-//                         printf("getting %d\n", m);
-                        block_genotypes2[m] = get_genotypes_for_block_exclude_fold2(num_variants, num_samples, info, sizes[3 * i], folds[i], 
-                                                                                    options_data->stride, block_coords[m], block_starts[m]);
-                    }
-                }
-                
-/*
                 printf("padded block (%d*%d) = {\n", options_data->stride, info.num_samples_per_mask);
                 for (int m = 0; m < MIN(options_data->stride, num_variants); m++) {
                     for (int n = 0; n < info.num_samples_per_mask; n++) {
-                        printf("%d ", block_genotypes2[0][m * info.num_samples_per_mask + n]);
+                        printf("%d ", block_genotypes[0][m * info.num_samples_per_mask + n]);
                     }
                     printf("\n");
                 }
                 printf("}\n");
 */
-                
                 
                 copy_time += omp_get_wtime() - start_copy;
                 
@@ -184,37 +147,18 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                 
                 do {
 //                     print_combination(comb, 0, order);
-                    // Get genotypes of that combination
-
-                    uint8_t *combination_genotypes[order];
-                    for (int s = 0; s < order; s++) {
-                        // Get combination address from block
-                        combination_genotypes[s] = block_genotypes[s] + (comb[s] % options_data->stride) * training_sizes[3 * i];
-                    }
                     
-                    risky_combination *risky_comb = get_model_from_combination_in_fold(order, comb, combination_genotypes,
-                                                                                    training_sizes[3 * i + 1], training_sizes[3 * i + 2],
-                                                                                    num_genotype_combinations, genotype_combinations, num_counts_per_combination,
-                                                                                    info, &masks_time, &counts_time, 0);
-
-                    
-                   uint8_t *combination_genotypes2[order];
+                   // Get genotypes of that combination
+                   uint8_t *combination_genotypes[order];
                    for (int s = 0; s < order; s++) {
                        // Get combination address from block
-                       combination_genotypes2[s] = block_genotypes2[s] + (comb[s] % options_data->stride) * info.num_samples_per_mask;
+                       combination_genotypes[s] = block_genotypes[s] + (comb[s] % options_data->stride) * info.num_samples_per_mask;
                    }
-                   risky_combination *risky_comb2 = get_model_from_combination_in_fold(order, comb, combination_genotypes2,
+                   risky_combination *risky_comb = get_model_from_combination_in_fold(order, comb, combination_genotypes,
                                                                                    training_sizes[3 * i + 1], training_sizes[3 * i + 2],
                                                                                    num_genotype_combinations, genotype_combinations, num_counts_per_combination,
                                                                                    info, &masks_time, &counts_time, 1);
                    
-                   // If equals, it means that get_masks and get_counts are correct! :-)
-                   assert(risky_comb->num_risky_genotypes == risky_comb2->num_risky_genotypes);
-                   for (int g = 0; g < risky_comb->num_risky_genotypes; g++) {
-                        assert(risky_comb->genotypes[g] == risky_comb2->genotypes[g]);
-                   }
-                   
-                   //printf("\n----------------------\n");
                     if (risky_comb) {
                         // Check the model against the testing dataset
                         double accuracy = 0.0f;
@@ -226,7 +170,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
 //                             accuracy = test_model(order, risky_comb, testing_genotypes, sizes[3 * i + 1], sizes[3 * i + 2], &confusion_time);
 //                             free(testing_genotypes);
                         } else {
-                            accuracy = test_model(order, risky_comb, combination_genotypes, training_sizes[3 * i + 1], training_sizes[3 * i + 2], &confusion_time);
+                            accuracy = test_model(order, risky_comb, combination_genotypes, training_sizes[3 * i + 1], training_sizes[3 * i + 2], info, &confusion_time, 1);
                         }
 //                         printf("*  Balanced accuracy: %.3f\n", accuracy);
                         
@@ -265,8 +209,6 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                     }
                 }
                 
-//                exit(0);
-    
             } while (get_next_block(num_blocks_per_dim, order, block_coords));
             
             _mm_free(info.masks);
@@ -418,6 +360,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
         }
     }
     
+    assert(bestkey);
     LOG_INFO_F("Best model is %s with a CVC of %d/%d\n", bestkey, bestvalue, options_data->num_cv_repetitions);
     
     kh_destroy(cvc, models_for_cvc);
