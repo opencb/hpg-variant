@@ -204,7 +204,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                         }
                     }
                     if (letsfree) {
-                        free(block_genotypes[s]);
+                        _mm_free(block_genotypes[s]);
                     }
                 }
                 
