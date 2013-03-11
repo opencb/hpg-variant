@@ -254,7 +254,7 @@ uint8_t* get_masks(int order, uint8_t **genotypes, masks_info info) {
     
     for (int j = 0; j < order; j++) {
         for (int i = 0; i < NUM_GENOTYPES; i++) {
-            reference_genotype = _mm_set_epi8(i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i);
+            reference_genotype = _mm_set1_epi8(i);
             
             // Set value of masks
             for (int k = 0; k < info.num_samples_per_mask; k += 16) {
@@ -352,9 +352,12 @@ unsigned int *get_confusion_matrix(int order, risky_combination *combination, ma
     memset(confusion_masks, 0, combination->num_risky_genotypes * num_samples * sizeof(uint8_t));
     
 /*
-    printf("input 2 = { ");
-    for (int i = 0; i < num_samples; i++) {
-        printf("%d ", genotypes[0][i]);
+    printf("input 2 = {\n");
+    for (int i = 0; i < order; i++) {
+        for (int j = 0; j < num_samples; j++) {
+            printf("%03d ", genotypes[i][j]);
+        }
+        printf("\n");
     }
     printf("}\nrisky genotypes 2 = { ");
     for (int i = 0; i < combination->num_risky_genotypes; i++) {
@@ -364,7 +367,6 @@ unsigned int *get_confusion_matrix(int order, risky_combination *combination, ma
         printf(", ");
     }
     printf("}\n");
-*/
     
     for (int i = 0; i < combination->num_risky_genotypes; i++) {
         // First SNP in the combination
@@ -380,16 +382,112 @@ unsigned int *get_confusion_matrix(int order, risky_combination *combination, ma
         }
     }
     
-/*
-    printf("confusion masks 2 = {\n");
+    printf("confusion masks = {\n");
     for (int j = 0; j < combination->num_risky_genotypes; j++) {
         printf(" comb %d = { ", j);
         for (int k = 0; k < num_samples; k++) {
-            printf("%d ", confusion_masks[j * num_samples + k]);
+            printf("%03d ", confusion_masks[j * num_samples + k]);
         }
         printf("}\n");
     }
     printf("}\n");
+    memset(confusion_masks, 0, combination->num_risky_genotypes * num_samples * sizeof(uint8_t));
+*/
+    
+    __m128i comb_genotypes;     // The genotype to compare for generating a mask (of the form {0 0 0 0 ... }, {1 1 1 1 ... })
+    __m128i input_genotypes;    // Genotypes from the input dataset
+    __m128i mask;               // Comparison between the reference genotype and input genotypes
+    
+    for (int i = 0; i < combination->num_risky_genotypes; i++) {
+        // First SNP in the combination
+/*
+        printf("check gt = %d\t", combination->genotypes[i * order]);
+*/
+        comb_genotypes = _mm_set1_epi8(combination->genotypes[i * order]);
+        
+        for (int k = 0; k < info.num_samples_per_mask; k += 16) {
+/*
+            printf("loaded = { ");
+            for (int m = 0; m < 16; m++) {
+                printf("%d", genotypes[0][k + m]);
+            }
+            printf("}\n");
+*/
+            input_genotypes = _mm_load_si128(genotypes[0] + k);
+            //mask = _mm_and_si128(mask, _mm_cmpeq_epi8(input_genotypes, comb_genotypes));
+            mask = _mm_cmpeq_epi8(input_genotypes, comb_genotypes);
+            _mm_store_si128(confusion_masks + i * num_samples + k, mask);
+
+/*
+            printf("confusion masks sse %d = {\n", i);
+            int m = i;
+            //for (int m = 0; m < combination->num_risky_genotypes; m++) {
+                printf(" comb %d = { ", m);
+                for (int n = 0; n < num_samples; n++) {
+                    printf("%03d ", confusion_masks[m * num_samples + n]);
+                }
+                //printf("}\n");
+            //}
+            printf("}\n");
+*/
+        }
+        
+        
+        // Next SNPs in the combination
+        for (int j = 1; j < order; j++) {
+/*
+            printf("check gt = %d\t", combination->genotypes[i * order + j]);
+*/
+            // TODO better to use order or samples_per_mask in outer loop? should try
+            comb_genotypes = _mm_set1_epi8(combination->genotypes[i * order + j]);
+            
+            for (int k = 0; k < info.num_samples_per_mask; k += 16) {
+/*
+                printf("loaded = { ");
+                for (int m = 0; m < 16; m++) {
+                    printf("%d", genotypes[j][k + m]);
+                }
+                printf("}\n");
+*/
+                input_genotypes = _mm_load_si128(genotypes[j] + k);
+                mask = _mm_load_si128(confusion_masks + i * num_samples + k);
+                mask = _mm_and_si128(mask, _mm_cmpeq_epi8(input_genotypes, comb_genotypes));
+                //mask = _mm_cmpeq_epi8(input_genotypes, comb_genotypes);
+                _mm_store_si128(confusion_masks + i * num_samples + k, mask);
+                
+/*
+                printf("confusion masks sse %d = {\n", i);
+                int m = i;
+                //for (int m = 0; m < combination->num_risky_genotypes; m++) {
+                    printf(" comb %d = { ", m);
+                    for (int n = 0; n < num_samples; n++) {
+                        printf("%03d ", confusion_masks[m * num_samples + n]);
+                    }
+                    //printf("}\n");
+                //}
+                printf("}\n");
+*/
+            }
+        }
+/*
+        printf("\n------------------------\n");
+*/
+    }
+    
+/*
+    printf("confusion masks sse = {\n");
+    for (int j = 0; j < combination->num_risky_genotypes; j++) {
+        printf(" comb %d = { ", j);
+        for (int k = 0; k < num_samples; k++) {
+            printf("%03d ", confusion_masks[j * num_samples + k]);
+        }
+        printf("}\n");
+    }
+    printf("}\n");
+*/
+    
+/*
+    exit(0);
 */
     
     uint8_t final_masks[num_samples];
