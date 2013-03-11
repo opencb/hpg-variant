@@ -373,80 +373,28 @@ unsigned int *get_confusion_matrix(int order, risky_combination *combination, ma
     __m128i input_genotypes;    // Genotypes from the input dataset
     __m128i mask;               // Comparison between the reference genotype and input genotypes
     
+    
     for (int i = 0; i < combination->num_risky_genotypes; i++) {
         // First SNP in the combination
-/*
-        printf("check gt = %d\t", combination->genotypes[i * order]);
-*/
         comb_genotypes = _mm_set1_epi8(combination->genotypes[i * order]);
         
         for (int k = 0; k < info.num_samples_per_mask; k += 16) {
-/*
-            printf("loaded = { ");
-            for (int m = 0; m < 16; m++) {
-                printf("%d", genotypes[0][k + m]);
-            }
-            printf("}\n");
-*/
             input_genotypes = _mm_load_si128(genotypes[0] + k);
-            //mask = _mm_and_si128(mask, _mm_cmpeq_epi8(input_genotypes, comb_genotypes));
             mask = _mm_cmpeq_epi8(input_genotypes, comb_genotypes);
             _mm_store_si128(confusion_masks + i * num_samples + k, mask);
-
-/*
-            printf("confusion masks sse %d = {\n", i);
-            int m = i;
-            //for (int m = 0; m < combination->num_risky_genotypes; m++) {
-                printf(" comb %d = { ", m);
-                for (int n = 0; n < num_samples; n++) {
-                    printf("%03d ", confusion_masks[m * num_samples + n]);
-                }
-                //printf("}\n");
-            //}
-            printf("}\n");
-*/
         }
-        
         
         // Next SNPs in the combination
         for (int j = 1; j < order; j++) {
-/*
-            printf("check gt = %d\t", combination->genotypes[i * order + j]);
-*/
-            // TODO better to use order or samples_per_mask in outer loop? should try
             comb_genotypes = _mm_set1_epi8(combination->genotypes[i * order + j]);
             
             for (int k = 0; k < info.num_samples_per_mask; k += 16) {
-/*
-                printf("loaded = { ");
-                for (int m = 0; m < 16; m++) {
-                    printf("%d", genotypes[j][k + m]);
-                }
-                printf("}\n");
-*/
                 input_genotypes = _mm_load_si128(genotypes[j] + k);
                 mask = _mm_load_si128(confusion_masks + i * num_samples + k);
                 mask = _mm_and_si128(mask, _mm_cmpeq_epi8(input_genotypes, comb_genotypes));
-                //mask = _mm_cmpeq_epi8(input_genotypes, comb_genotypes);
                 _mm_store_si128(confusion_masks + i * num_samples + k, mask);
-                
-/*
-                printf("confusion masks sse %d = {\n", i);
-                int m = i;
-                //for (int m = 0; m < combination->num_risky_genotypes; m++) {
-                    printf(" comb %d = { ", m);
-                    for (int n = 0; n < num_samples; n++) {
-                        printf("%03d ", confusion_masks[m * num_samples + n]);
-                    }
-                    //printf("}\n");
-                //}
-                printf("}\n");
-*/
             }
         }
-/*
-        printf("\n------------------------\n");
-*/
     }
     
 /*
@@ -484,17 +432,33 @@ unsigned int *get_confusion_matrix(int order, risky_combination *combination, ma
     printf("}\n");
 */
    
-    // Get the counts
-    for (int k = 0; k < info.num_affected; k++) {
-        // newrates[0] = TP, newrates[1] = FN
-        (final_masks[k]) ? (rates[0])++ : (rates[1])++;
-    }
-    for (int k = 0; k < info.num_unaffected; k++) {
-        // newrates[2] = FP, newrates[3] = TN
-        (final_masks[info.num_affected_with_padding + k]) ? (rates[2])++ : (rates[3])++;
+    // Get the counts (popcount is the number of 1s -> popcount / 8 is the number of positives)
+    int popcount0 = 0, popcount1 = 0;
+    __m128i snp_and;
+    
+    memset(final_masks + info.num_affected, 0, info.num_affected_with_padding - info.num_affected);
+    memset(final_masks + info.num_affected_with_padding + info.num_unaffected, 0, info.num_unaffected_with_padding - info.num_unaffected);
+    
+    for (int k = 0; k < info.num_affected; k += 16) {
+        snp_and = _mm_load_si128(final_masks + k);
+        popcount0 += _mm_popcnt_u64(_mm_extract_epi64(snp_and, 0)) + 
+                     _mm_popcnt_u64(_mm_extract_epi64(snp_and, 1));
     }
     
+    for (int k = 0; k < info.num_unaffected; k += 16) {
+        snp_and = _mm_load_si128(final_masks + info.num_affected_with_padding + k);
+        popcount1 += _mm_popcnt_u64(_mm_extract_epi64(snp_and, 0)) + 
+                     _mm_popcnt_u64(_mm_extract_epi64(snp_and, 1));
+    }
+    
+    rates[0] = popcount0 / 8;
+    rates[1] = info.num_affected - popcount0 / 8;
+    rates[2] = popcount1 / 8;
+    rates[3] = info.num_unaffected - popcount1 / 8;
+    
+/*
     assert(rates[0] + rates[1] + rates[2] + rates[3] == info.num_affected + info.num_unaffected);
+*/
     
     return rates;
 }
