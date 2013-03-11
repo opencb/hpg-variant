@@ -16,12 +16,12 @@
     
 /*
     printf("masks (%d) = {\n", info.num_masks);
-    printf("%d ", masks[0]);
+    printf("%03d ", masks[0]);
     for (int i = 1; i < info.num_masks; i++) {
         if (i % info.num_samples_per_mask == 0) {
             printf("\n");
         }
-        printf("%d ", masks[i]);
+        printf("%03d ", masks[i]);
     }
     printf("}\n");
 */
@@ -248,41 +248,29 @@ uint8_t* get_masks(int order, uint8_t **genotypes, masks_info info) {
      */
     uint8_t *masks = info.masks;
     
-    assert(masks);
+    __m128i reference_genotype; // The genotype to compare for generating a mask (of the form {0 0 0 0 ... }, {1 1 1 1 ... })
+    __m128i input_genotypes;    // Genotypes from the input dataset
+    __m128i mask;               // Comparison between the reference genotype and input genotypes
     
     for (int j = 0; j < order; j++) {
-        
-//         printf("snp %d = {\n", j);
-        
-        // Genotypes in the range (0,2)
         for (int i = 0; i < NUM_GENOTYPES; i++) {
-            int k = 0;
-//             printf("(1) ");
-            for (; k < info.num_affected; k++) {
-//                 printf("%d ", genotypes[j][k]);
-                masks[j * NUM_GENOTYPES * (info.num_samples_per_mask) + i * (info.num_samples_per_mask) + k] = (genotypes[j][k] == i);
+            reference_genotype = _mm_set_epi8(i, i, i, i, i, i, i, i, i, i, i, i, i, i, i, i);
+            
+            // Set value of masks
+            for (int k = 0; k < info.num_samples_per_mask; k += 16) {
+                input_genotypes = _mm_load_si128(genotypes[j] + k);
+                mask = _mm_cmpeq_epi8(input_genotypes, reference_genotype);
+                _mm_store_si128(masks + j * NUM_GENOTYPES * (info.num_samples_per_mask) + i * (info.num_samples_per_mask) + k, mask);
             }
-//             printf("(2) ");
-            for (; k < info.num_affected_with_padding; k++) {
-//                 printf("0 ");
-                masks[j * NUM_GENOTYPES * (info.num_samples_per_mask) + i * (info.num_samples_per_mask) + k] = 0;
-            }
-//             printf("(3) ");
-            for (k = 0; k < info.num_unaffected; k++) {
-//                 printf("%d ", genotypes[j][info.num_affected_with_padding + k]);
-                uint8_t gt = genotypes[j][info.num_affected_with_padding + k];
-                masks[j * NUM_GENOTYPES * (info.num_samples_per_mask) + i * (info.num_samples_per_mask) + info.num_affected_with_padding + k] = (gt == i);
-            }
-//             printf("(4) ");
-            for (; k < info.num_unaffected_with_padding; k++) {
-//                 printf("0 ");
-                masks[j * NUM_GENOTYPES * (info.num_samples_per_mask) + i * (info.num_samples_per_mask) + info.num_affected_with_padding + k] = 0;
-            }
-//             printf("\n");
+         
+            // Set padding with zeroes
+            memset(masks + j * NUM_GENOTYPES * (info.num_samples_per_mask) + i * (info.num_samples_per_mask) + info.num_affected,
+                   0, info.num_affected_with_padding - info.num_affected);
+            memset(masks + j * NUM_GENOTYPES * (info.num_samples_per_mask) + i * (info.num_samples_per_mask) + 
+                   info.num_affected_with_padding + info.num_unaffected,
+                   0, info.num_unaffected_with_padding - info.num_unaffected);
         }
     }
-    
-//     exit(1);
     
     return masks;
 }
@@ -431,7 +419,9 @@ unsigned int *get_confusion_matrix(int order, risky_combination *combination, ma
         (final_masks[info.num_affected_with_padding + k]) ? (rates[2])++ : (rates[3])++;
     }
     
+/*
     assert(rates[0] + rates[1] + rates[2] + rates[3] == info.num_affected + info.num_unaffected);
+*/
     
     return rates;
 }
