@@ -367,31 +367,6 @@ unsigned int *get_confusion_matrix(int order, risky_combination *combination, ma
         printf(", ");
     }
     printf("}\n");
-    
-    for (int i = 0; i < combination->num_risky_genotypes; i++) {
-        // First SNP in the combination
-        for (int k = 0; k < num_samples; k++) {
-            confusion_masks[i * num_samples + k] = (combination->genotypes[i * order] == genotypes[0][k]);
-        }
-        
-        // Next SNPs in the combination
-        for (int j = 1; j < order; j++) {
-            for (int k = 0; k < num_samples; k++) {
-                confusion_masks[i * num_samples + k] &= (combination->genotypes[i * order + j] == genotypes[j][k]);
-            }
-        }
-    }
-    
-    printf("confusion masks = {\n");
-    for (int j = 0; j < combination->num_risky_genotypes; j++) {
-        printf(" comb %d = { ", j);
-        for (int k = 0; k < num_samples; k++) {
-            printf("%03d ", confusion_masks[j * num_samples + k]);
-        }
-        printf("}\n");
-    }
-    printf("}\n");
-    memset(confusion_masks, 0, combination->num_risky_genotypes * num_samples * sizeof(uint8_t));
 */
     
     __m128i comb_genotypes;     // The genotype to compare for generating a mask (of the form {0 0 0 0 ... }, {1 1 1 1 ... })
@@ -485,28 +460,30 @@ unsigned int *get_confusion_matrix(int order, risky_combination *combination, ma
     }
     printf("}\n");
 */
-    
-/*
-    exit(0);
-*/
-    
+   
     uint8_t final_masks[num_samples];
-    memcpy(final_masks, confusion_masks, num_samples * sizeof(uint8_t));
-    // Merge all positives (1) and negatives (0)
-    for (int j = 1; j < combination->num_risky_genotypes; j++) {
-        for (int k = 0; k < num_samples; k++) {
-            final_masks[k] |= confusion_masks[j * num_samples + k];
+    __m128i final_or, other_mask;
+    
+    for (int k = 0; k < num_samples; k += 16) {
+        final_or = _mm_load_si128(confusion_masks + k); // TODO first mask
+        
+        // Merge all positives (1) and negatives (0)
+        for (int j = 1; j < combination->num_risky_genotypes; j++) {
+            other_mask = _mm_load_si128(confusion_masks + j * num_samples + k);
+            final_or = _mm_or_si128(final_or, other_mask);
         }
+        
+        _mm_store_si128(final_masks + k, final_or);
     }
     
 /*
-    printf("final masks 2 = { ");
+    printf("final masks sse = {\n");
     for (int k = 0; k < num_samples; k++) {
         printf("%d ", final_masks[k]);
     }
     printf("}\n");
 */
-    
+   
     // Get the counts
     for (int k = 0; k < info.num_affected; k++) {
         // newrates[0] = TP, newrates[1] = FN
@@ -517,9 +494,7 @@ unsigned int *get_confusion_matrix(int order, risky_combination *combination, ma
         (final_masks[info.num_affected_with_padding + k]) ? (rates[2])++ : (rates[3])++;
     }
     
-/*
     assert(rates[0] + rates[1] + rates[2] + rates[3] == info.num_affected + info.num_unaffected);
-*/
     
     return rates;
 }
