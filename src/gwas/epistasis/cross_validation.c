@@ -25,7 +25,6 @@ int** get_k_folds(unsigned int num_samples_affected, unsigned int num_samples_un
     unsigned int *fold_sizes = calloc(3 * k, sizeof(unsigned int));
     unsigned int fold_size = num_samples / k;
     unsigned int mod_folds_size = num_samples % k;
-    unsigned int all_folds_size = fold_size * k;
     for (int i = 0; i < k; i++) {
         // If the fold size can't be exactly the same for all folds, make distribution a bit uneven
         fold_sizes[3 * i] = (i < mod_folds_size) ? fold_size + 1 : fold_size ;

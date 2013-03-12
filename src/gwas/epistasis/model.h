@@ -62,9 +62,9 @@ enum eval_function { CA, BA, wBA, GAMMA, TAU_B };
 
 risky_combination *get_model_from_combination_in_fold(int order, int comb[order], uint8_t **val, 
                                                       int num_genotype_combinations, uint8_t **genotype_combinations, 
-                                                      int num_counts, masks_info info, double *masks_time, double *counts_time);
+                                                      int num_counts, int counts[num_counts], masks_info info);
 
-double test_model(int order, risky_combination *risky_comb, uint8_t **val, masks_info info, double *confusion_time);
+double test_model(int order, risky_combination *risky_comb, uint8_t **val, masks_info info);
 
 int add_to_model_ranking(risky_combination *risky_comb, int max_ranking_size, linked_list_t *ranking_risky);
 
@@ -85,7 +85,7 @@ int add_to_model_ranking(risky_combination *risky_comb, int max_ranking_size, li
  * @param num_counts Number of counts that will be calculated
  * @return List of counts, paired in (affected,unaffected)
  **/
-int* get_counts(int order, uint8_t *masks, uint8_t **genotype_combinations, int num_genotype_combinations, int num_counts, masks_info info);
+int* get_counts(int order, uint8_t *masks, uint8_t **genotype_combinations, int num_genotype_combinations, int *counts, masks_info info);
 
 uint8_t* get_masks(int order, uint8_t **genotypes, masks_info info);
 

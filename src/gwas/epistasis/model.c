@@ -5,14 +5,13 @@
  *       Main pipeline      *
  * **************************/
 
-    risky_combination *get_model_from_combination_in_fold(int order, int comb[order], uint8_t **val, int num_genotype_combinations, uint8_t **genotype_combinations, 
-                                                      int num_counts, masks_info info, double *masks_time, double *counts_time) {
+risky_combination *get_model_from_combination_in_fold(int order, int comb[order], uint8_t **val, 
+                                                      int num_genotype_combinations, uint8_t **genotype_combinations, 
+                                                      int num_counts, int counts[num_counts], masks_info info) {
     risky_combination *risky_comb = NULL;
     
     // Get counts for the provided genotypes
-    double start_masks = omp_get_wtime();
     uint8_t *masks = get_masks(order, val, info); // Grouped by SNP
-    *masks_time += omp_get_wtime() - start_masks;
     
 /*
     printf("masks (%d) = {\n", info.num_masks);
@@ -26,9 +25,7 @@
     printf("}\n");
 */
     
-    double start_counts = omp_get_wtime();
-    int *counts = get_counts(order, masks, genotype_combinations, num_genotype_combinations, num_counts, info);
-    *counts_time += omp_get_wtime() - start_counts;
+    get_counts(order, masks, genotype_combinations, num_genotype_combinations, counts, info);
     
 //     _mm_free(masks);
     
@@ -66,19 +63,16 @@
 //         printf("\n}\n");
     }
     
-    free(counts);
     free(risky_idx);
     
     return risky_comb;
 }
 
 
-double test_model(int order, risky_combination *risky_comb, uint8_t **val, masks_info info, double *confusion_time) {
+double test_model(int order, risky_combination *risky_comb, uint8_t **val, masks_info info) {
     // Step 5 -> Check against a testing partition
     // Get the matrix containing {FP,FN,TP,TN}
-    double start_conf = omp_get_wtime();
     unsigned int *confusion_matrix = get_confusion_matrix(order, risky_comb, info, val);
-    *confusion_time += omp_get_wtime() - start_conf;
     
 //     printf("confusion matrix = { ");
 //     for (int k = 0; k < 4; k++) {
@@ -174,11 +168,9 @@ int add_to_model_ranking(risky_combination *risky_comb, int max_ranking_size, li
  *          Counts          *
  * **************************/
 
-int* get_counts(int order, uint8_t *masks, uint8_t **genotype_combinations, int num_genotype_combinations, int num_counts, masks_info info) {
-    int *counts = malloc(num_counts * sizeof(int)); // Affected and unaffected
-    
+int* get_counts(int order, uint8_t *masks, uint8_t **genotype_combinations, int num_genotype_combinations, int *counts, masks_info info) {
     uint8_t *comb;
-    int flag = 1, count = 0;
+    int count = 0;
     
     __m128i snp_and, snp_cmp;
     
