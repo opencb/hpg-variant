@@ -95,7 +95,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
             
             do {
                 uint8_t *block_starts[order];
-    //             printf("block = { ");
+    //             printf("block starts = { ");
                 for (int s = 0; s < order; s++) {
                     block_starts[s] = genotypes + block_coords[s] * options_data->stride * num_samples;
     //                 printf("%d ", block_coords[s] * options_data->stride);
@@ -124,7 +124,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                         // If not equals to a previous one, retrieve data
 //                         printf("getting %d\n", m);
                         block_genotypes[m] = get_genotypes_for_block_exclude_fold(num_variants, num_samples, info, sizes[3 * i], folds[i], 
-                                                                                    options_data->stride, block_coords[m], block_starts[m]);
+                                                                                  options_data->stride, block_coords[m], block_starts[m]);
                     }
                 }
                 
@@ -330,7 +330,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                 
                 // Sum all accuracies for the best and the candidate
                 for (int r = 0; r < options_data->num_cv_repetitions; r++) {
-                    risky_combination *element = linked_list_get(0, best_models[r]);
+                    risky_combination *element = linked_list_get_first(best_models[r]);
                     
                     // maybe_key = snp1_snp2_..._snpN
                     char *maybe_key = calloc(order * (max_val_len + 1), sizeof(char));
