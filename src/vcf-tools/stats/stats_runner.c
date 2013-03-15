@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
+ * Copyright (c) 2012-2013 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
  * Copyright (c) 2012 Ignacio Medina (ICM-CIPF)
  *
  * This file is part of hpg-variant.
@@ -19,6 +19,12 @@
  */
 
 #include "stats.h"
+
+
+static int write_output_variant_alleles_stats(variant_stats_t *var_stats, FILE *stats_fd);    
+static int write_output_variant_genotypes_stats(variant_stats_t *var_stats, FILE *stats_fd);
+static inline int write_output_variant_missing_data(variant_stats_t *var_stats, FILE *stats_fd);
+
 
 int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *options_data) {
     list_t *output_list = (list_t*) malloc (sizeof(list_t));
@@ -193,62 +199,16 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
                 // chromosome   position   [<allele>   <count>   <freq>]+   [<genotype>   <count>   <freq>]+   miss_all   miss_gt
                 list_item_t* item = NULL;
                 variant_stats_t *var_stats;
-                int num_alleles, count_alleles_total, genotypes_count_total;
-                FILE *fd = NULL;
-        
                 while ((item = list_remove_item(output_list)) != NULL) {
                     var_stats = item->data_p;
-                    num_alleles = var_stats->num_alleles;
                     
                     fprintf(stats_fd, "%s\t%ld\t",
                             var_stats->chromosome, 
                             var_stats->position);
                     
-                    // Reference allele
-                    fprintf(stats_fd, "%s\t%d\t%.4f\t",
-                            var_stats->ref_allele,
-                            var_stats->alleles_count[0],
-                            var_stats->alleles_freq[0]
-                        );
-                    
-                    // Alternate alleles
-                    for (int i = 1; i < num_alleles; i++) {
-                        fprintf(stats_fd, "%s\t%d\t%.4f\t",
-                                var_stats->alternates[i-1],
-                                var_stats->alleles_count[i],
-                                var_stats->alleles_freq[i]
-                            );
-                    }
-                    
-                    // Genotypes
-                    int gt_count = 0;
-                    float gt_freq = 0;
-                    for (int i = 0; i < num_alleles; i++) {
-                        for (int j = i; j < num_alleles; j++) {
-                            int idx1 = i * num_alleles + j;
-                            if (i == j) {
-                                gt_count = var_stats->genotypes_count[idx1];
-                                gt_freq = var_stats->genotypes_freq[idx1];
-                            } else {
-                                int idx2 = j * num_alleles + i;
-                                gt_count = var_stats->genotypes_count[idx1] + var_stats->genotypes_count[idx2];
-                                gt_freq = var_stats->genotypes_freq[idx1] + var_stats->genotypes_freq[idx2];
-                            }
-                            
-                        fprintf(stats_fd, "%s|%s\t%d\t%.4f\t",
-                                i == 0 ? var_stats->ref_allele : var_stats->alternates[i-1],
-                                j == 0 ? var_stats->ref_allele : var_stats->alternates[j-1],
-                                gt_count, 
-                                gt_freq
-                            );
-                        }
-                    }
-                    
-                    // Missing data
-                    fprintf(stats_fd, "%d\t%d\n",
-                            var_stats->missing_alleles,
-                            var_stats->missing_genotypes
-                        );
+                    write_output_variant_alleles_stats(var_stats, stats_fd);
+                    write_output_variant_genotypes_stats(var_stats, stats_fd);
+                    write_output_variant_missing_data(var_stats, stats_fd);
                     
                     // Free resources
                     variant_stats_free(var_stats);
@@ -290,3 +250,55 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
     return 0;
 }
 
+static int write_output_variant_alleles_stats(variant_stats_t *var_stats, FILE *stats_fd) {
+    int written = 0;
+    
+    // Reference allele
+    written += fprintf(stats_fd, "%s\t%d\t%.4f\t",
+                       var_stats->ref_allele,
+                       var_stats->alleles_count[0],
+                       var_stats->alleles_freq[0]);
+
+    // Alternate alleles
+    for (int i = 1; i < var_stats->num_alleles; i++) {
+        written += fprintf(stats_fd, "%s\t%d\t%.4f\t",
+                           var_stats->alternates[i-1],
+                           var_stats->alleles_count[i],
+                           var_stats->alleles_freq[i]);
+    }
+    
+    return written;
+} 
+    
+static int write_output_variant_genotypes_stats(variant_stats_t *var_stats, FILE *stats_fd) {
+    int written = 0;
+    int gt_count = 0;
+    float gt_freq = 0;
+    
+    for (int i = 0; i < var_stats->num_alleles; i++) {
+        for (int j = i; j < var_stats->num_alleles; j++) {
+            int idx1 = i * var_stats->num_alleles + j;
+            if (i == j) {
+                gt_count = var_stats->genotypes_count[idx1];
+                gt_freq = var_stats->genotypes_freq[idx1];
+            } else {
+                int idx2 = j * var_stats->num_alleles + i;
+                gt_count = var_stats->genotypes_count[idx1] + var_stats->genotypes_count[idx2];
+                gt_freq = var_stats->genotypes_freq[idx1] + var_stats->genotypes_freq[idx2];
+            }
+
+            written += fprintf(stats_fd, "%s|%s\t%d\t%.4f\t",
+                               i == 0 ? var_stats->ref_allele : var_stats->alternates[i-1],
+                               j == 0 ? var_stats->ref_allele : var_stats->alternates[j-1],
+                               gt_count, gt_freq);
+        }
+    }
+    
+    return written;
+}
+
+static inline int write_output_variant_missing_data(variant_stats_t *var_stats, FILE *stats_fd) {
+    return fprintf(stats_fd, "%d\t%d\n",
+                   var_stats->missing_alleles,
+                   var_stats->missing_genotypes);
+}
