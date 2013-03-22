@@ -21,10 +21,7 @@
 #ifndef ASSOC_H
 #define ASSOC_H
 
-#include <argtable2.h>
-#include <cprops/hashtable.h>
 #include <gsl/gsl_cdf.h>
-#include <libconfig.h>
 #include <omp.h>
 
 #include <bioformats/family/family.h>
@@ -33,7 +30,10 @@
 #include <bioformats/vcf/vcf_file.h>
 #include <bioformats/vcf/vcf_util.h>
 #include <commons/log.h>
+#include <commons/argtable/argtable2.h>
+#include <commons/config/libconfig.h>
 #include <containers/list.h>
+#include <containers/cprops/hashtable.h>
 
 #include "assoc_basic_test.h"
 #include "assoc_fisher_test.h"

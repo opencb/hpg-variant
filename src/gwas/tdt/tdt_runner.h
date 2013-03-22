@@ -28,7 +28,6 @@
 #include <string.h>
 #include <unistd.h>
 
-#include <cprops/hashtable.h>
 #include <omp.h>
 
 #include <bioformats/family/family.h>
@@ -42,6 +41,7 @@
 #include <commons/log.h>
 #include <commons/string_utils.h>
 #include <containers/list.h>
+#include <containers/cprops/hashtable.h>
 
 #include "shared_options.h"
 #include "hpg_variant_utils.h"
