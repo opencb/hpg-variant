@@ -36,7 +36,7 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
     }
     
     LOG_INFO("About to read PED file...\n");
-    // Read PED file before doing any proccessing
+    // Read PED file before doing any processing
     ret_code = ped_read(ped_file);
     if (ret_code != 0) {
         LOG_FATAL_F("Can't read PED file: %s\n", ped_file->filename);
@@ -120,7 +120,7 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
                 }
                 
                 // Initialize structures needed for association tests and write headers of output files
-                if (!initialization_done) {
+                if (!initialization_done && file->samples_names->size > 0) {
 # pragma omp critical
                 {
                     // Guarantee that just one thread performs this operation
@@ -155,6 +155,11 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
                         initialization_done = 1;
                     }
                 }
+                }
+                
+                // If it has not been initialized it means that header is not fully read
+                if (!initialization_done) {
+                    continue;
                 }
                 
                 vcf_batch_t *batch = fetch_vcf_batch(file);
