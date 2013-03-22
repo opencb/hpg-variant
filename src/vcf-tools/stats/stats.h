@@ -25,8 +25,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <cprops/linked_list.h>
-#include <libconfig.h>
 #include <omp.h>
 
 #include <bioformats/vcf/vcf_file_structure.h>
@@ -34,6 +32,8 @@
 #include <bioformats/vcf/vcf_stats.h>
 #include <commons/file_utils.h>
 #include <commons/log.h>
+#include <commons/config/libconfig.h>
+#include <containers/cprops/linked_list.h>
 
 #include "error.h"
 #include "shared_options.h"

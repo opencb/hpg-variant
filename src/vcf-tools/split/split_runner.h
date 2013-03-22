@@ -23,16 +23,15 @@
 
 #include <stdlib.h>
 
-#include <cprops/hashtable.h>
 #include <omp.h>
 
-#include <commons/file_utils.h>
-#include <containers/list.h>
-#include <commons/log.h>
-// #include <bioformats/vcf/vcf_batch.h>
 #include <bioformats/vcf/vcf_file_structure.h>
 #include <bioformats/vcf/vcf_file.h>
 #include <bioformats/vcf/vcf_filters.h>
+#include <commons/file_utils.h>
+#include <commons/log.h>
+#include <containers/list.h>
+#include <containers/cprops/hashtable.h>
 
 #include "hpg_variant_utils.h"
 #include "split.h"
