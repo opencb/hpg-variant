@@ -25,7 +25,6 @@ int tdt_test(vcf_record_t **variants, int num_variants, family_t **families, int
     
     int ret_code = 0;
     int tid = omp_get_thread_num();
-    int num_samples = cp_hashtable_count(sample_ids);
     
     tdt_result_t *result;
     char **sample_data;
@@ -44,8 +43,10 @@ int tdt_test(vcf_record_t **variants, int num_variants, family_t **families, int
         LOG_DEBUG_F("[%d] Checking variant %.*s:%ld\n", tid, record->chromosome_len, record->chromosome, record->position);
         
         sample_data = (char**) record->samples->items;
-        gt_position = get_field_position_in_format("GT", strndup(record->format, record->format_len));
-    
+        char *format_dup = strndup(record->format, record->format_len);
+        gt_position = get_field_position_in_format("GT", format_dup);
+        free(format_dup);
+        
         // Transmission counts
         int t1 = 0;
         int t2 = 0;
@@ -57,7 +58,6 @@ int tdt_test(vcf_record_t **variants, int num_variants, family_t **families, int
             family = families[f];
             individual_t *father = family->father;
             individual_t *mother = family->mother;
-            cp_list *children = family->children;
 
 //           LOG_DEBUG_F("[%d] Checking suitability of family %s\n", tid, family->id);
             

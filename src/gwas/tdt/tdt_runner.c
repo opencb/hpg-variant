@@ -36,7 +36,7 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
     }
     
     LOG_INFO("About to read PED file...\n");
-    // Read PED file before doing any proccessing
+    // Read PED file before doing any processing
     ret_code = ped_read(ped_file);
     if (ret_code != 0) {
         LOG_FATAL_F("Can't read PED file: %s\n", ped_file->filename);
@@ -93,6 +93,8 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
             FILE *passed_file = NULL, *failed_file = NULL;
             get_filtering_output_files(shared_options_data, &passed_file, &failed_file);
     
+            size_t num_vcf_headers = 0;
+            
             double start = omp_get_wtime();
             
             int i = 0;
@@ -125,7 +127,7 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
                 }
                 
                 // Initialize structures needed for TDT and write headers of output files
-                if (!initialization_done) {
+                if (!initialization_done && file->samples_names->size > 0) {
 #pragma omp critical
                 {
                     // Guarantee that just one thread performs this operation
@@ -148,6 +150,11 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
                         initialization_done = 1;
                     }
                 }
+                }
+                
+                // If it has not been initialized it means that header is not fully read
+                if (!initialization_done) {
+                    continue;
                 }
                 
                 vcf_batch_t *batch = fetch_vcf_batch(file);
