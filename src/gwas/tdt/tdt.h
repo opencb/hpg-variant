@@ -24,11 +24,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <argtable2.h>
-#include <cprops/hashtable.h>
-#include <cprops/linked_list.h>
 #include <gsl/gsl_cdf.h>
-#include <libconfig.h>
 #include <omp.h>
 
 #include <bioformats/family/checks_family.h>
@@ -38,7 +34,11 @@
 #include <bioformats/vcf/vcf_file_structure.h>
 #include <bioformats/vcf/vcf_util.h>
 #include <commons/log.h>
+#include <commons/argtable/argtable2.h>
+#include <commons/config/libconfig.h>
 #include <containers/list.h>
+#include <containers/cprops/hashtable.h>
+#include <containers/cprops/linked_list.h>
 
 #include "error.h"
 #include "shared_options.h"
