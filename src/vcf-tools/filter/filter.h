@@ -26,7 +26,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include <libconfig.h>
 #include <omp.h>
 
 #include <bioformats/vcf/vcf_file_structure.h>
@@ -35,6 +34,7 @@
 #include <bioformats/vcf/vcf_write.h>
 #include <commons/file_utils.h>
 #include <commons/log.h>
+#include <commons/config/libconfig.h>
 #include <containers/list.h>
 
 #include "error.h"

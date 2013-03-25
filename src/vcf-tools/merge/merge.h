@@ -28,8 +28,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <cprops/linked_list.h>
-#include <libconfig.h>
 
 #include <bioformats/vcf/vcf_file_structure.h>
 #include <bioformats/vcf/vcf_file.h>
@@ -37,8 +35,10 @@
 #include <bioformats/vcf/vcf_util.h>
 #include <commons/log.h>
 #include <commons/string_utils.h>
+#include <commons/config/libconfig.h>
 #include <containers/khash.h>
 #include <containers/list.h>
+#include <containers/cprops/linked_list.h>
 
 #include "error.h"
 #include "hpg_variant_utils.h"

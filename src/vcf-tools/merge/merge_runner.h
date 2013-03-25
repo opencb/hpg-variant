@@ -26,8 +26,6 @@
 #include <math.h>
 #include <stdlib.h>
 
-#include <cprops/hashtable.h>
-#include <cprops/linked_list.h>
 #include <omp.h>
 
 #include <bioformats/features/region/region.h>
@@ -40,6 +38,8 @@
 #include <containers/array_list.h>
 #include <containers/khash.h>
 #include <containers/list.h>
+#include <containers/cprops/hashtable.h>
+#include <containers/cprops/linked_list.h>
 
 #include "hpg_variant_utils.h"
 #include "merge.h"

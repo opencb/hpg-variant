@@ -30,13 +30,13 @@
  */ 
 
 #include <getopt.h>
-#include <libconfig.h>
 #include <stdlib.h>
 
-#include <argtable2.h>
 
 #include <bioformats/vcf/vcf_filters.h>
 #include <commons/log.h>
+#include <commons/argtable/argtable2.h>
+#include <commons/config/libconfig.h>
 
 #include "error.h"
 #include "shared_options.h"
