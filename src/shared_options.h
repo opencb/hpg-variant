@@ -148,15 +148,4 @@ void free_shared_options_data(shared_options_data_t *options_data);
 int read_shared_configuration(const char *filename, shared_options_t *options_data);
 
 
-/* **********************************************
- *                   Auxiliary                  *
- * **********************************************/
-
-char* get_fields(char *buffer);
-
-size_t write_function_print (char *contents, size_t size, size_t nmemb, void *userdata);
-
-char *ws_request(const char *host_url, const char *species, const char *version, const char* genes);
-
-
 #endif
