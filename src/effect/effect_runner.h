@@ -51,7 +51,6 @@
 #include <containers/array_list.h>
 #include <containers/list.h>
 #include <containers/cprops/hashtable.h>
-#include <containers/cprops/linked_list.h>
 
 #include "effect.h"
 #include "error.h"

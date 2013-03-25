@@ -33,7 +33,6 @@
 #include <commons/file_utils.h>
 #include <commons/log.h>
 #include <commons/config/libconfig.h>
-#include <containers/cprops/linked_list.h>
 
 #include "error.h"
 #include "shared_options.h"
