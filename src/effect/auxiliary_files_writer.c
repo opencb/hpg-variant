@@ -60,10 +60,15 @@ void write_result_file(shared_options_data_t *shared_options, effect_options_dat
     char *aux_buffer, *input_vcf_buffer;
     result_file_t *result_file = NULL;
     
+    // Auxiliary buffers
+    char *result_path;
+    char *num_threads_buf;
+    char *all_count_buf;
+    
     // Create result file
-    aux_buffer = (char*) calloc (strlen(output_directory) + strlen("result.xml") + 2, sizeof(char));
-    sprintf(aux_buffer, "%s/result.xml", output_directory);
-    result_file = result_file_new("v0.7", aux_buffer);
+    result_path = (char*) calloc (strlen(output_directory) + strlen("result.xml") + 2, sizeof(char));
+    sprintf(result_path, "%s/result.xml", output_directory);
+    result_file = result_file_new("v0.7", result_path);
     
     // Add meta data
     time_t now;
@@ -95,9 +100,9 @@ void write_result_file(shared_options_data_t *shared_options, effect_options_dat
     // TODO excludes
     result_item_t *input_item_species = result_item_new("species", shared_options->species, "The species of the ids", "MESSAGE", "", "", "");
     // TODO home
-    aux_buffer = (char*) calloc (8, sizeof(char));
-    sprintf(aux_buffer, "%d", shared_options->num_threads);
-    result_item_t *input_item_numthreads = result_item_new("number-threads", aux_buffer, "Number of connections to the web-service", "MESSAGE", "", "", "");
+    num_threads_buf = (char*) calloc (8, sizeof(char));
+    sprintf(num_threads_buf, "%d", shared_options->num_threads);
+    result_item_t *input_item_numthreads = result_item_new("number-threads", num_threads_buf, "Number of connections to the web-service", "MESSAGE", "", "", "");
     input_vcf_buffer = (char*) calloc (strlen(shared_options->vcf_filename), sizeof(char));
     get_filename_from_path(shared_options->vcf_filename, input_vcf_buffer);
     result_item_t *input_item_vcf_input = result_item_new(input_vcf_buffer, input_vcf_buffer, "VCF input file", "DATA", "", "Input", "");
@@ -163,9 +168,9 @@ void write_result_file(shared_options_data_t *shared_options, effect_options_dat
     free(keys);
     
     // Add output data for all_variants
-    aux_buffer = (char*) calloc (32, sizeof(char));
-    sprintf(aux_buffer, "All (%d)", total_count);
-    output_item = result_item_new("all_variants.txt", "all_variants.txt", aux_buffer, 
+    all_count_buf = (char*) calloc (32, sizeof(char));
+    sprintf(all_count_buf, "All (%d)", total_count);
+    output_item = result_item_new("all_variants.txt", "all_variants.txt", all_count_buf, 
                                         "FILE", "CONSEQUENCE_TYPE_VARIANTS", "Variants by Consequence Type", "");
     result_add_output_item(output_item, result_file);
     
@@ -180,4 +185,9 @@ void write_result_file(shared_options_data_t *shared_options, effect_options_dat
     // Write and free file
     result_file_write(result_file->filename, result_file);
     result_file_free(result_file);
+    
+    // Free aux buffers
+    free(result_path);
+    free(num_threads_buf);
+    free(all_count_buf);
 }
