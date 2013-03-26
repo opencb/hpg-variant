@@ -128,13 +128,15 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
                         // Sort individuals in PED as defined in the VCF file
                         individuals = sort_individuals(file, ped_file);
                         
-//                         printf("num samples = %d\n", get_num_vcf_samples(file));
-//                         printf("pos = { ");
-//                         for (int j = 0; j < get_num_vcf_samples(file); j++) {
-//                             assert(individuals[j]);
-//                             printf("%s ", individuals[j]->id);
-//                         }
-//                         printf("}\n");
+/*
+                        printf("num samples = %d\n", get_num_vcf_samples(file));
+                        printf("pos = { ");
+                        for (int j = 0; j < get_num_vcf_samples(file); j++) {
+                            assert(individuals[j]);
+                            printf("%s ", individuals[j]->id);
+                        }
+                        printf("}\n");
+*/
                         
                         // Add headers associated to the defined filters
                         vcf_header_entry_t **filter_headers = get_filters_as_vcf_headers(filters, num_filters);
@@ -357,31 +359,33 @@ individual_t **sort_individuals(vcf_file_t *vcf, ped_file_t *ped) {
             }
         }
 
-        cp_list_iterator *iterator = cp_list_create_iterator(family->children, COLLECTION_LOCK_READ);
+        linked_list_iterator_t *iterator = linked_list_iterator_new(family->children);
         individual_t *child = NULL;
-        while (child = cp_list_iterator_next(iterator)) {
+        while (child = linked_list_iterator_curr(iterator)) {
             pos = NULL;
             LOG_DEBUG_F("child ID = %s\n", child->id);
             pos = cp_hashtable_get(positions, child->id);
             if (pos) {
                 individuals[*pos] = child;
             }
+            linked_list_iterator_next(iterator);
         }
-        cp_list_iterator_destroy(iterator);
+        linked_list_iterator_free(iterator);
         
-        iterator = cp_list_create_iterator(family->unknown, COLLECTION_LOCK_READ);
+        iterator = linked_list_iterator_new(family->unknown);
         individual_t *unknown = NULL;
-        while (unknown = cp_list_iterator_next(iterator)) {
+        while (unknown = linked_list_iterator_curr(iterator)) {
             pos = NULL;
             LOG_DEBUG_F("unknown ID = %s\n", unknown->id);
             pos = cp_hashtable_get(positions, unknown->id);
             if (pos) {
                 individuals[*pos] = unknown;
             }
+            linked_list_iterator_next(iterator);
         }
-        cp_list_iterator_destroy(iterator);
+        linked_list_iterator_free(iterator);
         
-        assert(father || mother || !cp_list_is_empty(family->unknown));
+        assert(father || mother || linked_list_size(family->unknown) > 0);
     }
 
     cp_hashtable_destroy(positions);
@@ -411,11 +415,13 @@ cp_hashtable* associate_samples_and_positions(vcf_file_t* file) {
         
         cp_hashtable_put(sample_ids, name, index);
     }
-//     char **keys = (char**) cp_hashtable_get_keys(sample_ids);
-//     int num_keys = cp_hashtable_count(sample_ids);
-//     for (int i = 0; i < num_keys; i++) {
-//         printf("%s\t%d\n", keys[i], *((int*) cp_hashtable_get(sample_ids, keys[i])));
-//     }
+/*
+    char **keys = (char**) cp_hashtable_get_keys(sample_ids);
+    int num_keys = cp_hashtable_count(sample_ids);
+    for (int i = 0; i < num_keys; i++) {
+        printf("%s\t%d\n", keys[i], *((int*) cp_hashtable_get(sample_ids, keys[i])));
+    }
+*/
     
     return sample_ids;
 }
