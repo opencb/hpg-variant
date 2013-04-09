@@ -119,17 +119,20 @@ int tdt_test(vcf_record_t **variants, int num_variants, family_t **families, int
             int unB = 0;  // untransmitted allele from second het parent
             
             // Consider all offspring in nuclear family
-            cp_list_iterator *children_iterator = cp_list_create_iterator(family->children, COLLECTION_LOCK_READ);
+            linked_list_iterator_t *children_iterator = linked_list_iterator_new(family->children);
             individual_t *child = NULL;
-            while ((child = cp_list_iterator_next(children_iterator)) != NULL) {
+            
+            while (child = linked_list_iterator_curr(children_iterator)) {
                 // Only consider affected children
-                if (child->condition != AFFECTED) { continue; }
+                if (child->condition != AFFECTED) { 
+                    linked_list_iterator_next(children_iterator);
+                    continue;
+                }
                 
                 int *child_pos = cp_hashtable_get(sample_ids, child->id);
-                if (child_pos != NULL) {
-        //           LOG_DEBUG_F("[%d] Child %s is in position %d\n", tid, child->id, *child_pos);
-                } else {
+                if (!child_pos) {
         //           LOG_DEBUG_F("[%d] Child %s is not positioned\n", tid, child->id);
+                    linked_list_iterator_next(children_iterator);
                     continue;
                 }
                 
@@ -139,6 +142,7 @@ int tdt_test(vcf_record_t **variants, int num_variants, family_t **families, int
                 // Skip if offspring has missing genotype
                 if (get_alleles(child_sample, gt_position, &child_allele1, &child_allele2)) {
                     free(child_sample);
+                    linked_list_iterator_next(children_iterator);
                     continue;
                 }
                 
@@ -148,6 +152,7 @@ int tdt_test(vcf_record_t **variants, int num_variants, family_t **families, int
                     child_allele1, child_allele2, child->sex)) {
                     free(child_sample);
                     free(aux_chromosome);
+                    linked_list_iterator_next(children_iterator);
                     continue;
                 }
                 free(aux_chromosome);
@@ -228,10 +233,10 @@ int tdt_test(vcf_record_t **variants, int num_variants, family_t **families, int
 //                             record->id_len, record->id, family->id, trA, unA, trB, unB, t1, t2, 
 //                             father_allele1, father_allele2, mother_allele1, mother_allele2, child_allele1, child_allele2);
                 free(child_sample);
-                
+                linked_list_iterator_next(children_iterator);
             } // next offspring in family
             
-            cp_list_iterator_destroy(children_iterator);
+            linked_list_iterator_free(children_iterator);
             free(father_sample);
             free(mother_sample);
         }  // next nuclear family
