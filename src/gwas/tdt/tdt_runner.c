@@ -82,7 +82,7 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
             omp_set_nested(1);
             
             volatile int initialization_done = 0;
-            cp_hashtable *sample_ids = NULL;
+            khash_t(ids) *sample_ids = NULL;
             
             // Create chain of filters for the VCF file
             filter_t **filters = NULL;
@@ -93,8 +93,6 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
             FILE *passed_file = NULL, *failed_file = NULL;
             get_filtering_output_files(shared_options_data, &passed_file, &failed_file);
     
-            size_t num_vcf_headers = 0;
-            
             double start = omp_get_wtime();
             
             int i = 0;
@@ -195,7 +193,7 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
             LOG_INFO_F("[%d] Time elapsed = %e ms\n", omp_get_thread_num(), (stop - start) * 1000);
 
             // Free resources
-            if (sample_ids) { cp_hashtable_destroy(sample_ids); }
+            if (sample_ids) { kh_destroy(ids, sample_ids); }
             
             if (filters) {
                 for (int i = 0; i < num_filters; i++) {
@@ -288,31 +286,25 @@ void write_output_body(list_t* output_list, FILE *fd) {
  *      Sorting      *
  * *******************/
 
-cp_hashtable* associate_samples_and_positions(vcf_file_t* file) {
+khash_t(ids)* associate_samples_and_positions(vcf_file_t* file) {
     LOG_DEBUG_F("** %zu sample names read\n", file->samples_names->size);
     array_list_t *sample_names = file->samples_names;
-    cp_hashtable *sample_ids = cp_hashtable_create_by_option(COLLECTION_MODE_NOSYNC,
-                                                             sample_names->size * 2,
-                                                             cp_hash_string,
-                                                             (cp_compare_fn) strcasecmp,
-                                                             NULL,
-                                                             NULL,
-                                                             NULL,
-                                                             NULL
-                                                            );
+    khash_t(ids) *sample_ids = kh_init(ids);
     
-    int *index;
-    char *name;
     for (int i = 0; i < sample_names->size; i++) {
-        name = sample_names->items[i];
-        index = (int*) malloc (sizeof(int)); *index = i;
-        
-        if (cp_hashtable_get(sample_ids, name)) {
+        char *name = sample_names->items[i];
+        int ret;
+        khiter_t iter = kh_get(ids, sample_ids, name);
+        if (iter != kh_end(sample_ids)) {
             LOG_FATAL_F("Sample %s appears more than once. File can not be analyzed.\n", name);
+        } else {
+            iter = kh_put(ids, sample_ids, strdup(name), &ret);
+            if (ret) {
+                kh_value(sample_ids, iter) = i;
+            }
         }
-        
-        cp_hashtable_put(sample_ids, name, index);
     }
+    
 //     char **keys = (char**) cp_hashtable_get_keys(sample_names);
 //     int num_keys = cp_hashtable_count(sample_names);
 //     for (int i = 0; i < num_keys; i++) {

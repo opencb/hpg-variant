@@ -41,6 +41,7 @@
 #include <commons/log.h>
 #include <commons/string_utils.h>
 #include <containers/list.h>
+#include <containers/khash.h>
 #include <containers/cprops/hashtable.h>
 
 #include "shared_options.h"
@@ -58,6 +59,6 @@ static void write_output_header(FILE *fd);
 static void write_output_body(list_t* output_list, FILE *fd);
 
 
-static cp_hashtable *associate_samples_and_positions(vcf_file_t *file);
+static khash_t(ids) *associate_samples_and_positions(vcf_file_t *file);
 
 #endif
