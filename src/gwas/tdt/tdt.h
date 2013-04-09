@@ -38,7 +38,6 @@
 #include <commons/config/libconfig.h>
 #include <containers/list.h>
 #include <containers/cprops/hashtable.h>
-#include <containers/cprops/linked_list.h>
 
 #include "error.h"
 #include "shared_options.h"
