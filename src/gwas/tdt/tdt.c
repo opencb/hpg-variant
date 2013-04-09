@@ -20,7 +20,7 @@
 
 #include "tdt.h"
 
-int tdt_test(vcf_record_t **variants, int num_variants, family_t **families, int num_families, cp_hashtable *sample_ids, list_t *output_list) {
+int tdt_test(vcf_record_t **variants, int num_variants, family_t **families, int num_families, khash_t(ids) *sample_ids, list_t *output_list) {
     double start = omp_get_wtime();
     
     int ret_code = 0;
@@ -64,25 +64,25 @@ int tdt_test(vcf_record_t **variants, int num_variants, family_t **families, int
             if (father == NULL || mother == NULL) {
                 continue;
             }
-
-            int *father_pos = cp_hashtable_get(sample_ids, father->id);
-            if (father_pos != NULL) {
-    //           LOG_DEBUG_F("[%d] Father %s is in position %d\n", tid, father->id, *father_pos);
+            
+            int father_pos = -1, mother_pos = -1, child_pos = -1;
+            
+            khiter_t iter = kh_get(ids, sample_ids, father->id);
+            if (iter != kh_end(sample_ids)) {
+                father_pos = kh_value(sample_ids, iter);
             } else {
-    //           LOG_DEBUG_F("[%d] Father %s is not positioned\n", tid, father->id);
                 continue;
             }
             
-            int *mother_pos = cp_hashtable_get(sample_ids, mother->id);
-            if (mother_pos != NULL) {
-    //           LOG_DEBUG_F("[%d] Mother %s is in position %d\n", tid, mother->id, *mother_pos);
+            iter = kh_get(ids, sample_ids, mother->id);
+            if (iter != kh_end(sample_ids)) {
+                mother_pos = kh_value(sample_ids, iter);
             } else {
-    //           LOG_DEBUG_F("[%d] Mother %s is not positioned\n", tid, mother->id);
                 continue;
             }
             
-            char *father_sample = strdup(sample_data[*father_pos]);
-            char *mother_sample = strdup(sample_data[*mother_pos]);
+            char *father_sample = strdup(sample_data[father_pos]);
+            char *mother_sample = strdup(sample_data[mother_pos]);
             
 //           LOG_DEBUG_F("[%d] Samples: Father = %s\tMother = %s\n", tid, father_sample, mother_sample);
             
@@ -129,14 +129,14 @@ int tdt_test(vcf_record_t **variants, int num_variants, family_t **families, int
                     continue;
                 }
                 
-                int *child_pos = cp_hashtable_get(sample_ids, child->id);
-                if (!child_pos) {
-        //           LOG_DEBUG_F("[%d] Child %s is not positioned\n", tid, child->id);
+                iter = kh_get(ids, sample_ids, child->id);
+                if (iter != kh_end(sample_ids)) {
+                    child_pos = kh_value(sample_ids, iter);
+                } else {
                     linked_list_iterator_next(children_iterator);
                     continue;
                 }
-                
-                char *child_sample = strdup(sample_data[*child_pos]);
+                char *child_sample = strdup(sample_data[child_pos]);
     //           LOG_DEBUG_F("[%d] Samples: Child = %s\n", tid, child_sample);
                 
                 // Skip if offspring has missing genotype

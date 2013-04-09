@@ -37,6 +37,7 @@
 #include <commons/argtable/argtable2.h>
 #include <commons/config/libconfig.h>
 #include <containers/list.h>
+#include <containers/khash.h>
 #include <containers/cprops/hashtable.h>
 
 #include "error.h"
@@ -46,6 +47,8 @@
  * Number of options applicable to the TDT tool.
  */
 #define NUM_TDT_OPTIONS  0
+
+KHASH_MAP_INIT_STR(ids, int);
 
 typedef struct tdt_options {
     int num_options;
@@ -114,7 +117,7 @@ typedef struct {
     double p_value;
 } tdt_result_t;
 
-int tdt_test(vcf_record_t **variants, int num_variants, family_t **families, int num_families, cp_hashtable *sample_ids, list_t *output_list);
+int tdt_test(vcf_record_t **variants, int num_variants, family_t **families, int num_families, khash_t(ids) *sample_ids, list_t *output_list);
 
 tdt_result_t* tdt_result_new(char *chromosome, int chromosome_len, unsigned long int position, char *reference, int reference_len,
                              char *alternate, int alternate_len, double t1, double t2, double chi_square);
