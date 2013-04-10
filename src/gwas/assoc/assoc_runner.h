@@ -46,8 +46,8 @@
 
 #include "assoc.h"
 #include "assoc_basic_test.h"
-#include "shared_options.h"
 #include "hpg_variant_utils.h"
+#include "shared_options.h"
 
 
 int run_association_test(shared_options_data_t *global_options_data, assoc_options_data_t *options_data);
@@ -59,10 +59,6 @@ static void write_output_header(enum ASSOC_task task, FILE *fd);
 static void write_output_body(enum ASSOC_task task, list_t* output_list, FILE *fd);
 
 
-KHASH_MAP_INIT_STR(ids, int);
-
-static individual_t **sort_individuals(vcf_file_t *vcf, ped_file_t *ped);
-
-static khash_t(ids) *associate_samples_and_positions(vcf_file_t *file);
+//static individual_t **sort_individuals(vcf_file_t *vcf, ped_file_t *ped);
 
 #endif

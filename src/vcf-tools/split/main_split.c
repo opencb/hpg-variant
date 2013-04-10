@@ -28,7 +28,7 @@ int vcf_tool_split(int argc, char *argv[], const char *configuration_file) {
      *       Modifiable options     *
      * ******************************/
 
-    shared_options_t *shared_options = new_shared_cli_options();
+    shared_options_t *shared_options = new_shared_cli_options(0);
     split_options_t *split_options = new_split_cli_options();
 
     // If no arguments or only --help are provided, show usage

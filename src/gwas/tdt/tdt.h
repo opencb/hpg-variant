@@ -41,6 +41,7 @@
 #include <containers/cprops/hashtable.h>
 
 #include "error.h"
+#include "hpg_variant_utils.h"
 #include "shared_options.h"
 
 /**
@@ -48,7 +49,6 @@
  */
 #define NUM_TDT_OPTIONS  0
 
-KHASH_MAP_INIT_STR(ids, int);
 
 typedef struct tdt_options {
     int num_options;
