@@ -112,7 +112,7 @@ typedef struct shared_options_data {
  * 
  * Initializes the only mandatory member of a global_options_t, which is the output directory.
  */
-shared_options_t *new_shared_cli_options(void);
+shared_options_t *new_shared_cli_options(int ped_required);
 
 /**
  * @brief Initializes an global_options_data_t structure mandatory members.

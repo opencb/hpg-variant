@@ -28,7 +28,7 @@ int vcf_tool_merge(int argc, char *argv[], const char *configuration_file, array
      *       Modifiable options     *
      * ******************************/
 
-    shared_options_t *shared_options = new_shared_cli_options();
+    shared_options_t *shared_options = new_shared_cli_options(0);
     merge_options_t *merge_options = new_merge_cli_options();
 
     // If no arguments or only --help are provided, show usage
