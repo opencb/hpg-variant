@@ -326,6 +326,7 @@ void write_output_body(enum ASSOC_task task, list_t* output_list, FILE *fd) {
  *      Sorting      *
  * *******************/
 
+/*
 individual_t **sort_individuals(vcf_file_t *vcf, ped_file_t *ped) {
     family_t *family;
     family_t **families = (family_t**) cp_hashtable_get_values(ped->families);
@@ -395,33 +396,4 @@ individual_t **sort_individuals(vcf_file_t *vcf, ped_file_t *ped) {
 
     return individuals;
 }
-
-
-khash_t(ids)* associate_samples_and_positions(vcf_file_t* file) {
-    LOG_DEBUG_F("** %zu sample names read\n", file->samples_names->size);
-    array_list_t *sample_names = file->samples_names;
-    khash_t(ids) *sample_ids = kh_init(ids);
-    
-    for (int i = 0; i < sample_names->size; i++) {
-        char *name = sample_names->items[i];
-        int ret;
-        khiter_t iter = kh_get(ids, sample_ids, name);
-        if (iter != kh_end(sample_ids)) {
-            LOG_FATAL_F("Sample %s appears more than once. File can not be analyzed.\n", name);
-        } else {
-            iter = kh_put(ids, sample_ids, strdup(name), &ret);
-            if (ret) {
-                kh_value(sample_ids, iter) = i;
-            }
-        }
-    }
-/*
-    char **keys = (char**) cp_hashtable_get_keys(sample_ids);
-    int num_keys = cp_hashtable_count(sample_ids);
-    for (int i = 0; i < num_keys; i++) {
-        printf("%s\t%d\n", keys[i], *((int*) cp_hashtable_get(sample_ids, keys[i])));
-    }
 */
-    
-    return sample_ids;
-}

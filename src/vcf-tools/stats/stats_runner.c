@@ -34,10 +34,24 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
 
     int ret_code;
     double start, stop, total;
-    vcf_file_t *file = vcf_open(shared_options_data->vcf_filename, shared_options_data->max_batches);
     
-    if (!file) {
+    vcf_file_t *vcf_file = vcf_open(shared_options_data->vcf_filename, shared_options_data->max_batches);
+    if (!vcf_file) {
         LOG_FATAL("VCF file does not exist!\n");
+    }
+    
+    ped_file_t *ped_file = NULL;
+    if (options_data->sample_stats) {
+        ped_file = ped_open(shared_options_data->ped_filename);
+        if (!ped_file) {
+            LOG_FATAL("PED file does not exist!\n");
+        }
+        LOG_INFO("About to read PED file...\n");
+        // Read PED file before doing any processing
+        ret_code = ped_read(ped_file);
+        if (ret_code != 0) {
+            LOG_FATAL_F("Can't read PED file: %s\n", ped_file->filename);
+        }
     }
     
     ret_code = create_directory(shared_options_data->output_directory);
@@ -45,6 +59,8 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
         LOG_FATAL_F("Can't create output directory: %s\n", shared_options_data->output_directory);
     }
     
+    LOG_INFO("About to retrieve statistics from VCF file...\n");
+
 #pragma omp parallel sections private(start, stop, total)
     {
 #pragma omp section
@@ -54,9 +70,9 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
             start = omp_get_wtime();
 
             if (shared_options_data->batch_bytes > 0) {
-                ret_code = vcf_parse_batches_in_bytes(shared_options_data->batch_bytes, file);
+                ret_code = vcf_parse_batches_in_bytes(shared_options_data->batch_bytes, vcf_file);
             } else if (shared_options_data->batch_lines > 0) {
-                ret_code = vcf_parse_batches(shared_options_data->batch_lines, file);
+                ret_code = vcf_parse_batches(shared_options_data->batch_lines, vcf_file);
             }
 
             stop = omp_get_wtime();
@@ -67,26 +83,34 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
             LOG_INFO_F("[%dR] Time elapsed = %f s\n", omp_get_thread_num(), total);
             LOG_INFO_F("[%dR] Time elapsed = %e ms\n", omp_get_thread_num(), total*1000);
 
-            notify_end_parsing(file);
+            notify_end_parsing(vcf_file);
         }
         
 #pragma omp section
         {
             // Enable nested parallelism and set the number of threads the user has chosen
             omp_set_nested(1);
-//             omp_set_num_threads(shared_options_data->num_threads);
-            
             LOG_DEBUG_F("Thread %d processes data\n", omp_get_thread_num());
+            
+            individual_t **individuals;
+            khash_t(ids) *sample_ids = NULL;
             
             start = omp_get_wtime();
             
             int i = 0;
             vcf_batch_t *batch = NULL;
-            while ((batch = fetch_vcf_batch(file)) != NULL) {
+            while ((batch = fetch_vcf_batch(vcf_file)) != NULL) {
                 if (i == 0) {
-                    sample_stats = malloc (get_num_vcf_samples(file) * sizeof(sample_stats));
-                    for (int j = 0; j < get_num_vcf_samples(file); j++) {
-                        sample_stats[j] = sample_stats_new(array_list_get(j, file->samples_names));
+                    sample_stats = malloc (get_num_vcf_samples(vcf_file) * sizeof(sample_stats_t*));
+                    for (int j = 0; j < get_num_vcf_samples(vcf_file); j++) {
+                        sample_stats[j] = sample_stats_new(array_list_get(j, vcf_file->samples_names));
+                    }
+                    
+                    if (options_data->sample_stats) {
+                        // Create map to associate the position of individuals in the list of samples defined in the VCF file
+                        sample_ids = associate_samples_and_positions(vcf_file);
+                        // Sort individuals in PED as defined in the VCF file
+                        individuals = sort_individuals(vcf_file, ped_file);
                     }
                 }
                 
@@ -113,7 +137,7 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
                     }
                     if (options_data->sample_stats) {
                         ret_code |= get_sample_stats((vcf_record_t**) (input_records->items + chunk_starts[j]), 
-                                                      chunk_sizes[j], sample_stats, file_stats);
+                                                      chunk_sizes[j], individuals, sample_ids, sample_stats, file_stats);
                     }
                 }
                 
@@ -139,12 +163,12 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
                 
                 stats_fd = fopen(stats_filename, "w");
                 free(stats_filename);
-                fprintf(stats_fd, "#SAMPLE\tMISS GT\tMENDEL ERR\n");
+                fprintf(stats_fd, "#SAMPLE\t\tMISS GT\t\tMENDEL ERR\n");
                 
                 sample_stats_t *sam_stats;
-                for (int i = 0; i < file->samples_names->size; i++) {
+                for (int i = 0; i < vcf_file->samples_names->size; i++) {
                     sam_stats = sample_stats[i];
-                    fprintf(stats_fd, "%s\t%zu\t%zu\n", sam_stats->name, sam_stats->missing_genotypes, sam_stats->mendelian_errors);
+                    fprintf(stats_fd, "%s\t\t%zu\t\t%zu\n", sam_stats->name, sam_stats->missing_genotypes, sam_stats->mendelian_errors);
                     sample_stats_free(sam_stats);
                 }
                 
@@ -241,7 +265,7 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
         
     }
     
-    vcf_close(file);
+    vcf_close(vcf_file);
     free(sample_stats);
     free(file_stats);
 //     free(read_list);

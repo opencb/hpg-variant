@@ -21,11 +21,15 @@
 #include "shared_options.h"
 
 
-shared_options_t *new_shared_cli_options(void) {
+shared_options_t *new_shared_cli_options(int ped_required) {
     shared_options_t *options_data = (shared_options_t*) calloc (1, sizeof(shared_options_t));
     
     options_data->vcf_filename = arg_file1("v", "vcf-file", NULL, "VCF file used as input");
-    options_data->ped_filename = arg_file1("p", "ped-file", NULL, "PED file used as input");
+    if (ped_required) {
+        options_data->ped_filename = arg_file1("p", "ped-file", NULL, "PED file used as input");
+    } else {
+        options_data->ped_filename = arg_file0("p", "ped-file", NULL, "PED file used as input");
+    }
     options_data->output_filename = arg_file0(NULL, "out", NULL, "Filename prefix for main output files");
     options_data->output_directory = arg_str0(NULL, "outdir", NULL, "Directory where the output files will be stored");
     

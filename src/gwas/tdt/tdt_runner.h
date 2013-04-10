@@ -59,6 +59,4 @@ static void write_output_header(FILE *fd);
 static void write_output_body(list_t* output_list, FILE *fd);
 
 
-static khash_t(ids) *associate_samples_and_positions(vcf_file_t *file);
-
 #endif

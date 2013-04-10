@@ -27,6 +27,7 @@
 
 #include <omp.h>
 
+#include <bioformats/ped/ped_file.h>
 #include <bioformats/vcf/vcf_file_structure.h>
 #include <bioformats/vcf/vcf_file.h>
 #include <bioformats/vcf/vcf_stats.h>

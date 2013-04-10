@@ -27,7 +27,7 @@ int main(int argc, char *argv[]) {
      * 	    Modifiable options	    *
      * ******************************/
 
-    shared_options_t *shared_options = new_shared_cli_options();
+    shared_options_t *shared_options = new_shared_cli_options(0);
     effect_options_t *effect_options = new_effect_cli_options();
     void **argtable;
 
