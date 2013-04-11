@@ -7,9 +7,9 @@ math_path = '#libs/math'
 
 env = Environment(tools = ['default', 'packaging'],
                   CFLAGS = '-std=c99 -D_XOPEN_SOURCE=600 -D_GNU_SOURCE -msse4.2 -fopenmp',
-                  CPPPATH = ['#', '#src', '/usr/include', '/usr/local/include', '/usr/include/libxml2', '#include', bioinfo_path, commons_path, math_path ],
-                  LIBPATH = ['/usr/lib', '/usr/local/lib', '#libs', commons_path ],
-                  LIBS = ['argtable2', 'common', 'config', 'cprops', 'curl', 'gsl', 'gslcblas', 'm', 'xml2', 'z'],
+                  CPPPATH = ['#', '#src', '#include', bioinfo_path, commons_path, math_path, '/usr/include', '/usr/local/include', '/usr/include/libxml2'],
+                  LIBPATH = [commons_path, bioinfo_path, '/usr/lib', '/usr/local/lib'],
+                  LIBS = ['common', 'bioinfo', 'curl', 'gsl', 'gslcblas', 'm', 'xml2', 'z'],
                   LINKFLAGS = ['-fopenmp'])
                   
 if int(ARGUMENTS.get('debug', '0')) == 1:
@@ -29,7 +29,7 @@ compiler = 'gcc'
 ##### Targets
 
 # Compile dependencies
-SConscript(['%s/bioformats/SConscript' % bioinfo_path,
+SConscript(['%s/SConscript' % bioinfo_path,
             '%s/SConscript' % commons_path,
             '%s/SConscript' % math_path
             ], exports = ['env', 'debug', 'formats', 'aligners', 'compiler'])
@@ -49,7 +49,7 @@ t = SConscript("test/SConscript", exports = ['env', 'debug', 'commons_path', 'bi
 # For the packaging manager: Don't forget to point the XXX_INCLUDE_PATH and XXX_LIBRARY_PATH 
 # variables to the application libraries folder!!
 tb = env.Package(NAME          = 'hpg-variant',
-                VERSION        = '0.3.1',
+                VERSION        = '0.4',
                 PACKAGEVERSION = 0,
                 PACKAGETYPE    = 'src_targz',
                 source         = env.FindSourceFiles() + env.FindHeaderFiles(progs) + 

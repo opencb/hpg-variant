@@ -26,7 +26,7 @@ int vcf_tool_filter(int argc, char *argv[], const char *configuration_file) {
      *       Modifiable options     *
      * ******************************/
 
-    shared_options_t *shared_options = new_shared_cli_options();
+    shared_options_t *shared_options = new_shared_cli_options(0);
     filter_options_t *filter_options = new_filter_cli_options();
 
     // If no arguments or only --help are provided, show usage

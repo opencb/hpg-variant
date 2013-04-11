@@ -222,10 +222,11 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
             linked_list_iterator_t* iter = linked_list_iterator_new(ranking_risky[i]);
             
             risky_combination *element = NULL;
-            while(element = linked_list_iterator_next(iter)) {
+            while(element = linked_list_iterator_curr(iter)) {
                 repetition_ranking[current_index] = element;
                 current_index++;
 //                 printf("(%d %d - %.3f) ", element->combination[0], element->combination[1], element->accuracy);
+                linked_list_iterator_next(iter);
             }
             linked_list_iterator_free(iter);
         }

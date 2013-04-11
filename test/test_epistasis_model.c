@@ -44,31 +44,33 @@ START_TEST(test_get_masks) {
     
     masks_info info; masks_info_new(order, num_affected, num_unaffected, &info);
     
-    uint8_t *masks = get_masks(order, masks_genotypes, num_affected, num_unaffected, info);
+    uint8_t *masks = get_masks(order, masks_genotypes, info);
     
     fail_unless(info.num_masks == 3 * order * num_samples_with_padding, "There should be 3 GTs * 4 SNPs * 4+4 samples (padded) = 384 elements in the masks array");
     
-    uint8_t mask_0[] = { 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,    // Genotype 0
-                         0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,    // Genotype 1
-                         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };  // Genotype 2
-    uint8_t mask_1[] = { 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
-                         0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+    uint8_t mask_0[] = { 255, 255, 0, 255, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 255, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,    // Genotype 0
+                         0, 0, 255, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 255, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,    // Genotype 1
+                         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 255, 0, 0, 255, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };  // Genotype 2
+    uint8_t mask_1[] = { 255, 0, 0, 255, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 255, 255, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+                         0, 255, 255, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 255, 255, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
                          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-    uint8_t mask_2[] = { 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
-                         1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
-                         0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-    uint8_t mask_3[] = { 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
-                         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
-                         0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+    uint8_t mask_2[] = { 0, 0, 255, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 255, 0, 255, 255, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+                         255, 0, 0, 255, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+                         0, 255, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 255, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+    uint8_t mask_3[] = { 255, 255, 255, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 255, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+                         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 255, 255, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+                         0, 0, 0, 255, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 255, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
     
-//     for (int i = 0; i < order; i++) {
-//         print_gt_combination(masks + i * 3 * num_samples_with_padding, i, 3 * num_samples_with_padding);
-//     }
-//     printf("\n");
-//     print_gt_combination(mask_0, 0, 3 * num_samples_with_padding);
-//     print_gt_combination(mask_1, 1, 3 * num_samples_with_padding);
-//     print_gt_combination(mask_2, 2, 3 * num_samples_with_padding);
-//     print_gt_combination(mask_3, 3, 3 * num_samples_with_padding);
+/*
+     for (int i = 0; i < order; i++) {
+         print_gt_combination(masks + i * 3 * num_samples_with_padding, i, 3 * num_samples_with_padding);
+     }
+     printf("\n");
+     print_gt_combination(mask_0, 0, 3 * num_samples_with_padding);
+     print_gt_combination(mask_1, 1, 3 * num_samples_with_padding);
+     print_gt_combination(mask_2, 2, 3 * num_samples_with_padding);
+     print_gt_combination(mask_3, 3, 3 * num_samples_with_padding);
+*/
     
     for (int j = 0; j < num_samples; j++) {
         char msg[26];
@@ -107,34 +109,36 @@ START_TEST(test_get_counts) {
     
     masks_info info; masks_info_new(order, num_affected, num_unaffected, &info);
     
-    uint8_t *masks = get_masks(order, masks_genotypes, num_affected, num_unaffected, info);
+    uint8_t *masks = get_masks(order, masks_genotypes, info);
     
     int num_combinations;
     uint8_t **combinations = get_genotype_combinations(order, &num_combinations);
     
     // Order 2
     int num_counts = 2 * pow(NUM_GENOTYPES, order);
-    int* counts = get_counts(order, masks, combinations, num_combinations, num_counts, info);
+    int counts_o2[num_counts];
+    get_counts(order, masks, combinations, num_combinations, counts_o2, info);
     fail_if(num_counts != 18, "There must be 9 order 2 combinations * 2 phenotypes");
     
-    fail_if(counts[0] != 2 || counts[1] != 0, "A(0,0) -> 2,0");
-    fail_if(counts[2] != 1 || counts[3] != 1, "A(0,1) -> 1,1");
-    fail_if(counts[4] != 0 || counts[5] != 0, "A(0,2) -> 0,0");
-    fail_if(counts[6] != 0 || counts[7] != 1, "A(1,0) -> 0,1");
-    fail_if(counts[8] != 1 || counts[9] != 0, "A(1,1) -> 1,0");
-    fail_if(counts[10] != 0 || counts[11] != 0, "A(1,2) -> 0,0");
-    fail_if(counts[12] != 0 || counts[13] != 1, "A(2,0) -> 0,1");
-    fail_if(counts[14] != 0 || counts[15] != 1, "A(2,1) -> 0,1");
-    fail_if(counts[16] != 0 || counts[17] != 0, "A(2,2) -> 0,0");
+    fail_if(counts_o2[0] != 2 || counts_o2[1] != 0, "A(0,0) -> 2,0");
+    fail_if(counts_o2[2] != 1 || counts_o2[3] != 1, "A(0,1) -> 1,1");
+    fail_if(counts_o2[4] != 0 || counts_o2[5] != 0, "A(0,2) -> 0,0");
+    fail_if(counts_o2[6] != 0 || counts_o2[7] != 1, "A(1,0) -> 0,1");
+    fail_if(counts_o2[8] != 1 || counts_o2[9] != 0, "A(1,1) -> 1,0");
+    fail_if(counts_o2[10] != 0 || counts_o2[11] != 0, "A(1,2) -> 0,0");
+    fail_if(counts_o2[12] != 0 || counts_o2[13] != 1, "A(2,0) -> 0,1");
+    fail_if(counts_o2[14] != 0 || counts_o2[15] != 1, "A(2,1) -> 0,1");
+    fail_if(counts_o2[16] != 0 || counts_o2[17] != 0, "A(2,2) -> 0,0");
     
     free(combinations);
     
     // Order 3
     order = 3;
     combinations = get_genotype_combinations(order, &num_combinations);
-    masks = get_masks(order, masks_genotypes, num_affected, num_unaffected, info);
+    masks = get_masks(order, masks_genotypes, info);
     num_counts = 2 * pow(NUM_GENOTYPES, order);
-    counts = get_counts(order, masks, combinations, num_combinations, num_counts, info);
+    int counts_o3[num_counts];
+    get_counts(order, masks, combinations, num_combinations, counts_o3, info);
     fail_if(num_counts != 54, "There must be 27 order 3 combinations * 2 phenotypes");
     
 //     for (int i = 0; i < order; i++) {
@@ -142,43 +146,43 @@ START_TEST(test_get_counts) {
 //     }
     
     int idx = 0;
-    fail_if(counts[idx] != 0 || counts[idx + 1] != 0, "A(0,0,0) -> 0,0");
-    fail_if(counts[idx + 2] != 2 || counts[idx + 3] != 0, "A(0,0,1) -> 2,0");
-    fail_if(counts[idx + 4] != 0 || counts[idx + 5] != 0, "A(0,0,2) -> 0,0");
+    fail_if(counts_o3[idx] != 0 || counts_o3[idx + 1] != 0, "A(0,0,0) -> 0,0");
+    fail_if(counts_o3[idx + 2] != 2 || counts_o3[idx + 3] != 0, "A(0,0,1) -> 2,0");
+    fail_if(counts_o3[idx + 4] != 0 || counts_o3[idx + 5] != 0, "A(0,0,2) -> 0,0");
     
-    fail_if(counts[idx + 6] != 0 || counts[idx + 7] != 1, "A(0,1,0) -> 0,1");
-    fail_if(counts[idx + 8] != 0 || counts[idx + 9] != 0, "A(0,1,1) -> 0,0");
-    fail_if(counts[idx + 10] != 1 || counts[idx + 11] != 0, "A(0,1,2) -> 1,0");
+    fail_if(counts_o3[idx + 6] != 0 || counts_o3[idx + 7] != 1, "A(0,1,0) -> 0,1");
+    fail_if(counts_o3[idx + 8] != 0 || counts_o3[idx + 9] != 0, "A(0,1,1) -> 0,0");
+    fail_if(counts_o3[idx + 10] != 1 || counts_o3[idx + 11] != 0, "A(0,1,2) -> 1,0");
     
-    fail_if(counts[idx + 12] != 0 || counts[idx + 13] != 0, "A(0,2,0) -> 0,0");
-    fail_if(counts[idx + 14] != 0 || counts[idx + 15] != 0, "A(0,2,1) -> 0,0");
-    fail_if(counts[idx + 16] != 0 || counts[idx + 17] != 0, "A(0,2,2) -> 0,0");
+    fail_if(counts_o3[idx + 12] != 0 || counts_o3[idx + 13] != 0, "A(0,2,0) -> 0,0");
+    fail_if(counts_o3[idx + 14] != 0 || counts_o3[idx + 15] != 0, "A(0,2,1) -> 0,0");
+    fail_if(counts_o3[idx + 16] != 0 || counts_o3[idx + 17] != 0, "A(0,2,2) -> 0,0");
     
     idx = 18;
-    fail_if(counts[idx] != 0 || counts[idx + 1] != 0, "A(1,0,0) -> 0,0");
-    fail_if(counts[idx + 2] != 0 || counts[idx + 3] != 0, "A(1,0,1) -> 0,0");
-    fail_if(counts[idx + 4] != 0 || counts[idx + 5] != 1, "A(1,0,2) -> 0,1");
+    fail_if(counts_o3[idx] != 0 || counts_o3[idx + 1] != 0, "A(1,0,0) -> 0,0");
+    fail_if(counts_o3[idx + 2] != 0 || counts_o3[idx + 3] != 0, "A(1,0,1) -> 0,0");
+    fail_if(counts_o3[idx + 4] != 0 || counts_o3[idx + 5] != 1, "A(1,0,2) -> 0,1");
     
-    fail_if(counts[idx + 6] != 1 || counts[idx + 7] != 0, "A(1,1,0) -> 1,0");
-    fail_if(counts[idx + 8] != 0 || counts[idx + 9] != 0, "A(1,1,1) -> 0,0");
-    fail_if(counts[idx + 10] != 0 || counts[idx + 11] != 0, "A(1,1,2) -> 0,0");
+    fail_if(counts_o3[idx + 6] != 1 || counts_o3[idx + 7] != 0, "A(1,1,0) -> 1,0");
+    fail_if(counts_o3[idx + 8] != 0 || counts_o3[idx + 9] != 0, "A(1,1,1) -> 0,0");
+    fail_if(counts_o3[idx + 10] != 0 || counts_o3[idx + 11] != 0, "A(1,1,2) -> 0,0");
     
-    fail_if(counts[idx + 12] != 0 || counts[idx + 13] != 0, "A(1,2,0) -> 0,0");
-    fail_if(counts[idx + 14] != 0 || counts[idx + 15] != 0, "A(1,2,1) -> 0,0");
-    fail_if(counts[idx + 16] != 0 || counts[idx + 17] != 0, "A(1,2,2) -> 0,0");
+    fail_if(counts_o3[idx + 12] != 0 || counts_o3[idx + 13] != 0, "A(1,2,0) -> 0,0");
+    fail_if(counts_o3[idx + 14] != 0 || counts_o3[idx + 15] != 0, "A(1,2,1) -> 0,0");
+    fail_if(counts_o3[idx + 16] != 0 || counts_o3[idx + 17] != 0, "A(1,2,2) -> 0,0");
     
     idx = 36;
-    fail_if(counts[idx] != 0 || counts[idx + 1] != 1, "A(2,0,0) -> 0,1");
-    fail_if(counts[idx + 2] != 0 || counts[idx + 3] != 0, "A(2,0,1) -> 0,0");
-    fail_if(counts[idx + 4] != 0 || counts[idx + 5] != 0, "A(2,0,2) -> 0,0");
+    fail_if(counts_o3[idx] != 0 || counts_o3[idx + 1] != 1, "A(2,0,0) -> 0,1");
+    fail_if(counts_o3[idx + 2] != 0 || counts_o3[idx + 3] != 0, "A(2,0,1) -> 0,0");
+    fail_if(counts_o3[idx + 4] != 0 || counts_o3[idx + 5] != 0, "A(2,0,2) -> 0,0");
     
-    fail_if(counts[idx + 6] != 0 || counts[idx + 7] != 1, "A(2,1,0) -> 0,1");
-    fail_if(counts[idx + 8] != 0 || counts[idx + 9] != 0, "A(2,1,1) -> 0,0");
-    fail_if(counts[idx + 10] != 0 || counts[idx + 11] != 0, "A(2,1,2) -> 0,0");
+    fail_if(counts_o3[idx + 6] != 0 || counts_o3[idx + 7] != 1, "A(2,1,0) -> 0,1");
+    fail_if(counts_o3[idx + 8] != 0 || counts_o3[idx + 9] != 0, "A(2,1,1) -> 0,0");
+    fail_if(counts_o3[idx + 10] != 0 || counts_o3[idx + 11] != 0, "A(2,1,2) -> 0,0");
     
-    fail_if(counts[idx + 12] != 0 || counts[idx + 13] != 0, "A(2,2,0) -> 0,0");
-    fail_if(counts[idx + 14] != 0 || counts[idx + 15] != 0, "A(2,2,1) -> 0,0");
-    fail_if(counts[idx + 16] != 0 || counts[idx + 17] != 0, "A(2,2,2) -> 0,0");
+    fail_if(counts_o3[idx + 12] != 0 || counts_o3[idx + 13] != 0, "A(2,2,0) -> 0,0");
+    fail_if(counts_o3[idx + 14] != 0 || counts_o3[idx + 15] != 0, "A(2,2,1) -> 0,0");
+    fail_if(counts_o3[idx + 16] != 0 || counts_o3[idx + 17] != 0, "A(2,2,2) -> 0,0");
     
     free(combinations);
 }
@@ -188,27 +192,37 @@ END_TEST
 START_TEST(test_get_confusion_matrix) {
     int order = 2;
     int num_combinations;
+    masks_info info;
     
     // ---------- order 2 ------------
-    uint8_t gt2_0[] = { 1, 1, 0, 2, 2, 2, 1, 0, 0, 0, 1, 2 };
-    uint8_t gt2_1[] = { 0, 0, 1, 1, 2, 2, 0, 0, 1, 1, 2, 2 };
-    uint8_t *genotypes_2d[2] = { gt2_0, gt2_1 };
     
     uint8_t **possible_2d = get_genotype_combinations(order, &num_combinations);
-    // Risky combinations: (0,1), (2,1), (2,2)
+    // Risky combinations: (1,0), (2,1), (2,2)
     risky_combination *combination_2d = risky_combination_new(order, (int[2]){ 0, 1 }, possible_2d, 3, (int[3]){ 3, 7, 8 }, NULL);
     
     // 7 affected, 5 unaffected
-    int *confusion_matrix = get_confusion_matrix(order, combination_2d, 7, 5, genotypes_2d);
+    uint8_t gt2_0a[] = { 1, 1, 0, 2, 2, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+    uint8_t gt2_1a[] = { 0, 0, 1, 1, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+    uint8_t *genotypes_2da[2] = { gt2_0a, gt2_1a };
     
+    masks_info_new(order, 7, 5, &info);
+    int *confusion_matrix = get_confusion_matrix(order, combination_2d, info, genotypes_2da);
+    
+    //printf("matrix = { %d, %d, %d, %d }\n", confusion_matrix[0], confusion_matrix[1], confusion_matrix[2], confusion_matrix[3]);
     fail_if(confusion_matrix[0] != 6, "(7 aff,5 unaff) TP = 6");
     fail_if(confusion_matrix[1] != 1, "(7 aff,5 unaff) FN = 1");
     fail_if(confusion_matrix[2] != 1, "(7 aff,5 unaff) FP = 1");
     fail_if(confusion_matrix[3] != 4, "(7 aff,5 unaff) TN = 4");
     
     // 4 affected, 8 unaffected
-    confusion_matrix = get_confusion_matrix(order, combination_2d, 4, 8, genotypes_2d);
+    uint8_t gt2_0b[] = { 1, 1, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 1, 0, 0, 0, 1, 2, 0, 0, 0, 0, 0, 0, 0, 0 };
+    uint8_t gt2_1b[] = { 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 0, 0, 1, 1, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0 };
+    uint8_t *genotypes_2db[2] = { gt2_0b, gt2_1b };
     
+    masks_info_new(order, 4, 8, &info);
+    confusion_matrix = get_confusion_matrix(order, combination_2d, info, genotypes_2db);
+    
+    //printf("matrix = { %d, %d, %d, %d }\n", confusion_matrix[0], confusion_matrix[1], confusion_matrix[2], confusion_matrix[3]);
     fail_if(confusion_matrix[0] != 3, "(4 aff,8 unaff) TP = 3");
     fail_if(confusion_matrix[1] != 1, "(4 aff,8 unaff) FN = 1");
     fail_if(confusion_matrix[2] != 4, "(4 aff,8 unaff) FP = 4");
@@ -219,9 +233,9 @@ START_TEST(test_get_confusion_matrix) {
     
     // ---------- order 3 ------------
     order = 3;
-    uint8_t gt3_0[] = { 1, 1, 0, 2, 2, 2, 1, 0, 0, 0, 1, 2 };
-    uint8_t gt3_1[] = { 0, 0, 1, 1, 2, 2, 0, 0, 1, 1, 2, 2 };
-    uint8_t gt3_2[] = { 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 0, 0 };
+    uint8_t gt3_0[] = { 1, 1, 0, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+    uint8_t gt3_1[] = { 0, 0, 1, 1, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+    uint8_t gt3_2[] = { 1, 1, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
     uint8_t *genotypes_3d[3] = { gt3_0, gt3_1, gt3_2 };
     
     uint8_t **possible_3d = get_genotype_combinations(order, &num_combinations);
@@ -229,8 +243,10 @@ START_TEST(test_get_confusion_matrix) {
     risky_combination *combination_3d = risky_combination_new(order, (int[3]){ 0, 1, 2 }, possible_3d, 4, (int[4]){ 4, 10, 21, 25 }, NULL);
     
     // 6 affected, 6 unaffected
-    confusion_matrix = get_confusion_matrix(order, combination_3d, 6, 6, genotypes_3d);
+    masks_info_new(order, 6, 6, &info);
+    confusion_matrix = get_confusion_matrix(order, combination_3d, info, genotypes_3d);
     
+    //printf("matrix = { %d, %d, %d, %d }\n", confusion_matrix[0], confusion_matrix[1], confusion_matrix[2], confusion_matrix[3]);
     fail_if(confusion_matrix[0] != 6, "(6 aff,6 unaff) TP = 6");
     fail_if(confusion_matrix[1] != 0, "(6 aff,6 unaff) FN = 0");
     fail_if(confusion_matrix[2] != 3, "(6 aff,6 unaff) FP = 3");

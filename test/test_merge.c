@@ -186,7 +186,7 @@ void setup_merge_headers(void) {
 
 void setup_merge_positions(void) {
     options = calloc(1, sizeof(merge_options_data_t));
-    options->missing_mode = MISSING;
+    options->missing_mode = MISSING_CONDITION;
     options->num_info_fields = 1;
     options->info_fields = malloc (sizeof(char*));
     options->info_fields[0] = "DP";
@@ -606,7 +606,7 @@ START_TEST (merge_samples_test) {
     int gt_pos = get_field_position_in_format("GT", strdup(format));
     int filter_pos = get_field_position_in_format("SFT", strdup(format));
     int info_pos = get_field_position_in_format("IN", strdup(format));
-    options->missing_mode = MISSING;
+    options->missing_mode = MISSING_CONDITION;
     char *empty_sample = get_empty_sample(format_fields->size, gt_pos, options);
     
     array_list_t *samples = merge_samples(links, 4, files, 4, alleles_table, format_fields, format_indices, empty_sample, gt_pos, filter_pos, info_pos, options);
@@ -686,7 +686,7 @@ START_TEST (merge_samples_test) {
     gt_pos = get_field_position_in_format("GT", strdup(format));
     filter_pos = get_field_position_in_format("SFT", strdup(format));
     info_pos = get_field_position_in_format("IN", strdup(format));
-    options->missing_mode = MISSING;
+    options->missing_mode = MISSING_CONDITION;
     empty_sample = get_empty_sample(format_fields->size, gt_pos, options);
     
     samples = merge_samples(links, 2, files, 4, alleles_table, format_fields, format_indices, empty_sample, gt_pos, filter_pos, info_pos, options);
@@ -743,7 +743,7 @@ START_TEST (merge_info_test) {
     int gt_pos = get_field_position_in_format("GT", strndup(result->format, result->format_len));
     int filter_pos = get_field_position_in_format("SFT", strndup(result->format, result->format_len));
     int info_pos = get_field_position_in_format("IN", strndup(result->format, result->format_len));
-    options->missing_mode = MISSING;
+    options->missing_mode = MISSING_CONDITION;
     char *empty_sample = get_empty_sample(format_fields->size, gt_pos, options);
     
     result->samples = merge_samples(links, 4, files, 4, alleles_table, format_fields, format_indices, empty_sample, gt_pos, filter_pos, info_pos, options);
@@ -829,7 +829,7 @@ START_TEST (add_filter_test) {
     int gt_pos = get_field_position_in_format("GT", strndup(result->format, result->format_len));
     int filter_pos = get_field_position_in_format("SFT", strndup(result->format, result->format_len));
     int info_pos = get_field_position_in_format("IN", strndup(result->format, result->format_len));
-    options->missing_mode = MISSING;
+    options->missing_mode = MISSING_CONDITION;
     char *empty_sample = get_empty_sample(format_fields->size, gt_pos, options);
     
     array_list_t* samples = merge_samples(links, 4, files, 4, alleles_table, format_fields, format_indices, empty_sample, gt_pos, filter_pos, info_pos, options);
@@ -889,7 +889,7 @@ START_TEST (add_info_test) {
     int gt_pos = get_field_position_in_format("GT", strndup(result->format, result->format_len));
     int filter_pos = get_field_position_in_format("SFT", strndup(result->format, result->format_len));
     int info_pos = get_field_position_in_format("IN", strndup(result->format, result->format_len));
-    options->missing_mode = MISSING;
+    options->missing_mode = MISSING_CONDITION;
     char *empty_sample = get_empty_sample(format_fields->size, gt_pos, options);
     
     array_list_t* samples = merge_samples(links, 4, files, 4, alleles_table, format_fields, format_indices, empty_sample, gt_pos, filter_pos, info_pos, options);
@@ -949,7 +949,7 @@ START_TEST (add_info_filter_test) {
     int gt_pos = get_field_position_in_format("GT", strndup(result->format, result->format_len));
     int filter_pos = get_field_position_in_format("SFT", strndup(result->format, result->format_len));
     int info_pos = get_field_position_in_format("IN", strndup(result->format, result->format_len));
-    options->missing_mode = MISSING;
+    options->missing_mode = MISSING_CONDITION;
     char *empty_sample = get_empty_sample(format_fields->size, gt_pos, options);
     
     array_list_t* samples = merge_samples(links, 4, files, 4, alleles_table, format_fields, format_indices, empty_sample, gt_pos, filter_pos, info_pos, options);

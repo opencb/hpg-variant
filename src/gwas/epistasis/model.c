@@ -177,7 +177,6 @@ int* get_counts(int order, uint8_t *masks, uint8_t **genotype_combinations, int 
     for (int c = 0; c < num_genotype_combinations; c++) {
         comb = genotype_combinations[c];
 //         print_gt_combination(comb, c, order);
-        
         count = 0;
        
         for (int i = 0; i < info.num_affected; i += 16) {
@@ -194,8 +193,8 @@ int* get_counts(int order, uint8_t *masks, uint8_t **genotype_combinations, int 
                      _mm_popcnt_u64(_mm_extract_epi64(snp_and, 1));
         }
         
-        LOG_DEBUG_F("aff comb idx (%d) = %d\n", c * 2, count);
-        counts[c * 2] = count;
+        LOG_DEBUG_F("aff comb idx (%d) = %d\n", c * 2, count / 8);
+        counts[c * 2] = count / 8;
         
         count = 0;
         
@@ -213,8 +212,8 @@ int* get_counts(int order, uint8_t *masks, uint8_t **genotype_combinations, int 
                      _mm_popcnt_u64(_mm_extract_epi64(snp_and, 1));
         }
         
-        LOG_DEBUG_F("unaff comb idx (%d) = %d\n", c * 2 + 1, count);
-        counts[c * 2 + 1] = count;
+        LOG_DEBUG_F("unaff comb idx (%d) = %d\n", c * 2 + 1, count / 8);
+        counts[c * 2 + 1] = count / 8;
     }
     
     return counts;

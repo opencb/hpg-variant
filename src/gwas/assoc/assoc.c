@@ -49,8 +49,8 @@ void assoc_test(enum ASSOC_task test_type, vcf_record_t **variants, int num_vari
         	individual = samples[j];
         	sample_data = strdup(array_list_get(j, record->samples));
         	if (!get_alleles(sample_data, gt_position, &allele1, &allele2)) {
-				assoc_count_individual(individual, record, allele1, allele2, &A1, &A2, &U1, &U2);
-			}
+                    assoc_count_individual(individual, record, allele1, allele2, &A1, &A2, &U1, &U2);
+                }
         	free(sample_data);
         }
         

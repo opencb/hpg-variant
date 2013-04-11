@@ -27,7 +27,7 @@ int epistasis(int argc, char *argv[], const char *configuration_file) {
      *      Modifiable options      *
      * ******************************/
 
-    shared_options_t *shared_options = new_shared_cli_options();
+    shared_options_t *shared_options = new_shared_cli_options(0);
     epistasis_options_t *epistasis_options = new_epistasis_cli_options();
 
     // If no arguments or only -h / --help are provided, show usage

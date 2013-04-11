@@ -32,19 +32,18 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <argtable2.h>
-#include <libconfig.h>
-
 #include <bioformats/vcf/vcf_filters.h>
 #include <bioformats/vcf/vcf_util.h>
 #include <commons/log.h>
+#include <commons/argtable/argtable2.h>
+#include <commons/config/libconfig.h>
 
 #include "error.h"
 
 /**
  * Number of options applicable to the whole application.
  */
-#define NUM_GLOBAL_OPTIONS  22
+#define NUM_GLOBAL_OPTIONS  23
 
 typedef struct shared_options {
     struct arg_file *vcf_filename;    /**< VCF file used as input. */
@@ -67,6 +66,7 @@ typedef struct shared_options {
     struct arg_dbl *missing;      /**< Filter by missing values. */
     struct arg_int *num_alleles;  /**< Filter by number of alleles. */
     struct arg_int *quality;      /**< Filter by quality. */
+    struct arg_str *gene;         /**< Filter by gene */
     struct arg_str *region;       /**< Filter by region */
     struct arg_file *region_file; /**< Filter by region (using a GFF file) */
     struct arg_str *snp;          /**< Filter by SNP */
@@ -112,7 +112,7 @@ typedef struct shared_options_data {
  * 
  * Initializes the only mandatory member of a global_options_t, which is the output directory.
  */
-shared_options_t *new_shared_cli_options(void);
+shared_options_t *new_shared_cli_options(int ped_required);
 
 /**
  * @brief Initializes an global_options_data_t structure mandatory members.
@@ -145,5 +145,6 @@ void free_shared_options_data(shared_options_data_t *options_data);
  * read, these parameters should be provided via the command-line interface.
  */
 int read_shared_configuration(const char *filename, shared_options_t *options_data);
+
 
 #endif

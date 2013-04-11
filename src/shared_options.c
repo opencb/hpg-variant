@@ -20,11 +20,16 @@
 
 #include "shared_options.h"
 
-shared_options_t *new_shared_cli_options(void) {
+
+shared_options_t *new_shared_cli_options(int ped_required) {
     shared_options_t *options_data = (shared_options_t*) calloc (1, sizeof(shared_options_t));
     
     options_data->vcf_filename = arg_file1("v", "vcf-file", NULL, "VCF file used as input");
-    options_data->ped_filename = arg_file1("p", "ped-file", NULL, "PED file used as input");
+    if (ped_required) {
+        options_data->ped_filename = arg_file1("p", "ped-file", NULL, "PED file used as input");
+    } else {
+        options_data->ped_filename = arg_file0("p", "ped-file", NULL, "PED file used as input");
+    }
     options_data->output_filename = arg_file0(NULL, "out", NULL, "Filename prefix for main output files");
     options_data->output_directory = arg_str0(NULL, "outdir", NULL, "Directory where the output files will be stored");
     
@@ -43,6 +48,7 @@ shared_options_t *new_shared_cli_options(void) {
     options_data->quality = arg_int0(NULL, "quality", NULL, "Filter: by minimum quality");
     options_data->maf = arg_dbl0(NULL, "maf", NULL, "Filter: by maximum MAF (minimum allele frequency, decimal like 0.01)");
     options_data->missing = arg_dbl0(NULL, "missing", NULL, "Filter: by maximum missing values (decimal like 0.1)");
+    options_data->gene = arg_str0(NULL, "gene", NULL, "Filter: by a comma-separated list of genes");
     options_data->region = arg_str0(NULL, "region", NULL, "Filter: by a list of regions (chr1:start1-end1,chr2:start2-end2...)");
     options_data->region_file = arg_file0(NULL, "region-file", NULL, "Filter: by a list of regions (read from a GFF file)");
     options_data->snp = arg_str0(NULL, "snp", NULL, "Filter: by being a SNP or not");
@@ -105,12 +111,19 @@ shared_options_data_t* new_shared_options_data(shared_options_t* options) {
         options_data->chain = add_to_filter_chain(filter, options_data->chain);
         LOG_DEBUG_F("snp filter to %s SNPs\n", *(options->snp->sval));
     }
+    if (options->gene->count > 0) {
+        filter = gene_filter_new(strdup(*(options->gene->sval)), 0,
+                                         *(options->host_url->sval), *(options->species->sval), *(options->version->sval));
+        options_data->chain = add_to_filter_chain(filter, options_data->chain);
+        LOG_DEBUG_F("gene = %s\n", *(options->gene->sval));
+    }
     if (options->region->count > 0) {
         filter = region_exact_filter_new(strdup(*(options->region->sval)), 0,
                                          *(options->host_url->sval), *(options->species->sval), *(options->version->sval));
         options_data->chain = add_to_filter_chain(filter, options_data->chain);
         LOG_DEBUG_F("regions = %s\n", *(options->region->sval));
     } 
+    
     if (options->region_file->count > 0) {
         filter = region_exact_filter_new(strdup(*(options->region->sval)), 1, 
                                          *(options->host_url->sval), *(options->species->sval), *(options->version->sval));

@@ -25,9 +25,12 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 
+#include <bioformats/family/family.h>
+#include <bioformats/ped/ped_file.h>
 #include <bioformats/vcf/vcf_file.h>
 #include <commons/file_utils.h>
 #include <commons/log.h>
+#include <containers/khash.h>
 #include <containers/list.h>
 
 #include "shared_options.h"

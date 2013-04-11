@@ -27,7 +27,7 @@ int vcf_tool_vcf2epi(int argc, char *argv[], const char *configuration_file) {
      * 	    Modifiable options	    *
      * ******************************/
 
-    shared_options_t *shared_options = new_shared_cli_options();
+    shared_options_t *shared_options = new_shared_cli_options(1);
     vcf2epi_options_t *vcf2epi_options = new_vcf2epi_cli_options();
 
     // If no arguments or only -h / --help are provided, show usage
