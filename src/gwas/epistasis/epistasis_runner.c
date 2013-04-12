@@ -84,7 +84,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
         }
         
         // Run for each fold
-        #pragma omp parallel for firstprivate(sizes, training_sizes)
+        #pragma omp parallel for firstprivate(sizes, training_sizes) num_threads(shared_options_data->num_threads)
         for (int i = 0; i < options_data->num_folds; i++) {
             // Coordinates of the block being tested
             int block_coords[order]; memset(block_coords, 0, order * sizeof(int));
