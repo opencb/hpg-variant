@@ -19,8 +19,10 @@
 #include "dataset.h"
 #include "mdr.h"
 
-#define NUM_GENOTYPES   3
+#define NUM_GENOTYPES           3
 
+#define COMBINATIONS_ROW_SSE    16
+#define COMBINATIONS_ROW_GPU    128
 
 typedef struct {
     double accuracy;
@@ -73,6 +75,8 @@ int add_to_model_ranking(risky_combination *risky_comb, int max_ranking_size, li
  *          Counts          *
  * **************************/
 
+uint8_t* set_genotypes_masks(int order, uint8_t **genotypes, masks_info info);
+
 /**
  * @brief Gets the number of ocurrences of each genotype both in affected and unaffected groups.
  * @details Gets the number of ocurrences of each genotype both in affected and unaffected groups. For using 
@@ -85,9 +89,7 @@ int add_to_model_ranking(risky_combination *risky_comb, int max_ranking_size, li
  * @param num_counts Number of counts that will be calculated
  * @return List of counts, paired in (affected,unaffected)
  **/
-int* get_counts(int order, uint8_t *masks, uint8_t **genotype_combinations, int num_genotype_combinations, int *counts, masks_info info);
-
-uint8_t* get_masks(int order, uint8_t **genotypes, masks_info info);
+int* combination_counts(int order, uint8_t *masks, uint8_t **genotype_combinations, int num_genotype_combinations, int *counts, masks_info info);
 
 void masks_info_new(int order, int num_affected, int num_unaffected, masks_info *info);
 
@@ -95,7 +97,7 @@ void masks_info_new(int order, int num_affected, int num_unaffected, masks_info 
  *         High risk        *
  * **************************/
 
-int* get_high_risk_combinations(unsigned int *counts, unsigned int num_counts, unsigned int num_affected, unsigned int num_unaffected, 
+int* choose_high_risk_combinations(unsigned int *counts, unsigned int num_counts, unsigned int num_affected, unsigned int num_unaffected, 
                                 unsigned int *num_risky, void** aux_ret,
                                 bool (*test_func)(unsigned int, unsigned int, unsigned int, unsigned int, void **));
 
@@ -109,7 +111,7 @@ void risky_combination_free(risky_combination *combination);
  *  Evaluation and ranking  *
  * **************************/
 
-unsigned int *get_confusion_matrix(int order, risky_combination *combination, masks_info info, uint8_t **genotypes);
+unsigned int *calculate_confusion_matrix(int order, risky_combination *combination, masks_info info, uint8_t **genotypes);
 
 double evaluate_model(unsigned int *confusion_matrix, enum eval_function function);
 

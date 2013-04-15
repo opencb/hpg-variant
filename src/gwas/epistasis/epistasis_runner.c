@@ -21,7 +21,10 @@
 #include "epistasis_runner.h"
 #include "gwas/assoc/assoc.h"
 
-KHASH_MAP_INIT_STR(cvc, int);
+
+static void show_best_models_per_repetition(int order, int num_cv_repetitions, linked_list_t *best_models[]);
+static khash_t(cvc) *prepare_models_for_cvc(int order, int num_cv_repetitions, int max_val_len, linked_list_t *best_models[]);
+static int choose_best_model(int order, int num_cv_repetitions, int max_val_len, linked_list_t *best_models[], khash_t(cvc) *models_for_cvc, char **bestkey);
 
 
 int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_data_t* options_data) {
@@ -144,20 +147,20 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                 do {
 //                     print_combination(comb, 0, order);
                     
-                   // Get genotypes of that combination
-                   uint8_t *combination_genotypes[order];
-                   for (int s = 0; s < order; s++) {
-                       // Get combination address from block
-                       combination_genotypes[s] = block_genotypes[s] + (comb[s] % options_data->stride) * info.num_samples_per_mask;
-                   }
-                   risky_combination *risky_comb = get_model_from_combination_in_fold(order, comb, combination_genotypes,
-                                                                                      num_genotype_combinations, genotype_combinations, 
-                                                                                      num_counts_per_combination, counts, info);
-                   
+                    // Get genotypes of that combination
+                    uint8_t *combination_genotypes[order];
+                    for (int s = 0; s < order; s++) {
+                        // Get combination address from block
+                        combination_genotypes[s] = block_genotypes[s] + (comb[s] % options_data->stride) * info.num_samples_per_mask;
+                    }
+                    risky_combination *risky_comb = get_model_from_combination_in_fold(order, comb, combination_genotypes,
+                                                                                       num_genotype_combinations, genotype_combinations, 
+                                                                                       num_counts_per_combination, counts, info);
+
                     if (risky_comb) {
                         // Check the model against the testing dataset
                         double accuracy = 0.0f;
-                        
+
                         if (options_data->evaluation_mode == TESTING) {
 //                             uint8_t *testing_genotypes = get_genotypes_for_combination_and_fold(order, risky_comb->combination, 
 //                                                                                                 num_samples, sizes[3 * i + 1] + sizes[3 * i + 2], 
@@ -168,22 +171,22 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                             accuracy = test_model(order, risky_comb, combination_genotypes, info);
                         }
 //                         printf("*  Balanced accuracy: %.3f\n", accuracy);
-                        
+
                         int position = add_to_model_ranking(risky_comb, options_data->max_ranking_size, ranking_risky[i]);
     //                     if (position >= 0) {
     //                         printf("Combination inserted at position %d\n", position);
     //                     } else {
     //                         printf("Combination not inserted\n");
     //                     }
-                        
+
                         // If not inserted it means it is not among the most risky combinations, so free it
                         if (position < 0) {
                             risky_combination_free(risky_comb);
                         }
                     }
-                    
+
 //                     free(reference);
-                    
+
 //                     for (int c = 0; c < num_samples; c++) {
 //                         free(genotypes_for_testing[c]);
 //                     }
@@ -273,88 +276,15 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
     }
     
     
-    
     // Show the best model of each repetition
-    for (int r = 0; r < options_data->num_cv_repetitions; r++) {
-        risky_combination *element = linked_list_get(0, best_models[r]);
-        assert(element);
-        assert(element->combination);
-        printf("CV %d\t(", r);
-        for (int i = 0; i < order; i++) {
-            printf(" %d ", element->combination[i]);
-        }
-        printf(") - %.3f)\n", element->accuracy);
-    }
+    show_best_models_per_repetition(order, options_data->num_cv_repetitions, best_models);
     
     // CVC (get the model that appears more times in the first ranking position)
     int max_val_len = log10f(num_variants);
-    khash_t(cvc) *models_for_cvc = kh_init(cvc);
-    for (int r = 0; r < options_data->num_cv_repetitions; r++) {
-        risky_combination *element = linked_list_get(0, best_models[r]);
-        
-        // key = snp1_snp2_..._snpN
-        char *key = calloc(order * (max_val_len + 1), sizeof(char));
-        
-        for (int i = 0; i < order-1; i++) {
-            sprintf(key + strlen(key), "%d_", element->combination[i]);
-        }
-        sprintf(key + strlen(key), "%d", element->combination[order-1]);
-        
-        int ret;
-        khiter_t iter = kh_get(cvc, models_for_cvc, key);
-        if (iter != kh_end(models_for_cvc)) {
-            (kh_value(models_for_cvc, iter))++; // Increment number of occurrences
-        } else {
-            iter = kh_put(cvc, models_for_cvc, key, &ret);
-            if (ret) {
-                kh_value(models_for_cvc, iter) = 1;
-            }
-        }
-        linked_list_free(best_models[r], risky_combination_free);
-    }
+    khash_t(cvc) *models_for_cvc = prepare_models_for_cvc(order, options_data->num_cv_repetitions, max_val_len, best_models);
     
     char *bestkey;
-    int bestvalue = 0;
-    for (int k = kh_begin(models_for_cvc); k < kh_end(models_for_cvc); k++) {
-        if (kh_exist(models_for_cvc, k)) {
-            char *key = kh_key(models_for_cvc, k);
-            int value = kh_value(models_for_cvc, k);
-//             printf("%s -> %d\n", key, value);
-            if (value > bestvalue) {
-                bestkey = key;
-                bestvalue = value;
-            } else if (value == bestvalue) {
-                // If CVC(best) == CVC(candidate) ---> use CV-a
-                double acc_best = 0.0f;
-                double acc_candidate = 0.0f;
-                
-                // Sum all accuracies for the best and the candidate
-                for (int r = 0; r < options_data->num_cv_repetitions; r++) {
-                    risky_combination *element = linked_list_get_first(best_models[r]);
-                    
-                    // maybe_key = snp1_snp2_..._snpN
-                    char *maybe_key = calloc(order * (max_val_len + 1), sizeof(char));
-                    
-                    for (int i = 0; i < order-1; i++) {
-                        sprintf(maybe_key + strlen(maybe_key), "%d_", element->combination[i]);
-                    }
-                    sprintf(maybe_key + strlen(maybe_key), "%d", element->combination[order-1]);
-                    
-                    if (!strcmp(maybe_key, key)) {
-                        acc_candidate += element->accuracy;
-                    } else if (!strcmp(maybe_key, bestkey)) {
-                        acc_best += element->accuracy;
-                    }
-                }
-                
-                // Check which one is greater
-                if (acc_candidate > acc_best) {
-                    bestkey = key;
-                    bestvalue = value;
-                }
-            }
-        }
-    }
+    int bestvalue = choose_best_model(order, options_data->num_cv_repetitions, max_val_len, best_models, models_for_cvc, &bestkey);
     
     assert(bestkey);
     LOG_INFO_F("Best model is %s with a CVC of %d/%d\n", bestkey, bestvalue, options_data->num_cv_repetitions);
@@ -366,35 +296,14 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
         free(genotype_combinations[i]);
     }
     free(genotype_combinations);
+    for (int r = 0; r < options_data->num_cv_repetitions; r++) {
+        linked_list_free(best_models[r], risky_combination_free);
+    }
     epistasis_dataset_close(input_file, file_len);
     
     return ret_code;
 }
 
-
-/* *******************
- * Output generation *
- * *******************/
-
-void write_output_header(FILE *fd) {
-    assert(fd);
-    fprintf(fd, "#CHR         POS       A1      A2         T       U           OR           CHISQ         P-VALUE\n");
-}
-
-void write_output_body(list_t* output_list, FILE *fd) {
-    assert(fd);
-    list_item_t* item = NULL;
-//     while (item = list_remove_item(output_list)) {
-//         tdt_result_t *result = item->data_p;
-//         
-//         fprintf(fd, "%s\t%8ld\t%s\t%s\t%3d\t%3d\t%6f\t%6f\t%6f\n",
-//                 result->chromosome, result->position, result->reference, result->alternate, 
-//                 result->t1, result->t2, result->odds_ratio, result->chi_square, result->p_value);
-//         
-//         tdt_result_free(result);
-//         list_item_free(item);
-//     }
-}
 
 /* ******************************
  *      Auxiliary functions     *
@@ -414,4 +323,91 @@ int compare_risky(const void *risky_1, const void *risky_2) {
     }
     
     return 0;
+}
+
+static void show_best_models_per_repetition(int order, int num_cv_repetitions, linked_list_t *best_models[]) {
+    for (int r = 0; r < num_cv_repetitions; r++) {
+        risky_combination *element = linked_list_get(0, best_models[r]);
+        assert(element);
+        assert(element->combination);
+        printf("CV %d\t(", r);
+        for (int i = 0; i < order; i++) {
+            printf(" %d ", element->combination[i]);
+        }
+        printf(") - %.3f)\n", element->accuracy);
+    }
+}
+
+static khash_t(cvc) *prepare_models_for_cvc(int order, int num_cv_repetitions, int max_val_len, linked_list_t *best_models[]) {
+    khash_t(cvc) *models_for_cvc = kh_init(cvc);
+    for (int r = 0; r < num_cv_repetitions; r++) {
+        risky_combination *risky = linked_list_get(0, best_models[r]);
+        
+        // key = snp1_snp2_..._snpN
+        char *key = calloc(order * (max_val_len + 1), sizeof(char));
+
+        for (int i = 0; i < order-1; i++) {
+            sprintf(key + strlen(key), "%d_", risky->combination[i]);
+        }
+        sprintf(key + strlen(key), "%d", risky->combination[order-1]);
+
+        int ret;
+        khiter_t iter = kh_get(cvc, models_for_cvc, key);
+        if (iter != kh_end(models_for_cvc)) {
+            (kh_value(models_for_cvc, iter))++; // Increment number of occurrences
+        } else {
+            iter = kh_put(cvc, models_for_cvc, key, &ret);
+            if (ret) {
+                kh_value(models_for_cvc, iter) = 1;
+            }
+        }
+    }
+    
+    return models_for_cvc;
+}
+
+static int choose_best_model(int order, int num_cv_repetitions, int max_val_len, linked_list_t *best_models[], khash_t(cvc) *models_for_cvc, char **bestkey) {
+    int bestvalue = 0;
+    for (int k = kh_begin(models_for_cvc); k < kh_end(models_for_cvc); k++) {
+        if (kh_exist(models_for_cvc, k)) {
+            char *key = kh_key(models_for_cvc, k);
+            int value = kh_value(models_for_cvc, k);
+//             printf("%s -> %d\n", key, value);
+            if (value > bestvalue) {
+                *bestkey = key;
+                bestvalue = value;
+            } else if (value == bestvalue) {
+                // If CVC(best) == CVC(candidate) ---> use CV-a
+                double acc_best = 0.0f;
+                double acc_candidate = 0.0f;
+                
+                // Sum all accuracies for the best and the candidate
+                for (int r = 0; r < num_cv_repetitions; r++) {
+                    risky_combination *element = linked_list_get_first(best_models[r]);
+                    
+                    // maybe_key = snp1_snp2_..._snpN
+                    char *maybe_key = calloc(order * (max_val_len + 1), sizeof(char));
+                    
+                    for (int i = 0; i < order-1; i++) {
+                        sprintf(maybe_key + strlen(maybe_key), "%d_", element->combination[i]);
+                    }
+                    sprintf(maybe_key + strlen(maybe_key), "%d", element->combination[order-1]);
+                    
+                    if (!strcmp(maybe_key, key)) {
+                        acc_candidate += element->accuracy;
+                    } else if (!strcmp(maybe_key, *bestkey)) {
+                        acc_best += element->accuracy;
+                    }
+                }
+                
+                // Check which one is greater
+                if (acc_candidate > acc_best) {
+                    *bestkey = key;
+                    bestvalue = value;
+                }
+            }
+        }
+    }
+    
+    return bestvalue;
 }

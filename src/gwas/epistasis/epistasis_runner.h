@@ -42,6 +42,9 @@
 #include "epistasis.h"
 #include "model.h"
 
+KHASH_MAP_INIT_STR(cvc, int);
+
+
 int run_epistasis(shared_options_data_t *global_options_data, epistasis_options_data_t* options_data);
 
 

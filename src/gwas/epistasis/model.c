@@ -11,7 +11,7 @@ risky_combination *get_model_from_combination_in_fold(int order, int comb[order]
     risky_combination *risky_comb = NULL;
     
     // Get counts for the provided genotypes
-    uint8_t *masks = get_masks(order, val, info); // Grouped by SNP
+    uint8_t *masks = set_genotypes_masks(order, val, info); // Grouped by SNP
     
 /*
     printf("masks (%d) = {\n", info.num_masks);
@@ -25,7 +25,7 @@ risky_combination *get_model_from_combination_in_fold(int order, int comb[order]
     printf("}\n");
 */
     
-    get_counts(order, masks, genotype_combinations, num_genotype_combinations, counts, info);
+    combination_counts(order, masks, genotype_combinations, num_genotype_combinations, counts, info);
     
 //     _mm_free(masks);
     
@@ -42,7 +42,7 @@ risky_combination *get_model_from_combination_in_fold(int order, int comb[order]
     // Get high risk pairs for those counts
     void *aux_info;
     int num_risky;
-    int *risky_idx = get_high_risk_combinations(counts, num_counts, info.num_affected, info.num_unaffected, 
+    int *risky_idx = choose_high_risk_combinations(counts, num_counts, info.num_affected, info.num_unaffected, 
                                                 &num_risky, &aux_info, mdr_high_risk_combinations);
     
     // Filter non-risky SNP combinations
@@ -72,7 +72,7 @@ risky_combination *get_model_from_combination_in_fold(int order, int comb[order]
 double test_model(int order, risky_combination *risky_comb, uint8_t **val, masks_info info) {
     // Step 5 -> Check against a testing partition
     // Get the matrix containing {FP,FN,TP,TN}
-    unsigned int *confusion_matrix = get_confusion_matrix(order, risky_comb, info, val);
+    unsigned int *confusion_matrix = calculate_confusion_matrix(order, risky_comb, info, val);
     
 //     printf("confusion matrix = { ");
 //     for (int k = 0; k < 4; k++) {
@@ -168,7 +168,7 @@ int add_to_model_ranking(risky_combination *risky_comb, int max_ranking_size, li
  *          Counts          *
  * **************************/
 
-int* get_counts(int order, uint8_t *masks, uint8_t **genotype_combinations, int num_genotype_combinations, int *counts, masks_info info) {
+int* combination_counts(int order, uint8_t *masks, uint8_t **genotype_combinations, int num_genotype_combinations, int *counts, masks_info info) {
     uint8_t *comb;
     int count = 0;
     
@@ -219,7 +219,7 @@ int* get_counts(int order, uint8_t *masks, uint8_t **genotype_combinations, int 
     return counts;
 }
 
-uint8_t* get_masks(int order, uint8_t **genotypes, masks_info info) {
+uint8_t* set_genotypes_masks(int order, uint8_t **genotypes, masks_info info) {
     /* 
      * Structure: Genotypes of a SNP in each 'row'
      * 
@@ -286,7 +286,7 @@ void masks_info_new(int order, int num_affected, int num_unaffected, masks_info 
  *         High risk        *
  * **************************/
 
-int* get_high_risk_combinations(unsigned int* counts, unsigned int num_counts, unsigned int num_affected, unsigned int num_unaffected, 
+int* choose_high_risk_combinations(unsigned int* counts, unsigned int num_counts, unsigned int num_affected, unsigned int num_unaffected, 
                                 unsigned int *num_risky, void** aux_ret, 
                                 bool (*test_func)(unsigned int, unsigned int, unsigned int, unsigned int, void **)) {
     int *risky = malloc ((num_counts / 2) * sizeof(int));
@@ -334,7 +334,7 @@ void risky_combination_free(risky_combination* combination) {
  *  Evaluation and ranking  *
  * **************************/
 
-unsigned int *get_confusion_matrix(int order, risky_combination *combination, masks_info info, uint8_t **genotypes) {
+unsigned int *calculate_confusion_matrix(int order, risky_combination *combination, masks_info info, uint8_t **genotypes) {
     int num_samples = info.num_samples_per_mask;
     // TP, FN, FP, TN
     unsigned int *rates = calloc(4, sizeof(unsigned int));
