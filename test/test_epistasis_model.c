@@ -206,13 +206,13 @@ START_TEST(test_get_confusion_matrix) {
     uint8_t *genotypes_2da[2] = { gt2_0a, gt2_1a };
     
     masks_info_new(order, 7, 5, &info);
-    int *confusion_matrix = calculate_confusion_matrix(order, combination_2d, info, genotypes_2da);
+    int *matrix = confusion_matrix(order, combination_2d, info, genotypes_2da);
     
     //printf("matrix = { %d, %d, %d, %d }\n", confusion_matrix[0], confusion_matrix[1], confusion_matrix[2], confusion_matrix[3]);
-    fail_if(confusion_matrix[0] != 6, "(7 aff,5 unaff) TP = 6");
-    fail_if(confusion_matrix[1] != 1, "(7 aff,5 unaff) FN = 1");
-    fail_if(confusion_matrix[2] != 1, "(7 aff,5 unaff) FP = 1");
-    fail_if(confusion_matrix[3] != 4, "(7 aff,5 unaff) TN = 4");
+    fail_if(matrix[0] != 6, "(7 aff,5 unaff) TP = 6");
+    fail_if(matrix[1] != 1, "(7 aff,5 unaff) FN = 1");
+    fail_if(matrix[2] != 1, "(7 aff,5 unaff) FP = 1");
+    fail_if(matrix[3] != 4, "(7 aff,5 unaff) TN = 4");
     
     // 4 affected, 8 unaffected
     uint8_t gt2_0b[] = { 1, 1, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 1, 0, 0, 0, 1, 2, 0, 0, 0, 0, 0, 0, 0, 0 };
@@ -220,15 +220,15 @@ START_TEST(test_get_confusion_matrix) {
     uint8_t *genotypes_2db[2] = { gt2_0b, gt2_1b };
     
     masks_info_new(order, 4, 8, &info);
-    confusion_matrix = calculate_confusion_matrix(order, combination_2d, info, genotypes_2db);
+    matrix = confusion_matrix(order, combination_2d, info, genotypes_2db);
     
     //printf("matrix = { %d, %d, %d, %d }\n", confusion_matrix[0], confusion_matrix[1], confusion_matrix[2], confusion_matrix[3]);
-    fail_if(confusion_matrix[0] != 3, "(4 aff,8 unaff) TP = 3");
-    fail_if(confusion_matrix[1] != 1, "(4 aff,8 unaff) FN = 1");
-    fail_if(confusion_matrix[2] != 4, "(4 aff,8 unaff) FP = 4");
-    fail_if(confusion_matrix[3] != 4, "(4 aff,8 unaff) TN = 4");
+    fail_if(matrix[0] != 3, "(4 aff,8 unaff) TP = 3");
+    fail_if(matrix[1] != 1, "(4 aff,8 unaff) FN = 1");
+    fail_if(matrix[2] != 4, "(4 aff,8 unaff) FP = 4");
+    fail_if(matrix[3] != 4, "(4 aff,8 unaff) TN = 4");
     
-    free(confusion_matrix);
+    free(matrix);
     risky_combination_free(combination_2d);
     
     // ---------- order 3 ------------
@@ -244,15 +244,15 @@ START_TEST(test_get_confusion_matrix) {
     
     // 6 affected, 6 unaffected
     masks_info_new(order, 6, 6, &info);
-    confusion_matrix = calculate_confusion_matrix(order, combination_3d, info, genotypes_3d);
+    matrix = confusion_matrix(order, combination_3d, info, genotypes_3d);
     
     //printf("matrix = { %d, %d, %d, %d }\n", confusion_matrix[0], confusion_matrix[1], confusion_matrix[2], confusion_matrix[3]);
-    fail_if(confusion_matrix[0] != 6, "(6 aff,6 unaff) TP = 6");
-    fail_if(confusion_matrix[1] != 0, "(6 aff,6 unaff) FN = 0");
-    fail_if(confusion_matrix[2] != 3, "(6 aff,6 unaff) FP = 3");
-    fail_if(confusion_matrix[3] != 3, "(6 aff,6 unaff) TN = 3");
+    fail_if(matrix[0] != 6, "(6 aff,6 unaff) TP = 6");
+    fail_if(matrix[1] != 0, "(6 aff,6 unaff) FN = 0");
+    fail_if(matrix[2] != 3, "(6 aff,6 unaff) FP = 3");
+    fail_if(matrix[3] != 3, "(6 aff,6 unaff) TN = 3");
     
-    free(confusion_matrix);
+    free(matrix);
     risky_combination_free(combination_3d);
                                
 }

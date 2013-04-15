@@ -64,7 +64,7 @@ enum eval_function { CA, BA, wBA, GAMMA, TAU_B };
 
 risky_combination *get_model_from_combination_in_fold(int order, int comb[order], uint8_t **val, 
                                                       int num_genotype_combinations, uint8_t **genotype_combinations, 
-                                                      int num_counts, int counts[num_counts], masks_info info);
+                                                      int num_counts, int counts_aff[num_counts], int counts_unaff[num_counts], masks_info info);
 
 double test_model(int order, risky_combination *risky_comb, uint8_t **val, masks_info info);
 
@@ -89,7 +89,8 @@ uint8_t* set_genotypes_masks(int order, uint8_t **genotypes, masks_info info);
  * @param num_counts Number of counts that will be calculated
  * @return List of counts, paired in (affected,unaffected)
  **/
-int* combination_counts(int order, uint8_t *masks, uint8_t **genotype_combinations, int num_genotype_combinations, int *counts, masks_info info);
+void combination_counts(int order, uint8_t *masks, uint8_t **genotype_combinations, int num_genotype_combinations, 
+                        int *counts_aff, int *counts_unaff, masks_info info);
 
 void masks_info_new(int order, int num_affected, int num_unaffected, masks_info *info);
 
@@ -97,9 +98,10 @@ void masks_info_new(int order, int num_affected, int num_unaffected, masks_info 
  *         High risk        *
  * **************************/
 
-int* choose_high_risk_combinations(unsigned int *counts, unsigned int num_counts, unsigned int num_affected, unsigned int num_unaffected, 
-                                unsigned int *num_risky, void** aux_ret,
-                                bool (*test_func)(unsigned int, unsigned int, unsigned int, unsigned int, void **));
+int* choose_high_risk_combinations(unsigned int* counts_aff, unsigned int* counts_unaff, unsigned int num_counts, 
+                                   unsigned int num_affected, unsigned int num_unaffected, 
+                                   unsigned int *num_risky, void** aux_ret, 
+                                   bool (*test_func)(unsigned int, unsigned int, unsigned int, unsigned int, void **));
 
 
 risky_combination *risky_combination_new(int order, int comb[order], uint8_t **possible_genotypes_combinations, int num_risky, int *risky_idx, void *aux_info);
@@ -111,7 +113,7 @@ void risky_combination_free(risky_combination *combination);
  *  Evaluation and ranking  *
  * **************************/
 
-unsigned int *calculate_confusion_matrix(int order, risky_combination *combination, masks_info info, uint8_t **genotypes);
+unsigned int *confusion_matrix(int order, risky_combination *combination, masks_info info, uint8_t **genotypes);
 
 double evaluate_model(unsigned int *confusion_matrix, enum eval_function function);
 

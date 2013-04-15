@@ -92,8 +92,9 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
             // Masks information (num (un)affected with padding, buffers, and so on)
             masks_info info; masks_info_new(order, training_sizes[3 * i + 1], training_sizes[3 * i + 2], &info);
             // Counts per genotype combination
-            int num_counts_per_combination = 2 * pow(NUM_GENOTYPES, order);
-            int counts[num_counts_per_combination];
+            int num_counts_per_combination = pow(NUM_GENOTYPES, order);
+            int counts_aff[num_counts_per_combination];
+            int counts_unaff[num_counts_per_combination];
     
             do {
                 uint8_t *block_starts[order];
@@ -155,7 +156,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                     }
                     risky_combination *risky_comb = get_model_from_combination_in_fold(order, comb, combination_genotypes,
                                                                                        num_genotype_combinations, genotype_combinations, 
-                                                                                       num_counts_per_combination, counts, info);
+                                                                                       num_counts_per_combination, counts_aff, counts_unaff, info);
 
                     if (risky_comb) {
                         // Check the model against the testing dataset
