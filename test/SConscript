@@ -37,14 +37,14 @@ epi_data = penv.Program('epistasis_dataset.test',
                       ]
            )
 
-#epi_mdr = penv.Program('epistasis_mdr.test', 
-             #source = ['test_mdr.c', 
-                       #Glob('#src/*.o'), '#src/gwas/epistasis/cross_validation.o', '#src/gwas/epistasis/dataset.o', '#src/gwas/epistasis/mdr.o', '#src/gwas/epistasis/model.o',  
-                       #"%s/libcommon.a" % commons_path,
-                       #"%s/bioformats/libbioformats.a" % bioinfo_path,
-                       #"%s/libhpgmath.a" % math_path
-                      #]
-           #)
+epi_mdr = penv.Program('epistasis_mdr.test', 
+             source = ['test_mdr.c', 
+                       Glob('#src/*.o'), '#src/gwas/epistasis/cross_validation.o', '#src/gwas/epistasis/dataset.o', '#src/gwas/epistasis/mdr.o', '#src/gwas/epistasis/model.o',  
+                       "%s/libcommon.a" % commons_path,
+                       "%s/bioformats/libbioformats.a" % bioinfo_path,
+                       "%s/libhpgmath.a" % math_path
+                      ]
+           )
 
 epi_model = penv.Program('epistasis_model.test', 
              source = ['test_epistasis_model.c', 

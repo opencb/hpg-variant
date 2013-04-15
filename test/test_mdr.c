@@ -33,20 +33,41 @@ KHASH_MAP_INIT_INT(cvc, int);
 
 
 START_TEST (test_get_high_risk_combinations) {
-    int num_counts = 6, num_risky = 0;
+    int num_counts = 8, num_risky = 0;
     int counts[] = { 8, 40, 4, 75, 9, 20, 8, 63 } ;
     int num_affected = 10, num_unaffected = 80;
     
-    int *combinations = get_high_risk_combinations(counts, num_counts, num_affected, num_unaffected, 
-                                                   &num_risky, NULL, mdr_high_risk_combinations);
+    int *combinations = choose_high_risk_combinations(counts, num_counts, num_affected, num_unaffected, 
+                                                      &num_risky, NULL, mdr_high_risk_combinations);
     
-    fail_if(num_risky != 2, "There should be 2 risky combination");
+    fail_if(num_risky != 3, "There should be 3 risky combination");
     fail_if(combinations[0] != 0, "Combination 0 (zero) should be risky");
     fail_if(combinations[1] != 2, "Combination 2 should be risky");
+    fail_if(combinations[2] != 3, "Combination 3 should be risky");
+}
+END_TEST
+
+START_TEST (test_get_high_risk_combinations2) {
+    int num_counts = 5, num_counts_with_padding = 16;
+    int counts_aff[] = { 8, 4, 9, 8, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } ;
+    int counts_unaff[] = { 40, 75, 20, 63, 40, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } ;
+    unsigned int num_affected = 10, num_unaffected = 80;
+    
+    int *risky_idx = mdr_high_risk_combinations2(counts_aff, counts_unaff, num_counts, num_affected, num_unaffected, NULL);
+    
+    fail_if(!risky_idx[0], "Combination 0 (zero) should be risky");
+    fail_if(!risky_idx[2], "Combination 2 should be risky");
+    fail_if(!risky_idx[3], "Combination 3 should be risky");
+    
+    fail_if(risky_idx[1], "Combination 1 should not be risky");
+    for (int i = 4; i < num_counts_with_padding; i++) {
+        fail_if(risky_idx[i], "Combinations not in {0, 2, 3} should not be risky");
+    }
 }
 END_TEST
 
 
+/*
 START_TEST (test_mdr_steps_2_6) {
     const int max_ranking_size = 10;
     const int order = 2, stride = 3, num_blocks = 3;
@@ -361,6 +382,7 @@ START_TEST(test_mdr_5_repetitions_5_fold) {
     kh_destroy(cvc, models_for_cvc);
 }
 END_TEST
+*/
 
 
 /* ******************************
@@ -381,15 +403,20 @@ int main (int argc, char *argv) {
 Suite *create_test_suite(void) {
     TCase *tc_counts = tcase_create("Risk classification");
     tcase_add_test(tc_counts, test_get_high_risk_combinations);
+    tcase_add_test(tc_counts, test_get_high_risk_combinations2);
     
+/*
     TCase *tc_cv = tcase_create("Cross validation process");
     tcase_add_test(tc_cv, test_mdr_steps_2_6);
     tcase_add_test(tc_cv, test_mdr_5_repetitions_5_fold);
+*/
     
     // Add test cases to a test suite
     Suite *fs = suite_create("MDR");
     suite_add_tcase(fs, tc_counts);
+/*
     suite_add_tcase(fs, tc_cv);
+*/
     
     return fs;
 }
