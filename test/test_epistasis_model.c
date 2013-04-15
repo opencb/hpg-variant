@@ -44,7 +44,7 @@ START_TEST(test_get_masks) {
     
     masks_info info; masks_info_new(order, num_affected, num_unaffected, &info);
     
-    uint8_t *masks = get_masks(order, masks_genotypes, info);
+    uint8_t *masks = set_genotypes_masks(order, masks_genotypes, info);
     
     fail_unless(info.num_masks == 3 * order * num_samples_with_padding, "There should be 3 GTs * 4 SNPs * 4+4 samples (padded) = 384 elements in the masks array");
     
@@ -109,7 +109,7 @@ START_TEST(test_get_counts) {
     
     masks_info info; masks_info_new(order, num_affected, num_unaffected, &info);
     
-    uint8_t *masks = get_masks(order, masks_genotypes, info);
+    uint8_t *masks = set_genotypes_masks(order, masks_genotypes, info);
     
     int num_combinations;
     uint8_t **combinations = get_genotype_combinations(order, &num_combinations);
@@ -117,7 +117,7 @@ START_TEST(test_get_counts) {
     // Order 2
     int num_counts = 2 * pow(NUM_GENOTYPES, order);
     int counts_o2[num_counts];
-    get_counts(order, masks, combinations, num_combinations, counts_o2, info);
+    combination_counts(order, masks, combinations, num_combinations, counts_o2, info);
     fail_if(num_counts != 18, "There must be 9 order 2 combinations * 2 phenotypes");
     
     fail_if(counts_o2[0] != 2 || counts_o2[1] != 0, "A(0,0) -> 2,0");
@@ -135,10 +135,10 @@ START_TEST(test_get_counts) {
     // Order 3
     order = 3;
     combinations = get_genotype_combinations(order, &num_combinations);
-    masks = get_masks(order, masks_genotypes, info);
+    masks = set_genotypes_masks(order, masks_genotypes, info);
     num_counts = 2 * pow(NUM_GENOTYPES, order);
     int counts_o3[num_counts];
-    get_counts(order, masks, combinations, num_combinations, counts_o3, info);
+    combination_counts(order, masks, combinations, num_combinations, counts_o3, info);
     fail_if(num_counts != 54, "There must be 27 order 3 combinations * 2 phenotypes");
     
 //     for (int i = 0; i < order; i++) {
@@ -206,7 +206,7 @@ START_TEST(test_get_confusion_matrix) {
     uint8_t *genotypes_2da[2] = { gt2_0a, gt2_1a };
     
     masks_info_new(order, 7, 5, &info);
-    int *confusion_matrix = get_confusion_matrix(order, combination_2d, info, genotypes_2da);
+    int *confusion_matrix = calculate_confusion_matrix(order, combination_2d, info, genotypes_2da);
     
     //printf("matrix = { %d, %d, %d, %d }\n", confusion_matrix[0], confusion_matrix[1], confusion_matrix[2], confusion_matrix[3]);
     fail_if(confusion_matrix[0] != 6, "(7 aff,5 unaff) TP = 6");
@@ -220,7 +220,7 @@ START_TEST(test_get_confusion_matrix) {
     uint8_t *genotypes_2db[2] = { gt2_0b, gt2_1b };
     
     masks_info_new(order, 4, 8, &info);
-    confusion_matrix = get_confusion_matrix(order, combination_2d, info, genotypes_2db);
+    confusion_matrix = calculate_confusion_matrix(order, combination_2d, info, genotypes_2db);
     
     //printf("matrix = { %d, %d, %d, %d }\n", confusion_matrix[0], confusion_matrix[1], confusion_matrix[2], confusion_matrix[3]);
     fail_if(confusion_matrix[0] != 3, "(4 aff,8 unaff) TP = 3");
@@ -244,7 +244,7 @@ START_TEST(test_get_confusion_matrix) {
     
     // 6 affected, 6 unaffected
     masks_info_new(order, 6, 6, &info);
-    confusion_matrix = get_confusion_matrix(order, combination_3d, info, genotypes_3d);
+    confusion_matrix = calculate_confusion_matrix(order, combination_3d, info, genotypes_3d);
     
     //printf("matrix = { %d, %d, %d, %d }\n", confusion_matrix[0], confusion_matrix[1], confusion_matrix[2], confusion_matrix[3]);
     fail_if(confusion_matrix[0] != 6, "(6 aff,6 unaff) TP = 6");
