@@ -127,8 +127,7 @@ uint8_t *get_genotypes_for_combination_and_fold(int order, int comb[order], int 
 
 uint8_t *get_genotypes_for_block_exclude_fold(int num_variants, int num_samples, masks_info info, 
                                               int num_samples_in_fold, int fold_samples[num_samples_in_fold], 
-                                              int stride, int block_coord, uint8_t *block_start) {
-    uint8_t *genotypes = _mm_malloc(stride * (info.num_affected_with_padding + info.num_unaffected_with_padding) * sizeof(uint8_t), 16);
+                                              int stride, int block_coord, uint8_t *block_start, uint8_t *genotypes) {
     int genotypes_copied = 0;   // Copied genotypes of a SNP
     int bytes_copied = 0;       // Total bytes copied (all genotypes and padding)
     int subset_length = 0, max_subset_length = 0;

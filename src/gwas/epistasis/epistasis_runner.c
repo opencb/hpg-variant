@@ -85,12 +85,22 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
         // Run for each fold
         #pragma omp parallel for firstprivate(sizes, training_sizes) num_threads(shared_options_data->num_threads)
         for (int i = 0; i < options_data->num_folds; i++) {
+            // Masks information (number (un)affected with padding, buffers, and so on)
+            masks_info info; masks_info_new(order, training_sizes[3 * i + 1], training_sizes[3 * i + 2], &info);
             // Coordinates of the block being tested
             int block_coords[order]; memset(block_coords, 0, order * sizeof(int));
+            // Coordinates of the previous block (for reducing data copies)
+            int prev_block_coords[order];
+            for (int s = 0; s < order; s++) {
+                prev_block_coords[s] = -1;
+            }
+            // Scratchpad for block genotypes
+            uint8_t *scratchpad[order];
+            for (int s = 0; s < order; s++) {
+                scratchpad[s] = _mm_malloc(options_data->stride * info.num_samples_per_mask * sizeof(uint8_t), 16);
+            }
             // Combination of variants being tested
             int comb[order];
-            // Masks information (num (un)affected with padding, buffers, and so on)
-            masks_info info; masks_info_new(order, training_sizes[3 * i + 1], training_sizes[3 * i + 2], &info);
             // Counts per genotype combination
             int num_counts_per_combination = pow(NUM_GENOTYPES, order);
             int counts_aff[num_counts_per_combination];
@@ -107,9 +117,12 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                 
                 // Retrieve the genotypes for the current block (and excluding this fold)
                 uint8_t *block_genotypes[order];
-                // Initialize first coordinate
-                block_genotypes[0] = get_genotypes_for_block_exclude_fold(num_variants, num_samples, info, sizes[3 * i], folds[i], 
-                                                                          options_data->stride, block_coords[0], block_starts[0]);
+                // Initialize first coordinate (only if it's different from the previous)
+                if (prev_block_coords[0] != block_coords[0]) {
+                    block_genotypes[0] = get_genotypes_for_block_exclude_fold(num_variants, num_samples, info, sizes[3 * i], folds[i], 
+                                                                              options_data->stride, block_coords[0], block_starts[0],
+                                                                              scratchpad[0]);
+                }
                 
                 // Initialize the rest of coordinates. If any of them is the same as a previous one, don't copy, but reference directly
                 for (int m = 1; m < order; m++) {
@@ -127,7 +140,8 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                         // If not equals to a previous one, retrieve data
 //                         printf("getting %d\n", m);
                         block_genotypes[m] = get_genotypes_for_block_exclude_fold(num_variants, num_samples, info, sizes[3 * i], folds[i], 
-                                                                                  options_data->stride, block_coords[m], block_starts[m]);
+                                                                                  options_data->stride, block_coords[m], block_starts[m],
+                                                                                  scratchpad[m]);
                     }
                 }
                 
@@ -195,22 +209,13 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                     
                 } while (get_next_combination_in_block(order, comb, block_coords, options_data->stride, num_variants)); // Test next combinations
                 
-                for (int s = 0; s < order; s++) {
-                    int letsfree = 1;
-                    for (int t = 0; t < s; t++) {
-                        if (block_coords[s] == block_coords[t]) {
-                            letsfree = 0;
-                            break;
-                        }
-                    }
-                    if (letsfree) {
-                        _mm_free(block_genotypes[s]);
-                    }
-                }
-                
+                memcpy(prev_block_coords, block_coords, order * sizeof(int));
             } while (get_next_block(num_blocks_per_dim, order, block_coords));
             
             _mm_free(info.masks);
+            for (int s = 0; s < order; s++) {
+                _mm_free(scratchpad[s]);
+            }
         }
         
         // Merge all rankings in one
