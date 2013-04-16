@@ -7,35 +7,13 @@
 
 risky_combination *get_model_from_combination_in_fold(int order, int comb[order], uint8_t **val, 
                                                       int num_genotype_combinations, uint8_t **genotype_combinations, 
-                                                      int num_counts, int counts_aff[num_counts], int counts_unaff[num_counts], masks_info info) {
+                                                      int num_counts, int counts_aff[num_counts], int counts_unaff[num_counts],
+                                                      masks_info info, risky_combination *risky_scratchpad) {
     risky_combination *risky_comb = NULL;
     
     // Get counts for the provided genotypes
     uint8_t *masks = set_genotypes_masks(order, val, info); // Grouped by SNP
-    
-/*
-    printf("masks (%d) = {\n", info.num_masks);
-    printf("%03d ", masks[0]);
-    for (int i = 1; i < info.num_masks; i++) {
-        if (i % info.num_samples_per_mask == 0) {
-            printf("\n");
-        }
-        printf("%03d ", masks[i]);
-    }
-    printf("}\n");
-*/
-    
     combination_counts(order, masks, genotype_combinations, num_genotype_combinations, counts_aff, counts_unaff, info);
-    
-//     printf("counts = {\n");
-//     for (int j = 0; j < 3; j++) {
-//         printf("  ");
-//         for (int k = 0; k < 6; k++) {
-//             printf("%d ", counts[j * 6 + k]);
-//         }
-//         printf("\n");
-//     }
-//     printf("}\n");
     
     // Get high risk pairs for those counts
     void *aux_info;
@@ -46,19 +24,11 @@ risky_combination *get_model_from_combination_in_fold(int order, int comb[order]
     // Filter non-risky SNP combinations
     if (num_risky > 0) {
         // Put together the info about the SNP combination and its genotype combinations
-        risky_comb = risky_combination_new(order, comb, genotype_combinations, num_risky, risky_idx, aux_info);
-        
-//         printf("risky combination = {\n  SNP: ");
-//         print_combination(risky_comb->combination, 0, order);
-//         printf("  GT: ");
-//         for (int j = 0; j < num_risky * 2; j++) {
-//             if (j % 2) {
-//                 printf("%d), ", risky_comb->genotypes[j]);
-//             } else {
-//                 printf("(%d ", risky_comb->genotypes[j]);
-//             }
-//         }
-//         printf("\n}\n");
+        if (risky_scratchpad) {
+            risky_comb = risky_combination_copy(order, comb, genotype_combinations, num_risky, risky_idx, aux_info, risky_scratchpad);
+        } else {
+            risky_comb = risky_combination_new(order, comb, genotype_combinations, num_risky, risky_idx, aux_info);
+        }
     }
     
     free(risky_idx);
@@ -68,50 +38,24 @@ risky_combination *get_model_from_combination_in_fold(int order, int comb[order]
 
 
 double test_model(int order, risky_combination *risky_comb, uint8_t **val, masks_info info, unsigned int *conf_matrix) {
-    // Step 5 -> Check against a testing partition
     // Get the matrix containing {FP,FN,TP,TN}
     confusion_matrix(order, risky_comb, info, val, conf_matrix);
     
-//     printf("confusion matrix = { ");
-//     for (int k = 0; k < 4; k++) {
-//         printf("%u ", confusion_matrix[k]);
-//     }
-//     printf("}\n");
-    
     // Evaluate the model, basing on the confusion matrix
     double eval = evaluate_model(conf_matrix, BA);
-    
-//     printf("risky combination = {\n  SNP: ");
-//     print_combination(risky_comb->combination, 0, order);
-//     printf("  GT: ");
-//     for (int j = 0; j < risky_comb->num_risky * 2; j++) {
-//         if (j % 2) {
-//             printf("%d), ", risky_comb->genotypes[j]);
-//         } else {
-//             printf("(%d ", risky_comb->genotypes[j]);
-//         }
-//     }
-//     printf("\n}\n", eval);
-    
     risky_comb->accuracy = eval;
     
     return eval;
 }
 
 
-int add_to_model_ranking(risky_combination *risky_comb, int max_ranking_size, linked_list_t *ranking_risky) {
-    // Step 6 -> Ellaborate a ranking of the best N combinations
+int add_to_model_ranking(risky_combination *risky_comb, int max_ranking_size, linked_list_t *ranking_risky, risky_combination **removed) {
+    // Step 6 -> Construct ranking of the best N combinations
     risky_combination *last_element = (linked_list_size(ranking_risky) > 0) ? linked_list_get_last(ranking_risky) : NULL;
     size_t current_ranking_size = ranking_risky->size;
     
     linked_list_iterator_t* iter = linked_list_iterator_new(ranking_risky);
     risky_combination *element = NULL;
-//     printf("Ranking (size %zu) = { ", current_ranking_size);
-//     while(element = linked_list_iterator_next(iter)) {
-//         printf("(%d %d - %.3f) ", element->combination[0], element->combination[1], element->accuracy);
-//     }
-//     printf("}\n");
-//     linked_list_iterator_first(iter);
     
     if (current_ranking_size > 0) {
         if (last_element) {
@@ -130,8 +74,7 @@ int add_to_model_ranking(risky_combination *risky_comb, int max_ranking_size, li
                     
                     if (current_ranking_size >= max_ranking_size) {
                         linked_list_iterator_last(iter);
-                        risky_combination *removed = linked_list_iterator_remove(iter);
-                        risky_combination_free(removed);
+                        *removed = linked_list_iterator_remove(iter);
                     }
                     
                     linked_list_iterator_free(iter);
@@ -273,7 +216,6 @@ void masks_info_new(int order, int num_affected, int num_unaffected, masks_info 
     assert(info->masks);
     assert(info->num_affected_with_padding);
     assert(info->num_unaffected_with_padding);
-//    printf("nawp = %d\tnuwp = %d\n", info->num_affected_with_padding, info->num_unaffected_with_padding);
 }
 
 
@@ -302,16 +244,31 @@ int* choose_high_risk_combinations(unsigned int* counts_aff, unsigned int* count
     return risky;
 }
 
-risky_combination* risky_combination_new(int order, int comb[order], uint8_t** possible_genotypes_combinations, int num_risky, int* risky_idx, void *aux_info) {
+risky_combination* risky_combination_new(int order, int comb[order], uint8_t** possible_genotypes_combinations, 
+                                         int num_risky, int* risky_idx, void *aux_info) {
     risky_combination *risky = malloc(sizeof(risky_combination));
     risky->order = order;
     risky->combination = malloc(order * sizeof(int));
-    risky->genotypes = malloc(num_risky * order * sizeof(uint8_t));
+    risky->genotypes = malloc(pow(NUM_GENOTYPES, order) * order * sizeof(uint8_t)); // Maximum possible
     risky->num_risky_genotypes = num_risky;
     risky->auxiliary_info = aux_info; // TODO improvement: set this using a method-dependant (MDR, MB-MDR) function
     
     memcpy(risky->combination, comb, order * sizeof(int));
     
+    for (int i = 0; i < num_risky; i++) {
+        memcpy(risky->genotypes + (order * i), possible_genotypes_combinations[risky_idx[i]], order * sizeof(uint8_t));
+    }
+    
+    return risky;
+}
+
+risky_combination* risky_combination_copy(int order, int comb[order], uint8_t** possible_genotypes_combinations, 
+                                          int num_risky, int* risky_idx, void *aux_info, risky_combination* risky) {
+    assert(risky);
+    risky->num_risky_genotypes = num_risky;
+    risky->auxiliary_info = aux_info; // TODO improvement: set this using a method-dependant (MDR, MB-MDR) function
+    
+    memcpy(risky->combination, comb, order * sizeof(int));
     for (int i = 0; i < num_risky; i++) {
         memcpy(risky->genotypes + (order * i), possible_genotypes_combinations[risky_idx[i]], order * sizeof(uint8_t));
     }
@@ -334,24 +291,6 @@ void confusion_matrix(int order, risky_combination *combination, masks_info info
     int num_samples = info.num_samples_per_mask;
     uint8_t confusion_masks[combination->num_risky_genotypes * num_samples];
     memset(confusion_masks, 0, combination->num_risky_genotypes * num_samples * sizeof(uint8_t));
-    
-/*
-    printf("input 2 = {\n");
-    for (int i = 0; i < order; i++) {
-        for (int j = 0; j < num_samples; j++) {
-            printf("%03d ", genotypes[i][j]);
-        }
-        printf("\n");
-    }
-    printf("}\nrisky genotypes 2 = { ");
-    for (int i = 0; i < combination->num_risky_genotypes; i++) {
-        for (int j = 0; j < order; j++) {
-            printf("%d ", combination->genotypes[i * order + j]);
-        }
-        printf(", ");
-    }
-    printf("}\n");
-*/
     
     __m128i comb_genotypes;     // The genotype to compare for generating a mask (of the form {0 0 0 0 ... }, {1 1 1 1 ... })
     __m128i input_genotypes;    // Genotypes from the input dataset

@@ -64,11 +64,12 @@ enum eval_function { CA, BA, wBA, GAMMA, TAU_B };
 
 risky_combination *get_model_from_combination_in_fold(int order, int comb[order], uint8_t **val, 
                                                       int num_genotype_combinations, uint8_t **genotype_combinations, 
-                                                      int num_counts, int counts_aff[num_counts], int counts_unaff[num_counts], masks_info info);
+                                                      int num_counts, int counts_aff[num_counts], int counts_unaff[num_counts],
+                                                      masks_info info, risky_combination *risky_scratchpad);
 
 double test_model(int order, risky_combination *risky_comb, uint8_t **val, masks_info info, unsigned int *conf_matrix);
 
-int add_to_model_ranking(risky_combination *risky_comb, int max_ranking_size, linked_list_t *ranking_risky);
+int add_to_model_ranking(risky_combination *risky_comb, int max_ranking_size, linked_list_t *ranking_risky, risky_combination **removed);
 
 
 /* **************************
@@ -104,7 +105,11 @@ int* choose_high_risk_combinations(unsigned int* counts_aff, unsigned int* count
                                    bool (*test_func)(unsigned int, unsigned int, unsigned int, unsigned int, void **));
 
 
-risky_combination *risky_combination_new(int order, int comb[order], uint8_t **possible_genotypes_combinations, int num_risky, int *risky_idx, void *aux_info);
+risky_combination *risky_combination_new(int order, int comb[order], uint8_t **possible_genotypes_combinations, 
+                                         int num_risky, int *risky_idx, void *aux_info);
+
+risky_combination* risky_combination_copy(int order, int comb[order], uint8_t** possible_genotypes_combinations, 
+                                          int num_risky, int* risky_idx, void *aux_info, risky_combination* risky);
 
 void risky_combination_free(risky_combination *combination);
 

@@ -99,6 +99,8 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
             for (int s = 0; s < order; s++) {
                 scratchpad[s] = _mm_malloc(options_data->stride * info.num_samples_per_mask * sizeof(uint8_t), 16);
             }
+            // Genotypes for the current block (and excluding a fold)
+            uint8_t *block_genotypes[order];
             // Combination of variants being tested
             int comb[order];
             // Counts per genotype combination
@@ -107,7 +109,9 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
             int counts_unaff[num_counts_per_combination];
             // Confusion matrix
             unsigned int conf_matrix[4];
-    
+            // Last rejected risky combination
+            risky_combination *risky_rejected = NULL;
+            
             do {
                 uint8_t *block_starts[order];
     //             printf("block starts = { ");
@@ -117,8 +121,6 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                 }
     //             printf("}\n");
                 
-                // Retrieve the genotypes for the current block (and excluding this fold)
-                uint8_t *block_genotypes[order];
                 // Initialize first coordinate (only if it's different from the previous)
                 if (prev_block_coords[0] != block_coords[0]) {
                     block_genotypes[0] = get_genotypes_for_block_exclude_fold(num_variants, num_samples, info, sizes[3 * i], folds[i], 
@@ -128,22 +130,24 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                 
                 // Initialize the rest of coordinates. If any of them is the same as a previous one, don't copy, but reference directly
                 for (int m = 1; m < order; m++) {
-                    bool already_present = false;
-                    for (int n = 0; n < m; n++) {
-                        if (block_coords[m] == block_coords[n]) {
-//                             printf("taking %d -> %d\n", n, m);
-                            block_genotypes[m] = block_genotypes[n];
-                            already_present = true;
-                            break;
-                        } 
-                    }
-                    
-                    if (!already_present) {
-                        // If not equals to a previous one, retrieve data
-//                         printf("getting %d\n", m);
-                        block_genotypes[m] = get_genotypes_for_block_exclude_fold(num_variants, num_samples, info, sizes[3 * i], folds[i], 
-                                                                                  options_data->stride, block_coords[m], block_starts[m],
-                                                                                  scratchpad[m]);
+                    if (prev_block_coords[m] != block_coords[m]) {
+                        bool already_present = false;
+                        for (int n = 0; n < m; n++) {
+                            if (block_coords[m] == block_coords[n]) {
+    //                             printf("taking %d -> %d\n", n, m);
+                                block_genotypes[m] = block_genotypes[n];
+                                already_present = true;
+                                break;
+                            } 
+                        }
+
+                        if (!already_present) {
+                            // If not equals to a previous one, retrieve data
+    //                         printf("getting %d\n", m);
+                            block_genotypes[m] = get_genotypes_for_block_exclude_fold(num_variants, num_samples, info, sizes[3 * i], folds[i], 
+                                                                                    options_data->stride, block_coords[m], block_starts[m],
+                                                                                    scratchpad[m]);
+                        }
                     }
                 }
                 
@@ -172,24 +176,25 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                     }
                     risky_combination *risky_comb = get_model_from_combination_in_fold(order, comb, combination_genotypes,
                                                                                        num_genotype_combinations, genotype_combinations, 
-                                                                                       num_counts_per_combination, counts_aff, counts_unaff, info);
+                                                                                       num_counts_per_combination, counts_aff, counts_unaff, 
+                                                                                       info, risky_rejected);
 
                     if (risky_comb) {
                         // Check the model against the testing dataset
                         double accuracy = 0.0f;
 
-                        if (options_data->evaluation_mode == TESTING) {
+//                        if (options_data->evaluation_mode == TESTING) {
 //                             uint8_t *testing_genotypes = get_genotypes_for_combination_and_fold(order, risky_comb->combination, 
 //                                                                                                 num_samples, sizes[3 * i + 1] + sizes[3 * i + 2], 
 //                                                                                                 folds[i], options_data->stride, block_starts);
 //                             accuracy = test_model(order, risky_comb, testing_genotypes, sizes[3 * i + 1], sizes[3 * i + 2], &confusion_time);
 //                             free(testing_genotypes);
-                        } else {
+//                        } else {
                             accuracy = test_model(order, risky_comb, combination_genotypes, info, conf_matrix);
-                        }
+//                        }
 //                         printf("*  Balanced accuracy: %.3f\n", accuracy);
 
-                        int position = add_to_model_ranking(risky_comb, options_data->max_ranking_size, ranking_risky[i]);
+                        int position = add_to_model_ranking(risky_comb, options_data->max_ranking_size, ranking_risky[i], &risky_rejected);
     //                     if (position >= 0) {
     //                         printf("Combination inserted at position %d\n", position);
     //                     } else {
@@ -197,7 +202,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
     //                     }
 
                         // If not inserted it means it is not among the most risky combinations, so free it
-                        if (position < 0) {
+                        if (position < 0 && risky_comb != risky_rejected) {
                             risky_combination_free(risky_comb);
                         }
                     }
@@ -218,6 +223,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
             for (int s = 0; s < order; s++) {
                 _mm_free(scratchpad[s]);
             }
+            risky_combination_free(risky_rejected);
         }
         
         // Merge all rankings in one
@@ -228,7 +234,6 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
         risky_combination *repetition_ranking[repetition_ranking_size];
         size_t current_index = 0;
         for (int i = 0; i < options_data->num_folds; i++) {
-            size_t current_ranking_size = ranking_risky[i]->size;
             linked_list_iterator_t* iter = linked_list_iterator_new(ranking_risky[i]);
             
             risky_combination *element = NULL;
@@ -248,7 +253,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
         // Sum all values of each position and get the mean of accuracies
         linked_list_t *sorted_repetition_ranking = linked_list_new(COLLECTION_MODE_ASYNCHRONIZED);
         risky_combination *current = repetition_ranking[0];
-        
+        risky_combination *removed = NULL;
         for (int i = 1; i < repetition_ranking_size; i++) {
             risky_combination *element = repetition_ranking[i];
             if (!compare_risky(&current, &element)) {
@@ -256,8 +261,13 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                 risky_combination_free(element);
             } else {
                 current->accuracy /= options_data->num_folds;
-                int position = add_to_model_ranking(current, repetition_ranking_size, sorted_repetition_ranking);
+                int position = add_to_model_ranking(current, repetition_ranking_size, sorted_repetition_ranking, &removed);
                 current = element;
+                if (removed) {
+                    printf("Let's remove combination!\n");
+                    risky_combination_free(removed);
+                    printf("Combination removed!\n");
+                }
             }
         }
         
