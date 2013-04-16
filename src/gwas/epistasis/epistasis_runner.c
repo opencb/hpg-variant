@@ -105,6 +105,8 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
             int num_counts_per_combination = pow(NUM_GENOTYPES, order);
             int counts_aff[num_counts_per_combination];
             int counts_unaff[num_counts_per_combination];
+            // Confusion matrix
+            unsigned int conf_matrix[4];
     
             do {
                 uint8_t *block_starts[order];
@@ -183,7 +185,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
 //                             accuracy = test_model(order, risky_comb, testing_genotypes, sizes[3 * i + 1], sizes[3 * i + 2], &confusion_time);
 //                             free(testing_genotypes);
                         } else {
-                            accuracy = test_model(order, risky_comb, combination_genotypes, info);
+                            accuracy = test_model(order, risky_comb, combination_genotypes, info, conf_matrix);
                         }
 //                         printf("*  Balanced accuracy: %.3f\n", accuracy);
 

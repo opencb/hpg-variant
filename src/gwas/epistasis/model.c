@@ -67,10 +67,10 @@ risky_combination *get_model_from_combination_in_fold(int order, int comb[order]
 }
 
 
-double test_model(int order, risky_combination *risky_comb, uint8_t **val, masks_info info) {
+double test_model(int order, risky_combination *risky_comb, uint8_t **val, masks_info info, unsigned int *conf_matrix) {
     // Step 5 -> Check against a testing partition
     // Get the matrix containing {FP,FN,TP,TN}
-    unsigned int *matrix = confusion_matrix(order, risky_comb, info, val);
+    confusion_matrix(order, risky_comb, info, val, conf_matrix);
     
 //     printf("confusion matrix = { ");
 //     for (int k = 0; k < 4; k++) {
@@ -79,7 +79,7 @@ double test_model(int order, risky_combination *risky_comb, uint8_t **val, masks
 //     printf("}\n");
     
     // Evaluate the model, basing on the confusion matrix
-    double eval = evaluate_model(matrix, BA);
+    double eval = evaluate_model(conf_matrix, BA);
     
 //     printf("risky combination = {\n  SNP: ");
 //     print_combination(risky_comb->combination, 0, order);
@@ -94,8 +94,6 @@ double test_model(int order, risky_combination *risky_comb, uint8_t **val, masks
 //     printf("\n}\n", eval);
     
     risky_comb->accuracy = eval;
-    
-    free(matrix);
     
     return eval;
 }
@@ -332,11 +330,8 @@ void risky_combination_free(risky_combination* combination) {
  *  Evaluation and ranking  *
  * **************************/
 
-unsigned int *confusion_matrix(int order, risky_combination *combination, masks_info info, uint8_t **genotypes) {
+void confusion_matrix(int order, risky_combination *combination, masks_info info, uint8_t **genotypes, unsigned int *matrix) {
     int num_samples = info.num_samples_per_mask;
-    // TP, FN, FP, TN
-    unsigned int *rates = calloc(4, sizeof(unsigned int));
-    
     uint8_t confusion_masks[combination->num_risky_genotypes * num_samples];
     memset(confusion_masks, 0, combination->num_risky_genotypes * num_samples * sizeof(uint8_t));
     
@@ -440,16 +435,14 @@ unsigned int *confusion_matrix(int order, risky_combination *combination, masks_
                      _mm_popcnt_u64(_mm_extract_epi64(snp_and, 1));
     }
     
-    rates[0] = popcount0 / 8;
-    rates[1] = info.num_affected - popcount0 / 8;
-    rates[2] = popcount1 / 8;
-    rates[3] = info.num_unaffected - popcount1 / 8;
+    matrix[0] = popcount0 / 8;
+    matrix[1] = info.num_affected - popcount0 / 8;
+    matrix[2] = popcount1 / 8;
+    matrix[3] = info.num_unaffected - popcount1 / 8;
     
 /*
-    assert(rates[0] + rates[1] + rates[2] + rates[3] == info.num_affected + info.num_unaffected);
+    assert(matrix[0] + matrix[1] + matrix[2] + matrix[3] == info.num_affected + info.num_unaffected);
 */
-    
-    return rates;
 }
 
 
