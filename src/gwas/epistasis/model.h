@@ -62,7 +62,7 @@ enum eval_function { CA, BA, wBA, GAMMA, TAU_B };
  *       Main pipeline      *
  * **************************/
 
-risky_combination *get_model_from_combination_in_fold(int order, int comb[order], uint8_t **val, 
+risky_combination *get_model_from_combination_in_fold(int order, int comb[order], uint8_t **genotypes, 
                                                       int num_genotype_combinations, uint8_t **genotype_combinations, 
                                                       int num_counts, int counts_aff[num_counts], int counts_unaff[num_counts],
                                                       masks_info info, risky_combination *risky_scratchpad);
