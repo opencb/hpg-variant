@@ -5,14 +5,14 @@
  *       Main pipeline      *
  * **************************/
 
-risky_combination *get_model_from_combination_in_fold(int order, int comb[order], uint8_t **val, 
+risky_combination *get_model_from_combination_in_fold(int order, int comb[order], uint8_t **genotypes, 
                                                       int num_genotype_combinations, uint8_t **genotype_combinations, 
                                                       int num_counts, int counts_aff[num_counts], int counts_unaff[num_counts],
                                                       masks_info info, risky_combination *risky_scratchpad) {
     risky_combination *risky_comb = NULL;
     
     // Get counts for the provided genotypes
-    uint8_t *masks = set_genotypes_masks(order, val, info); // Grouped by SNP
+    uint8_t *masks = set_genotypes_masks(order, genotypes, info); // Grouped by SNP
     combination_counts(order, masks, genotype_combinations, num_genotype_combinations, counts_aff, counts_unaff, info);
     
     // Get high risk pairs for those counts

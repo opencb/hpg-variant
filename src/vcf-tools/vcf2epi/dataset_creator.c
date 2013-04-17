@@ -73,7 +73,7 @@ int create_dataset_from_vcf(shared_options_data_t* shared_options_data) {
             if (shared_options_data->chain != NULL) {
                 filters = sort_filter_chain(shared_options_data->chain, &num_filters);
             }
-            FILE *passed_file = NULL, *failed_file = NULL, *non_processed_file = NULL;
+            FILE *passed_file = NULL, *failed_file = NULL;
             get_filtering_output_files(shared_options_data, &passed_file, &failed_file);
     
             int i = 0;
