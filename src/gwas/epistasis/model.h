@@ -41,6 +41,8 @@ typedef struct {
     int num_unaffected_with_padding;
     int num_samples_per_mask;
     int num_masks;
+    int num_combinations_in_a_row;
+    int num_counts_per_combination;
     uint8_t *masks;
 } masks_info;
 
@@ -93,7 +95,7 @@ uint8_t* set_genotypes_masks(int order, uint8_t **genotypes, masks_info info);
 void combination_counts(int order, uint8_t *masks, uint8_t **genotype_combinations, int num_genotype_combinations, 
                         int *counts_aff, int *counts_unaff, masks_info info);
 
-void masks_info_new(int order, int num_affected, int num_unaffected, masks_info *info);
+void masks_info_init(int order, int num_combinations_in_a_row, int num_affected, int num_unaffected, masks_info *info);
 
 /* **************************
  *         High risk        *

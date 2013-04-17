@@ -42,7 +42,7 @@ START_TEST(test_get_masks) {
     uint8_t masks_gt3[] = { 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
     uint8_t *masks_genotypes[] = { masks_gt0, masks_gt1, masks_gt2, masks_gt3 };
     
-    masks_info info; masks_info_new(order, num_affected, num_unaffected, &info);
+    masks_info info; masks_info_init(order, num_affected, num_unaffected, &info);
     
     uint8_t *masks = set_genotypes_masks(order, masks_genotypes, info);
     
@@ -107,7 +107,7 @@ START_TEST(test_get_counts) {
     uint8_t masks_gt2[] = { 1, 2, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
     uint8_t *masks_genotypes[] = { masks_gt0, masks_gt1, masks_gt2 };
     
-    masks_info info; masks_info_new(order, num_affected, num_unaffected, &info);
+    masks_info info; masks_info_init(order, num_affected, num_unaffected, &info);
     
     uint8_t *masks = set_genotypes_masks(order, masks_genotypes, info);
     
@@ -205,7 +205,7 @@ START_TEST(test_get_confusion_matrix) {
     uint8_t gt2_1a[] = { 0, 0, 1, 1, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
     uint8_t *genotypes_2da[2] = { gt2_0a, gt2_1a };
     
-    masks_info_new(order, 7, 5, &info);
+    masks_info_init(order, 7, 5, &info);
     int *matrix = confusion_matrix(order, combination_2d, info, genotypes_2da);
     
     //printf("matrix = { %d, %d, %d, %d }\n", confusion_matrix[0], confusion_matrix[1], confusion_matrix[2], confusion_matrix[3]);
@@ -219,7 +219,7 @@ START_TEST(test_get_confusion_matrix) {
     uint8_t gt2_1b[] = { 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 0, 0, 1, 1, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0 };
     uint8_t *genotypes_2db[2] = { gt2_0b, gt2_1b };
     
-    masks_info_new(order, 4, 8, &info);
+    masks_info_init(order, 4, 8, &info);
     matrix = confusion_matrix(order, combination_2d, info, genotypes_2db);
     
     //printf("matrix = { %d, %d, %d, %d }\n", confusion_matrix[0], confusion_matrix[1], confusion_matrix[2], confusion_matrix[3]);
@@ -243,7 +243,7 @@ START_TEST(test_get_confusion_matrix) {
     risky_combination *combination_3d = risky_combination_new(order, (int[3]){ 0, 1, 2 }, possible_3d, 4, (int[4]){ 4, 10, 21, 25 }, NULL);
     
     // 6 affected, 6 unaffected
-    masks_info_new(order, 6, 6, &info);
+    masks_info_init(order, 6, 6, &info);
     matrix = confusion_matrix(order, combination_3d, info, genotypes_3d);
     
     //printf("matrix = { %d, %d, %d, %d }\n", confusion_matrix[0], confusion_matrix[1], confusion_matrix[2], confusion_matrix[3]);
