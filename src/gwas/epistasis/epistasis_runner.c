@@ -161,13 +161,13 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                 }
                 printf("}\n");
 */
-                
+               
                 // Test first combination in the block
                 get_first_combination_in_block(order, comb, block_coords, options_data->stride);
                 
                 do {
 //                     print_combination(comb, 0, order);
-                    
+
                     // Get genotypes of that combination
                     uint8_t *combination_genotypes[order];
                     for (int s = 0; s < order; s++) {
@@ -223,7 +223,9 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
             for (int s = 0; s < order; s++) {
                 _mm_free(scratchpad[s]);
             }
-            risky_combination_free(risky_rejected);
+            if (risky_rejected) {
+                risky_combination_free(risky_rejected);
+            }
         }
         
         // Merge all rankings in one
@@ -254,6 +256,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
         linked_list_t *sorted_repetition_ranking = linked_list_new(COLLECTION_MODE_ASYNCHRONIZED);
         risky_combination *current = repetition_ranking[0];
         risky_combination *removed = NULL;
+        
         for (int i = 1; i < repetition_ranking_size; i++) {
             risky_combination *element = repetition_ranking[i];
             if (!compare_risky(&current, &element)) {
