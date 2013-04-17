@@ -78,7 +78,8 @@ int add_to_model_ranking(risky_combination *risky_comb, int max_ranking_size, li
  *          Counts          *
  * **************************/
 
-uint8_t* set_genotypes_masks(int order, uint8_t **genotypes, masks_info info);
+//uint8_t* set_genotypes_masks(int order, uint8_t **genotypes, masks_info info);
+uint8_t* set_genotypes_masks(int order, uint8_t **genotypes, int num_combinations, masks_info info);
 
 /**
  * @brief Gets the number of ocurrences of each genotype both in affected and unaffected groups.

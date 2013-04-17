@@ -52,8 +52,8 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
     printf("num variants = %zu\tnum block per dim = %d\n", num_variants, num_blocks_per_dim);
     
     // Precalculate which genotype combinations can be tested for a given order (order 2 -> {(0,0), (0,1), ... , (2,1), (2,2)})
-    int num_genotype_combinations;
-    uint8_t **genotype_combinations = get_genotype_combinations(order, &num_genotype_combinations);
+    int num_genotype_permutations;
+    uint8_t **genotype_permutations = get_genotype_combinations(order, &num_genotype_permutations);
     
     // Ranking of best models in each repetition
     linked_list_t *best_models[options_data->num_cv_repetitions];
@@ -190,17 +190,22 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                     }
                     
                     
+                    uint8_t *masks = set_genotypes_masks(order, combination_genotypes, info.num_combinations_in_a_row, info); // Grouped by SNP
+
                     for (int rc = 0; rc < info.num_combinations_in_a_row; rc++) {
                         uint8_t *comb = combs + rc * order;
                         uint8_t **my_genotypes = combination_genotypes + rc * order;
+                        uint8_t *my_masks = masks + rc * info.num_masks; 
                         
                         // ------------------- BEGIN get_model_from_combination_in_fold -----------------------
                         
                         risky_combination *risky_comb = NULL;
     
                         // Get counts for the provided genotypes
-                        uint8_t *masks = set_genotypes_masks(order, my_genotypes, info); // Grouped by SNP
-                        combination_counts(order, masks, genotype_combinations, num_genotype_combinations, counts_aff, counts_unaff, info);
+/*
+                        combination_counts(order, masks, genotype_permutations, num_genotype_permutations, counts_aff, counts_unaff, info);
+*/
+                        combination_counts(order, my_masks, genotype_permutations, num_genotype_permutations, counts_aff, counts_unaff, info);
 
                         // Get high risk pairs for those counts
                         void *aux_info;
@@ -213,9 +218,9 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                         if (num_risky > 0) {
                             // Put together the info about the SNP combination and its genotype combinations
                             if (risky_rejected) {
-                                risky_comb = risky_combination_copy(order, comb, genotype_combinations, num_risky, risky_idx, aux_info, risky_rejected);
+                                risky_comb = risky_combination_copy(order, comb, genotype_permutations, num_risky, risky_idx, aux_info, risky_rejected);
                             } else {
-                                risky_comb = risky_combination_new(order, comb, genotype_combinations, num_risky, risky_idx, aux_info);
+                                risky_comb = risky_combination_new(order, comb, genotype_permutations, num_risky, risky_idx, aux_info);
                             }
                         }
 
@@ -283,18 +288,23 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                                                                 (combs[c * order + s] % options_data->stride) * info.num_samples_per_mask;
                     }
                 }
+                
+                    uint8_t *masks = set_genotypes_masks(order, combination_genotypes, cur_comb_idx + 1, info); // Grouped by SNP
 
-                for (int rc = 0; rc < cur_comb_idx + 1; rc++) {
+                    for (int rc = 0; rc < cur_comb_idx + 1; rc++) {
                         uint8_t *comb = combs + rc * order;
                         uint8_t **my_genotypes = combination_genotypes + rc * order;
+                        uint8_t *my_masks = masks + rc * order * NUM_GENOTYPES * info.num_samples_per_mask; 
                     
                         // ------------------- BEGIN get_model_from_combination_in_fold -----------------------
                         
                         risky_combination *risky_comb = NULL;
     
                         // Get counts for the provided genotypes
-                        uint8_t *masks = set_genotypes_masks(order, my_genotypes, info); // Grouped by SNP
-                        combination_counts(order, masks, genotype_combinations, num_genotype_combinations, counts_aff, counts_unaff, info);
+/*
+                        combination_counts(order, masks, genotype_permutations, num_genotype_permutations, counts_aff, counts_unaff, info);
+*/
+                        combination_counts(order, my_masks, genotype_permutations, num_genotype_permutations, counts_aff, counts_unaff, info);
 
                         // Get high risk pairs for those counts
                         void *aux_info;
@@ -307,9 +317,9 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                         if (num_risky > 0) {
                             // Put together the info about the SNP combination and its genotype combinations
                             if (risky_rejected) {
-                                risky_comb = risky_combination_copy(order, comb, genotype_combinations, num_risky, risky_idx, aux_info, risky_rejected);
+                                risky_comb = risky_combination_copy(order, comb, genotype_permutations, num_risky, risky_idx, aux_info, risky_rejected);
                             } else {
-                                risky_comb = risky_combination_new(order, comb, genotype_combinations, num_risky, risky_idx, aux_info);
+                                risky_comb = risky_combination_new(order, comb, genotype_permutations, num_risky, risky_idx, aux_info);
                             }
                         }
 
@@ -445,10 +455,10 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
     kh_destroy(cvc, models_for_cvc);
 
     // Free data for the whole epistasis check
-    for (int i = 0; i < num_genotype_combinations; i++) {
-        free(genotype_combinations[i]);
+    for (int i = 0; i < num_genotype_permutations; i++) {
+        free(genotype_permutations[i]);
     }
-    free(genotype_combinations);
+    free(genotype_permutations);
     for (int r = 0; r < options_data->num_cv_repetitions; r++) {
         linked_list_free(best_models[r], risky_combination_free);
     }

@@ -12,7 +12,7 @@ risky_combination *get_model_from_combination_in_fold(int order, int comb[order]
     risky_combination *risky_comb = NULL;
     
     // Get counts for the provided genotypes
-    uint8_t *masks = set_genotypes_masks(order, genotypes, info); // Grouped by SNP
+    uint8_t *masks = set_genotypes_masks(order, genotypes, info.num_combinations_in_a_row, info); // Grouped by SNP
     combination_counts(order, masks, genotype_combinations, num_genotype_combinations, counts_aff, counts_unaff, info);
     
     // Get high risk pairs for those counts
@@ -107,9 +107,9 @@ int add_to_model_ranking(risky_combination *risky_comb, int max_ranking_size, li
  *          Counts          *
  * **************************/
 
-void combination_counts(int order, uint8_t *masks, uint8_t **genotype_combinations, int num_genotype_combinations, 
+void combination_counts(int order, uint8_t *masks, uint8_t **genotype_permutations, int num_genotype_permutations, 
                         int *counts_aff, int *counts_unaff, masks_info info) {
-    uint8_t *comb;
+    uint8_t *permutation;
     int count = 0;
     
     __m128i snp_and, snp_cmp;
@@ -118,23 +118,23 @@ void combination_counts(int order, uint8_t *masks, uint8_t **genotype_combinatio
     for (int r = 0; r < info.num_combinations_in_a_row; r++) {
         masks = info.masks + r * order * NUM_GENOTYPES * info.num_samples_per_mask;
 */
-    for (int c = 0; c < num_genotype_combinations; c++) {
-        comb = genotype_combinations[c];
+    for (int c = 0; c < num_genotype_permutations; c++) {
+        permutation = genotype_permutations[c];
 //         print_gt_combination(comb, c, order);
         count = 0;
 
         for (int i = 0; i < info.num_affected; i += 16) {
             // Aligned loading
-            snp_and = _mm_load_si128(masks + comb[0] * info.num_samples_per_mask + i);
+            snp_and = _mm_load_si128(masks + permutation[0] * info.num_samples_per_mask + i);
 
             // Perform AND operation with all SNPs in the combination
             for (int j = 0; j < order; j++) {
-                snp_cmp = _mm_load_si128(masks + j * NUM_GENOTYPES * info.num_samples_per_mask + comb[j] * info.num_samples_per_mask + i);
+                snp_cmp = _mm_load_si128(masks + j * NUM_GENOTYPES * info.num_samples_per_mask + permutation[j] * info.num_samples_per_mask + i);
                 snp_and = _mm_and_si128(snp_and, snp_cmp);
             }
 
             count += _mm_popcnt_u64(_mm_extract_epi64(snp_and, 0)) + 
-                    _mm_popcnt_u64(_mm_extract_epi64(snp_and, 1));
+                     _mm_popcnt_u64(_mm_extract_epi64(snp_and, 1));
         }
 
         LOG_DEBUG_F("aff comb idx (%d) = %d\n", c, count / 8);
@@ -147,16 +147,16 @@ void combination_counts(int order, uint8_t *masks, uint8_t **genotype_combinatio
 
         for (int i = 0; i < info.num_unaffected; i += 16) {
             // Aligned loading
-            snp_and = _mm_load_si128(masks + comb[0] * info.num_samples_per_mask + info.num_affected_with_padding + i);
+            snp_and = _mm_load_si128(masks + permutation[0] * info.num_samples_per_mask + info.num_affected_with_padding + i);
 
             // Perform AND operation with all SNPs in the combination
             for (int j = 0; j < order; j++) {
-                snp_cmp = _mm_load_si128(masks + j * NUM_GENOTYPES * info.num_samples_per_mask + comb[j] * info.num_samples_per_mask + info.num_affected_with_padding + i);
+                snp_cmp = _mm_load_si128(masks + j * NUM_GENOTYPES * info.num_samples_per_mask + permutation[j] * info.num_samples_per_mask + info.num_affected_with_padding + i);
                 snp_and = _mm_and_si128(snp_and, snp_cmp);
             }
 
             count += _mm_popcnt_u64(_mm_extract_epi64(snp_and, 0)) + 
-                    _mm_popcnt_u64(_mm_extract_epi64(snp_and, 1));
+                     _mm_popcnt_u64(_mm_extract_epi64(snp_and, 1));
         }
 
         LOG_DEBUG_F("unaff comb idx (%d) = %d\n", c, count / 8);
@@ -168,7 +168,7 @@ void combination_counts(int order, uint8_t *masks, uint8_t **genotype_combinatio
     }
 }
 
-uint8_t* set_genotypes_masks(int order, uint8_t **genotypes, masks_info info) {
+uint8_t* set_genotypes_masks(int order, uint8_t **genotypes, int num_combinations, masks_info info) {
     /* 
      * Structure: Genotypes of a SNP in each 'row'
      * 
@@ -192,34 +192,32 @@ uint8_t* set_genotypes_masks(int order, uint8_t **genotypes, masks_info info) {
     
     uint8_t *masks = info.masks;
     
-/*
-    for (int c = 0; c < info.num_combinations_in_a_row; c++) {
-        masks = info.masks + c * order * NUM_GENOTYPES * info.num_samples_per_mask;
-*/
-    for (int j = 0; j < order; j++) {
-        for (int i = 0; i < NUM_GENOTYPES; i++) {
-            reference_genotype = _mm_set1_epi8(i);
+    for (int c = 0; c < num_combinations; c++) {
+        masks = info.masks + c * info.num_masks;
+        uint8_t **combination_genotypes = genotypes + c * order;
+        
+        for (int j = 0; j < order; j++) {
+            for (int i = 0; i < NUM_GENOTYPES; i++) {
+                reference_genotype = _mm_set1_epi8(i);
 
-            // Set value of masks
-            for (int k = 0; k < info.num_samples_per_mask; k += 16) {
-                input_genotypes = _mm_load_si128(genotypes[j] + k);
-                mask = _mm_cmpeq_epi8(input_genotypes, reference_genotype);
-                _mm_store_si128(masks + j * NUM_GENOTYPES * (info.num_samples_per_mask) + i * (info.num_samples_per_mask) + k, mask);
+                // Set value of masks
+                for (int k = 0; k < info.num_samples_per_mask; k += 16) {
+                    input_genotypes = _mm_load_si128(combination_genotypes[j] + k);
+                    mask = _mm_cmpeq_epi8(input_genotypes, reference_genotype);
+                    _mm_store_si128(masks + j * NUM_GENOTYPES * (info.num_samples_per_mask) + i * (info.num_samples_per_mask) + k, mask);
+                }
+
+                // Set padding with zeroes
+                memset(masks + j * NUM_GENOTYPES * (info.num_samples_per_mask) + i * (info.num_samples_per_mask) + info.num_affected,
+                    0, info.num_affected_with_padding - info.num_affected);
+                memset(masks + j * NUM_GENOTYPES * (info.num_samples_per_mask) + i * (info.num_samples_per_mask) + 
+                    info.num_affected_with_padding + info.num_unaffected,
+                    0, info.num_unaffected_with_padding - info.num_unaffected);
             }
-
-            // Set padding with zeroes
-            memset(masks + j * NUM_GENOTYPES * (info.num_samples_per_mask) + i * (info.num_samples_per_mask) + info.num_affected,
-                0, info.num_affected_with_padding - info.num_affected);
-            memset(masks + j * NUM_GENOTYPES * (info.num_samples_per_mask) + i * (info.num_samples_per_mask) + 
-                info.num_affected_with_padding + info.num_unaffected,
-                0, info.num_unaffected_with_padding - info.num_unaffected);
         }
-    }
-/*
     }
     
     masks = info.masks;
-*/
     
     return masks;
 }
