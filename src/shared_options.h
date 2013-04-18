@@ -43,7 +43,7 @@
 /**
  * Number of options applicable to the whole application.
  */
-#define NUM_GLOBAL_OPTIONS  23
+#define NUM_GLOBAL_OPTIONS  24
 
 typedef struct shared_options {
     struct arg_file *vcf_filename;    /**< VCF file used as input. */
@@ -70,6 +70,7 @@ typedef struct shared_options {
     struct arg_str *region;       /**< Filter by region */
     struct arg_file *region_file; /**< Filter by region (using a GFF file) */
     struct arg_str *snp;          /**< Filter by SNP */
+    struct arg_str *indel;          /**< Filter by indel */
     
     struct arg_file *config_file; /**< Path to the configuration file */
     
