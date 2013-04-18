@@ -114,57 +114,51 @@ void combination_counts(int order, uint8_t *masks, uint8_t **genotype_permutatio
     
     __m128i snp_and, snp_cmp;
     
-/*
-    for (int r = 0; r < info.num_combinations_in_a_row; r++) {
-        masks = info.masks + r * order * NUM_GENOTYPES * info.num_samples_per_mask;
-*/
-    for (int c = 0; c < num_genotype_permutations; c++) {
-        permutation = genotype_permutations[c];
-//         print_gt_combination(comb, c, order);
-        count = 0;
+    for (int rc = 0; rc < info.num_combinations_in_a_row; rc++) {
+        uint8_t *rc_masks = info.masks + rc * order * NUM_GENOTYPES * info.num_samples_per_mask;
+        for (int c = 0; c < num_genotype_permutations; c++) {
+            permutation = genotype_permutations[c];
+    //         print_gt_combination(comb, c, order);
+            count = 0;
 
-        for (int i = 0; i < info.num_affected; i += 16) {
-            // Aligned loading
-            snp_and = _mm_load_si128(masks + permutation[0] * info.num_samples_per_mask + i);
+            for (int i = 0; i < info.num_affected; i += 16) {
+                // Aligned loading
+                snp_and = _mm_load_si128(rc_masks + permutation[0] * info.num_samples_per_mask + i);
 
-            // Perform AND operation with all SNPs in the combination
-            for (int j = 0; j < order; j++) {
-                snp_cmp = _mm_load_si128(masks + j * NUM_GENOTYPES * info.num_samples_per_mask + permutation[j] * info.num_samples_per_mask + i);
-                snp_and = _mm_and_si128(snp_and, snp_cmp);
+                // Perform AND operation with all SNPs in the combination
+                for (int j = 0; j < order; j++) {
+                    snp_cmp = _mm_load_si128(rc_masks + j * NUM_GENOTYPES * info.num_samples_per_mask + 
+                                             permutation[j] * info.num_samples_per_mask + i);
+                    snp_and = _mm_and_si128(snp_and, snp_cmp);
+                }
+
+                count += _mm_popcnt_u64(_mm_extract_epi64(snp_and, 0)) + 
+                         _mm_popcnt_u64(_mm_extract_epi64(snp_and, 1));
             }
 
-            count += _mm_popcnt_u64(_mm_extract_epi64(snp_and, 0)) + 
-                     _mm_popcnt_u64(_mm_extract_epi64(snp_and, 1));
-        }
+            LOG_DEBUG_F("aff comb idx (%d) = %d\n", c, count / 8);
+            counts_aff[rc * info.num_counts_per_combination + c] = count / 8;
 
-        LOG_DEBUG_F("aff comb idx (%d) = %d\n", c, count / 8);
-/*
-        counts_aff[r * info.num_counts_per_combination + c] = count / 8;
-*/
-        counts_aff[c] = count / 8;
+            count = 0;
 
-        count = 0;
+            for (int i = 0; i < info.num_unaffected; i += 16) {
+                // Aligned loading
+                snp_and = _mm_load_si128(rc_masks + permutation[0] * info.num_samples_per_mask + info.num_affected_with_padding + i);
 
-        for (int i = 0; i < info.num_unaffected; i += 16) {
-            // Aligned loading
-            snp_and = _mm_load_si128(masks + permutation[0] * info.num_samples_per_mask + info.num_affected_with_padding + i);
+                // Perform AND operation with all SNPs in the combination
+                for (int j = 0; j < order; j++) {
+                    snp_cmp = _mm_load_si128(rc_masks + j * NUM_GENOTYPES * info.num_samples_per_mask + 
+                                             permutation[j] * info.num_samples_per_mask + info.num_affected_with_padding + i);
+                    snp_and = _mm_and_si128(snp_and, snp_cmp);
+                }
 
-            // Perform AND operation with all SNPs in the combination
-            for (int j = 0; j < order; j++) {
-                snp_cmp = _mm_load_si128(masks + j * NUM_GENOTYPES * info.num_samples_per_mask + permutation[j] * info.num_samples_per_mask + info.num_affected_with_padding + i);
-                snp_and = _mm_and_si128(snp_and, snp_cmp);
+                count += _mm_popcnt_u64(_mm_extract_epi64(snp_and, 0)) + 
+                         _mm_popcnt_u64(_mm_extract_epi64(snp_and, 1));
             }
 
-            count += _mm_popcnt_u64(_mm_extract_epi64(snp_and, 0)) + 
-                     _mm_popcnt_u64(_mm_extract_epi64(snp_and, 1));
+            LOG_DEBUG_F("unaff comb idx (%d) = %d\n", c, count / 8);
+            counts_unaff[rc * info.num_counts_per_combination + c] = count / 8;
         }
-
-        LOG_DEBUG_F("unaff comb idx (%d) = %d\n", c, count / 8);
-        counts_unaff[c] = count / 8;
-/*
-            counts_unaff[r * info.num_counts_per_combination + c] = count / 8;
-        }
-*/
     }
 }
 
