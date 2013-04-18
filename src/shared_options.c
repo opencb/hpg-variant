@@ -51,10 +51,10 @@ shared_options_t *new_shared_cli_options(int ped_required) {
     options_data->gene = arg_str0(NULL, "gene", NULL, "Filter: by a comma-separated list of genes");
     options_data->region = arg_str0(NULL, "region", NULL, "Filter: by a list of regions (chr1:start1-end1,chr2:start2-end2...)");
     options_data->region_file = arg_file0(NULL, "region-file", NULL, "Filter: by a list of regions (read from a GFF file)");
-    options_data->snp = arg_str0(NULL, "snp", NULL, "Filter: by being a SNP or not");
+    options_data->snp = arg_str0(NULL, "snp", NULL, "Filter: by being a SNP or not (include/exclude)");
+    options_data->indel = arg_str0(NULL, "indel", NULL, "Filter: by being an indel or not (include/exclude)");
     
     options_data->config_file = arg_file0(NULL, "config", NULL, "File that contains the parameters for configuring the application");
-    
     options_data->mmap_vcf_files = arg_lit0(NULL, "mmap-vcf", "Whether to map VCF files to virtual memory or use the I/O API");
     
     options_data->num_options = NUM_GLOBAL_OPTIONS;
@@ -106,11 +106,6 @@ shared_options_data_t* new_shared_options_data(shared_options_t* options) {
         options_data->chain = add_to_filter_chain(filter, options_data->chain);
         LOG_DEBUG_F("maximum missing values = %.3f\n", ((missing_values_filter_args*)filter->args)->max_missing);
     }
-    if (options->snp->count > 0) {
-        filter = snp_filter_new(strcmp(*(options->snp->sval), "exclude"));
-        options_data->chain = add_to_filter_chain(filter, options_data->chain);
-        LOG_DEBUG_F("snp filter to %s SNPs\n", *(options->snp->sval));
-    }
     if (options->gene->count > 0) {
         filter = gene_filter_new(strdup(*(options->gene->sval)), 0,
                                          *(options->host_url->sval), *(options->species->sval), *(options->version->sval));
@@ -129,6 +124,16 @@ shared_options_data_t* new_shared_options_data(shared_options_t* options) {
                                          *(options->host_url->sval), *(options->species->sval), *(options->version->sval));
         options_data->chain = add_to_filter_chain(filter, options_data->chain);
         LOG_DEBUG_F("regions file = %s\n", *(options->region->sval));
+    }
+    if (options->snp->count > 0) {
+        filter = snp_filter_new(strcmp(*(options->snp->sval), "exclude"));
+        options_data->chain = add_to_filter_chain(filter, options_data->chain);
+        LOG_DEBUG_F("snp filter to %s SNPs\n", *(options->snp->sval));
+    }
+    if (options->indel->count > 0) {
+        filter = indel_filter_new(strcmp(*(options->indel->sval), "exclude"));
+        options_data->chain = add_to_filter_chain(filter, options_data->chain);
+        LOG_DEBUG_F("indel filter to %s indels\n", *(options->indel->sval));
     }
     
     // If not previously defined, set the value present in the command-line
