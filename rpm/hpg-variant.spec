@@ -1,5 +1,5 @@
 %define name hpg-variant
-%define version 0.3.1
+%define version 0.4
 Name:           %{name}
 Version:        %{version}
 Release:        1%{?dist}
@@ -55,4 +55,8 @@ cp bin/vcf-info-fields.conf %{buildroot}%{_sysconfdir}/%{name}/
 
 
 %changelog
-
+* Mon Mar 04 2013 Cristina Yenyxe Gonzalez <cgonzalez@cipf.es> - 0.4
+- Filter output uses default names, 'your_vcf_file.vcf.filtered' and
+  'your_vcf_file.vcf.rejected', 'out' argument reserved for tool output
+- Merge tool notifies when a sample appears more than once
+- GWAS tools notify when a sample appears more than once

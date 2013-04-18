@@ -28,7 +28,6 @@
 #include <string.h>
 #include <unistd.h>
 
-#include <cprops/hashtable.h>
 #include <omp.h>
 
 #include <bioformats/family/family.h>
@@ -42,11 +41,13 @@
 #include <commons/log.h>
 #include <commons/string_utils.h>
 #include <containers/list.h>
+#include <containers/khash.h>
+#include <containers/cprops/hashtable.h>
 
 #include "assoc.h"
 #include "assoc_basic_test.h"
-#include "shared_options.h"
 #include "hpg_variant_utils.h"
+#include "shared_options.h"
 
 
 int run_association_test(shared_options_data_t *global_options_data, assoc_options_data_t *options_data);
@@ -58,8 +59,6 @@ static void write_output_header(enum ASSOC_task task, FILE *fd);
 static void write_output_body(enum ASSOC_task task, list_t* output_list, FILE *fd);
 
 
-static individual_t **sort_individuals(vcf_file_t *vcf, ped_file_t *ped);
-
-static cp_hashtable *associate_samples_and_positions(vcf_file_t *file);
+//static individual_t **sort_individuals(vcf_file_t *vcf, ped_file_t *ped);
 
 #endif

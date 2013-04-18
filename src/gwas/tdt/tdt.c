@@ -20,12 +20,11 @@
 
 #include "tdt.h"
 
-int tdt_test(vcf_record_t **variants, int num_variants, family_t **families, int num_families, cp_hashtable *sample_ids, list_t *output_list) {
+int tdt_test(vcf_record_t **variants, int num_variants, family_t **families, int num_families, khash_t(ids) *sample_ids, list_t *output_list) {
     double start = omp_get_wtime();
     
     int ret_code = 0;
     int tid = omp_get_thread_num();
-    int num_samples = cp_hashtable_count(sample_ids);
     
     tdt_result_t *result;
     char **sample_data;
@@ -44,8 +43,10 @@ int tdt_test(vcf_record_t **variants, int num_variants, family_t **families, int
         LOG_DEBUG_F("[%d] Checking variant %.*s:%ld\n", tid, record->chromosome_len, record->chromosome, record->position);
         
         sample_data = (char**) record->samples->items;
-        gt_position = get_field_position_in_format("GT", strndup(record->format, record->format_len));
-    
+        char *format_dup = strndup(record->format, record->format_len);
+        gt_position = get_field_position_in_format("GT", format_dup);
+        free(format_dup);
+        
         // Transmission counts
         int t1 = 0;
         int t2 = 0;
@@ -57,32 +58,31 @@ int tdt_test(vcf_record_t **variants, int num_variants, family_t **families, int
             family = families[f];
             individual_t *father = family->father;
             individual_t *mother = family->mother;
-            cp_list *children = family->children;
 
 //           LOG_DEBUG_F("[%d] Checking suitability of family %s\n", tid, family->id);
             
             if (father == NULL || mother == NULL) {
                 continue;
             }
-
-            int *father_pos = cp_hashtable_get(sample_ids, father->id);
-            if (father_pos != NULL) {
-    //           LOG_DEBUG_F("[%d] Father %s is in position %d\n", tid, father->id, *father_pos);
+            
+            int father_pos = -1, mother_pos = -1, child_pos = -1;
+            
+            khiter_t iter = kh_get(ids, sample_ids, father->id);
+            if (iter != kh_end(sample_ids)) {
+                father_pos = kh_value(sample_ids, iter);
             } else {
-    //           LOG_DEBUG_F("[%d] Father %s is not positioned\n", tid, father->id);
                 continue;
             }
             
-            int *mother_pos = cp_hashtable_get(sample_ids, mother->id);
-            if (mother_pos != NULL) {
-    //           LOG_DEBUG_F("[%d] Mother %s is in position %d\n", tid, mother->id, *mother_pos);
+            iter = kh_get(ids, sample_ids, mother->id);
+            if (iter != kh_end(sample_ids)) {
+                mother_pos = kh_value(sample_ids, iter);
             } else {
-    //           LOG_DEBUG_F("[%d] Mother %s is not positioned\n", tid, mother->id);
                 continue;
             }
             
-            char *father_sample = strdup(sample_data[*father_pos]);
-            char *mother_sample = strdup(sample_data[*mother_pos]);
+            char *father_sample = strdup(sample_data[father_pos]);
+            char *mother_sample = strdup(sample_data[mother_pos]);
             
 //           LOG_DEBUG_F("[%d] Samples: Father = %s\tMother = %s\n", tid, father_sample, mother_sample);
             
@@ -119,26 +119,30 @@ int tdt_test(vcf_record_t **variants, int num_variants, family_t **families, int
             int unB = 0;  // untransmitted allele from second het parent
             
             // Consider all offspring in nuclear family
-            cp_list_iterator *children_iterator = cp_list_create_iterator(family->children, COLLECTION_LOCK_READ);
+            linked_list_iterator_t *children_iterator = linked_list_iterator_new(family->children);
             individual_t *child = NULL;
-            while ((child = cp_list_iterator_next(children_iterator)) != NULL) {
+            
+            while (child = linked_list_iterator_curr(children_iterator)) {
                 // Only consider affected children
-                if (child->condition != AFFECTED) { continue; }
-                
-                int *child_pos = cp_hashtable_get(sample_ids, child->id);
-                if (child_pos != NULL) {
-        //           LOG_DEBUG_F("[%d] Child %s is in position %d\n", tid, child->id, *child_pos);
-                } else {
-        //           LOG_DEBUG_F("[%d] Child %s is not positioned\n", tid, child->id);
+                if (child->condition != AFFECTED) { 
+                    linked_list_iterator_next(children_iterator);
                     continue;
                 }
                 
-                char *child_sample = strdup(sample_data[*child_pos]);
+                iter = kh_get(ids, sample_ids, child->id);
+                if (iter != kh_end(sample_ids)) {
+                    child_pos = kh_value(sample_ids, iter);
+                } else {
+                    linked_list_iterator_next(children_iterator);
+                    continue;
+                }
+                char *child_sample = strdup(sample_data[child_pos]);
     //           LOG_DEBUG_F("[%d] Samples: Child = %s\n", tid, child_sample);
                 
                 // Skip if offspring has missing genotype
                 if (get_alleles(child_sample, gt_position, &child_allele1, &child_allele2)) {
                     free(child_sample);
+                    linked_list_iterator_next(children_iterator);
                     continue;
                 }
                 
@@ -148,6 +152,7 @@ int tdt_test(vcf_record_t **variants, int num_variants, family_t **families, int
                     child_allele1, child_allele2, child->sex)) {
                     free(child_sample);
                     free(aux_chromosome);
+                    linked_list_iterator_next(children_iterator);
                     continue;
                 }
                 free(aux_chromosome);
@@ -228,10 +233,10 @@ int tdt_test(vcf_record_t **variants, int num_variants, family_t **families, int
 //                             record->id_len, record->id, family->id, trA, unA, trB, unB, t1, t2, 
 //                             father_allele1, father_allele2, mother_allele1, mother_allele2, child_allele1, child_allele2);
                 free(child_sample);
-                
+                linked_list_iterator_next(children_iterator);
             } // next offspring in family
             
-            cp_list_iterator_destroy(children_iterator);
+            linked_list_iterator_free(children_iterator);
             free(father_sample);
             free(mother_sample);
         }  // next nuclear family

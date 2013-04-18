@@ -21,15 +21,14 @@
 #ifndef VCF_TOOLS_SPLIT_H
 #define VCF_TOOLS_SPLIT_H
 
-#include <getopt.h>
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
 
-#include <cprops/linked_list.h>
-#include <libconfig.h>
 
 #include <bioformats/vcf/vcf_file_structure.h>
 #include <commons/log.h>
+#include <commons/config/libconfig.h>
 #include <containers/list.h>
 
 #include "error.h"
@@ -37,7 +36,7 @@
 
 #define NUM_SPLIT_OPTIONS  2
 
-enum Split_criterion { NONE, CHROMOSOME, SPLIT_COVERAGE };
+enum Split_criterion { NONE, SPLIT_CHROMOSOME, SPLIT_COVERAGE };
 
 typedef struct split_options {
     struct arg_str *criterion;   /**< Criterion for splitting the file */
@@ -47,7 +46,7 @@ typedef struct split_options {
 
 typedef struct split_options_data {
     enum Split_criterion criterion;   /**< Criterion for splitting the file */
-    int *intervals;
+    long *intervals;
     int num_intervals;
 } split_options_data_t;
 
@@ -87,7 +86,7 @@ void free_split_result(split_result_t* split_result);
 
 int split_by_chromosome(vcf_record_t **variants, int num_variants, list_t* output_list);
 
-int split_by_coverage(vcf_record_t **variants, int num_variants, int *intervals, int num_intervals, list_t* output_list);
+int split_by_coverage(vcf_record_t **variants, int num_variants, long *intervals, int num_intervals, list_t* output_list);
 
 /* ******************************
  *      Options parsing         *

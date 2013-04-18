@@ -33,8 +33,6 @@ int read_assoc_configuration(const char *filename, assoc_options_t *assoc_option
         return CANT_READ_CONFIG_FILE;
     }
 
-    const char *tmp_string;
-    
     // Read number of threads that will make request to the web service
     ret_code = config_lookup_int(config, "gwas.assoc.num-threads", shared_options->num_threads->ival);
     if (ret_code == CONFIG_FALSE) {
@@ -98,24 +96,25 @@ void **merge_assoc_options(assoc_options_t *assoc_options, shared_options_t *sha
     tool_options[9] = shared_options->quality;
     tool_options[10] = shared_options->maf;
     tool_options[11] = shared_options->missing;
-    tool_options[12] = shared_options->region;
-    tool_options[13] = shared_options->region_file;
-    tool_options[14] = shared_options->snp;
+    tool_options[12] = shared_options->gene;
+    tool_options[13] = shared_options->region;
+    tool_options[14] = shared_options->region_file;
+    tool_options[15] = shared_options->snp;
     
     // Configuration file
-    tool_options[15] = shared_options->config_file;
+    tool_options[16] = shared_options->config_file;
     
     // Advanced configuration
-    tool_options[16] = shared_options->host_url;
-    tool_options[17] = shared_options->version;
-    tool_options[18] = shared_options->max_batches;
-    tool_options[19] = shared_options->batch_lines;
-    tool_options[20] = shared_options->batch_bytes;
-    tool_options[21] = shared_options->num_threads;
-    tool_options[22] = shared_options->entries_per_thread;
-    tool_options[23] = shared_options->mmap_vcf_files;
+    tool_options[17] = shared_options->host_url;
+    tool_options[18] = shared_options->version;
+    tool_options[19] = shared_options->max_batches;
+    tool_options[20] = shared_options->batch_lines;
+    tool_options[21] = shared_options->batch_bytes;
+    tool_options[22] = shared_options->num_threads;
+    tool_options[23] = shared_options->entries_per_thread;
+    tool_options[24] = shared_options->mmap_vcf_files;
     
-    tool_options[24] = arg_end;
+    tool_options[25] = arg_end;
     
     return tool_options;
 }

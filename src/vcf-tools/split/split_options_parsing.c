@@ -127,11 +127,9 @@ int verify_split_options(split_options_t *split_options, shared_options_t *share
     }
     
      // Check whether intervals are specified when the splitting criterion defined is COVERAGE
-    if (split_options->criterion == SPLIT_COVERAGE) {
-      if (split_options->intervals->count == 0){
+    if (!strcasecmp("coverage", *(split_options->criterion->sval)) && split_options->intervals->count == 0) {
 	LOG_ERROR("Please specify the intervals.\n");
 	return INTERVALS_NOT_SPECIFIED;
-      }
     }
     
     // Checker whether batch lines or bytes are defined
