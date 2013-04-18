@@ -109,8 +109,9 @@ int run_split(shared_options_data_t *shared_options_data, split_options_data_t *
                         ret_code = split_by_chromosome((vcf_record_t**) (input_records->items + chunk_starts[j]), 
                                                        chunk_sizes[j],
                                                        output_list);
-                    } else if (options_data->criterion == GENE) {
-                        ret_code = 0;
+                    } else if (options_data->criterion == SPLIT_COVERAGE) {
+                        ret_code = split_by_coverage((vcf_record_t**) (input_records->items + chunk_starts[j]), chunk_sizes[j], 
+						     options_data->intervals, options_data->num_intervals , output_list);
                     }
                 }
 //                 if (i % 50 == 0) { LOG_INFO_F("*** %dth split invocation finished\n", i); }

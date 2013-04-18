@@ -86,7 +86,7 @@ void **parse_split_options(int argc, char *argv[], split_options_t *split_option
 }
 
 void **merge_split_options(split_options_t *split_options, shared_options_t *shared_options, struct arg_end *arg_end) {
-    size_t opts_size = split_options->num_options + shared_options->num_options + 1 - 12;
+    size_t opts_size = split_options->num_options + shared_options->num_options - 13;
     void **tool_options = malloc (opts_size * sizeof(void*));
     // Input/output files
     tool_options[0] = shared_options->vcf_filename;
@@ -94,19 +94,20 @@ void **merge_split_options(split_options_t *split_options, shared_options_t *sha
     
     // Split options
     tool_options[2] = split_options->criterion;
+    tool_options[3] = split_options->intervals;
     
     // Configuration file
-    tool_options[3] = shared_options->config_file;
+    tool_options[4] = shared_options->config_file;
     
     // Advanced configuration
-    tool_options[4] = shared_options->max_batches;
-    tool_options[5] = shared_options->batch_lines;
-    tool_options[6] = shared_options->batch_bytes;
-    tool_options[7] = shared_options->num_threads;
-    tool_options[8] = shared_options->entries_per_thread;
-    tool_options[9] = shared_options->mmap_vcf_files;
+    tool_options[5] = shared_options->max_batches;
+    tool_options[6] = shared_options->batch_lines;
+    tool_options[7] = shared_options->batch_bytes;
+    tool_options[8] = shared_options->num_threads;
+    tool_options[9] = shared_options->entries_per_thread;
+    tool_options[10] = shared_options->mmap_vcf_files;
     
-    tool_options[10] = arg_end;
+    tool_options[11] = arg_end;
     
     return tool_options;
 }
@@ -123,6 +124,14 @@ int verify_split_options(split_options_t *split_options, shared_options_t *share
     if (split_options->criterion->count == 0) {
         LOG_ERROR("Please specify a splitting criterion.\n");
         return CRITERION_NOT_SPECIFIED;
+    }
+    
+     // Check whether intervals are specified when the splitting criterion defined is COVERAGE
+    if (split_options->criterion == SPLIT_COVERAGE) {
+      if (split_options->intervals->count == 0){
+	LOG_ERROR("Please specify the intervals.\n");
+	return INTERVALS_NOT_SPECIFIED;
+      }
     }
     
     // Checker whether batch lines or bytes are defined
