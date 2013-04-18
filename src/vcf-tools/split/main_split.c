@@ -20,6 +20,7 @@
 
 #include "split.h"
 #include "split_runner.h"
+#include "commons/string_utils.h"
 
 
 int vcf_tool_split(int argc, char *argv[], const char *configuration_file) {
@@ -36,7 +37,7 @@ int vcf_tool_split(int argc, char *argv[], const char *configuration_file) {
     if (argc == 1 || !strcmp(argv[1], "-h") || !strcmp(argv[1], "--help")) {
         argtable = merge_split_options(split_options, shared_options, arg_end(split_options->num_options + shared_options->num_options));
         show_usage("hpg-var-vcf split", argtable, split_options->num_options + shared_options->num_options);
-        arg_freetable(argtable, split_options->num_options + shared_options->num_options - 12);
+        arg_freetable(argtable, split_options->num_options + shared_options->num_options - 13);
         return 0;
     }
 
@@ -83,6 +84,7 @@ split_options_t *new_split_cli_options() {
     split_options_t *options = (split_options_t*) malloc (sizeof(split_options_t));
     options->num_options = NUM_SPLIT_OPTIONS;
     options->criterion = arg_str1(NULL, "criterion", NULL, "Criterion for splitting the file");
+    options->intervals = arg_str1(NULL, "intervals", NULL, "Values of intervals for splitting the file");
     return options;
 }
 
@@ -92,11 +94,42 @@ split_options_data_t *new_split_options_data(split_options_t *options) {
     char *criterion_str = *(options->criterion->sval);
     if (!strcmp("chromosome", criterion_str)) {
         options_data->criterion = CHROMOSOME;
-    } else if (!strcmp("gene", criterion_str)) {
-        LOG_ERROR("Gene criterion not implemented yet!");
-        options_data->criterion = NONE;
-    } else {
-        options_data->criterion = NONE;
+    }else if (!strcmp("coverage", criterion_str)) {
+        options_data->criterion = SPLIT_COVERAGE;
+// 	options_data->intervals = options->intervals->sval;
+	options_data->num_intervals = 0;
+	char* intervals_str = strdup(*(options->intervals->sval));
+	
+// 	char* tokens = strtok(intervals_str, ",");
+// 	while(tokens != NULL) {
+// 	    tokens = strtok(NULL, ",");
+// 	    options_data->num_intervals++;
+// 	}
+// 	free(tokens);
+	
+	//char** split(char* str, const char *delimiters, int *num_substrings)
+	char* tokens = *(split(intervals_str, ",",options_data->num_intervals));
+	
+	options_data->intervals = (int*)malloc(options_data->num_intervals * sizeof(int));
+	
+	printf("INTERVALS = ");
+	for (int i = 0; i < options_data->num_intervals; i++){
+	  options_data->intervals[i] = atoi(tokens[i]);
+	  printf("%i , ", options_data->intervals[i]);
+	}
+	
+	
+	// CRISTINA!! ALGUNA IDEA??
+// 	intervals_str = strdup(*(options->intervals->sval));
+// 	tokens = strtok(intervals_str, ",");
+// 	int token_idx = 0;
+// 	while(tokens != NULL) {
+// 	  options_data->intervals[token_idx] = atoi(tokens);  
+// 	  tokens = strtok(NULL, ",");
+// 	  token_idx++;
+// 	}
+	
+// 	options_data->num_intervals = 
     }
 
     return options_data;

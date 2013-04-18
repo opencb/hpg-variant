@@ -45,6 +45,7 @@
 // VCF tools errors
 // -- Filter tool errors
 #define EMPTY_LIST_OF_FILTERS                   300
+#define SPLIT_OPTION_DOES_NOT_EXIST             350
 
 // -- Merge tool errors
 #define MISSING_MODE_NOT_SPECIFIED              400
@@ -55,7 +56,7 @@
 
 // -- Split tool errors
 #define CRITERION_NOT_SPECIFIED                 500
-
+#define INTERVALS_NOT_SPECIFIED                 501
 // -- Stats tool errors
 
 #endif
