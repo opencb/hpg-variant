@@ -36,7 +36,7 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
     }
     
     LOG_INFO("About to read PED file...\n");
-    // Read PED file before doing any proccessing
+    // Read PED file before doing any processing
     ret_code = ped_read(ped_file);
     if (ret_code != 0) {
         LOG_FATAL_F("Can't read PED file: %s\n", ped_file->filename);
@@ -82,7 +82,7 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
             omp_set_nested(1);
             
             volatile int initialization_done = 0;
-            cp_hashtable *sample_ids = NULL;
+            khash_t(ids) *sample_ids = NULL;
             
             // Create chain of filters for the VCF file
             filter_t **filters = NULL;
@@ -125,7 +125,7 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
                 }
                 
                 // Initialize structures needed for TDT and write headers of output files
-                if (!initialization_done) {
+                if (!initialization_done && file->samples_names->size > 0) {
 #pragma omp critical
                 {
                     // Guarantee that just one thread performs this operation
@@ -148,6 +148,11 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
                         initialization_done = 1;
                     }
                 }
+                }
+                
+                // If it has not been initialized it means that header is not fully read
+                if (!initialization_done) {
+                    continue;
                 }
                 
                 vcf_batch_t *batch = fetch_vcf_batch(file);
@@ -188,7 +193,7 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
             LOG_INFO_F("[%d] Time elapsed = %e ms\n", omp_get_thread_num(), (stop - start) * 1000);
 
             // Free resources
-            if (sample_ids) { cp_hashtable_destroy(sample_ids); }
+            if (sample_ids) { kh_destroy(ids, sample_ids); }
             
             if (filters) {
                 for (int i = 0; i < num_filters; i++) {
@@ -276,41 +281,3 @@ void write_output_body(list_t* output_list, FILE *fd) {
     }
 }
 
-
-/* *******************
- *      Sorting      *
- * *******************/
-
-cp_hashtable* associate_samples_and_positions(vcf_file_t* file) {
-    LOG_DEBUG_F("** %zu sample names read\n", file->samples_names->size);
-    array_list_t *sample_names = file->samples_names;
-    cp_hashtable *sample_ids = cp_hashtable_create_by_option(COLLECTION_MODE_NOSYNC,
-                                                             sample_names->size * 2,
-                                                             cp_hash_string,
-                                                             (cp_compare_fn) strcasecmp,
-                                                             NULL,
-                                                             NULL,
-                                                             NULL,
-                                                             NULL
-                                                            );
-    
-    int *index;
-    char *name;
-    for (int i = 0; i < sample_names->size; i++) {
-        name = sample_names->items[i];
-        index = (int*) malloc (sizeof(int)); *index = i;
-        
-        if (cp_hashtable_get(sample_ids, name)) {
-            LOG_FATAL_F("Sample %s appears more than once. File can not be analyzed.\n", name);
-        }
-        
-        cp_hashtable_put(sample_ids, name, index);
-    }
-//     char **keys = (char**) cp_hashtable_get_keys(sample_names);
-//     int num_keys = cp_hashtable_count(sample_names);
-//     for (int i = 0; i < num_keys; i++) {
-//         printf("%s\t%d\n", keys[i], *((int*) cp_hashtable_get(sample_ids, keys[i])));
-//     }
-    
-    return sample_ids;
-}

@@ -32,12 +32,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <argtable2.h>
-#include <libconfig.h>
-
 #include <bioformats/vcf/vcf_filters.h>
 #include <bioformats/vcf/vcf_util.h>
 #include <commons/log.h>
+#include <commons/argtable/argtable2.h>
+#include <commons/config/libconfig.h>
 
 #include "error.h"
 
@@ -113,7 +112,7 @@ typedef struct shared_options_data {
  * 
  * Initializes the only mandatory member of a global_options_t, which is the output directory.
  */
-shared_options_t *new_shared_cli_options(void);
+shared_options_t *new_shared_cli_options(int ped_required);
 
 /**
  * @brief Initializes an global_options_data_t structure mandatory members.
@@ -146,17 +145,6 @@ void free_shared_options_data(shared_options_data_t *options_data);
  * read, these parameters should be provided via the command-line interface.
  */
 int read_shared_configuration(const char *filename, shared_options_t *options_data);
-
-
-/* **********************************************
- *                   Auxiliary                  *
- * **********************************************/
-
-char* get_fields(char *buffer);
-
-size_t write_function_print (char *contents, size_t size, size_t nmemb, void *userdata);
-
-char *ws_request(const char *host_url, const char *species, const char *version, const char* genes);
 
 
 #endif

@@ -420,7 +420,7 @@ int merge_interval(kh_pos_t* positions_read, char *max_chromosome_merged, unsign
             // Remove positions prior to the last chromosome:position to merge
             int cmp_chrom = compare_chromosomes(record->chromosome, max_chromosome_merged, chromosome_order, num_chromosomes);
             if (cmp_chrom < 0 || (cmp_chrom == 0 && compare_positions(record->position, max_position_merged) <= 0)) {
-                links = records_in_position->items;
+                links = (vcf_record_file_link**) records_in_position->items;
                 num_links = records_in_position->size;
             }
             

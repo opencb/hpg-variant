@@ -105,13 +105,13 @@ int run_split(shared_options_data_t *shared_options_data, split_options_data_t *
                 #pragma omp parallel for
                 for (int j = 0; j < num_chunks; j++) {
                     LOG_DEBUG_F("[%d] Split invocation\n", omp_get_thread_num());
-                    if (options_data->criterion == CHROMOSOME) {
+                    if (options_data->criterion == SPLIT_CHROMOSOME) {
                         ret_code = split_by_chromosome((vcf_record_t**) (input_records->items + chunk_starts[j]), 
                                                        chunk_sizes[j],
                                                        output_list);
                     } else if (options_data->criterion == SPLIT_COVERAGE) {
                         ret_code = split_by_coverage((vcf_record_t**) (input_records->items + chunk_starts[j]), chunk_sizes[j], 
-						     options_data->intervals, options_data->num_intervals , output_list);
+						     options_data->intervals, options_data->num_intervals, output_list);
                     }
                 }
 //                 if (i % 50 == 0) { LOG_INFO_F("*** %dth split invocation finished\n", i); }

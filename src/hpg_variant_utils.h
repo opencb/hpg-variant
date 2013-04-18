@@ -25,9 +25,12 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 
+#include <bioformats/family/family.h>
+#include <bioformats/ped/ped_file.h>
 #include <bioformats/vcf/vcf_file.h>
 #include <commons/file_utils.h>
 #include <commons/log.h>
+#include <containers/khash.h>
 #include <containers/list.h>
 
 #include "shared_options.h"
@@ -111,6 +114,5 @@ void show_usage(char *tool, void **argtable, int num_arguments);
  * by a maximum distance of max_chunk_size. These records will mark the beginning of each chunk.
  */
 int *create_chunks(int length, int max_chunk_size, int *num_chunks, int **chunk_sizes);
-
 
 #endif
