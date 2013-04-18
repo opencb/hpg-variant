@@ -35,17 +35,20 @@
 #include "error.h"
 #include "shared_options.h"
 
-#define NUM_SPLIT_OPTIONS  1
+#define NUM_SPLIT_OPTIONS  2
 
-enum Split_criterion { NONE, CHROMOSOME, GENE };
+enum Split_criterion { NONE, CHROMOSOME, SPLIT_COVERAGE };
 
 typedef struct split_options {
     struct arg_str *criterion;   /**< Criterion for splitting the file */
+    struct arg_str *intervals;
     int num_options;
 } split_options_t;
 
 typedef struct split_options_data {
     enum Split_criterion criterion;   /**< Criterion for splitting the file */
+    int *intervals;
+    int num_intervals;
 } split_options_data_t;
 
 
@@ -83,6 +86,8 @@ void free_split_result(split_result_t* split_result);
  * ******************************/
 
 int split_by_chromosome(vcf_record_t **variants, int num_variants, list_t* output_list);
+
+int split_by_coverage(vcf_record_t **variants, int num_variants, int *intervals, int num_intervals, list_t* output_list);
 
 /* ******************************
  *      Options parsing         *
