@@ -24,11 +24,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <argtable2.h>
-#include <cprops/hashtable.h>
-#include <cprops/linked_list.h>
 #include <gsl/gsl_cdf.h>
-#include <libconfig.h>
 #include <omp.h>
 
 #include <bioformats/family/checks_family.h>
@@ -38,15 +34,21 @@
 #include <bioformats/vcf/vcf_file_structure.h>
 #include <bioformats/vcf/vcf_util.h>
 #include <commons/log.h>
+#include <commons/argtable/argtable2.h>
+#include <commons/config/libconfig.h>
 #include <containers/list.h>
+#include <containers/khash.h>
+#include <containers/cprops/hashtable.h>
 
 #include "error.h"
+#include "hpg_variant_utils.h"
 #include "shared_options.h"
 
 /**
  * Number of options applicable to the TDT tool.
  */
 #define NUM_TDT_OPTIONS  0
+
 
 typedef struct tdt_options {
     int num_options;
@@ -115,7 +117,7 @@ typedef struct {
     double p_value;
 } tdt_result_t;
 
-int tdt_test(vcf_record_t **variants, int num_variants, family_t **families, int num_families, cp_hashtable *sample_ids, list_t *output_list);
+int tdt_test(vcf_record_t **variants, int num_variants, family_t **families, int num_families, khash_t(ids) *sample_ids, list_t *output_list);
 
 tdt_result_t* tdt_result_new(char *chromosome, int chromosome_len, unsigned long int position, char *reference, int reference_len,
                              char *alternate, int alternate_len, double t1, double t2, double chi_square);
