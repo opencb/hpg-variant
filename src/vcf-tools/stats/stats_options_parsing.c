@@ -118,34 +118,38 @@ void **merge_stats_options(stats_options_t *stats_options, shared_options_t *sha
 int verify_stats_options(stats_options_t *stats_options, shared_options_t *shared_options) {
     // Check whether the input VCF file is defined
     if (shared_options->vcf_filename->count == 0) {
-        LOG_ERROR("Please specify the input VCF file.\n");
+        LOG_ERROR("Please specify the input VCF file.");
         return VCF_FILE_NOT_SPECIFIED;
     }
     
     // Check whether batch lines or bytes are defined
     if (*(shared_options->batch_lines->ival) == 0 && *(shared_options->batch_bytes->ival) == 0) {
-        LOG_ERROR("Please specify the size of the reading batches (in lines or bytes).\n");
+        LOG_ERROR("Please specify the size of the reading batches (in lines or bytes).");
         return BATCH_SIZE_NOT_SPECIFIED;
     }
     
     // Check if both batch lines or bytes are defined
     if (*(shared_options->batch_lines->ival) > 0 && *(shared_options->batch_bytes->ival) > 0) {
-        LOG_WARN("The size of reading batches has been specified both in lines and bytes. The size in bytes will be used.\n");
+        LOG_WARN("The size of reading batches has been specified both in lines and bytes. The size in bytes will be used.");
         return 0;
     }
     
     // Check whether variant or sample stats are requested
     // If none of them is, set variant stats as default
     if (stats_options->variant_stats->count + stats_options->sample_stats->count == 0) {
-        LOG_INFO("Statistics requested neither for variants nor samples. Only-variants taken as default.\n");
+        LOG_INFO("Statistics requested neither for variants nor samples. Only-variants taken as default.");
         stats_options->variant_stats->count = 1;
-        return 0;
     }
     
     // Check whether the input PED file is defined when sample stats are requested
     if (stats_options->sample_stats->count > 0 && shared_options->ped_filename->count == 0) {
-        LOG_ERROR("Please specify the input PED file.\n");
+        LOG_ERROR("Please specify the input PED file.");
         return PED_FILE_NOT_SPECIFIED;
+    }
+    
+    // If no PED file is specified, not all statistics can be calculated
+    if (shared_options->ped_filename->count == 0) {
+        LOG_WARN("Input PED file not specified: not all statistics can be calculated.");
     }
     
     return 0;
