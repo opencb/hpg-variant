@@ -23,7 +23,7 @@
 
 static int write_output_variant_alleles_stats(variant_stats_t *var_stats, FILE *stats_fd);    
 static int write_output_variant_genotypes_stats(variant_stats_t *var_stats, FILE *stats_fd);
-static inline int write_output_variant_missing_data(variant_stats_t *var_stats, FILE *stats_fd);
+static inline int write_output_variant_misc_data(variant_stats_t *var_stats, FILE *stats_fd);
 
 
 int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *options_data) {
@@ -41,7 +41,7 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
     }
     
     ped_file_t *ped_file = NULL;
-    if (options_data->sample_stats) {
+    if (shared_options_data->ped_filename) {
         ped_file = ped_open(shared_options_data->ped_filename);
         if (!ped_file) {
             LOG_FATAL("PED file does not exist!\n");
@@ -106,7 +106,7 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
                         sample_stats[j] = sample_stats_new(array_list_get(j, vcf_file->samples_names));
                     }
                     
-                    if (options_data->sample_stats) {
+                    if (ped_file) {
                         // Create map to associate the position of individuals in the list of samples defined in the VCF file
                         sample_ids = associate_samples_and_positions(vcf_file);
                         // Sort individuals in PED as defined in the VCF file
@@ -126,14 +126,16 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
                 array_list_t *input_records = batch->records;
                 int *chunk_starts = create_chunks(input_records->size, shared_options_data->entries_per_thread, &num_chunks, &chunk_sizes);
                 
+                assert(sample_ids);
+                
                 // OpenMP: Launch a thread for each range
                 #pragma omp parallel for num_threads(shared_options_data->num_threads)
                 for (int j = 0; j < num_chunks; j++) {
                     LOG_DEBUG_F("[%d] Stats invocation\n", omp_get_thread_num());
-                    // TODO invoke variant stats or sample stats when applies
+                    // Invoke variant stats and/or sample stats when applies
                     if (options_data->variant_stats) {
                         ret_code = get_variants_stats((vcf_record_t**) (input_records->items + chunk_starts[j]), 
-                                                      chunk_sizes[j], output_list, file_stats);
+                                                      chunk_sizes[j], individuals, sample_ids, output_list, file_stats);
                     }
                     if (options_data->sample_stats) {
                         ret_code |= get_sample_stats((vcf_record_t**) (input_records->items + chunk_starts[j]), 
@@ -217,7 +219,7 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
                 free(summary_filename);
                 LOG_DEBUG("File streams created\n");
                 
-                fprintf(stats_fd, "#CHROM\tPOS\tINDEL?\tList of [ALLELE  COUNT  FREQ]\tList of [GT  COUNT  FREQ]\tMISS_ALLELES\tMISS_GT\n");
+                fprintf(stats_fd, "#CHROM\tPOS\tINDEL?\tList of [ALLELE  COUNT  FREQ]\tList of [GT  COUNT  FREQ]\tMISS_ALLELES\tMISS_GT\tMENDEL ERR\n");
                 
                 // For each variant, generate a new line with the format (block of blanks = tab):
                 // chromosome   position   [<allele>   <count>   <freq>]+   [<genotype>   <count>   <freq>]+   miss_all   miss_gt
@@ -232,7 +234,7 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
                     
                     write_output_variant_alleles_stats(var_stats, stats_fd);
                     write_output_variant_genotypes_stats(var_stats, stats_fd);
-                    write_output_variant_missing_data(var_stats, stats_fd);
+                    write_output_variant_misc_data(var_stats, stats_fd);
                     
                     // Free resources
                     variant_stats_free(var_stats);
@@ -324,8 +326,9 @@ static int write_output_variant_genotypes_stats(variant_stats_t *var_stats, FILE
     return written;
 }
 
-static inline int write_output_variant_missing_data(variant_stats_t *var_stats, FILE *stats_fd) {
-    return fprintf(stats_fd, "%d\t%d\n",
+static inline int write_output_variant_misc_data(variant_stats_t *var_stats, FILE *stats_fd) {
+    return fprintf(stats_fd, "%d\t%d\t%d\n",
                    var_stats->missing_alleles,
-                   var_stats->missing_genotypes);
+                   var_stats->missing_genotypes,
+                   var_stats->mendelian_errors);
 }
