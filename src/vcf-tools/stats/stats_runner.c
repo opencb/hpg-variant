@@ -217,7 +217,7 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
                 free(summary_filename);
                 LOG_DEBUG("File streams created\n");
                 
-                fprintf(stats_fd, "#CHROM\tPOS\tList of [ALLELE  COUNT  FREQ]\tList of [GT  COUNT  FREQ]\tMISS_ALLELES\tMISS_GT\n");
+                fprintf(stats_fd, "#CHROM\tPOS\tINDEL?\tList of [ALLELE  COUNT  FREQ]\tList of [GT  COUNT  FREQ]\tMISS_ALLELES\tMISS_GT\n");
                 
                 // For each variant, generate a new line with the format (block of blanks = tab):
                 // chromosome   position   [<allele>   <count>   <freq>]+   [<genotype>   <count>   <freq>]+   miss_all   miss_gt
@@ -276,6 +276,9 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
 
 static int write_output_variant_alleles_stats(variant_stats_t *var_stats, FILE *stats_fd) {
     int written = 0;
+    
+    // Is indel?
+    written += (var_stats->is_indel) ? fprintf(stats_fd, "Y\t") : fprintf(stats_fd, "N\t");
     
     // Reference allele
     written += fprintf(stats_fd, "%s\t%d\t%.4f\t",
