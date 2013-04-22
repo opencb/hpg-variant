@@ -65,7 +65,7 @@ shared_options_data_t* new_shared_options_data(shared_options_t* options) {
     shared_options_data_t *options_data = (shared_options_data_t*) calloc (1, sizeof(shared_options_data_t));
     
     options_data->vcf_filename = strdup(*(options->vcf_filename->filename));
-    options_data->ped_filename = strdup(*(options->ped_filename->filename));
+    options_data->ped_filename = (options->ped_filename->count > 0) ? strdup(*(options->ped_filename->filename)) : NULL;
     options_data->output_filename = strdup(*(options->output_filename->filename));
     options_data->output_directory = strdup(*(options->output_directory->sval));
     
