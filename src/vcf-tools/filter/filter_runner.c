@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
+ * Copyright (c) 2012-2013 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
  * Copyright (c) 2012 Ignacio Medina (ICM-CIPF)
  *
  * This file is part of hpg-variant.
@@ -24,9 +24,23 @@ int run_filter(shared_options_data_t *shared_options_data, filter_options_data_t
     int ret_code;
     double start, stop, total;
     
-    vcf_file_t *file = vcf_open(shared_options_data->vcf_filename, shared_options_data->max_batches);
-    if (!file) {
+    vcf_file_t *vcf_file = vcf_open(shared_options_data->vcf_filename, shared_options_data->max_batches);
+    if (!vcf_file) {
         LOG_FATAL("VCF file does not exist!\n");
+    }
+    
+    ped_file_t *ped_file = NULL;
+    if (shared_options_data->ped_filename) {
+        ped_file = ped_open(shared_options_data->ped_filename);
+        if (!ped_file) {
+            LOG_FATAL("PED file does not exist!\n");
+        }
+        LOG_INFO("About to read PED file...\n");
+        // Read PED file before doing any processing
+        ret_code = ped_read(ped_file);
+        if (ret_code != 0) {
+            LOG_FATAL_F("Can't read PED file: %s\n", ped_file->filename);
+        }
     }
     
     ret_code = create_directory(shared_options_data->output_directory);
@@ -43,9 +57,9 @@ int run_filter(shared_options_data_t *shared_options_data, filter_options_data_t
             start = omp_get_wtime();
 
             if (shared_options_data->batch_bytes > 0) {
-                ret_code = vcf_parse_batches_in_bytes(shared_options_data->batch_bytes, file);
+                ret_code = vcf_parse_batches_in_bytes(shared_options_data->batch_bytes, vcf_file);
             } else if (shared_options_data->batch_lines > 0) {
-                ret_code = vcf_parse_batches(shared_options_data->batch_lines, file);
+                ret_code = vcf_parse_batches(shared_options_data->batch_lines, vcf_file);
             }
 
             stop = omp_get_wtime();
@@ -56,7 +70,7 @@ int run_filter(shared_options_data_t *shared_options_data, filter_options_data_t
             LOG_INFO_F("[%dR] Time elapsed = %f s\n", omp_get_thread_num(), total);
             LOG_INFO_F("[%dR] Time elapsed = %e ms\n", omp_get_thread_num(), total*1000);
 
-            notify_end_parsing(file);
+            notify_end_parsing(vcf_file);
         }
         
 #pragma omp section
@@ -74,25 +88,35 @@ int run_filter(shared_options_data_t *shared_options_data, filter_options_data_t
             }
             LOG_DEBUG("File streams created\n");
             
+            individual_t **individuals;
+            khash_t(ids) *sample_ids = NULL;
+            
             start = omp_get_wtime();
 
             int i = 0;
             vcf_batch_t *batch = NULL;
-            while ((batch = fetch_vcf_batch(file)) != NULL) {
+            while ((batch = fetch_vcf_batch(vcf_file)) != NULL) {
                 if (i == 0) {
                     // Add headers associated to the defined filters
                     vcf_header_entry_t **filter_headers = get_filters_as_vcf_headers(filters, num_filters);
                     for (int j = 0; j < num_filters; j++) {
-                        add_vcf_header_entry(filter_headers[j], file);
+                        add_vcf_header_entry(filter_headers[j], vcf_file);
                     }
                     
                     // Write file format, header entries and delimiter
-                    write_vcf_header(file, passed_file);
+                    write_vcf_header(vcf_file, passed_file);
                     if (options_data->save_rejected) {
-                        write_vcf_header(file, failed_file);
+                        write_vcf_header(vcf_file, failed_file);
                     }
 
-                    LOG_DEBUG("VCF header written created\n");
+                    LOG_DEBUG("VCF headers written\n");
+                    
+                    if (ped_file) {
+                        // Create map to associate the position of individuals in the list of samples defined in the VCF file
+                        sample_ids = associate_samples_and_positions(vcf_file);
+                        // Sort individuals in PED as defined in the VCF file
+                        individuals = sort_individuals(vcf_file, ped_file);
+                    }
                 }
                 
                 array_list_t *input_records = batch->records;
@@ -108,7 +132,7 @@ int run_filter(shared_options_data_t *shared_options_data, filter_options_data_t
                     passed_records = input_records;
                 } else {
                     failed_records = array_list_new(input_records->size + 1, 1, COLLECTION_MODE_ASYNCHRONIZED);
-                    passed_records = run_filter_chain(input_records, failed_records, filters, num_filters);
+                    passed_records = run_filter_chain(input_records, failed_records, individuals, sample_ids, filters, num_filters);
                 }
 
                 // Write records that passed and failed to 2 new separated files
@@ -163,11 +187,14 @@ int run_filter(shared_options_data_t *shared_options_data, filter_options_data_t
             	fclose(failed_file);
             }
 
+            if (sample_ids) { kh_destroy(ids, sample_ids); }
+            free(individuals);
+            
             free_filters(filters, num_filters);
         }
     }
     
-    vcf_close(file);
+    vcf_close(vcf_file);
     
     return 0;
 }

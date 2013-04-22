@@ -34,7 +34,7 @@ int vcf_tool_filter(int argc, char *argv[], const char *configuration_file) {
     if (argc == 1 || !strcmp(argv[1], "-h") || !strcmp(argv[1], "--help")) {
         argtable = merge_filter_options(filter_options, shared_options, arg_end(filter_options->num_options + shared_options->num_options));
         show_usage("hpg-var-vcf filter", argtable, filter_options->num_options + shared_options->num_options);
-        arg_freetable(argtable, filter_options->num_options + shared_options->num_options - 1);
+        arg_freetable(argtable, filter_options->num_options + shared_options->num_options);
         return 0;
     }
 
@@ -72,7 +72,7 @@ int vcf_tool_filter(int argc, char *argv[], const char *configuration_file) {
 
     free_filter_options_data(options_data);
     free_shared_options_data(shared_options_data);
-    arg_freetable(argtable, filter_options->num_options + shared_options->num_options - 1);
+    arg_freetable(argtable, filter_options->num_options + shared_options->num_options);
 
     return 0;
 }
