@@ -86,46 +86,49 @@ void **parse_effect_options(int argc, char *argv[], effect_options_t *effect_opt
 }
 
 void **merge_effect_options(effect_options_t *effect_options, shared_options_t *shared_options, struct arg_end *arg_end) {
-    size_t opts_size = effect_options->num_options + shared_options->num_options;
+    size_t opts_size = effect_options->num_options + shared_options->num_options + 1;
     void **tool_options = malloc (opts_size * sizeof(void*));
     // Input/output files
     tool_options[0] = shared_options->vcf_filename;
-    tool_options[1] = shared_options->output_filename;
-    tool_options[2] = shared_options->output_directory;
+    tool_options[1] = shared_options->ped_filename;
+    tool_options[2] = shared_options->output_filename;
+    tool_options[3] = shared_options->output_directory;
     
     // Species
-    tool_options[3] = shared_options->species;
+    tool_options[4] = shared_options->species;
     
     // Effect arguments
-    tool_options[4] = effect_options->no_phenotypes;
-    tool_options[5] = effect_options->excludes;
+    tool_options[5] = effect_options->no_phenotypes;
+    tool_options[6] = effect_options->excludes;
     
     // Filter arguments
-    tool_options[6] = shared_options->num_alleles;
-    tool_options[7] = shared_options->coverage;
-    tool_options[8] = shared_options->quality;
-    tool_options[9] = shared_options->maf;
-    tool_options[10] = shared_options->missing;
-    tool_options[11] = shared_options->gene;
-    tool_options[12] = shared_options->region;
-    tool_options[13] = shared_options->region_file;
-    tool_options[14] = shared_options->snp;
-    tool_options[15] = shared_options->indel;
+    tool_options[7] = shared_options->num_alleles;
+    tool_options[8] = shared_options->coverage;
+    tool_options[9] = shared_options->quality;
+    tool_options[10] = shared_options->maf;
+    tool_options[11] = shared_options->missing;
+    tool_options[12] = shared_options->gene;
+    tool_options[13] = shared_options->region;
+    tool_options[14] = shared_options->region_file;
+    tool_options[15] = shared_options->snp;
+    tool_options[16] = shared_options->indel;
+    tool_options[17] = shared_options->dominant;
+    tool_options[18] = shared_options->recessive;
     
     // Configuration file
-    tool_options[16] = shared_options->config_file;
+    tool_options[19] = shared_options->config_file;
     
     // Advanced configuration
-    tool_options[17] = shared_options->host_url;
-    tool_options[18] = shared_options->version;
-    tool_options[19] = shared_options->max_batches;
-    tool_options[20] = shared_options->batch_lines;
-    tool_options[21] = shared_options->batch_bytes;
-    tool_options[22] = shared_options->num_threads;
-    tool_options[23] = shared_options->entries_per_thread;
-    tool_options[24] = shared_options->mmap_vcf_files;
+    tool_options[20] = shared_options->host_url;
+    tool_options[21] = shared_options->version;
+    tool_options[22] = shared_options->max_batches;
+    tool_options[23] = shared_options->batch_lines;
+    tool_options[24] = shared_options->batch_bytes;
+    tool_options[25] = shared_options->num_threads;
+    tool_options[26] = shared_options->entries_per_thread;
+    tool_options[27] = shared_options->mmap_vcf_files;
     
-    tool_options[25] = arg_end;
+    tool_options[28] = arg_end;
     
     return tool_options;
 }
@@ -136,6 +139,13 @@ int verify_effect_options(effect_options_t *effect_options, shared_options_t *sh
     if (shared_options->vcf_filename->count == 0) {
         LOG_ERROR("Please specify the input VCF file.\n");
         return VCF_FILE_NOT_SPECIFIED;
+    }
+    
+    // Check whether the input PED file is defined when needed (for certain filters)
+    if ((shared_options->dominant->count || shared_options->recessive->count) &&
+        shared_options->ped_filename->count == 0) {
+        LOG_ERROR("Please specify the input PED file.\n");
+        return PED_FILE_NOT_SPECIFIED;
     }
     
     // Check whether the host URL is defined

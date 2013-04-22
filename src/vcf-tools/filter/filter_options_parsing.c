@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
+ * Copyright (c) 2012-2013 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
  * Copyright (c) 2012 Ignacio Medina (ICM-CIPF)
  *
  * This file is part of hpg-variant.
@@ -149,6 +149,13 @@ int verify_filter_options(filter_options_t *filter_options, shared_options_t *sh
         return EMPTY_LIST_OF_FILTERS;
     }
 
+    // Check whether the input PED file is defined when needed (for certain filters)
+    if ((shared_options->dominant->count || shared_options->recessive->count) &&
+        shared_options->ped_filename->count == 0) {
+        LOG_ERROR("Please specify the input PED file.\n");
+        return PED_FILE_NOT_SPECIFIED;
+    }
+    
     // Check whether the host URL is defined
     if (shared_options->host_url->sval == NULL || strlen(*(shared_options->host_url->sval)) == 0) {
         LOG_ERROR("Please specify the host URL to the web service.\n");
