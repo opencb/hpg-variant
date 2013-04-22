@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
+ * Copyright (c) 2012-2013 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
  * Copyright (c) 2012 Ignacio Medina (ICM-CIPF)
  *
  * This file is part of hpg-variant.
@@ -57,9 +57,24 @@ static int batch_num;
 int run_effect(char **urls, shared_options_data_t *shared_options_data, effect_options_data_t *options_data) {
     int ret_code = 0;
     double start, stop, total;
-    vcf_file_t *file = vcf_open(shared_options_data->vcf_filename, shared_options_data->max_batches);
-    if (!file) {
+    
+    vcf_file_t *vcf_file = vcf_open(shared_options_data->vcf_filename, shared_options_data->max_batches);
+    if (!vcf_file) {
         LOG_FATAL("VCF file does not exist!\n");
+    }
+    
+    ped_file_t *ped_file = NULL;
+    if (shared_options_data->ped_filename) {
+        ped_file = ped_open(shared_options_data->ped_filename);
+        if (!ped_file) {
+            LOG_FATAL("PED file does not exist!\n");
+        }
+        LOG_INFO("About to read PED file...\n");
+        // Read PED file before doing any processing
+        ret_code = ped_read(ped_file);
+        if (ret_code != 0) {
+            LOG_FATAL_F("Can't read PED file: %s\n", ped_file->filename);
+        }
     }
     
     output_directory = shared_options_data->output_directory;
@@ -107,7 +122,7 @@ int run_effect(char **urls, shared_options_data_t *shared_options_data, effect_o
             
             start = omp_get_wtime();
             
-            ret_code = vcf_read(file, 1,
+            ret_code = vcf_read(vcf_file, 1,
                                 (shared_options_data->batch_bytes > 0) ? shared_options_data->batch_bytes : shared_options_data->batch_lines,
                                 shared_options_data->batch_bytes <= 0);
 
@@ -115,13 +130,13 @@ int run_effect(char **urls, shared_options_data_t *shared_options_data, effect_o
             total = stop - start;
 
             if (ret_code) {
-                LOG_ERROR_F("Error %d while reading the file %s\n", ret_code, file->filename);
+                LOG_ERROR_F("Error %d while reading the file %s\n", ret_code, vcf_file->filename);
             }
 
             LOG_INFO_F("[%dR] Time elapsed = %f s\n", omp_get_thread_num(), total);
             LOG_INFO_F("[%dR] Time elapsed = %e ms\n", omp_get_thread_num(), total*1000);
 
-            notify_end_parsing(file);
+            notify_end_parsing(vcf_file);
         }
         
 #pragma omp section
@@ -131,6 +146,7 @@ int run_effect(char **urls, shared_options_data_t *shared_options_data, effect_o
             
             LOG_DEBUG_F("Thread %d processes data\n", omp_get_thread_num());
             
+            // Filters and files for filtering output
             filter_t **filters = NULL;
             int num_filters = 0;
             if (shared_options_data->chain != NULL) {
@@ -138,6 +154,10 @@ int run_effect(char **urls, shared_options_data_t *shared_options_data, effect_o
             }
             FILE *passed_file = NULL, *failed_file = NULL, *non_processed_file = NULL;
             get_filtering_output_files(shared_options_data, &passed_file, &failed_file);
+            
+            // Pedigree information (used in some filters)
+            individual_t **individuals;
+            khash_t(ids) *sample_ids = NULL;
             
             // Filename structure outdir/vcfname.errors
             char *prefix_filename = calloc(strlen(shared_options_data->vcf_filename), sizeof(char));
@@ -153,20 +173,27 @@ int run_effect(char **urls, shared_options_data_t *shared_options_data, effect_o
             
             start = omp_get_wtime();
 
-            while (batch = fetch_vcf_batch(file)) {
+            while (batch = fetch_vcf_batch(vcf_file)) {
                 if (i == 0) {
                     // Add headers associated to the defined filters
                     vcf_header_entry_t **filter_headers = get_filters_as_vcf_headers(filters, num_filters);
                     for (int j = 0; j < num_filters; j++) {
-                        add_vcf_header_entry(filter_headers[j], file);
+                        add_vcf_header_entry(filter_headers[j], vcf_file);
                     }
                         
                     // Write file format, header entries and delimiter
-                    if (passed_file != NULL) { write_vcf_header(file, passed_file); }
-                    if (failed_file != NULL) { write_vcf_header(file, failed_file); }
-                    if (non_processed_file != NULL) { write_vcf_header(file, non_processed_file); }
+                    if (passed_file != NULL) { write_vcf_header(vcf_file, passed_file); }
+                    if (failed_file != NULL) { write_vcf_header(vcf_file, failed_file); }
+                    if (non_processed_file != NULL) { write_vcf_header(vcf_file, non_processed_file); }
                     
                     LOG_DEBUG("VCF header written\n");
+                    
+                    if (ped_file) {
+                        // Create map to associate the position of individuals in the list of samples defined in the VCF file
+                        sample_ids = associate_samples_and_positions(vcf_file);
+                        // Sort individuals in PED as defined in the VCF file
+                        individuals = sort_individuals(vcf_file, ped_file);
+                    }
                 }
                 
 //                     printf("batch loaded = '%.*s'\n", 50, batch->text);
@@ -183,7 +210,7 @@ int run_effect(char **urls, shared_options_data_t *shared_options_data, effect_o
 
                 // Write records that passed to a separate file, and query the WS with them as args
                 array_list_t *failed_records = NULL;
-                array_list_t *passed_records = filter_records(filters, num_filters, NULL, NULL, batch->records, &failed_records);
+                array_list_t *passed_records = filter_records(filters, num_filters, individuals, sample_ids, batch->records, &failed_records);
                 if (passed_records->size > 0) {
                     // Divide the list of passed records in ranges of size defined in config file
                     int num_chunks;
@@ -334,7 +361,7 @@ int run_effect(char **urls, shared_options_data_t *shared_options_data, effect_o
 
     ret_code = free_ws_output(shared_options_data->num_threads);
     free(output_list);
-    vcf_close(file);
+    vcf_close(vcf_file);
     
     update_job_status_file(100, job_status);
     close_job_status_file(job_status);

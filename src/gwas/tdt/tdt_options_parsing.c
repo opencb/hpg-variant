@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
+ * Copyright (c) 2012-2013 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
  * Copyright (c) 2012 Ignacio Medina (ICM-CIPF)
  *
  * This file is part of hpg-variant.
@@ -77,7 +77,7 @@ void **parse_tdt_options(int argc, char *argv[], tdt_options_t *tdt_options, sha
 }
 
 void **merge_tdt_options(tdt_options_t *tdt_options, shared_options_t *shared_options, struct arg_end *arg_end) {
-    size_t opts_size = shared_options->num_options + 1;
+    size_t opts_size = tdt_options->num_options + shared_options->num_options + 1;
     void **tool_options = malloc (opts_size * sizeof(void*));
     // Input/output files
     tool_options[0] = shared_options->vcf_filename;
@@ -99,21 +99,23 @@ void **merge_tdt_options(tdt_options_t *tdt_options, shared_options_t *shared_op
     tool_options[12] = shared_options->region_file;
     tool_options[13] = shared_options->snp;
     tool_options[14] = shared_options->indel;
+    tool_options[15] = shared_options->dominant;
+    tool_options[16] = shared_options->recessive;
     
     // Configuration file
-    tool_options[15] = shared_options->config_file;
+    tool_options[17] = shared_options->config_file;
     
     // Advanced configuration
-    tool_options[16] = shared_options->host_url;
-    tool_options[17] = shared_options->version;
-    tool_options[18] = shared_options->max_batches;
-    tool_options[19] = shared_options->batch_lines;
-    tool_options[20] = shared_options->batch_bytes;
-    tool_options[21] = shared_options->num_threads;
-    tool_options[22] = shared_options->entries_per_thread;
-    tool_options[23] = shared_options->mmap_vcf_files;
+    tool_options[18] = shared_options->host_url;
+    tool_options[19] = shared_options->version;
+    tool_options[20] = shared_options->max_batches;
+    tool_options[21] = shared_options->batch_lines;
+    tool_options[22] = shared_options->batch_bytes;
+    tool_options[23] = shared_options->num_threads;
+    tool_options[24] = shared_options->entries_per_thread;
+    tool_options[25] = shared_options->mmap_vcf_files;
     
-    tool_options[24] = arg_end;
+    tool_options[26] = arg_end;
     
     return tool_options;
 }

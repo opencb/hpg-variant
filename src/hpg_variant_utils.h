@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
+ * Copyright (c) 2012-2013 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
  * Copyright (c) 2012 Ignacio Medina (ICM-CIPF)
  *
  * This file is part of hpg-variant.
@@ -80,7 +80,6 @@ int get_filtering_output_files(shared_options_data_t *shared_options, FILE **pas
 
 int write_filtering_output_files(array_list_t *passed_records, array_list_t *failed_records, FILE* passed_file, FILE* failed_file);
 
-//array_list_t *filter_records(filter_t** filters, int num_filters, array_list_t *input_records, array_list_t **failed_records);
 array_list_t *filter_records(filter_t** filters, int num_filters, individual_t **individuals, khash_t(ids) *sample_ids, 
                              array_list_t *input_records, array_list_t **failed_records);
 
