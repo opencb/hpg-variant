@@ -167,7 +167,7 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
                 array_list_t *failed_records = NULL;
                 assert(batch);
                 assert(batch->records);
-                array_list_t *passed_records = filter_records(filters, num_filters, batch->records, &failed_records);
+                array_list_t *passed_records = filter_records(filters, num_filters, NULL, NULL, batch->records, &failed_records);
                 if (passed_records->size > 0) {
                     ret_code = tdt_test((vcf_record_t**) passed_records->items, passed_records->size, families, num_families, sample_ids, output_list);
                     if (ret_code) {

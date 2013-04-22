@@ -174,7 +174,7 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
 
                 // Launch association test over records that passed the filters
                 array_list_t *failed_records = NULL;
-                array_list_t *passed_records = filter_records(filters, num_filters, batch->records, &failed_records);
+                array_list_t *passed_records = filter_records(filters, num_filters, NULL, NULL, batch->records, &failed_records);
                 if (passed_records->size > 0) {
                     assoc_test(options_data->task, (vcf_record_t**) passed_records->items, passed_records->size, 
                                 individuals, get_num_vcf_samples(file), factorial_logarithms, output_list);

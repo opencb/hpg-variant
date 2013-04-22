@@ -43,38 +43,40 @@
 /**
  * Number of options applicable to the whole application.
  */
-#define NUM_GLOBAL_OPTIONS  24
+#define NUM_GLOBAL_OPTIONS  26
 
 typedef struct shared_options {
-    struct arg_file *vcf_filename;    /**< VCF file used as input. */
-    struct arg_file *ped_filename;    /**< PED file used as input. */
-    struct arg_file *output_filename; /**< Filename template for the main output file. */
-    struct arg_str *output_directory; /**< Directory where the output files will be stored. */
+    struct arg_file *vcf_filename;      /**< VCF file used as input. */
+    struct arg_file *ped_filename;      /**< PED file used as input. */
+    struct arg_file *output_filename;   /**< Filename template for the main output file. */
+    struct arg_str *output_directory;   /**< Directory where the output files will be stored. */
     
-    struct arg_str *host_url; /**< URL of the host where the web service runs. */
-    struct arg_str *version;  /**< Version of the WS to query. */
-    struct arg_str *species;  /**< Species whose genome is taken as reference. */
+    struct arg_str *host_url;           /**< URL of the host where the web service runs. */
+    struct arg_str *version;            /**< Version of the WS to query. */
+    struct arg_str *species;            /**< Species whose genome is taken as reference. */
     
-    struct arg_int *max_batches; /**< Maximum number of batches stored at the same time. */
-    struct arg_int *batch_lines; /**< Maximum size of a batch (in lines). */
-    struct arg_int *batch_bytes; /**< Maximum size of a batch (in bytes). */
-    struct arg_int *num_threads; /**< Number of threads when a task runs in parallel. */
+    struct arg_int *max_batches;        /**< Maximum number of batches stored at the same time. */
+    struct arg_int *batch_lines;        /**< Maximum size of a batch (in lines). */
+    struct arg_int *batch_bytes;        /**< Maximum size of a batch (in bytes). */
+    struct arg_int *num_threads;        /**< Number of threads when a task runs in parallel. */
     struct arg_int *entries_per_thread; /**< Number of entries in a batch each thread processes. */
     
-    struct arg_int *coverage;     /**< Filter by coverage. */
-    struct arg_dbl *maf;          /**< Filter by minimum allele frequency (MAF). */
-    struct arg_dbl *missing;      /**< Filter by missing values. */
-    struct arg_int *num_alleles;  /**< Filter by number of alleles. */
-    struct arg_int *quality;      /**< Filter by quality. */
-    struct arg_str *gene;         /**< Filter by gene */
-    struct arg_str *region;       /**< Filter by region */
-    struct arg_file *region_file; /**< Filter by region (using a GFF file) */
-    struct arg_str *snp;          /**< Filter by SNP */
-    struct arg_str *indel;          /**< Filter by indel */
+    struct arg_int *coverage;           /**< Filter by coverage. */
+    struct arg_dbl *maf;                /**< Filter by minimum allele frequency (MAF). */
+    struct arg_dbl *missing;            /**< Filter by missing values. */
+    struct arg_int *num_alleles;        /**< Filter by number of alleles. */
+    struct arg_int *quality;            /**< Filter by quality. */
+    struct arg_str *gene;               /**< Filter by gene */
+    struct arg_str *region;             /**< Filter by region */
+    struct arg_file *region_file;       /**< Filter by region (using a GFF file) */
+    struct arg_str *snp;                /**< Filter by SNP */
+    struct arg_str *indel;              /**< Filter by indel */
+    struct arg_dbl *dominant;           /**< Filter by samples following a dominant inheritance model */
+    struct arg_dbl *recessive;          /**< Filter by samples following a recessive inheritance model */
     
-    struct arg_file *config_file; /**< Path to the configuration file */
+    struct arg_file *config_file;       /**< Path to the configuration file */
     
-    struct arg_lit *mmap_vcf_files; /**< Whether to map VCF files to virtual memory or use the I/O API. */
+    struct arg_lit *mmap_vcf_files;     /**< Whether to map VCF files to virtual memory or use the I/O API. */
     
     int num_options;
 } shared_options_t;
@@ -88,20 +90,20 @@ typedef struct shared_options {
  * and folders.
  */
 typedef struct shared_options_data {
-    char *vcf_filename; /**< VCF file used as input. */
-    char *ped_filename; /**< PED file used as input. */
-    char *output_filename; /**< Filename template for the main output file. */
-    char *output_directory; /**< Directory where the output files will be stored. */
+    char *vcf_filename;                 /**< VCF file used as input. */
+    char *ped_filename;                 /**< PED file used as input. */
+    char *output_filename;              /**< Filename template for the main output file. */
+    char *output_directory;             /**< Directory where the output files will be stored. */
     
-    char *host_url; /**< URL of the host where the web service runs. */
-    char *version; /**< Version of the WS to query. */
-    char *species; /**< Species whose genome is taken as reference. */
+    char *host_url;                     /**< URL of the host where the web service runs. */
+    char *version;                      /**< Version of the WS to query. */
+    char *species;                      /**< Species whose genome is taken as reference. */
     
-    int max_batches; /**< Maximum number of batches stored at the same time. */
-    int batch_lines; /**< Maximum size of a batch (in lines). */
-    int batch_bytes; /**< Maximum size of a batch (in bytes). */
-    int num_threads; /**< Number of threads when a task runs in parallel. */
-    int entries_per_thread; /**< Number of entries in a batch each thread processes. */
+    int max_batches;                    /**< Maximum number of batches stored at the same time. */
+    int batch_lines;                    /**< Maximum size of a batch (in lines). */
+    int batch_bytes;                    /**< Maximum size of a batch (in bytes). */
+    int num_threads;                    /**< Number of threads when a task runs in parallel. */
+    int entries_per_thread;             /**< Number of entries in a batch each thread processes. */
     
     filter_chain *chain; /**< Chain of filters to apply to the VCF records, if that is the case. */
 } shared_options_data_t;
