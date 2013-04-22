@@ -65,7 +65,6 @@ char *get_config_home_folder(char *config_dirpaths[], int num_dirpaths) {
         return NULL;
     }
 
-    FILE *home_config_dir = NULL;
     char *home_config_dirpath = malloc (1024 * sizeof(char));
     char hpg_variant_conf_path_src[1024];
     char hpg_variant_conf_path_dest[1024];
@@ -206,9 +205,7 @@ void close_job_status_file(FILE* file) {
  * ***********************/
 
 int get_filtering_output_files(shared_options_data_t *shared_options, FILE** passed_file, FILE** failed_file) {
-    if (shared_options == NULL) {
-        return 1;
-    }
+    assert(shared_options);
     
     char *prefix_filename, *passed_filename, *failed_filename;
     int filename_len = 0;
@@ -268,13 +265,14 @@ int write_filtering_output_files(array_list_t *passed_records, array_list_t *fai
     return ret_code;
 }
 
-array_list_t *filter_records(filter_t** filters, int num_filters, array_list_t *input_records, array_list_t **failed_records) {
+array_list_t *filter_records(filter_t** filters, int num_filters, individual_t **individuals, khash_t(ids) *sample_ids, 
+                             array_list_t *input_records, array_list_t **failed_records) {
     array_list_t *passed_records = NULL;
     if (filters == NULL || num_filters == 0) {
         passed_records = input_records;
     } else {
         *failed_records = array_list_new(input_records->size + 1, 1, COLLECTION_MODE_ASYNCHRONIZED);
-        passed_records = run_filter_chain(input_records, *failed_records, filters, num_filters);
+        passed_records = run_filter_chain(input_records, *failed_records, individuals, sample_ids, filters, num_filters);
     }
     return passed_records;
 }
