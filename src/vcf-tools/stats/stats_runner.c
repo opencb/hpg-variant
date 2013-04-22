@@ -23,7 +23,8 @@
 
 static int write_output_variant_alleles_stats(variant_stats_t *var_stats, FILE *stats_fd);    
 static int write_output_variant_genotypes_stats(variant_stats_t *var_stats, FILE *stats_fd);
-static inline int write_output_variant_misc_data(variant_stats_t *var_stats, FILE *stats_fd);
+static inline int write_output_variant_missing_data(variant_stats_t *var_stats, FILE *stats_fd);
+static inline int write_output_variant_inheritance_data(variant_stats_t *var_stats, FILE *stats_fd);
 
 
 int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *options_data) {
@@ -219,7 +220,8 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
                 free(summary_filename);
                 LOG_DEBUG("File streams created\n");
                 
-                fprintf(stats_fd, "#CHROM\tPOS\tINDEL?\tList of [ALLELE  COUNT  FREQ]\tList of [GT  COUNT  FREQ]\tMISS_ALLELES\tMISS_GT\tMENDEL ERR\n");
+                fprintf(stats_fd, 
+                        "#CHROM\tPOS\tINDEL?\tList of [ALLELE  COUNT  FREQ]\t\t\tList of [GT  COUNT  FREQ]\t\t\t\t\t\tMISS_AL\tMISS_GT\tMEND_ER\t%% AFF | UNAFF dominant\t%% AFF | UNAFF recessive\n");
                 
                 // For each variant, generate a new line with the format (block of blanks = tab):
                 // chromosome   position   [<allele>   <count>   <freq>]+   [<genotype>   <count>   <freq>]+   miss_all   miss_gt
@@ -234,7 +236,8 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
                     
                     write_output_variant_alleles_stats(var_stats, stats_fd);
                     write_output_variant_genotypes_stats(var_stats, stats_fd);
-                    write_output_variant_misc_data(var_stats, stats_fd);
+                    write_output_variant_missing_data(var_stats, stats_fd);
+                    write_output_variant_inheritance_data(var_stats, stats_fd);
                     
                     // Free resources
                     variant_stats_free(var_stats);
@@ -326,9 +329,17 @@ static int write_output_variant_genotypes_stats(variant_stats_t *var_stats, FILE
     return written;
 }
 
-static inline int write_output_variant_misc_data(variant_stats_t *var_stats, FILE *stats_fd) {
-    return fprintf(stats_fd, "%d\t%d\t%d\n",
+static inline int write_output_variant_missing_data(variant_stats_t *var_stats, FILE *stats_fd) {
+    return fprintf(stats_fd, "%d\t%d\t",
                    var_stats->missing_alleles,
-                   var_stats->missing_genotypes,
-                   var_stats->mendelian_errors);
+                   var_stats->missing_genotypes);
+}
+
+static inline int write_output_variant_inheritance_data(variant_stats_t *var_stats, FILE *stats_fd) {
+    return fprintf(stats_fd, "%d\t%.2f | %.2f\t%.2f | %.2f\n",
+                   var_stats->missing_alleles,
+                   var_stats->cases_percent_dominant,
+                   var_stats->controls_percent_dominant,
+                   var_stats->cases_percent_recessive,
+                   var_stats->controls_percent_recessive);
 }
