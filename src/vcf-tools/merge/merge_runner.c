@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
+ * Copyright (c) 2012-2013 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
  * Copyright (c) 2012 Ignacio Medina (ICM-CIPF)
  *
  * This file is part of hpg-variant.
@@ -19,11 +19,15 @@
  */
 
 #include "merge_runner.h"
+#include "bioformats/bam/samtools/khash.h"
 
 #define TREE_LIMIT  (shared_options_data->batch_lines)
 
 static int num_chromosomes;
 static char **chromosome_order;
+
+static void free_merge_tree(kh_pos_t* positions_read);
+
 
 int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *options_data) {
     if (options_data->num_files == 1) {
@@ -63,8 +67,6 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
 
     chromosome_order = get_chromosome_order(shared_options_data->host_url, shared_options_data->species,
                                             shared_options_data->version, &num_chromosomes);
-    
-    printf("Number of threads = %d\n", shared_options_data->num_threads);
     
 #pragma omp parallel sections private(start, stop, total)
     {
@@ -212,6 +214,16 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
                 
                 // Merge headers, if not previously done
                 if (!header_merged) {
+                    array_list_t *sample_names = merge_vcf_sample_names(files, options_data->num_files);
+                    if (!sample_names) {
+                        // Avoid as many leaks as possible
+                        array_list_free(sample_names, NULL);
+                        free_merge_tree(positions_read);
+                        free(max_chromosome_merged);
+                        
+                        LOG_FATAL("Files can not be merged!");
+                    }
+                    
                     merge_vcf_headers(files, options_data->num_files, options_data, output_header_list);
                     header_merged = 1;
                     
@@ -293,7 +305,7 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
             int *num_records;
             
             // Write headers
-            while ((item1 = list_remove_item(output_header_list)) != NULL) {
+            while ((item1 = list_remove_item(output_header_list))) {
                 entry = item1->data_p;
                 write_vcf_header_entry(entry, merge_fd);
             }
@@ -305,7 +317,7 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
             // Write records
             // When a token is present, it means a set of batches has been merged. The token contains the number of records merged.
             // In this case, the records must be sorted by chromosome and position, and written afterwards.
-            while ((item1 = list_remove_item(merge_tokens)) != NULL) {
+            while ((item1 = list_remove_item(merge_tokens))) {
                 num_records = item1->data_p;
                 vcf_record_t *records[*num_records];
                 for (int i = 0; i < *num_records; i++) {
@@ -333,6 +345,7 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
             }
             
             // Close file
+            array_list_free(sample_names, NULL);
             if (merge_fd != NULL) { fclose(merge_fd); }
             
             stop = omp_get_wtime();
@@ -405,7 +418,7 @@ void calculate_merge_interval(vcf_record_t* current_record, char** max_chromosom
 int merge_interval(kh_pos_t* positions_read, char *max_chromosome_merged, unsigned long max_position_merged,
                     char **chromosome_order, int num_chromosomes, vcf_file_t **files, 
                     shared_options_data_t *shared_options_data, merge_options_data_t *options_data, list_t *output_list) {
-	int num_entries = 0;
+    int num_entries = 0;
 
     #pragma omp parallel for num_threads(shared_options_data->num_threads) reduction(+:num_entries)
     for (int k = kh_begin(positions_read); k < kh_end(positions_read); k++) {
@@ -437,6 +450,7 @@ int merge_interval(kh_pos_t* positions_read, char *max_chromosome_merged, unsign
                 }
                 
                 // Free empty nodes (lists of records in the same position)
+                free(kh_key(positions_read, k));
                 array_list_free(records_in_position, vcf_record_file_link_free);
                 kh_del(pos, positions_read, k);
             }
@@ -449,7 +463,7 @@ int merge_interval(kh_pos_t* positions_read, char *max_chromosome_merged, unsign
 
 int merge_remaining_interval(kh_pos_t* positions_read, vcf_file_t **files, shared_options_data_t *shared_options_data,
                               merge_options_data_t *options_data, list_t *output_list) {
-	int num_entries = 0;
+    int num_entries = 0;
 
     #pragma omp parallel for num_threads(shared_options_data->num_threads) reduction(+:num_entries)
     for (int k = kh_begin(positions_read); k < kh_end(positions_read); k++) {
@@ -469,6 +483,7 @@ int merge_remaining_interval(kh_pos_t* positions_read, vcf_file_t **files, share
             }
             
             // Free empty nodes (lists of records in the same position)
+            free(kh_key(positions_read, k));
             array_list_free(records_in_position, vcf_record_file_link_free);
             kh_del(pos, positions_read, k);
         }
@@ -510,4 +525,14 @@ static int record_cmp(const void *data1, const void *data2) {
 	}
 
 	return cmp;
+}
+
+static void free_merge_tree(kh_pos_t* positions_read) {
+    for (int k = kh_begin(positions_read); k < kh_end(positions_read); k++) {
+        if (kh_exist(positions_read, k)) {
+            array_list_free(kh_value(positions_read, k), vcf_record_file_link_free);
+            free(kh_key(positions_read, k));
+            kh_del(pos, positions_read, k);
+        }
+    }
 }

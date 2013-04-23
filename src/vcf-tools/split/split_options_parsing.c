@@ -86,7 +86,7 @@ void **parse_split_options(int argc, char *argv[], split_options_t *split_option
 }
 
 void **merge_split_options(split_options_t *split_options, shared_options_t *shared_options, struct arg_end *arg_end) {
-    size_t opts_size = split_options->num_options + shared_options->num_options - 13;
+    size_t opts_size = split_options->num_options + shared_options->num_options - 16;
     void **tool_options = malloc (opts_size * sizeof(void*));
     // Input/output files
     tool_options[0] = shared_options->vcf_filename;

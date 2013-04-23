@@ -208,7 +208,9 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
                 filter->free_func(filter);
             }
             free(filters);
-            free(individuals);
+            
+            if (sample_ids) { kh_destroy(ids, sample_ids); }
+            if (individuals) { free(individuals); }
 
             // Decrease list writers count
             for (int i = 0; i < shared_options_data->num_threads; i++) {
@@ -253,8 +255,7 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
    
     free(output_list);
     vcf_close(vcf_file);
-    // TODO delete conflicts among frees
-    ped_close(ped_file, 0);
+    ped_close(ped_file, 1);
         
     return ret_code;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
+ * Copyright (c) 2012-2013 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
  * Copyright (c) 2012 Ignacio Medina (ICM-CIPF)
  *
  * This file is part of hpg-variant.
@@ -130,7 +130,8 @@ array_list_t *merge_vcf_sample_names(vcf_file_t **files, int num_files) {
             khiter_t iter = kh_get(names, samples, sample_name);
             if (iter != kh_end(samples)) {
                 kh_destroy(names, samples);
-                LOG_FATAL_F("Sample %s appears more than once. Files can not be merged.\n", sample_name);
+                LOG_ERROR_F("Sample %s appears more than once.\n", sample_name);
+                return NULL;
             } else {
                 int ret;
                 iter = kh_put(names, samples, strdup(sample_name), &ret);
