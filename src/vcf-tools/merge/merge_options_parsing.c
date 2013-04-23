@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
+ * Copyright (c) 2012-2013 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
  * Copyright (c) 2012 Ignacio Medina (ICM-CIPF)
  *
  * This file is part of hpg-variant.
@@ -100,7 +100,7 @@ void **parse_merge_options(int argc, char *argv[], merge_options_t *merge_option
 }
 
 void **merge_merge_options(merge_options_t *merge_options, shared_options_t *shared_options, struct arg_end *arg_end) {
-    size_t opts_size = merge_options->num_options + shared_options->num_options + 1 - 9;
+    size_t opts_size = merge_options->num_options + shared_options->num_options - 13;
     void **tool_options = malloc (opts_size * sizeof(void*));
     // Input/output files
     tool_options[0] = merge_options->input_files;

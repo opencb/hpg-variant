@@ -83,6 +83,8 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
             
             volatile int initialization_done = 0;
             // Pedigree information
+            family_t **families = (family_t**) cp_hashtable_get_values(ped_file->families);
+            int num_families = get_num_families(ped_file);
             individual_t **individuals;
             khash_t(ids) *sample_ids;
             
@@ -98,12 +100,10 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
             double start = omp_get_wtime();
             
             int i = 0;
-#pragma omp parallel num_threads(shared_options_data->num_threads) shared(initialization_done, sample_ids, filters)
+//#pragma omp parallel num_threads(shared_options_data->num_threads) shared(initialization_done, families, sample_ids, filters)
+#pragma omp parallel num_threads(shared_options_data->num_threads)
             {
             LOG_DEBUG_F("Level %d: number of threads in the team - %d\n", 11, omp_get_num_threads());
-            
-            family_t **families = (family_t**) cp_hashtable_get_values(ped_file->families);
-            int num_families = get_num_families(ped_file);
             
             char *text_begin, *text_end;
             vcf_reader_status *status;
@@ -197,8 +197,6 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
             LOG_INFO_F("[%d] Time elapsed = %e ms\n", omp_get_thread_num(), (stop - start) * 1000);
 
             // Free resources
-            if (sample_ids) { kh_destroy(ids, sample_ids); }
-            
             if (filters) {
                 for (int i = 0; i < num_filters; i++) {
                     filter_t *filter = filters[i];
@@ -206,6 +204,10 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
                 }
                 free(filters);
             }
+            
+            if (sample_ids) { kh_destroy(ids, sample_ids); }
+            if (individuals) { free(individuals); }
+            free(families);
             
             // Decrease list writers count
             for (int i = 0; i < shared_options_data->num_threads; i++) {
@@ -253,9 +255,7 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
     
     free(output_list);
     vcf_close(vcf_file);
-    // TODO delete conflicts among frees
-//     ped_close(ped_file, 0);
-    
+    ped_close(ped_file, 1);
     
     return ret_code;
 }

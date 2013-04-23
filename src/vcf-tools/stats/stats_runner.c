@@ -189,6 +189,9 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
             for (i = 0; i < shared_options_data->num_threads; i++) {
                 list_decr_writers(output_list);
             }
+            
+            if (sample_ids) { kh_destroy(ids, sample_ids); }
+            if (individuals) { free(individuals); }
         }
         
 #pragma omp section
@@ -271,6 +274,7 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
     }
     
     vcf_close(vcf_file);
+    if (ped_file) { ped_close(ped_file, 1); }
     free(sample_stats);
     free(file_stats);
 //     free(read_list);

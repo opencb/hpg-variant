@@ -37,7 +37,7 @@ int vcf_tool_split(int argc, char *argv[], const char *configuration_file) {
     if (argc == 1 || !strcmp(argv[1], "-h") || !strcmp(argv[1], "--help")) {
         argtable = merge_split_options(split_options, shared_options, arg_end(split_options->num_options + shared_options->num_options));
         show_usage("hpg-var-vcf split", argtable, split_options->num_options + shared_options->num_options);
-        arg_freetable(argtable, split_options->num_options + shared_options->num_options - 13);
+        arg_freetable(argtable, split_options->num_options + shared_options->num_options - 16);
         return 0;
     }
 
@@ -75,7 +75,7 @@ int vcf_tool_split(int argc, char *argv[], const char *configuration_file) {
 
     free_split_options_data(options_data);
     free_shared_options_data(shared_options_data);
-    arg_freetable(argtable, split_options->num_options + shared_options->num_options - 12);
+    arg_freetable(argtable, split_options->num_options + shared_options->num_options - 16);
 
     return 0;
 }
