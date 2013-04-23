@@ -195,6 +195,7 @@ int run_filter(shared_options_data_t *shared_options_data, filter_options_data_t
     }
     
     vcf_close(vcf_file);
+    if (ped_file) { ped_close(ped_file, 1); }
     
     return 0;
 }

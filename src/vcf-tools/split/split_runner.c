@@ -118,9 +118,6 @@ int run_split(shared_options_data_t *shared_options_data, split_options_data_t *
                 
                 free(chunk_starts);
                 free(chunk_sizes);
-                // Can't free batch contents because they will be written to file by another thread
-//                 free(item->data_p);
-//                 list_item_free(item);
                 vcf_batch_free(batch);
                 
                 i++;
@@ -146,8 +143,6 @@ int run_split(shared_options_data_t *shared_options_data, split_options_data_t *
             start = omp_get_wtime();
 
             // Create file streams for results
-            int dirname_len = strlen(shared_options_data->output_directory);
-            
             list_item_t* item = NULL;
             split_result_t *result;
             FILE *split_fd = NULL;

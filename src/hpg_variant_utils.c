@@ -27,15 +27,19 @@
 
 array_list_t *get_configuration_search_paths(int argc, char *argv[]) {
     char *c = get_config_path_from_args(argc, argv);
-    char *config_dirpaths[3] = { c, getcwd(NULL, 0), "/etc/hpg-variant" };
+    char *config_dirpaths[3] = { c, getcwd(NULL, 0), strdup("/etc/hpg-variant") };
+    char *home = get_config_home_folder(config_dirpaths, 3);
 
-    char *h = get_config_home_folder(config_dirpaths, 3);
-
-    return sort_config_paths_by_priority(c, h);
+    array_list_t *paths = sort_config_paths_by_priority(c, home);
+    
+    for (int i = 0; i < 3; i++) {
+        free(config_dirpaths[i]);
+    }
+    
+    return paths;
 }
 
 char *get_config_path_from_args(int argc, char *argv[]) {
-    FILE *config_dir = NULL;
     char *config_dirpath = NULL;
     struct stat sb;
 
