@@ -119,10 +119,10 @@ shared_options_data_t* new_shared_options_data(shared_options_t* options) {
     } 
     
     if (options->region_file->count > 0) {
-        filter = region_exact_filter_new(strdup(*(options->region->sval)), 1, 
+        filter = region_exact_filter_new(strdup(*(options->region_file->filename)), 1, 
                                          *(options->host_url->sval), *(options->species->sval), *(options->version->sval));
         options_data->chain = add_to_filter_chain(filter, options_data->chain);
-        LOG_DEBUG_F("regions file = %s\n", *(options->region->sval));
+        LOG_DEBUG_F("regions file = %s\n", *(options->region_file->filename));
     }
     if (options->snp->count > 0) {
         filter = snp_filter_new(strcmp(*(options->snp->sval), "exclude"));
