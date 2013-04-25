@@ -21,12 +21,6 @@
 #include "stats.h"
 
 
-static int write_output_variant_alleles_stats(variant_stats_t *var_stats, FILE *stats_fd);    
-static int write_output_variant_genotypes_stats(variant_stats_t *var_stats, FILE *stats_fd);
-static inline int write_output_variant_missing_data(variant_stats_t *var_stats, FILE *stats_fd);
-static inline int write_output_variant_inheritance_data(variant_stats_t *var_stats, FILE *stats_fd);
-
-
 int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *options_data) {
     list_t *output_list = (list_t*) malloc (sizeof(list_t));
     list_init("output", shared_options_data->num_threads, MIN(10, shared_options_data->max_batches) * shared_options_data->batch_lines, output_list);
@@ -196,34 +190,18 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
 #pragma omp section
         {
             LOG_DEBUG_F("Thread %d writes the output\n", omp_get_thread_num());
-            
             char *stats_filename, *summary_filename;
             FILE *stats_fd, *summary_fd;
     
-            // Create file streams (summary and results)
-            int dirname_len = strlen(shared_options_data->output_directory);
-            summary_filename = (char*) calloc ((dirname_len + strlen("summary-stats") + 2), sizeof(char));
-            sprintf(summary_filename, "%s/summary-stats", shared_options_data->output_directory);
-            
             // Write variant statistics
             if (options_data->variant_stats) {
-                if (shared_options_data->output_filename == NULL || strlen(shared_options_data->output_filename) == 0) {
-                    stats_filename = (char*) calloc ((dirname_len + strlen("stats-variants") + 2), sizeof(char));
-                    sprintf(stats_filename, "%s/stats-variants", shared_options_data->output_directory);
-                } else {
-                    stats_filename = (char*) calloc ((dirname_len + strlen(shared_options_data->output_filename) + 11), sizeof(char));
-                    sprintf(stats_filename, "%s/%s-variants", shared_options_data->output_directory, shared_options_data->output_filename);
-                }
-                
-                LOG_DEBUG_F("stats filename = %s\nsummary filename = %s\n", stats_filename, summary_filename);
+                stats_filename = get_variant_stats_output_filename(shared_options_data->vcf_filename, 
+                                                                   shared_options_data->output_filename, 
+                                                                   shared_options_data->output_directory);
                 stats_fd = fopen(stats_filename, "w");
-                summary_fd = fopen(summary_filename, "w");
-                free(stats_filename);
-                free(summary_filename);
-                LOG_DEBUG("File streams created\n");
                 
-                fprintf(stats_fd, 
-                        "#CHROM\tPOS\tINDEL?\tList of [ALLELE  COUNT  FREQ]\t\t\tList of [GT  COUNT  FREQ]\t\t\t\t\t\tMISS_AL\tMISS_GT\tMEND_ER\t%% AFF | UNAFF dominant\t%% AFF | UNAFF recessive\n");
+                // Write header
+                report_vcf_variant_stats_header(stats_fd);
                 
                 // For each variant, generate a new line with the format (block of blanks = tab):
                 // chromosome   position   [<allele>   <count>   <freq>]+   [<genotype>   <count>   <freq>]+   miss_all   miss_gt
@@ -232,41 +210,28 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
                 while ((item = list_remove_item(output_list)) != NULL) {
                     var_stats = item->data_p;
                     
-                    fprintf(stats_fd, "%s\t%ld\t",
-                            var_stats->chromosome, 
-                            var_stats->position);
-                    
-                    write_output_variant_alleles_stats(var_stats, stats_fd);
-                    write_output_variant_genotypes_stats(var_stats, stats_fd);
-                    write_output_variant_missing_data(var_stats, stats_fd);
-                    write_output_variant_inheritance_data(var_stats, stats_fd);
+                    report_vcf_variant_stats(stats_fd, NULL, var_stats);
                     
                     // Free resources
                     variant_stats_free(var_stats);
                     list_item_free(item);
                 }
                 
-                // Close variant stats file
-                if (stats_fd != NULL) { fclose(stats_fd); }
-            
                 // Write whole file stats (data only got when launching variant stats)
-                fprintf(summary_fd, 
-                        "Number of variants = %d\nNumber of samples = %d\nNumber of biallelic variants = %d\nNumber of multiallelic variants = %d\n\n",
-                        file_stats->variants_count, file_stats->samples_count, file_stats->biallelics_count, file_stats->multiallelics_count
-                    );
+                summary_filename = get_vcf_file_stats_output_filename(shared_options_data->vcf_filename, 
+                                                                      shared_options_data->output_filename, 
+                                                                      shared_options_data->output_directory);
+                if (!(summary_fd = fopen(summary_filename, "w"))) {
+                    LOG_FATAL_F("Can't open file for writing statistics summary: %s\n", summary_filename);
+                }
+                report_vcf_summary_stats(summary_fd, NULL, file_stats);
                 
-                fprintf(summary_fd, 
-                        "Number of SNP = %d\nNumber of indels = %d\n\n",
-                        file_stats->snps_count, file_stats->indels_count
-                    );
+                free(stats_filename);
+                free(summary_filename);
                 
-                fprintf(summary_fd, 
-                        "Number of transitions = %d\nNumber of transversions = %d\nTi/TV ratio = %.4f\n\nPercentage of PASS = %.2f%%\nAverage quality = %.2f\n",
-                        file_stats->transitions_count, file_stats->transversions_count,
-                        (float) file_stats->transitions_count / file_stats->transversions_count,
-                        ((float) file_stats->pass_count / file_stats->variants_count) * 100.0,
-                        file_stats->accum_quality / file_stats->variants_count
-                    );
+                // Close variant stats file
+                if (stats_fd) { fclose(stats_fd); }
+                if (summary_fd && summary_fd != stdout) { fclose(summary_fd); }
             }
         }
         
@@ -280,69 +245,4 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
     free(output_list);
     
     return 0;
-}
-
-static int write_output_variant_alleles_stats(variant_stats_t *var_stats, FILE *stats_fd) {
-    int written = 0;
-    
-    // Is indel?
-    written += (var_stats->is_indel) ? fprintf(stats_fd, "Y\t") : fprintf(stats_fd, "N\t");
-    
-    // Reference allele
-    written += fprintf(stats_fd, "%s\t%d\t%.4f\t",
-                       var_stats->ref_allele,
-                       var_stats->alleles_count[0],
-                       var_stats->alleles_freq[0]);
-
-    // Alternate alleles
-    for (int i = 1; i < var_stats->num_alleles; i++) {
-        written += fprintf(stats_fd, "%s\t%d\t%.4f\t",
-                           var_stats->alternates[i-1],
-                           var_stats->alleles_count[i],
-                           var_stats->alleles_freq[i]);
-    }
-    
-    return written;
-} 
-    
-static int write_output_variant_genotypes_stats(variant_stats_t *var_stats, FILE *stats_fd) {
-    int written = 0;
-    int gt_count = 0;
-    float gt_freq = 0;
-    
-    for (int i = 0; i < var_stats->num_alleles; i++) {
-        for (int j = i; j < var_stats->num_alleles; j++) {
-            int idx1 = i * var_stats->num_alleles + j;
-            if (i == j) {
-                gt_count = var_stats->genotypes_count[idx1];
-                gt_freq = var_stats->genotypes_freq[idx1];
-            } else {
-                int idx2 = j * var_stats->num_alleles + i;
-                gt_count = var_stats->genotypes_count[idx1] + var_stats->genotypes_count[idx2];
-                gt_freq = var_stats->genotypes_freq[idx1] + var_stats->genotypes_freq[idx2];
-            }
-
-            written += fprintf(stats_fd, "%s|%s\t%d\t%.4f\t",
-                               i == 0 ? var_stats->ref_allele : var_stats->alternates[i-1],
-                               j == 0 ? var_stats->ref_allele : var_stats->alternates[j-1],
-                               gt_count, gt_freq);
-        }
-    }
-    
-    return written;
-}
-
-static inline int write_output_variant_missing_data(variant_stats_t *var_stats, FILE *stats_fd) {
-    return fprintf(stats_fd, "%d\t%d\t",
-                   var_stats->missing_alleles,
-                   var_stats->missing_genotypes);
-}
-
-static inline int write_output_variant_inheritance_data(variant_stats_t *var_stats, FILE *stats_fd) {
-    return fprintf(stats_fd, "%d\t%.2f | %.2f\t%.2f | %.2f\n",
-                   var_stats->missing_alleles,
-                   var_stats->cases_percent_dominant,
-                   var_stats->controls_percent_dominant,
-                   var_stats->cases_percent_recessive,
-                   var_stats->controls_percent_recessive);
 }
