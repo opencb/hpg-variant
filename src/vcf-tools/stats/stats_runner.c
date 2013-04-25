@@ -144,31 +144,22 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
             }
             
             // Write sample statistics
-            int dirname_len = strlen(shared_options_data->output_directory);
             char *stats_filename;
             FILE *stats_fd;
             
             if (options_data->sample_stats) {
-                if (shared_options_data->output_filename == NULL || strlen(shared_options_data->output_filename) == 0) {
-                    stats_filename = (char*) calloc ((dirname_len + strlen("stats-samples") + 2), sizeof(char));
-                    sprintf(stats_filename, "%s/stats-samples", shared_options_data->output_directory);
-                } else {
-                    stats_filename = (char*) calloc ((dirname_len + strlen(shared_options_data->output_filename) + 10), sizeof(char));
-                    sprintf(stats_filename, "%s/%s-samples", shared_options_data->output_directory, shared_options_data->output_filename);
+                stats_filename = get_sample_stats_output_filename(shared_options_data->vcf_filename, 
+                                                                  shared_options_data->output_filename, 
+                                                                  shared_options_data->output_directory);
+                if (!(stats_fd = fopen(stats_filename, "w"))) {
+                    LOG_FATAL_F("Can't open file for writing statistics of samples: %s\n", stats_filename);
                 }
                 
-                stats_fd = fopen(stats_filename, "w");
-                free(stats_filename);
-                fprintf(stats_fd, "#SAMPLE\t\tMISS GT\t\tMENDEL ERR\n");
-                
-                sample_stats_t *sam_stats;
-                for (int i = 0; i < vcf_file->samples_names->size; i++) {
-                    sam_stats = sample_stats[i];
-                    fprintf(stats_fd, "%s\t\t%zu\t\t%zu\n", sam_stats->name, sam_stats->missing_genotypes, sam_stats->mendelian_errors);
-                    sample_stats_free(sam_stats);
-                }
+                report_sample_variant_stats_header(stats_fd);
+                report_sample_stats(stats_fd, NULL, vcf_file->samples_names->size, sample_stats);
                 
                 // Close sample stats file
+                free(stats_filename);
                 if (stats_fd != NULL) { fclose(stats_fd); }
             }
             
@@ -198,16 +189,17 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
                 stats_filename = get_variant_stats_output_filename(shared_options_data->vcf_filename, 
                                                                    shared_options_data->output_filename, 
                                                                    shared_options_data->output_directory);
-                stats_fd = fopen(stats_filename, "w");
+                if (!(stats_fd = fopen(stats_filename, "w"))) {
+                    LOG_FATAL_F("Can't open file for writing statistics of variants: %s\n", stats_filename);
+                }
                 
                 // Write header
                 report_vcf_variant_stats_header(stats_fd);
                 
-                // For each variant, generate a new line with the format (block of blanks = tab):
-                // chromosome   position   [<allele>   <count>   <freq>]+   [<genotype>   <count>   <freq>]+   miss_all   miss_gt
+                // For each variant, generate a new line
                 list_item_t* item = NULL;
                 variant_stats_t *var_stats;
-                while ((item = list_remove_item(output_list)) != NULL) {
+                while ((item = list_remove_item(output_list))) {
                     var_stats = item->data_p;
                     
                     report_vcf_variant_stats(stats_fd, NULL, var_stats);
