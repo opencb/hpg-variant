@@ -127,8 +127,6 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
                 array_list_t *input_records = batch->records;
                 int *chunk_starts = create_chunks(input_records->size, shared_options_data->entries_per_thread, &num_chunks, &chunk_sizes);
                 
-                assert(sample_ids);
-                
                 // OpenMP: Launch a thread for each range
                 #pragma omp parallel for num_threads(shared_options_data->num_threads)
                 for (int j = 0; j < num_chunks; j++) {
@@ -145,6 +143,7 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
                 }
                 
                 free(chunk_starts);
+                free(chunk_sizes);
                 vcf_batch_free(batch);
                 
                 i++;
