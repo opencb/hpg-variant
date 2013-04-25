@@ -211,12 +211,11 @@ void close_job_status_file(FILE* file) {
 int get_filtering_output_files(shared_options_data_t *shared_options, FILE** passed_file, FILE** failed_file) {
     assert(shared_options);
     
-    char *prefix_filename, *passed_filename, *failed_filename;
     int filename_len = 0;
     int dirname_len = strlen(shared_options->output_directory);
+    char prefix_filename[strlen(shared_options->vcf_filename)];
     
     if (shared_options->chain != NULL) {
-        prefix_filename = calloc(strlen(shared_options->vcf_filename), sizeof(char));
         get_filename_from_path(shared_options->vcf_filename, prefix_filename);
         filename_len = strlen(prefix_filename);
     } else {
@@ -226,18 +225,16 @@ int get_filtering_output_files(shared_options_data_t *shared_options, FILE** pas
     
     LOG_DEBUG_F("prefix filename = %s\n", prefix_filename);
     
-    passed_filename = (char*) calloc (dirname_len + filename_len + 11, sizeof(char));
+    char passed_filename[dirname_len + filename_len + 11];
+    char failed_filename[dirname_len + filename_len + 11];
+    
     sprintf(passed_filename, "%s/%s.filtered", shared_options->output_directory, prefix_filename);
-    *passed_file = fopen(passed_filename, "w");
-
-    failed_filename = (char*) calloc (dirname_len + filename_len + 11, sizeof(char));
     sprintf(failed_filename, "%s/%s.rejected", shared_options->output_directory, prefix_filename);
+    
+    *passed_file = fopen(passed_filename, "w");
     *failed_file = fopen(failed_filename, "w");
     
     LOG_DEBUG_F("passed filename = %s\nfailed filename = %s\n", passed_filename, failed_filename);
-    
-    free(passed_filename);
-    free(failed_filename);
     
     return 0;
 }

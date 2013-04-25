@@ -31,6 +31,7 @@
 #include <bioformats/vcf/vcf_file_structure.h>
 #include <bioformats/vcf/vcf_file.h>
 #include <bioformats/vcf/vcf_stats.h>
+#include <bioformats/vcf/vcf_stats_report.h>
 #include <commons/file_utils.h>
 #include <commons/log.h>
 #include <commons/config/libconfig.h>
