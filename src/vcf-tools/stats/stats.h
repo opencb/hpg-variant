@@ -27,7 +27,9 @@
 
 #include <omp.h>
 
+#include <bioformats/db/db_utils.h>
 #include <bioformats/ped/ped_file.h>
+#include <bioformats/vcf/vcf_db.h>
 #include <bioformats/vcf/vcf_file_structure.h>
 #include <bioformats/vcf/vcf_file.h>
 #include <bioformats/vcf/vcf_stats.h>
@@ -35,6 +37,8 @@
 #include <commons/file_utils.h>
 #include <commons/log.h>
 #include <commons/config/libconfig.h>
+#include <commons/sqlite/sqlite3.h>
+#include <containers/khash.h>
 
 #include "error.h"
 #include "shared_options.h"
