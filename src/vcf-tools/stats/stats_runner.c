@@ -143,26 +143,6 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
                 i++;
             }
             
-            // Write sample statistics
-            char *stats_filename;
-            FILE *stats_fd;
-            
-            if (options_data->sample_stats) {
-                stats_filename = get_sample_stats_output_filename(shared_options_data->vcf_filename, 
-                                                                  shared_options_data->output_filename, 
-                                                                  shared_options_data->output_directory);
-                if (!(stats_fd = fopen(stats_filename, "w"))) {
-                    LOG_FATAL_F("Can't open file for writing statistics of samples: %s\n", stats_filename);
-                }
-                
-                report_sample_variant_stats_header(stats_fd);
-                report_sample_stats(stats_fd, NULL, vcf_file->samples_names->size, sample_stats);
-                
-                // Close sample stats file
-                free(stats_filename);
-                if (stats_fd != NULL) { fclose(stats_fd); }
-            }
-            
             stop = omp_get_wtime();
             total = stop - start;
 
@@ -181,14 +161,30 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
 #pragma omp section
         {
             LOG_DEBUG_F("Thread %d writes the output\n", omp_get_thread_num());
+            
+            char *stats_prefix = get_vcf_stats_filename_prefix(shared_options_data->vcf_filename, 
+                                                               shared_options_data->output_filename, 
+                                                               shared_options_data->output_directory);
+            
+            // File names and descriptors for output to plain text files
             char *stats_filename, *summary_filename;
             FILE *stats_fd, *summary_fd;
-    
-            // Write variant statistics
+            
+            int create_db = 1; // TODO extract to app argument
+            char *stats_db_name;
+            sqlite3 *db = NULL;
+            khash_t(stats_chunks) *hash;
+            
+            if (create_db) {
+                stats_db_name = calloc(strlen(stats_prefix) + strlen(".db") + 2, sizeof(char));
+                sprintf(stats_db_name, "%s.db", stats_prefix);
+                create_stats_db(stats_db_name, VCF_CHUNKSIZE, create_vcf_query_fields, &db);
+                hash = kh_init(stats_chunks);
+            }
+            
+            // Write variant (and global) statistics
             if (options_data->variant_stats) {
-                stats_filename = get_variant_stats_output_filename(shared_options_data->vcf_filename, 
-                                                                   shared_options_data->output_filename, 
-                                                                   shared_options_data->output_directory);
+                stats_filename = get_variant_stats_output_filename(stats_prefix);
                 if (!(stats_fd = fopen(stats_filename, "w"))) {
                     LOG_FATAL_F("Can't open file for writing statistics of variants: %s\n", stats_filename);
                 }
@@ -198,32 +194,75 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
                 
                 // For each variant, generate a new line
                 list_item_t* item = NULL;
+                variant_stats_t *var_stats_batch[VCF_CHUNKSIZE];
                 variant_stats_t *var_stats;
+                int avail_stats = 0;
                 while ((item = list_remove_item(output_list))) {
                     var_stats = item->data_p;
+                    var_stats_batch[avail_stats] = item->data_p;
+                    avail_stats++;
                     
-                    report_vcf_variant_stats(stats_fd, NULL, var_stats);
+                    // Run only when certain amount of stats is available
+                    if (avail_stats >= VCF_CHUNKSIZE) {
+                        report_vcf_variant_stats(stats_fd, db, hash, avail_stats, var_stats_batch);
+                        
+                        // Free all stats from the "batch"
+                        for (int i = 0; i < avail_stats; i++) {
+                            variant_stats_free(var_stats_batch[i]);
+                        }
+                        avail_stats = 0;
+                    }
                     
                     // Free resources
-                    variant_stats_free(var_stats);
                     list_item_free(item);
                 }
                 
+                if (avail_stats > 0) {
+                    report_vcf_variant_stats(stats_fd, db, hash, avail_stats, var_stats_batch);
+
+                    // Free all stats from the "batch"
+                    for (int i = 0; i < avail_stats; i++) {
+                        variant_stats_free(var_stats_batch[i]);
+                    }
+                    avail_stats = 0;
+                }
+                
                 // Write whole file stats (data only got when launching variant stats)
-                summary_filename = get_vcf_file_stats_output_filename(shared_options_data->vcf_filename, 
-                                                                      shared_options_data->output_filename, 
-                                                                      shared_options_data->output_directory);
+                summary_filename = get_vcf_file_stats_output_filename(stats_prefix);
                 if (!(summary_fd = fopen(summary_filename, "w"))) {
                     LOG_FATAL_F("Can't open file for writing statistics summary: %s\n", summary_filename);
                 }
-                report_vcf_summary_stats(summary_fd, NULL, file_stats);
+                report_vcf_summary_stats(summary_fd, db, file_stats);
                 
                 free(stats_filename);
                 free(summary_filename);
                 
                 // Close variant stats file
                 if (stats_fd) { fclose(stats_fd); }
-                if (summary_fd && summary_fd != stdout) { fclose(summary_fd); }
+                if (summary_fd) { fclose(summary_fd); }
+            }
+            
+            // Write sample statistics
+            if (options_data->sample_stats) {
+                stats_filename = get_sample_stats_output_filename(stats_prefix);
+                if (!(stats_fd = fopen(stats_filename, "w"))) {
+                    LOG_FATAL_F("Can't open file for writing statistics of samples: %s\n", stats_filename);
+                }
+                
+                report_vcf_sample_stats_header(stats_fd);
+                report_vcf_sample_stats(stats_fd, NULL, vcf_file->samples_names->size, sample_stats);
+                
+                // Close sample stats file
+                free(stats_filename);
+                if (stats_fd) { fclose(stats_fd); }
+            }
+            
+            free(stats_prefix);
+            
+            if (db) {
+                insert_chunk_hash(VCF_CHUNKSIZE, hash, db);
+                create_stats_index(create_vcf_index, db);
+                kh_destroy(stats_chunks, hash);
             }
         }
         
