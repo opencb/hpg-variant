@@ -170,12 +170,11 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
             char *stats_filename, *summary_filename;
             FILE *stats_fd, *summary_fd;
             
-            int create_db = 1; // TODO extract to app argument
             char *stats_db_name;
             sqlite3 *db = NULL;
             khash_t(stats_chunks) *hash;
             
-            if (create_db) {
+            if (options_data->save_db) {
                 stats_db_name = calloc(strlen(stats_prefix) + strlen(".db") + 2, sizeof(char));
                 sprintf(stats_db_name, "%s.db", stats_prefix);
                 create_stats_db(stats_db_name, VCF_CHUNKSIZE, create_vcf_query_fields, &db);
