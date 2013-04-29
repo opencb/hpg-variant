@@ -175,6 +175,7 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
             khash_t(stats_chunks) *hash;
             
             if (options_data->save_db) {
+                delete_files_by_extension(shared_options_data->output_directory, "db");
                 stats_db_name = calloc(strlen(stats_prefix) + strlen(".db") + 2, sizeof(char));
                 sprintf(stats_db_name, "%s.db", stats_prefix);
                 create_stats_db(stats_db_name, VCF_CHUNKSIZE, create_vcf_query_fields, &db);
@@ -194,10 +195,8 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
                 // For each variant, generate a new line
                 list_item_t* item = NULL;
                 variant_stats_t *var_stats_batch[VCF_CHUNKSIZE];
-                variant_stats_t *var_stats;
                 int avail_stats = 0;
                 while ((item = list_remove_item(output_list))) {
-                    var_stats = item->data_p;
                     var_stats_batch[avail_stats] = item->data_p;
                     avail_stats++;
                     
