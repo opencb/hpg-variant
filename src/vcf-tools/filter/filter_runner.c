@@ -18,7 +18,7 @@
  * along with hpg-variant. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "filter.h"
+#include "filter_runner.h"
 
 int run_filter(shared_options_data_t *shared_options_data, filter_options_data_t *options_data) {
     int ret_code;
