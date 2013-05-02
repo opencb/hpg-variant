@@ -86,11 +86,8 @@ void **parse_effect_options(int argc, char *argv[], effect_options_t *effect_opt
 }
 
 void **merge_effect_options(effect_options_t *effect_options, shared_options_t *shared_options, struct arg_end *arg_end) {
-    size_t opts_size = effect_options->num_options + shared_options->num_options + 1;
-/*
-    void **tool_options = malloc (opts_size * sizeof(void*));
-*/
     void **tool_options = malloc (30 * sizeof(void*));
+    
     // Input/output files
     tool_options[0] = shared_options->vcf_filename;
     tool_options[1] = shared_options->ped_filename;

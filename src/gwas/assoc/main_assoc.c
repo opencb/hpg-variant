@@ -35,7 +35,7 @@ int association(int argc, char *argv[], const char *configuration_file) {
     if (argc == 1 || !strcmp(argv[1], "--help")) {
         argtable = merge_assoc_options(assoc_options, shared_options, arg_end(assoc_options->num_options + shared_options->num_options));
         show_usage("hpg-var-gwas assoc", argtable, assoc_options->num_options + shared_options->num_options);
-        arg_freetable(argtable, assoc_options->num_options + shared_options->num_options);
+        arg_freetable(argtable, 30);
         return 0;
     }
 
@@ -72,7 +72,7 @@ int association(int argc, char *argv[], const char *configuration_file) {
     
     free_assoc_options_data(options_data);
     free_shared_options_data(shared_options_data);
-    arg_freetable(argtable, assoc_options->num_options + shared_options->num_options);
+    arg_freetable(argtable, 30);
     free(configuration_file);
 
     return 0;
