@@ -260,18 +260,20 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
             if (db) {
                 insert_chunk_hash(VCF_CHUNKSIZE, hash, db);
                 create_stats_index(create_vcf_index, db);
-                kh_destroy(stats_chunks, hash);
+                close_stats_db(db, hash);
             }
         }
-        
     }
+    
+    for (int i = 0; i < get_num_vcf_samples(vcf_file); i++) {
+        free(sample_stats[i]);
+    }
+    free(sample_stats);
+    free(file_stats);
+    free(output_list);
     
     vcf_close(vcf_file);
     if (ped_file) { ped_close(ped_file, 1); }
-    free(sample_stats);
-    free(file_stats);
-//     free(read_list);
-    free(output_list);
     
     return 0;
 }
