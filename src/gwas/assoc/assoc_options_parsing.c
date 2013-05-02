@@ -75,11 +75,8 @@ void **parse_assoc_options(int argc, char *argv[], assoc_options_t *assoc_option
 }
 
 void **merge_assoc_options(assoc_options_t *assoc_options, shared_options_t *shared_options, struct arg_end *arg_end) {
-    size_t opts_size = assoc_options->num_options + shared_options->num_options + 1;
-/*
-    void **tool_options = malloc (opts_size * sizeof(void*));
-*/
     void **tool_options = malloc (30 * sizeof(void*));
+    
     // Input/output files
     tool_options[0] = shared_options->vcf_filename;
     tool_options[1] = shared_options->ped_filename;
