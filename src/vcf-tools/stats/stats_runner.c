@@ -87,7 +87,7 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
             omp_set_nested(1);
             LOG_DEBUG_F("Thread %d processes data\n", omp_get_thread_num());
             
-            individual_t **individuals;
+            individual_t **individuals = NULL;
             khash_t(ids) *sample_ids = NULL;
             
             start = omp_get_wtime();
