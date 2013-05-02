@@ -75,6 +75,9 @@ int run_filter(shared_options_data_t *shared_options_data, filter_options_data_t
         
 #pragma omp section
         {
+            // Enable nested parallelism
+            omp_set_nested(1);
+            
             filter_t **filters = NULL;
             int num_filters = 0;
             if (shared_options_data->chain != NULL) {
@@ -88,35 +91,49 @@ int run_filter(shared_options_data_t *shared_options_data, filter_options_data_t
             }
             LOG_DEBUG("File streams created\n");
             
+            volatile int initialization_done = 0;
             individual_t **individuals;
             khash_t(ids) *sample_ids = NULL;
             
             start = omp_get_wtime();
 
-            int i = 0;
+            volatile int i = 0;
+            
+#pragma omp parallel num_threads(shared_options_data->num_threads) shared(i)
+            {
             vcf_batch_t *batch = NULL;
             while ((batch = fetch_vcf_batch(vcf_file)) != NULL) {
-                if (i == 0) {
-                    // Add headers associated to the defined filters
-                    vcf_header_entry_t **filter_headers = get_filters_as_vcf_headers(filters, num_filters);
-                    for (int j = 0; j < num_filters; j++) {
-                        add_vcf_header_entry(filter_headers[j], vcf_file);
-                    }
-                    
-                    // Write file format, header entries and delimiter
-                    write_vcf_header(vcf_file, passed_file);
-                    if (options_data->save_rejected) {
-                        write_vcf_header(vcf_file, failed_file);
-                    }
+                
+                // Initialize structures needed for filtering
+                if (!initialization_done) {
+#pragma omp critical
+                {
+                    // Guarantee that just one thread performs this operation
+                    if (!initialization_done) {
+                        // Add headers associated to the defined filters
+                        vcf_header_entry_t **filter_headers = get_filters_as_vcf_headers(filters, num_filters);
+                        for (int j = 0; j < num_filters; j++) {
+                            add_vcf_header_entry(filter_headers[j], vcf_file);
+                        }
 
-                    LOG_DEBUG("VCF headers written\n");
-                    
-                    if (ped_file) {
-                        // Create map to associate the position of individuals in the list of samples defined in the VCF file
-                        sample_ids = associate_samples_and_positions(vcf_file);
-                        // Sort individuals in PED as defined in the VCF file
-                        individuals = sort_individuals(vcf_file, ped_file);
+                        // Write file format, header entries and delimiter
+                        write_vcf_header(vcf_file, passed_file);
+                        if (options_data->save_rejected) {
+                            write_vcf_header(vcf_file, failed_file);
+                        }
+
+                        LOG_DEBUG("VCF headers written\n");
+
+                        if (ped_file) {
+                            // Create map to associate the position of individuals in the list of samples defined in the VCF file
+                            sample_ids = associate_samples_and_positions(vcf_file);
+                            // Sort individuals in PED as defined in the VCF file
+                            individuals = sort_individuals(vcf_file, ped_file);
+                        }
+                        
+                        initialization_done = 1;
                     }
+                }
                 }
                 
                 array_list_t *input_records = batch->records;
@@ -143,7 +160,6 @@ int run_filter(shared_options_data_t *shared_options_data, filter_options_data_t
                         for (int r = 0; r < passed_records->size; r++) {
                             write_vcf_record(passed_records->items[r], passed_file);
                         }
-//                         write_batch(passed_records, passed_file);
                     }
                 }
                 
@@ -154,7 +170,6 @@ int run_filter(shared_options_data_t *shared_options_data, filter_options_data_t
                         for (int r = 0; r < failed_records->size; r++) {
                             write_vcf_record(failed_records->items[r], failed_file);
                         }
-//                         write_batch(failed_records, failed_file);
                     }
                 }
                 
@@ -169,7 +184,9 @@ int run_filter(shared_options_data_t *shared_options_data, filter_options_data_t
                     array_list_free(failed_records, NULL);
                 }
                 
+                #pragma omp atomic
                 i++;
+            }
             }
 
             stop = omp_get_wtime();
@@ -191,6 +208,11 @@ int run_filter(shared_options_data_t *shared_options_data, filter_options_data_t
             free(individuals);
             
             free_filters(filters, num_filters);
+        }
+        
+#pragma omp section
+        {
+            // TODO writer thread
         }
     }
     
