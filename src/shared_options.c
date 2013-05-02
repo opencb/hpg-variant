@@ -48,6 +48,7 @@ shared_options_t *new_shared_cli_options(int ped_required) {
     options_data->gene = arg_str0(NULL, "gene", NULL, "Filter: by a comma-separated list of genes");
     options_data->region = arg_str0(NULL, "region", NULL, "Filter: by a list of regions (chr1:start1-end1,chr2:start2-end2...)");
     options_data->region_file = arg_file0(NULL, "region-file", NULL, "Filter: by a list of regions (read from a GFF file)");
+    options_data->region_type = arg_file0(NULL, "region-type", NULL, "Filter: by type of region (used along with the 'region-file' argument)");
     options_data->snp = arg_str0(NULL, "snp", NULL, "Filter: by being a SNP or not (include/exclude)");
     options_data->indel = arg_str0(NULL, "indel", NULL, "Filter: by being an indel or not (include/exclude)");
     options_data->dominant = arg_dbl0(NULL, "inh-dom", NULL, "Filter: by percentage of samples following dominant inheritance pattern (decimal like 0.1)");
@@ -107,19 +108,20 @@ shared_options_data_t* new_shared_options_data(shared_options_t* options) {
     }
     if (options->gene->count > 0) {
         filter = gene_filter_new(strdup(*(options->gene->sval)), 0,
-                                         *(options->host_url->sval), *(options->species->sval), *(options->version->sval));
+                                 *(options->host_url->sval), *(options->species->sval), *(options->version->sval));
         options_data->chain = add_to_filter_chain(filter, options_data->chain);
         LOG_DEBUG_F("gene = %s\n", *(options->gene->sval));
     }
     if (options->region->count > 0) {
         filter = region_exact_filter_new(strdup(*(options->region->sval)), 0,
+                                         strdup(*(options->region_type)->sval),
                                          *(options->host_url->sval), *(options->species->sval), *(options->version->sval));
         options_data->chain = add_to_filter_chain(filter, options_data->chain);
         LOG_DEBUG_F("regions = %s\n", *(options->region->sval));
     } 
-    
     if (options->region_file->count > 0) {
-        filter = region_exact_filter_new(strdup(*(options->region_file->filename)), 1, 
+        char *type = (options->region_type->count > 0) ? strdup(*(options->region_type->sval)) : NULL;
+        filter = region_exact_filter_new(strdup(*(options->region_file->filename)), 1, type,
                                          *(options->host_url->sval), *(options->species->sval), *(options->version->sval));
         options_data->chain = add_to_filter_chain(filter, options_data->chain);
         LOG_DEBUG_F("regions file = %s\n", *(options->region_file->filename));
