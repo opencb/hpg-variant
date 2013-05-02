@@ -89,10 +89,6 @@ void **parse_filter_options(int argc, char *argv[], filter_options_t *filter_opt
 }
 
 void **merge_filter_options(filter_options_t *filter_options, shared_options_t *shared_options, struct arg_end *arg_end) {
-    size_t opts_size = filter_options->num_options + shared_options->num_options;
-/*
-    void **tool_options = malloc (opts_size * sizeof(void*));
-*/
     void **tool_options = malloc (28 * sizeof(void*));
     // Input/output files
     tool_options[0] = shared_options->vcf_filename;
