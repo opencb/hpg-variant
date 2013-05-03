@@ -18,11 +18,16 @@
  * along with hpg-variant. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "filter.h"
+#include "filter_runner.h"
 
 int run_filter(shared_options_data_t *shared_options_data, filter_options_data_t *options_data) {
     int ret_code;
     double start, stop, total;
+    FILE *passed_file = NULL, *failed_file = NULL;
+    // List that stores the batches of records filtered by each thread
+    list_t *passed_list[shared_options_data->num_threads];
+    // List that stores which thread filtered the next batch to save
+    list_t *next_token_list = malloc(sizeof(list_t));
     
     vcf_file_t *vcf_file = vcf_open(shared_options_data->vcf_filename, shared_options_data->max_batches);
     if (!vcf_file) {
@@ -47,6 +52,19 @@ int run_filter(shared_options_data_t *shared_options_data, filter_options_data_t
     if (ret_code != 0 && errno != EEXIST) {
         LOG_FATAL_F("Can't create output directory: %s\n", shared_options_data->output_directory);
     }
+    
+    // Initialize variables related to the different files
+    for (int i = 0; i < shared_options_data->num_threads; i++) {
+        passed_list[i] = (list_t*) malloc(sizeof(list_t));
+        list_init("text", 1, shared_options_data->max_batches, passed_list[i]);
+    }
+    list_init("next_token", shared_options_data->num_threads, shared_options_data->max_batches, next_token_list);
+    
+    get_filtering_output_files(shared_options_data, &passed_file, &failed_file);
+    if (!options_data->save_rejected) {
+        fclose(failed_file);
+    }
+    LOG_DEBUG("Output files created\n");
     
 #pragma omp parallel sections private(start, stop, total)
     {
@@ -75,101 +93,88 @@ int run_filter(shared_options_data_t *shared_options_data, filter_options_data_t
         
 #pragma omp section
         {
+            // Enable nested parallelism
+            omp_set_nested(1);
+            
             filter_t **filters = NULL;
             int num_filters = 0;
             if (shared_options_data->chain != NULL) {
                 filters = sort_filter_chain(shared_options_data->chain, &num_filters);
             }
-    
-            FILE *passed_file = NULL, *failed_file = NULL;
-            get_filtering_output_files(shared_options_data, &passed_file, &failed_file);
-            if (!options_data->save_rejected) {
-                fclose(failed_file);
-            }
-            LOG_DEBUG("File streams created\n");
             
+            volatile int initialization_done = 0;
             individual_t **individuals;
             khash_t(ids) *sample_ids = NULL;
             
             start = omp_get_wtime();
 
-            int i = 0;
+            volatile int i = 0;
+            
+#pragma omp parallel num_threads(shared_options_data->num_threads) shared(i)
+            {
             vcf_batch_t *batch = NULL;
-            while ((batch = fetch_vcf_batch(vcf_file)) != NULL) {
-                if (i == 0) {
-                    // Add headers associated to the defined filters
-                    vcf_header_entry_t **filter_headers = get_filters_as_vcf_headers(filters, num_filters);
-                    for (int j = 0; j < num_filters; j++) {
-                        add_vcf_header_entry(filter_headers[j], vcf_file);
-                    }
-                    
-                    // Write file format, header entries and delimiter
-                    write_vcf_header(vcf_file, passed_file);
-                    if (options_data->save_rejected) {
-                        write_vcf_header(vcf_file, failed_file);
-                    }
+            int index = omp_get_thread_num() % shared_options_data->num_threads;
+            
+            while ( batch = fetch_vcf_batch(vcf_file) ) {
+                // Initialize structures needed for filtering
+                if (!initialization_done) {
+#pragma omp critical
+                {
+                    // Guarantee that just one thread performs this operation
+                    if (!initialization_done) {
+                        // Add headers associated to the defined filters
+                        vcf_header_entry_t **filter_headers = get_filters_as_vcf_headers(filters, num_filters);
+                        for (int j = 0; j < num_filters; j++) {
+                            add_vcf_header_entry(filter_headers[j], vcf_file);
+                        }
 
-                    LOG_DEBUG("VCF headers written\n");
-                    
-                    if (ped_file) {
-                        // Create map to associate the position of individuals in the list of samples defined in the VCF file
-                        sample_ids = associate_samples_and_positions(vcf_file);
-                        // Sort individuals in PED as defined in the VCF file
-                        individuals = sort_individuals(vcf_file, ped_file);
+                        // Write file format, header entries and delimiter
+                        write_vcf_header(vcf_file, passed_file);
+                        if (options_data->save_rejected) {
+                            write_vcf_header(vcf_file, failed_file);
+                        }
+
+                        LOG_DEBUG("VCF headers written\n");
+
+                        if (ped_file) {
+                            // Create map to associate the position of individuals in the list of samples defined in the VCF file
+                            sample_ids = associate_samples_and_positions(vcf_file);
+                            // Sort individuals in PED as defined in the VCF file
+                            individuals = sort_individuals(vcf_file, ped_file);
+                        }
+                        
+                        initialization_done = 1;
                     }
+                }
                 }
                 
                 array_list_t *input_records = batch->records;
-                array_list_t *passed_records, *failed_records;
+                array_list_t *passed_records = NULL, *failed_records = NULL;
 
                 if (i % 100 == 0) {
                     LOG_INFO_F("Batch %d reached by thread %d - %zu/%zu records \n", 
                                 i, omp_get_thread_num(),
                                 batch->records->size, batch->records->capacity);
                 }
-
+                
+                #pragma omp atomic
+                i++;
+                
                 if (filters == NULL) {
                     passed_records = input_records;
                 } else {
                     failed_records = array_list_new(input_records->size + 1, 1, COLLECTION_MODE_ASYNCHRONIZED);
                     passed_records = run_filter_chain(input_records, failed_records, individuals, sample_ids, filters, num_filters);
                 }
-
-                // Write records that passed and failed to 2 new separated files
-                if (passed_records != NULL && passed_records->size > 0) {
-                    LOG_DEBUG_F("[batch %d] %zu passed records\n", i, passed_records->size);
-                #pragma omp critical 
-                    {
-                        for (int r = 0; r < passed_records->size; r++) {
-                            write_vcf_record(passed_records->items[r], passed_file);
-                        }
-//                         write_batch(passed_records, passed_file);
-                    }
-                }
                 
-                if (options_data->save_rejected && failed_records != NULL && failed_records->size > 0) {
-                    LOG_DEBUG_F("[batch %d] %zu failed records\n", i, failed_records->size);
-                #pragma omp critical 
-                    {
-                        for (int r = 0; r < failed_records->size; r++) {
-                            write_vcf_record(failed_records->items[r], failed_file);
-                        }
-//                         write_batch(failed_records, failed_file);
-                    }
-                }
+                filter_temp_output_t *output = filter_temp_output_new(batch, passed_records, failed_records);
+                list_item_t *output_item = list_item_new(i, 0, output);
+                list_insert_item(output_item, passed_list[index]);
                 
-                // Free batch and its contents
-                vcf_batch_free(batch);
+                list_item_t *token_item = list_item_new(index, 0, NULL);
+                list_insert_item(token_item, next_token_list);
                 
-                // Free items in both lists (not their internal data)
-                if (passed_records != input_records) {
-                    array_list_free(passed_records, NULL);
-                }
-                if (failed_records) {
-                    array_list_free(failed_records, NULL);
-                }
-                
-                i++;
+            }
             }
 
             stop = omp_get_wtime();
@@ -179,23 +184,84 @@ int run_filter(shared_options_data_t *shared_options_data, filter_options_data_t
             LOG_INFO_F("[%d] Time elapsed = %f s\n", omp_get_thread_num(), total);
             LOG_INFO_F("[%d] Time elapsed = %e ms\n", omp_get_thread_num(), total*1000);
 
-            // Free resources
-            if (passed_file) {
-            	fclose(passed_file);
+            // Notify end of operations
+            for (int i = 0; i < shared_options_data->num_threads; i++) {
+                list_decr_writers(next_token_list);
+                list_decr_writers(passed_list[i]);
             }
-            if (options_data->save_rejected && failed_file) {
-            	fclose(failed_file);
-            }
-
+            
             if (sample_ids) { kh_destroy(ids, sample_ids); }
             free(individuals);
             
             free_filters(filters, num_filters);
         }
+        
+#pragma omp section
+        {
+            int i = 0;
+            list_item_t *token_item = NULL, *output_item = NULL;
+            while ( token_item = list_remove_item(next_token_list) ) {
+                output_item = list_remove_item(passed_list[token_item->id]);
+                filter_temp_output_t *output = output_item->data_p;
+                
+                assert(output);
+                
+                // Write records that passed and failed to 2 new separated files
+                if (output->passed_records != NULL && output->passed_records->size > 0) {
+                    LOG_DEBUG_F("[batch %d] %zu passed records\n", i, output->passed_records->size);
+                    for (int r = 0; r < output->passed_records->size; r++) {
+                        write_vcf_record(output->passed_records->items[r], passed_file);
+                    }
+                }
+
+                if (options_data->save_rejected && output->failed_records != NULL && output->failed_records->size > 0) {
+                    LOG_DEBUG_F("[batch %d] %zu failed records\n", i, output->failed_records->size);
+                    for (int r = 0; r < output->failed_records->size; r++) {
+                        write_vcf_record(output->failed_records->items[r], failed_file);
+                    }
+                }
+
+                // Free batch and its contents
+                filter_temp_output_free(output);
+                list_item_free(output_item);
+                list_item_free(token_item);
+                
+                i++;
+            }
+              
+        }
     }
     
+    // Close files
+    if (passed_file) {
+        fclose(passed_file);
+    }
+    if (options_data->save_rejected && failed_file) {
+        fclose(failed_file);
+    }
+
     vcf_close(vcf_file);
     if (ped_file) { ped_close(ped_file, 1); }
     
     return 0;
+}
+
+
+/* ******************************
+ *           Auxiliary          *
+ * ******************************/
+
+filter_temp_output_t *filter_temp_output_new(vcf_batch_t *batch, array_list_t *passed_records, array_list_t *failed_records) {
+    filter_temp_output_t *ret = malloc (sizeof(filter_temp_output_t));
+    ret->batch = batch;
+    ret->passed_records = passed_records;
+    ret->failed_records = failed_records;
+    return ret;
+}
+
+void filter_temp_output_free(filter_temp_output_t *temp) {
+    assert(temp);
+    array_list_free(temp->passed_records, NULL);
+    array_list_free(temp->failed_records, NULL);
+    vcf_batch_free(temp->batch);
 }
