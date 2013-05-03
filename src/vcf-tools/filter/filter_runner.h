@@ -26,10 +26,11 @@
 
 
 typedef struct {
-    array_list_t *input_records;
+    vcf_batch_t *batch;
     array_list_t *passed_records;
     array_list_t *failed_records;
 } filter_temp_output_t;
+
 
 /* ******************************
  *       Tool execution         *
@@ -37,5 +38,13 @@ typedef struct {
 
 int run_filter(shared_options_data_t *shared_options_data, filter_options_data_t *options_data);
 
+
+/* ******************************
+ *           Auxiliary          *
+ * ******************************/
+
+filter_temp_output_t *filter_temp_output_new(vcf_batch_t *batch, array_list_t *passed_records, array_list_t *failed_records);
+
+void filter_temp_output_free(filter_temp_output_t *temp);
 
 #endif
