@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
+ * Copyright (c) 2012-2013 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
  * Copyright (c) 2012 Ignacio Medina (ICM-CIPF)
  *
  * This file is part of hpg-variant.
@@ -48,7 +48,7 @@ shared_options_t *new_shared_cli_options(int ped_required) {
     options_data->gene = arg_str0(NULL, "gene", NULL, "Filter: by a comma-separated list of genes");
     options_data->region = arg_str0(NULL, "region", NULL, "Filter: by a list of regions (chr1:start1-end1,chr2:start2-end2...)");
     options_data->region_file = arg_file0(NULL, "region-file", NULL, "Filter: by a list of regions (read from a GFF file)");
-    options_data->region_type = arg_file0(NULL, "region-type", NULL, "Filter: by type of region (used along with the 'region-file' argument)");
+    options_data->region_type = arg_str0(NULL, "region-type", NULL, "Filter: by type of region (used along with the 'region-file' argument)");
     options_data->snp = arg_str0(NULL, "snp", NULL, "Filter: by being a SNP or not (include/exclude)");
     options_data->indel = arg_str0(NULL, "indel", NULL, "Filter: by being an indel or not (include/exclude)");
     options_data->dominant = arg_dbl0(NULL, "inh-dom", NULL, "Filter: by percentage of samples following dominant inheritance pattern (decimal like 0.1)");
