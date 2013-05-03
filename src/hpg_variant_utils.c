@@ -32,9 +32,9 @@ array_list_t *get_configuration_search_paths(int argc, char *argv[]) {
 
     array_list_t *paths = sort_config_paths_by_priority(c, home);
     
-    for (int i = 0; i < 3; i++) {
-        free(config_dirpaths[i]);
-    }
+    free(config_dirpaths[0]);
+    free(config_dirpaths[1]);
+    free(config_dirpaths[2]);
     
     return paths;
 }
@@ -45,7 +45,7 @@ char *get_config_path_from_args(int argc, char *argv[]) {
 
     for (int i = 0; i < argc-1; i++) {
         if (!strcmp("--config", argv[i])) {
-            config_dirpath = argv[i+1];
+            config_dirpath = strdup(argv[i+1]);
             break;
         }
     }
@@ -60,7 +60,7 @@ char *get_config_path_from_args(int argc, char *argv[]) {
         return NULL;
 
     }
-
+    
     return config_dirpath;
 }
 
@@ -141,13 +141,13 @@ array_list_t *sort_config_paths_by_priority(char *config_arg_path, char *home_pa
 
     array_list_t *paths = array_list_new(num_paths, 1.1, COLLECTION_MODE_ASYNCHRONIZED);
     if (config_arg_path) {
-        array_list_insert(config_arg_path, paths);
+        array_list_insert(strdup(config_arg_path), paths);
     }
 
     array_list_insert(getcwd(NULL, 0), paths);
 
     if (home_path) {
-        array_list_insert(home_path, paths);
+        array_list_insert(strdup(home_path), paths);
     }
 
     array_list_insert(strndup("/etc/hpg-variant", 16), paths);
