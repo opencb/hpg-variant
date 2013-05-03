@@ -19,6 +19,7 @@
  */
 
 #include "filter.h"
+#include "filter_runner.h"
 
 int vcf_tool_filter(int argc, char *argv[], const char *configuration_file) {
 
