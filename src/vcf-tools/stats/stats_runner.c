@@ -22,10 +22,13 @@
 
 
 int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *options_data) {
-    list_t *output_list = (list_t*) malloc (sizeof(list_t));
-    list_init("output", shared_options_data->num_threads, MIN(10, shared_options_data->max_batches) * shared_options_data->batch_lines, output_list);
     file_stats_t *file_stats = file_stats_new();
     sample_stats_t **sample_stats;
+    
+    // List that stores the batches of records filtered by each thread
+    list_t *output_list[shared_options_data->num_threads];
+    // List that stores which thread filtered the next batch to save
+    list_t *next_token_list = malloc(sizeof(list_t));
 
     int ret_code;
     double start, stop, total;
@@ -53,6 +56,13 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
     if (ret_code != 0 && errno != EEXIST) {
         LOG_FATAL_F("Can't create output directory: %s\n", shared_options_data->output_directory);
     }
+    
+    // Initialize variables related to the different threads
+    for (int i = 0; i < shared_options_data->num_threads; i++) {
+        output_list[i] = (list_t*) malloc(sizeof(list_t));
+        list_init("input", 1, shared_options_data->num_threads * shared_options_data->batch_lines, output_list[i]);
+    }
+    list_init("next_token", shared_options_data->num_threads, INT_MAX, next_token_list);
     
     LOG_INFO("About to retrieve statistics from VCF file...\n");
 
@@ -117,7 +127,7 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
 
                 // Divide the list of passed records in ranges of size defined in config file
                 int num_chunks;
-                int *chunk_sizes;
+                int *chunk_sizes = NULL;
                 array_list_t *input_records = batch->records;
                 int *chunk_starts = create_chunks(input_records->size, shared_options_data->entries_per_thread, &num_chunks, &chunk_sizes);
                 
@@ -127,12 +137,22 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
                     LOG_DEBUG_F("[%d] Stats invocation\n", omp_get_thread_num());
                     // Invoke variant stats and/or sample stats when applies
                     if (options_data->variant_stats) {
-                        ret_code = get_variants_stats((vcf_record_t**) (input_records->items + chunk_starts[j]), 
-                                                      chunk_sizes[j], individuals, sample_ids, output_list, file_stats);
+                        int index = omp_get_thread_num() % shared_options_data->num_threads;
+                        ret_code = get_variants_stats((vcf_record_t**) (input_records->items + chunk_starts[j]),
+                                                      chunk_sizes[j], individuals, sample_ids, output_list[index], file_stats); 
                     }
+                    
                     if (options_data->sample_stats) {
                         ret_code |= get_sample_stats((vcf_record_t**) (input_records->items + chunk_starts[j]), 
                                                       chunk_sizes[j], individuals, sample_ids, sample_stats, file_stats);
+                    }
+                }
+                
+                // Insert as many tokens as elements correspond to each thread
+                for (int t = 0; t < num_chunks; t++) {
+                    for (int s = 0; s < chunk_sizes[t]; s++) {
+                        list_item_t *token_item = list_item_new(t, 0, NULL);
+                        list_insert_item(token_item, next_token_list);
                     }
                 }
                 
@@ -151,7 +171,8 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
             
             // Decrease list writers count
             for (i = 0; i < shared_options_data->num_threads; i++) {
-                list_decr_writers(output_list);
+                list_decr_writers(next_token_list);
+                list_decr_writers(output_list[i]);
             }
             
             if (sample_ids) { kh_destroy(ids, sample_ids); }
@@ -193,11 +214,13 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
                 report_vcf_variant_stats_header(stats_fd);
                 
                 // For each variant, generate a new line
-                list_item_t* item = NULL;
-                variant_stats_t *var_stats_batch[VCF_CHUNKSIZE];
                 int avail_stats = 0;
-                while ((item = list_remove_item(output_list))) {
-                    var_stats_batch[avail_stats] = item->data_p;
+                variant_stats_t *var_stats_batch[VCF_CHUNKSIZE];
+                list_item_t *token_item = NULL, *output_item = NULL;
+                while ( token_item = list_remove_item(next_token_list) ) {
+                    output_item = list_remove_item(output_list[token_item->id]);
+                    assert(output_item);
+                    var_stats_batch[avail_stats] = output_item->data_p;
                     avail_stats++;
                     
                     // Run only when certain amount of stats is available
@@ -212,7 +235,8 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
                     }
                     
                     // Free resources
-                    list_item_free(item);
+                    list_item_free(output_item);
+                    list_item_free(token_item);
                 }
                 
                 if (avail_stats > 0) {
@@ -262,6 +286,7 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
                 create_stats_index(create_vcf_index, db);
                 close_stats_db(db, hash);
             }
+            
         }
     }
     
@@ -270,7 +295,11 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
     }
     free(sample_stats);
     free(file_stats);
-    free(output_list);
+    
+    free(next_token_list);
+    for (int i = 0; i < shared_options_data->num_threads; i++) {
+        free(output_list[i]);
+    }
     
     vcf_close(vcf_file);
     if (ped_file) { ped_close(ped_file, 1); }
