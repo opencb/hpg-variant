@@ -35,6 +35,7 @@ array_list_t *get_configuration_search_paths(int argc, char *argv[]) {
     free(config_dirpaths[0]);
     free(config_dirpaths[1]);
     free(config_dirpaths[2]);
+    free(home);
     
     return paths;
 }
