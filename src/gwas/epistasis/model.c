@@ -237,6 +237,34 @@ void masks_info_init(int order, int num_combinations_in_a_row, int num_affected,
  *         High risk        *
  * **************************/
 
+int* choose_high_risk_combinations2(unsigned int* counts_aff, unsigned int* counts_unaff, 
+                                   unsigned int num_combinations, unsigned int num_counts_per_combination,
+                                   unsigned int num_affected, unsigned int num_unaffected, 
+                                   unsigned int *num_risky, void** aux_ret, 
+                                   int* (*test_func)(unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, void **)) {
+    int num_counts = num_combinations * num_counts_per_combination;
+    
+    void *test_return_values = NULL;
+    // Check high risk for all combinations
+    int *is_high_risk = test_func(counts_aff, counts_unaff, num_counts, num_affected, num_unaffected, &test_return_values);
+        
+    int *risky = malloc (num_counts * sizeof(int)); // Put all risky indexes together
+    
+    int total_risky = 0;
+    for (int i = 0; i < num_counts; i++) {
+        if (is_high_risk[i]) {
+            int c = i / num_counts_per_combination;
+            int idx = i % num_counts_per_combination;
+            
+            risky[total_risky] = idx;
+            num_risky[c]++;
+            total_risky++;
+        }
+    }
+    
+    return risky;
+}
+
 int* choose_high_risk_combinations(unsigned int* counts_aff, unsigned int* counts_unaff, unsigned int num_counts, 
                                    unsigned int num_affected, unsigned int num_unaffected, 
                                    unsigned int *num_risky, void** aux_ret, 
@@ -244,7 +272,7 @@ int* choose_high_risk_combinations(unsigned int* counts_aff, unsigned int* count
     int *risky = malloc (num_counts * sizeof(int));
     *num_risky = 0;
     
-    for (int i = 0; i < num_counts; i ++) {
+    for (int i = 0; i < num_counts; i++) {
         void *test_return_values = NULL;
         bool is_high_risk = test_func(counts_aff[i], counts_unaff[i], num_affected, num_unaffected, &test_return_values);
         
@@ -311,6 +339,7 @@ void confusion_matrix(int order, risky_combination *combination, masks_info info
     __m128i mask;               // Comparison between the reference genotype and input genotypes
     
     
+    // Check whether the input genotypes can be combined in any of the risky combinations
     for (int i = 0; i < combination->num_risky_genotypes; i++) {
         // First SNP in the combination
         comb_genotypes = _mm_set1_epi8(combination->genotypes[i * order]);

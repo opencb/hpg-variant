@@ -101,6 +101,11 @@ void masks_info_init(int order, int num_combinations_in_a_row, int num_affected,
 /* **************************
  *         High risk        *
  * **************************/
+int* choose_high_risk_combinations2(unsigned int* counts_aff, unsigned int* counts_unaff, 
+                                   unsigned int num_combinations, unsigned int num_counts_per_combination,
+                                   unsigned int num_affected, unsigned int num_unaffected, 
+                                   unsigned int *num_risky, void** aux_ret, 
+                                   int* (*test_func)(unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, void **));
 
 int* choose_high_risk_combinations(unsigned int* counts_aff, unsigned int* counts_unaff, unsigned int num_counts, 
                                    unsigned int num_affected, unsigned int num_unaffected, 
