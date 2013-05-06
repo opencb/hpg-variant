@@ -53,10 +53,10 @@ int run_filter(shared_options_data_t *shared_options_data, filter_options_data_t
         LOG_FATAL_F("Can't create output directory: %s\n", shared_options_data->output_directory);
     }
     
-    // Initialize variables related to the different files
+    // Initialize variables related to the different threads
     for (int i = 0; i < shared_options_data->num_threads; i++) {
         passed_list[i] = (list_t*) malloc(sizeof(list_t));
-        list_init("text", 1, shared_options_data->max_batches, passed_list[i]);
+        list_init("input", 1, shared_options_data->max_batches, passed_list[i]);
     }
     list_init("next_token", shared_options_data->num_threads, shared_options_data->max_batches, next_token_list);
     
