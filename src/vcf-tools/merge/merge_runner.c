@@ -41,8 +41,8 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
     list_init("headers", shared_options_data->num_threads, INT_MAX, output_header_list);
     list_t *output_list = (list_t*) malloc (sizeof(list_t));
     list_init("output", shared_options_data->num_threads, shared_options_data->max_batches * shared_options_data->batch_lines, output_list);
-    list_t *merge_tokens = (list_t*) malloc (sizeof(list_t));
-    list_init("tokens", 1, INT_MAX, merge_tokens);
+    list_t *merge_tokens_list = (list_t*) malloc (sizeof(list_t));
+    list_init("tokens", 1, INT_MAX, merge_tokens_list);
     
     int ret_code = 0;
     double start, stop, total;
@@ -214,6 +214,7 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
                 
                 // Merge headers, if not previously done
                 if (!header_merged) {
+                    // Check correction of input file headers
                     array_list_t *sample_names = merge_vcf_sample_names(files, options_data->num_files);
                     if (!sample_names) {
                         // Avoid as many leaks as possible
@@ -222,8 +223,11 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
                         free(max_chromosome_merged);
                         
                         LOG_FATAL("Files can not be merged!");
+                    } else {
+                        array_list_free(sample_names, NULL);
                     }
                     
+                    // Run the merge itself
                     merge_vcf_headers(files, options_data->num_files, options_data, output_header_list);
                     header_merged = 1;
                     
@@ -249,7 +253,7 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
                 if (token) {
                 	int *token_ptr = malloc (sizeof(int)); *token_ptr = token;
                     list_item_t *item = list_item_new(1, 0, token_ptr);
-                    list_insert_item(item, merge_tokens);
+                    list_insert_item(item, merge_tokens_list);
                 }
 
                 // Set variables ready for next iteration of the algorithm
@@ -281,7 +285,7 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
             for (int i = 0; i < shared_options_data->num_threads; i++) {
                 list_decr_writers(output_list);
             }
-            list_decr_writers(merge_tokens);
+            list_decr_writers(merge_tokens_list);
         }
         
 #pragma omp section
@@ -308,6 +312,7 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
             while ((item1 = list_remove_item(output_header_list))) {
                 entry = item1->data_p;
                 write_vcf_header_entry(entry, merge_fd);
+                list_item_free(item1);
             }
             
             // Write delimiter
@@ -317,7 +322,7 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
             // Write records
             // When a token is present, it means a set of batches has been merged. The token contains the number of records merged.
             // In this case, the records must be sorted by chromosome and position, and written afterwards.
-            while ((item1 = list_remove_item(merge_tokens))) {
+            while ((item1 = list_remove_item(merge_tokens_list))) {
                 num_records = item1->data_p;
                 vcf_record_t *records[*num_records];
                 for (int i = 0; i < *num_records; i++) {
@@ -363,6 +368,8 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
         if(read_list[i]) { free(read_list[i]); }
     }
     free(output_list);
+    free(output_header_list);
+    free(merge_tokens_list);
     
     return ret_code;
 }
