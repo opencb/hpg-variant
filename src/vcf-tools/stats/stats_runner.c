@@ -148,11 +148,13 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
                     }
                 }
                 
-                // Insert as many tokens as elements correspond to each thread
-                for (int t = 0; t < num_chunks; t++) {
-                    for (int s = 0; s < chunk_sizes[t]; s++) {
-                        list_item_t *token_item = list_item_new(t, 0, NULL);
-                        list_insert_item(token_item, next_token_list);
+                if (options_data->variant_stats) {
+                    // Insert as many tokens as elements correspond to each thread
+                    for (int t = 0; t < num_chunks; t++) {
+                        for (int s = 0; s < chunk_sizes[t]; s++) {
+                            list_item_t *token_item = list_item_new(t, 0, NULL);
+                            list_insert_item(token_item, next_token_list);
+                        }
                     }
                 }
                 
