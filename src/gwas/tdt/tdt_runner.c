@@ -85,8 +85,8 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
             // Pedigree information
             family_t **families = (family_t**) cp_hashtable_get_values(ped_file->families);
             int num_families = get_num_families(ped_file);
-            individual_t **individuals;
-            khash_t(ids) *sample_ids;
+            individual_t **individuals = NULL;
+            khash_t(ids) *sample_ids = NULL;
             
             // Create chain of filters for the VCF file
             filter_t **filters = NULL;
@@ -109,6 +109,10 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
             vcf_reader_status *status;
             while(text_begin = fetch_vcf_text_batch(vcf_file)) {
                 text_end = text_begin + strlen(text_begin);
+                if (text_begin == text_end) { // EOF
+                    free(text_begin);
+                    break;
+                }
                 
 #pragma omp critical 
                 {
