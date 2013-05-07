@@ -83,8 +83,8 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
             
             volatile int initialization_done = 0;
             // Pedigree information
-            individual_t **individuals;
-            khash_t(ids) *sample_ids;
+            individual_t **individuals = NULL;
+            khash_t(ids) *sample_ids = NULL;
             
             // Create chain of filters for the VCF file
             filter_t **filters = NULL;
@@ -108,6 +108,10 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
             vcf_reader_status *status;
             while(text_begin = fetch_vcf_text_batch(vcf_file)) {
                 text_end = text_begin + strlen(text_begin);
+                if (text_begin == text_end) { // EOF
+                    free(text_begin);
+                    break;
+                }
                 
 # pragma omp critical
                 {
@@ -176,6 +180,8 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
                             batch->records->size, batch->records->capacity);
                 }
 
+                assert(batch);
+                
                 // Launch association test over records that passed the filters
                 array_list_t *failed_records = NULL;
                 array_list_t *passed_records = filter_records(filters, num_filters, individuals, sample_ids, batch->records, &failed_records);
