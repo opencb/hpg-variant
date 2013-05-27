@@ -36,7 +36,7 @@ int vcf_tool_merge(int argc, char *argv[], const char *configuration_file, array
     if (argc == 1 || !strcmp(argv[1], "-h") || !strcmp(argv[1], "--help")) {
         argtable = merge_merge_options(merge_options, shared_options, arg_end(merge_options->num_options + shared_options->num_options));
         show_usage("hpg-var-vcf merge", argtable, merge_options->num_options + shared_options->num_options);
-        arg_freetable(argtable, 18);
+        arg_freetable(argtable, 19);
         return 0;
     }
 
@@ -75,7 +75,7 @@ int vcf_tool_merge(int argc, char *argv[], const char *configuration_file, array
 
     free_merge_options_data(options_data);
     free_shared_options_data(shared_options_data);
-    arg_freetable(argtable, 18);
+    arg_freetable(argtable, 19);
 
     return 0;
 }
@@ -86,6 +86,7 @@ merge_options_t *new_merge_cli_options() {
     options->input_files = arg_str1(NULL, "vcf-list", NULL, "List of comma-separated input VCF files");
     options->missing_mode = arg_str0(NULL, "missing-mode", NULL, "How to fill missing genotypes (missing = ./., reference = 0/0)");
     options->info_fields = arg_str0(NULL, "info-fields", NULL, "Information to generate in the new INFO column");
+    options->strict_reference = arg_lit0(NULL, "strict-ref", "Whether to reject variants whose reference allele is not the same in all files");
     options->copy_filter = arg_lit0(NULL, "copy-filter", "Whether to copy the FILTER column from the original files into the samples");
     options->copy_info = arg_lit0(NULL, "copy-info", "Whether to copy the INFO column from the original files into the samples");
     return options;
@@ -105,6 +106,7 @@ merge_options_data_t *new_merge_options_data(merge_options_t *options, array_lis
     } else {
     	options_data->num_info_fields = 0;
     }
+    options_data->strict_reference = options->strict_reference->count;
     options_data->copy_filter = options->copy_filter->count;
     options_data->copy_info = options->copy_info->count;
     options_data->config_search_paths = config_search_paths;
