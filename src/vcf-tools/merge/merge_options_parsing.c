@@ -100,7 +100,7 @@ void **parse_merge_options(int argc, char *argv[], merge_options_t *merge_option
 }
 
 void **merge_merge_options(merge_options_t *merge_options, shared_options_t *shared_options, struct arg_end *arg_end) {
-    void **tool_options = malloc (18 * sizeof(void*));
+    void **tool_options = malloc (19 * sizeof(void*));
     // Input/output files
     tool_options[0] = merge_options->input_files;
     tool_options[1] = shared_options->output_filename;
@@ -111,24 +111,25 @@ void **merge_merge_options(merge_options_t *merge_options, shared_options_t *sha
     
     // Merge options
     tool_options[4] = merge_options->missing_mode;
-    tool_options[5] = merge_options->copy_filter;
-    tool_options[6] = merge_options->copy_info;
-    tool_options[7] = merge_options->info_fields;
+    tool_options[5] = merge_options->strict_reference;
+    tool_options[6] = merge_options->copy_filter;
+    tool_options[7] = merge_options->copy_info;
+    tool_options[8] = merge_options->info_fields;
     
     // Configuration file
-    tool_options[8] = shared_options->config_file;
+    tool_options[9] = shared_options->config_file;
     
     // Advanced configuration
-    tool_options[9] = shared_options->host_url;
-    tool_options[10] = shared_options->version;
-    tool_options[11] = shared_options->max_batches;
-    tool_options[12] = shared_options->batch_lines;
-    tool_options[13] = shared_options->batch_bytes;
-    tool_options[14] = shared_options->num_threads;
-    tool_options[15] = shared_options->entries_per_thread;
-    tool_options[16] = shared_options->mmap_vcf_files;
+    tool_options[10] = shared_options->host_url;
+    tool_options[11] = shared_options->version;
+    tool_options[12] = shared_options->max_batches;
+    tool_options[13] = shared_options->batch_lines;
+    tool_options[14] = shared_options->batch_bytes;
+    tool_options[15] = shared_options->num_threads;
+    tool_options[16] = shared_options->entries_per_thread;
+    tool_options[17] = shared_options->mmap_vcf_files;
     
-    tool_options[17] = arg_end;
+    tool_options[18] = arg_end;
     
     return tool_options;
 }
@@ -140,12 +141,6 @@ int verify_merge_options(merge_options_t *merge_options, shared_options_t *share
         LOG_ERROR("Please specify the input VCF files.\n");
         return VCF_FILE_NOT_SPECIFIED;
     }
-    
-    // Check whether the info fields are defined
-//    if (merge_options->info_fields->count == 0) {
-//        LOG_ERROR("Please specify the fields of the INFO column.\n");
-//        return INFO_FIELDS_NOT_SPECIFIED;
-//    }
     
     // Check whether the missing mode is defined
     if (merge_options->missing_mode->count == 0 && strlen(*(merge_options->missing_mode->sval)) == 0) {
