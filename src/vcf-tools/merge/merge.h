@@ -44,7 +44,7 @@
 #include "hpg_variant_utils.h"
 #include "shared_options.h"
 
-#define NUM_MERGE_OPTIONS   5
+#define NUM_MERGE_OPTIONS   6
 
 
 #define MERGED_RECORD       1
@@ -56,11 +56,12 @@ KHASH_SET_INIT_STR(names);
 enum missing_mode { MISSING, REFERENCE };
 
 typedef struct merge_options {
-    struct arg_str *input_files;    /**< List of files used as input */
-    struct arg_str *missing_mode;   /**< How to fill a missing sample field whenever its data is missing */
-    struct arg_str *info_fields;    /**< Attributes of the new INFO fields generated */
-    struct arg_lit *copy_filter;    /**< Whether to copy the contents of the original FILTER field into the samples */
-    struct arg_lit *copy_info;      /**< Whether to copy the contents of the original INFO field into the samples */
+    struct arg_str *input_files;        /**< List of files used as input */
+    struct arg_str *missing_mode;       /**< How to fill a missing sample field whenever its data is missing */
+    struct arg_str *info_fields;        /**< Attributes of the new INFO fields generated */
+    struct arg_lit *strict_reference;   /**< Whether to reject variants whose reference allele is not the same in all files */
+    struct arg_lit *copy_filter;        /**< Whether to copy the contents of the original FILTER field into the samples */
+    struct arg_lit *copy_info;          /**< Whether to copy the contents of the original INFO field into the samples */
     int num_options;
 } merge_options_t;
 
@@ -71,6 +72,7 @@ typedef struct merge_options_data {
     int num_files;          /**< Number of files used as input */
     int num_info_fields;    /**< Number of attributes of the new INFO fields generated */ 
     
+    int strict_reference;   /**< Whether to reject variants whose reference allele is not the same in all files */
     int copy_filter;        /**< Whether to copy the contents of the original FILTER field into the samples */
     int copy_info;          /**< Whether to copy the contents of the original INFO field into the samples */
     
@@ -135,13 +137,6 @@ char *merge_format_field(vcf_record_file_link **position_in_files, int position_
 array_list_t *merge_samples(vcf_record_file_link **position_in_files, int position_occurrences, vcf_file_t **files, int num_files, 
                             cp_hashtable *alleles_table, array_list_t *format_fields, int *format_indices, char *empty_sample, 
                             int gt_pos, int filter_pos, int info_pos, merge_options_data_t *options);
-
-
-
-int *get_format_indices_per_file(vcf_record_file_link **position_in_files, int position_occurrences, 
-                                 vcf_file_t **files, int num_files, array_list_t *format_fields);
-
-char *get_empty_sample(int num_format_fields, int gt_pos, merge_options_data_t *options);
 
 
 /* ******************************
