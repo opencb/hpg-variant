@@ -229,14 +229,6 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                         
                         risky_combination *risky_comb = NULL;
 
-/*
-                        int *risky_idx = choose_high_risk_combinations(counts_aff + rc * info.num_counts_per_combination,
-                                                                       counts_unaff + rc * info.num_counts_per_combination, 
-                                                                       info.num_counts_per_combination, 
-                                                                       info.num_affected, info.num_unaffected, 
-                                                                       &num_risky, &aux_info, mdr_high_risk_combinations);
-*/
-
                         // Filter non-risky SNP combinations
                         if (num_risky > 0) {
                             // Put together the info about the SNP combination and its genotype combinations
@@ -252,9 +244,6 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                         }
 
                         risky_begin_idx += num_risky[rc];
-/*
-                        free(risky_idx);
-*/
 
                         // ------------------- END get_model_from_combination_in_fold -----------------------
                         
@@ -288,7 +277,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                         
                     }
                     
-                        free(risky_idx);
+                    free(risky_idx);
 
 //                     free(reference);
 
@@ -315,6 +304,15 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                 uint8_t *masks = set_genotypes_masks(order, combination_genotypes, cur_comb_idx + 1, info); // Grouped by SNP
                 combination_counts(order, masks, genotype_permutations, num_genotype_permutations, counts_aff, counts_unaff, info);
 
+                // Get high risk pairs for those counts
+                void *aux_info;
+                unsigned int num_risky[info.num_combinations_in_a_row]; memset(num_risky, 0, info.num_combinations_in_a_row * sizeof(int));
+                int *risky_idx = choose_high_risk_combinations2(counts_aff, counts_unaff, 
+                                                                info.num_combinations_in_a_row, info.num_counts_per_combination, 
+                                                                info.num_affected, info.num_unaffected, 
+                                                                num_risky, &aux_info, mdr_high_risk_combinations2);
+                
+                int risky_begin_idx = 0;
                 for (int rc = 0; rc < cur_comb_idx + 1; rc++) {
                     uint8_t *comb = combs + rc * order;
                     uint8_t **my_genotypes = combination_genotypes + rc * order;
@@ -323,26 +321,21 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
 
                     risky_combination *risky_comb = NULL;
 
-                    // Get high risk pairs for those counts
-                    void *aux_info = NULL;
-                    int num_risky;
-                    int *risky_idx = choose_high_risk_combinations(counts_aff + rc * info.num_counts_per_combination,
-                                                                    counts_unaff + rc * info.num_counts_per_combination, 
-                                                                    info.num_counts_per_combination, 
-                                                                    info.num_affected, info.num_unaffected, 
-                                                                    &num_risky, &aux_info, mdr_high_risk_combinations);
-
                     // Filter non-risky SNP combinations
                     if (num_risky > 0) {
                         // Put together the info about the SNP combination and its genotype combinations
                         if (risky_rejected) {
-                            risky_comb = risky_combination_copy(order, comb, genotype_permutations, num_risky, risky_idx, aux_info, risky_rejected);
+                            risky_comb = risky_combination_copy(order, comb, genotype_permutations, 
+                                                                num_risky[rc], risky_idx + risky_begin_idx,
+                                                                aux_info, risky_rejected);
                         } else {
-                            risky_comb = risky_combination_new(order, comb, genotype_permutations, num_risky, risky_idx, aux_info);
+                            risky_comb = risky_combination_new(order, comb, genotype_permutations, 
+                                                                num_risky[rc], risky_idx + risky_begin_idx,
+                                                                aux_info);
                         }
                     }
-
-                    free(risky_idx);
+                    
+                    risky_begin_idx += num_risky[rc];
 
                     // ------------------- END get_model_from_combination_in_fold -----------------------
 
@@ -375,6 +368,8 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                     }
                 }
                 
+                free(risky_idx);
+
                 // TODO -------------- End check for last combinations -------------
                 
                 memcpy(prev_block_coords, block_coords, order * sizeof(int));
