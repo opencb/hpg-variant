@@ -41,6 +41,8 @@ typedef struct {
     int num_unaffected_with_padding;
     int num_samples_per_mask;
     int num_masks;
+    int num_combinations_in_a_row;
+    int num_counts_per_combination;
     uint8_t *masks;
 } masks_info;
 
@@ -76,7 +78,8 @@ int add_to_model_ranking(risky_combination *risky_comb, int max_ranking_size, li
  *          Counts          *
  * **************************/
 
-uint8_t* set_genotypes_masks(int order, uint8_t **genotypes, masks_info info);
+//uint8_t* set_genotypes_masks(int order, uint8_t **genotypes, masks_info info);
+uint8_t* set_genotypes_masks(int order, uint8_t **genotypes, int num_combinations, masks_info info);
 
 /**
  * @brief Gets the number of ocurrences of each genotype both in affected and unaffected groups.
@@ -93,11 +96,16 @@ uint8_t* set_genotypes_masks(int order, uint8_t **genotypes, masks_info info);
 void combination_counts(int order, uint8_t *masks, uint8_t **genotype_combinations, int num_genotype_combinations, 
                         int *counts_aff, int *counts_unaff, masks_info info);
 
-void masks_info_new(int order, int num_affected, int num_unaffected, masks_info *info);
+void masks_info_init(int order, int num_combinations_in_a_row, int num_affected, int num_unaffected, masks_info *info);
 
 /* **************************
  *         High risk        *
  * **************************/
+int* choose_high_risk_combinations2(unsigned int* counts_aff, unsigned int* counts_unaff, 
+                                   unsigned int num_combinations, unsigned int num_counts_per_combination,
+                                   unsigned int num_affected, unsigned int num_unaffected, 
+                                   unsigned int *num_risky, void** aux_ret, 
+                                   int* (*test_func)(unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, void **));
 
 int* choose_high_risk_combinations(unsigned int* counts_aff, unsigned int* counts_unaff, unsigned int num_counts, 
                                    unsigned int num_affected, unsigned int num_unaffected, 

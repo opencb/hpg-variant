@@ -12,7 +12,7 @@ risky_combination *get_model_from_combination_in_fold(int order, int comb[order]
     risky_combination *risky_comb = NULL;
     
     // Get counts for the provided genotypes
-    uint8_t *masks = set_genotypes_masks(order, genotypes, info); // Grouped by SNP
+    uint8_t *masks = set_genotypes_masks(order, genotypes, info.num_combinations_in_a_row, info); // Grouped by SNP
     combination_counts(order, masks, genotype_combinations, num_genotype_combinations, counts_aff, counts_unaff, info);
     
     // Get high risk pairs for those counts
@@ -107,57 +107,62 @@ int add_to_model_ranking(risky_combination *risky_comb, int max_ranking_size, li
  *          Counts          *
  * **************************/
 
-void combination_counts(int order, uint8_t *masks, uint8_t **genotype_combinations, int num_genotype_combinations, 
+void combination_counts(int order, uint8_t *masks, uint8_t **genotype_permutations, int num_genotype_permutations, 
                         int *counts_aff, int *counts_unaff, masks_info info) {
-    uint8_t *comb;
+    uint8_t *permutation;
     int count = 0;
     
     __m128i snp_and, snp_cmp;
     
-    for (int c = 0; c < num_genotype_combinations; c++) {
-        comb = genotype_combinations[c];
-//         print_gt_combination(comb, c, order);
-        count = 0;
-       
-        for (int i = 0; i < info.num_affected; i += 16) {
-            // Aligned loading
-            snp_and = _mm_load_si128(masks + comb[0] * info.num_samples_per_mask + i);
-            
-            // Perform AND operation with all SNPs in the combination
-            for (int j = 0; j < order; j++) {
-                snp_cmp = _mm_load_si128(masks + j * NUM_GENOTYPES * info.num_samples_per_mask + comb[j] * info.num_samples_per_mask + i);
-                snp_and = _mm_and_si128(snp_and, snp_cmp);
+    for (int rc = 0; rc < info.num_combinations_in_a_row; rc++) {
+        uint8_t *rc_masks = info.masks + rc * order * NUM_GENOTYPES * info.num_samples_per_mask;
+        for (int c = 0; c < num_genotype_permutations; c++) {
+            permutation = genotype_permutations[c];
+            // print_gt_combination(permutation, c, order);
+            count = 0;
+
+            for (int i = 0; i < info.num_affected; i += 16) {
+                // Aligned loading
+                snp_and = _mm_load_si128(rc_masks + permutation[0] * info.num_samples_per_mask + i);
+
+                // Perform AND operation with all SNPs in the combination
+                for (int j = 1; j < order; j++) {
+                    snp_cmp = _mm_load_si128(rc_masks + j * NUM_GENOTYPES * info.num_samples_per_mask + 
+                                             permutation[j] * info.num_samples_per_mask + i);
+                    snp_and = _mm_and_si128(snp_and, snp_cmp);
+                }
+
+                count += _mm_popcnt_u64(_mm_extract_epi64(snp_and, 0)) + 
+                         _mm_popcnt_u64(_mm_extract_epi64(snp_and, 1));
             }
-            
-            count += _mm_popcnt_u64(_mm_extract_epi64(snp_and, 0)) + 
-                     _mm_popcnt_u64(_mm_extract_epi64(snp_and, 1));
-        }
-        
-        LOG_DEBUG_F("aff comb idx (%d) = %d\n", c, count / 8);
-        counts_aff[c] = count / 8;
-        
-        count = 0;
-        
-        for (int i = 0; i < info.num_unaffected; i += 16) {
-            // Aligned loading
-            snp_and = _mm_load_si128(masks + comb[0] * info.num_samples_per_mask + info.num_affected_with_padding + i);
-            
-            // Perform AND operation with all SNPs in the combination
-            for (int j = 0; j < order; j++) {
-                snp_cmp = _mm_load_si128(masks + j * NUM_GENOTYPES * info.num_samples_per_mask + comb[j] * info.num_samples_per_mask + info.num_affected_with_padding + i);
-                snp_and = _mm_and_si128(snp_and, snp_cmp);
+
+            LOG_DEBUG_F("aff comb idx (%d) = %d\n", c, count / 8);
+            counts_aff[rc * info.num_counts_per_combination + c] = count / 8;
+
+            count = 0;
+
+            for (int i = 0; i < info.num_unaffected; i += 16) {
+                // Aligned loading
+                snp_and = _mm_load_si128(rc_masks + permutation[0] * info.num_samples_per_mask + info.num_affected_with_padding + i);
+
+                // Perform AND operation with all SNPs in the combination
+                for (int j = 1; j < order; j++) {
+                    snp_cmp = _mm_load_si128(rc_masks + j * NUM_GENOTYPES * info.num_samples_per_mask + 
+                                             permutation[j] * info.num_samples_per_mask + info.num_affected_with_padding + i);
+                    snp_and = _mm_and_si128(snp_and, snp_cmp);
+                }
+
+                count += _mm_popcnt_u64(_mm_extract_epi64(snp_and, 0)) + 
+                         _mm_popcnt_u64(_mm_extract_epi64(snp_and, 1));
             }
-            
-            count += _mm_popcnt_u64(_mm_extract_epi64(snp_and, 0)) + 
-                     _mm_popcnt_u64(_mm_extract_epi64(snp_and, 1));
+
+            LOG_DEBUG_F("unaff comb idx (%d) = %d\n", c, count / 8);
+            counts_unaff[rc * info.num_counts_per_combination + c] = count / 8;
         }
-        
-        LOG_DEBUG_F("unaff comb idx (%d) = %d\n", c, count / 8);
-        counts_unaff[c] = count / 8;
     }
 }
 
-uint8_t* set_genotypes_masks(int order, uint8_t **genotypes, masks_info info) {
+uint8_t* set_genotypes_masks(int order, uint8_t **genotypes, int num_combinations, masks_info info) {
     /* 
      * Structure: Genotypes of a SNP in each 'row'
      * 
@@ -175,43 +180,52 @@ uint8_t* set_genotypes_masks(int order, uint8_t **genotypes, masks_info info) {
      * SNP(order-1) - Mask genotype 1 (all samples)
      * SNP(order-1) - Mask genotype 2 (all samples)
      */
-    uint8_t *masks = info.masks;
-    
     __m128i reference_genotype; // The genotype to compare for generating a mask (of the form {0 0 0 0 ... }, {1 1 1 1 ... })
     __m128i input_genotypes;    // Genotypes from the input dataset
     __m128i mask;               // Comparison between the reference genotype and input genotypes
     
-    for (int j = 0; j < order; j++) {
-        for (int i = 0; i < NUM_GENOTYPES; i++) {
-            reference_genotype = _mm_set1_epi8(i);
-            
-            // Set value of masks
-            for (int k = 0; k < info.num_samples_per_mask; k += 16) {
-                input_genotypes = _mm_load_si128(genotypes[j] + k);
-                mask = _mm_cmpeq_epi8(input_genotypes, reference_genotype);
-                _mm_store_si128(masks + j * NUM_GENOTYPES * (info.num_samples_per_mask) + i * (info.num_samples_per_mask) + k, mask);
+    uint8_t *masks = info.masks;
+    
+    for (int c = 0; c < num_combinations; c++) {
+        masks = info.masks + c * info.num_masks;
+        uint8_t **combination_genotypes = genotypes + c * order;
+        
+        for (int j = 0; j < order; j++) {
+            for (int i = 0; i < NUM_GENOTYPES; i++) {
+                reference_genotype = _mm_set1_epi8(i);
+
+                // Set value of masks
+                for (int k = 0; k < info.num_samples_per_mask; k += 16) {
+                    input_genotypes = _mm_load_si128(combination_genotypes[j] + k);
+                    mask = _mm_cmpeq_epi8(input_genotypes, reference_genotype);
+                    _mm_store_si128(masks + j * NUM_GENOTYPES * (info.num_samples_per_mask) + i * (info.num_samples_per_mask) + k, mask);
+                }
+
+                // Set padding with zeroes
+                memset(masks + j * NUM_GENOTYPES * (info.num_samples_per_mask) + i * (info.num_samples_per_mask) + info.num_affected,
+                    0, info.num_affected_with_padding - info.num_affected);
+                memset(masks + j * NUM_GENOTYPES * (info.num_samples_per_mask) + i * (info.num_samples_per_mask) + 
+                    info.num_affected_with_padding + info.num_unaffected,
+                    0, info.num_unaffected_with_padding - info.num_unaffected);
             }
-         
-            // Set padding with zeroes
-            memset(masks + j * NUM_GENOTYPES * (info.num_samples_per_mask) + i * (info.num_samples_per_mask) + info.num_affected,
-                   0, info.num_affected_with_padding - info.num_affected);
-            memset(masks + j * NUM_GENOTYPES * (info.num_samples_per_mask) + i * (info.num_samples_per_mask) + 
-                   info.num_affected_with_padding + info.num_unaffected,
-                   0, info.num_unaffected_with_padding - info.num_unaffected);
         }
     }
+    
+    masks = info.masks;
     
     return masks;
 }
 
-void masks_info_new(int order, int num_affected, int num_unaffected, masks_info *info) {
+void masks_info_init(int order, int num_combinations_in_a_row, int num_affected, int num_unaffected, masks_info *info) {
     info->num_affected = num_affected;
     info->num_unaffected = num_unaffected;
     info->num_affected_with_padding = 16 * (int) ceil(((double) num_affected) / 16);
     info->num_unaffected_with_padding = 16 * (int) ceil(((double) num_unaffected) / 16);
+    info->num_combinations_in_a_row = num_combinations_in_a_row;
+    info->num_counts_per_combination = pow(NUM_GENOTYPES, order);
     info->num_samples_per_mask = info->num_affected_with_padding + info->num_unaffected_with_padding;
     info->num_masks = NUM_GENOTYPES * order * info->num_samples_per_mask;
-    info->masks = _mm_malloc(info->num_masks * sizeof(uint8_t), 16);
+    info->masks = _mm_malloc(info->num_combinations_in_a_row * info->num_masks * sizeof(uint8_t), 16);
     
     assert(info->masks);
     assert(info->num_affected_with_padding);
@@ -223,6 +237,36 @@ void masks_info_new(int order, int num_affected, int num_unaffected, masks_info 
  *         High risk        *
  * **************************/
 
+int* choose_high_risk_combinations2(unsigned int* counts_aff, unsigned int* counts_unaff, 
+                                   unsigned int num_combinations, unsigned int num_counts_per_combination,
+                                   unsigned int num_affected, unsigned int num_unaffected, 
+                                   unsigned int *num_risky, void** aux_ret, 
+                                   int* (*test_func)(unsigned int, unsigned int, unsigned int, unsigned int, unsigned int, void **)) {
+    int num_counts = num_combinations * num_counts_per_combination;
+    
+    void *test_return_values = NULL;
+    // Check high risk for all combinations
+    int *is_high_risk = test_func(counts_aff, counts_unaff, num_counts, num_affected, num_unaffected, &test_return_values);
+        
+    int *risky = malloc (num_counts * sizeof(int)); // Put all risky indexes together
+    
+    int total_risky = 0;
+    for (int i = 0; i < num_counts; i++) {
+        if (is_high_risk[i]) {
+            int c = i / num_counts_per_combination;
+            int idx = i % num_counts_per_combination;
+            
+            risky[total_risky] = idx;
+            num_risky[c]++;
+            total_risky++;
+        }
+    }
+    
+    free(is_high_risk);
+    
+    return risky;
+}
+
 int* choose_high_risk_combinations(unsigned int* counts_aff, unsigned int* counts_unaff, unsigned int num_counts, 
                                    unsigned int num_affected, unsigned int num_unaffected, 
                                    unsigned int *num_risky, void** aux_ret, 
@@ -230,7 +274,7 @@ int* choose_high_risk_combinations(unsigned int* counts_aff, unsigned int* count
     int *risky = malloc (num_counts * sizeof(int));
     *num_risky = 0;
     
-    for (int i = 0; i < num_counts; i ++) {
+    for (int i = 0; i < num_counts; i++) {
         void *test_return_values = NULL;
         bool is_high_risk = test_func(counts_aff[i], counts_unaff[i], num_affected, num_unaffected, &test_return_values);
         
@@ -297,6 +341,7 @@ void confusion_matrix(int order, risky_combination *combination, masks_info info
     __m128i mask;               // Comparison between the reference genotype and input genotypes
     
     
+    // Check whether the input genotypes can be combined in any of the risky combinations
     for (int i = 0; i < combination->num_risky_genotypes; i++) {
         // First SNP in the combination
         comb_genotypes = _mm_set1_epi8(combination->genotypes[i * order]);

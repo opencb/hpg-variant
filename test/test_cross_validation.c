@@ -228,7 +228,7 @@ START_TEST (test_get_genotypes_for_block_exclude_fold) {
     int num_variants = 9, num_samples = 12, num_samples_in_fold = 4;
     int folds[3][4] = { { 0, 1, 6, 7 }, { 4, 5, 10, 11 }, { 2, 3, 8, 9 } };
     
-    masks_info info; masks_info_new(order, 4, 4, &info);
+    masks_info info; masks_info_init(order, 4, 4, &info);
     
     uint8_t genotypes[] = { 0, 1, 1, 0, 1, 2, 2, 1, 2, 1, 1, 2,   // First block
                             1, 2, 2, 1, 2, 0, 0, 2, 0, 2, 2, 0,
