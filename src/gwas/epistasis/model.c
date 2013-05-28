@@ -118,7 +118,7 @@ void combination_counts(int order, uint8_t *masks, uint8_t **genotype_permutatio
         uint8_t *rc_masks = info.masks + rc * order * NUM_GENOTYPES * info.num_samples_per_mask;
         for (int c = 0; c < num_genotype_permutations; c++) {
             permutation = genotype_permutations[c];
-    //         print_gt_combination(comb, c, order);
+            // print_gt_combination(permutation, c, order);
             count = 0;
 
             for (int i = 0; i < info.num_affected; i += 16) {
@@ -126,7 +126,7 @@ void combination_counts(int order, uint8_t *masks, uint8_t **genotype_permutatio
                 snp_and = _mm_load_si128(rc_masks + permutation[0] * info.num_samples_per_mask + i);
 
                 // Perform AND operation with all SNPs in the combination
-                for (int j = 0; j < order; j++) {
+                for (int j = 1; j < order; j++) {
                     snp_cmp = _mm_load_si128(rc_masks + j * NUM_GENOTYPES * info.num_samples_per_mask + 
                                              permutation[j] * info.num_samples_per_mask + i);
                     snp_and = _mm_and_si128(snp_and, snp_cmp);
@@ -146,7 +146,7 @@ void combination_counts(int order, uint8_t *masks, uint8_t **genotype_permutatio
                 snp_and = _mm_load_si128(rc_masks + permutation[0] * info.num_samples_per_mask + info.num_affected_with_padding + i);
 
                 // Perform AND operation with all SNPs in the combination
-                for (int j = 0; j < order; j++) {
+                for (int j = 1; j < order; j++) {
                     snp_cmp = _mm_load_si128(rc_masks + j * NUM_GENOTYPES * info.num_samples_per_mask + 
                                              permutation[j] * info.num_samples_per_mask + info.num_affected_with_padding + i);
                     snp_and = _mm_and_si128(snp_and, snp_cmp);
