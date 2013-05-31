@@ -49,7 +49,8 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
     int num_samples = num_affected + num_unaffected;
     int num_blocks_per_dim = ceil((double) num_variants / options_data->stride);
     
-    printf("num variants = %zu\tnum block per dim = %d\n", num_variants, num_blocks_per_dim);
+    LOG_INFO_F("Combinations of order %d, %d variants per block\n", options_data->order, options_data->stride); 
+    LOG_INFO_F("%d variants, %d blocks per dimension\n", num_variants, num_blocks_per_dim);
     
     // Precalculate which genotype combinations can be tested for a given order (order 2 -> {(0,0), (0,1), ... , (2,1), (2,2)})
     int num_genotype_permutations;
@@ -107,10 +108,6 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
             int max_num_counts = 16 * (int) ceil(((double) info.num_counts_per_combination * info.num_combinations_in_a_row) / 16);
             int *counts_aff = _mm_malloc(max_num_counts * sizeof(int), 16);
             int *counts_unaff = _mm_malloc(max_num_counts * sizeof(int), 16);
-/*
-            int counts_aff[info.num_counts_per_combination * info.num_combinations_in_a_row];
-            int counts_unaff[info.num_counts_per_combination * info.num_combinations_in_a_row];
-*/
             // Confusion matrix
             unsigned int conf_matrix[4];
             // Last rejected risky combination
