@@ -20,7 +20,6 @@
 
 #include "merge.h"
 
-static int concat_alternate_allele(char *cur_alternate, int max_len, int concat_len, char **alternates, vcf_record_t *record);
 static int *get_format_indices_per_file(vcf_record_file_link **position_in_files, int position_occurrences, 
                                         vcf_file_t **files, int num_files, array_list_t *format_fields);
 static inline void concat_sample_allele_tolerant(int allele, int len, char *sample, cp_hashtable* alleles_table, char *reference, char **split_alternates);
@@ -319,7 +318,7 @@ char* merge_alternate_field(vcf_record_file_link** position_in_files, int positi
     char *reference = strndup(position_in_files[0]->record->reference, position_in_files[0]->record->reference_len);
     char *alternates = NULL, *cur_alternate = NULL, *aux = NULL;
     char *pos_alternates = NULL, **split_pos_alternates = NULL;
-    int num_pos_alternates;
+    int cur_alternate_len, num_pos_alternates;
     
     int cur_index = 0;
     int *allele_index = (int*) calloc (1, sizeof(int)); *allele_index = cur_index;
@@ -331,8 +330,26 @@ char* merge_alternate_field(vcf_record_file_link** position_in_files, int positi
 
         // Check reference allele
         cur_alternate = strndup(input->reference, input->reference_len);
+        cur_alternate_len = input->reference_len;
         if (strcmp(reference, cur_alternate) && !cp_hashtable_contains(alleles_table, cur_alternate)) {
-            max_len = concat_alternate_allele(cur_alternate, input->reference_len, input->reference_len, &alternates, input);
+            if (!alternates) {
+                alternates = strdup(cur_alternate);
+                max_len = cur_alternate_len;
+            } else {
+                char *aux = realloc(alternates, max_len + cur_alternate_len + 2);
+                if (aux) {
+                    strncat(aux, ",", 1);
+        //             printf("1) cur_alternate = %.*s\naux = %s\n---------\n", concat_len, cur_alternate, aux);
+                    strncat(aux, cur_alternate, cur_alternate_len);
+                    alternates = aux;
+        //             printf("2) alternates = %s\n---------\n", alternates);
+                } else {
+                    LOG_FATAL_F("Can't allocate memory for alternate alleles in position %.*s:%ld\n",
+                                input->chromosome_len, input->chromosome, input->position);
+                }
+
+                max_len += cur_alternate_len + 1;
+            }
 
             // In case the allele is not in the hashtable, insert it with a new index
             allele_index = (int*) calloc (1, sizeof(int));
@@ -348,9 +365,27 @@ char* merge_alternate_field(vcf_record_file_link** position_in_files, int positi
 
         for (int j = 0; j < num_pos_alternates; j++) {
             cur_alternate = split_pos_alternates[j];
+            cur_alternate_len = strlen(cur_alternate);
 
             if (!cp_hashtable_contains(alleles_table, cur_alternate)) {
-                max_len = concat_alternate_allele(cur_alternate, max_len, strlen(cur_alternate), &alternates, input);
+                if (!alternates) {
+                    alternates = strdup(cur_alternate);
+                    max_len = cur_alternate_len;
+                } else {
+                    char *aux = realloc(alternates, max_len + cur_alternate_len + 2);
+                    if (aux) {
+                        strncat(aux, ",", 1);
+            //             printf("1) cur_alternate = %.*s\naux = %s\n---------\n", concat_len, cur_alternate, aux);
+                        strncat(aux, cur_alternate, cur_alternate_len);
+                        alternates = aux;
+            //             printf("2) alternates = %s\n---------\n", alternates);
+                    } else {
+                        LOG_FATAL_F("Can't allocate memory for alternate alleles in position %.*s:%ld\n",
+                                    input->chromosome_len, input->chromosome, input->position);
+                    }
+
+                    max_len += cur_alternate_len + 1;
+                }
                 
                 // In case the allele is not in the hashtable, insert it with a new index
                 allele_index = (int*) calloc (1, sizeof(int));
@@ -837,27 +872,6 @@ array_list_t* merge_samples(vcf_record_file_link** position_in_files, int positi
 /* ******************************
  *      Auxiliary functions     *
  * ******************************/
-
-static int concat_alternate_allele(char *cur_alternate, int max_len, int concat_len, char **alternates, vcf_record_t *record) {
-    if (!(*alternates)) {
-        *alternates = strdup(cur_alternate);
-        return max_len;
-    } else {
-        char *aux = realloc(*alternates, max_len + concat_len + 2);
-        if (aux) {
-            strncat(aux, ",", 1);
-//             printf("1) cur_alternate = %.*s\naux = %s\n---------\n", concat_len, cur_alternate, aux);
-            strncat(aux, cur_alternate, concat_len);
-            alternates = &aux;
-//             printf("2) alternates = %s\n---------\n", alternates);
-        } else {
-            LOG_FATAL_F("Can't allocate memory for alternate alleles in position %s:%ld\n",
-                        record->chromosome, record->position);
-        }
-        
-        return max_len + concat_len + 1;
-    }
-}
 
 static int *get_format_indices_per_file(vcf_record_file_link **position_in_files, int position_occurrences, 
                                         vcf_file_t **files, int num_files, array_list_t *format_fields) {
