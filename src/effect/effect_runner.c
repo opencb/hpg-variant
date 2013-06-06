@@ -447,8 +447,14 @@ int invoke_effect_ws(const char *url, vcf_record_t **records, int num_records, c
         chr_len = record->chromosome_len;
         reference_len = record->reference_len;
         alternate_len = record->alternate_len;
-        new_len_range = current_index + chr_len + reference_len + alternate_len + 32;
         
+        int num_alternates;
+        char *alternates_aux = strndup(record->alternate, alternate_len);
+        char **alternates = split(alternates_aux, ",", &num_alternates);
+
+        // If a position has many alternates, each pair reference-alternate will be concatenated
+        new_len_range = (current_index + chr_len + reference_len + alternate_len + 32) * num_alternates;
+
         // Reallocate memory if next record won't fit
         if (variants_len < (current_index + new_len_range + 1)) {
             char *aux = (char*) realloc(variants, (variants_len + new_len_range + 1) * sizeof(char));
@@ -459,21 +465,29 @@ int invoke_effect_ws(const char *url, vcf_record_t **records, int num_records, c
                 LOG_FATAL("Not enough memory for composing URL request\n");
             }
         }
-        
-        // Append region info to buffer
-//         printf("record chromosome = %.*s\n", record->chromosome_len, record->chromosome);
-        strncat(variants, record->chromosome, chr_len);
-        strncat(variants, ":", 1);
-        current_index += chr_len + 1;
-        sprintf(variants + current_index, "%lu:", record->position);
-        strncat(variants, record->reference, reference_len);
-        strncat(variants, ":", 1);
-        strncat(variants, record->alternate, alternate_len);
-        strncat(variants, ",", 1);
-        current_index = strlen(variants);
+
+        for (int j = 0; j < num_alternates; j++) {
+            // Append region info to buffer
+    //         printf("record chromosome = %.*s\n", record->chromosome_len, record->chromosome);
+            strncat(variants, record->chromosome, chr_len);
+            strncat(variants, ":", 1);
+            current_index += chr_len + 1;
+            sprintf(variants + current_index, "%lu:", record->position);
+            strncat(variants, record->reference, reference_len);
+            strncat(variants, ":", 1);
+            strcat(variants, alternates[j]);
+            strncat(variants, ",", 1);
+            current_index = strlen(variants);
+        }
+
+        for (int j = 0; j < num_alternates; j++) {
+            free(alternates[j]);
+        }
+        free(alternates);
+        free(alternates_aux);
     }
     
-//     LOG_INFO_F("variants = %.*s\n", 100, variants);
+     LOG_DEBUG_F("variants = %.*s\n", 100, variants);
 //     LOG_DEBUG_F("excludes = %s\n", excludes);
     
     char *params[CONSEQUENCE_TYPE_WS_NUM_PARAMS] = { "of", "variants", "exclude" };
