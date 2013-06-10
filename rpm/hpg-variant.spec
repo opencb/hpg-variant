@@ -1,5 +1,5 @@
 %define name hpg-variant
-%define version 0.99.1
+%define version 0.99.2
 Name:           %{name}
 Version:        %{version}
 Release:        1%{?dist}
@@ -24,7 +24,16 @@ Requires:       libxml2
 Requires:       zlib
 
 %description
-HPG Variant retrieves the effect of genome mutations and allows to conduct analysis
+HPG Variant is a suite for the analysis of genomic data extracted from Next 
+Generation Sequencing technologies. It uses parallel computing technologies 
+such as CUDA and OpenMP in order to reduce the processing times.
+It contains three binaries:
+* hpg-var-effect retrieves the effect of genome variations.
+* hpg-var-gwas conducts genomic-wide association analysis such as chi-square 
+  and Fisher's exact test, and family-based analysis such as transmission 
+  disequilibrium test (TDT).
+* hpg-var-vcf allows one to preprocess files containing genome variations in 
+  Variant Call Format.
 
 %prep
 %setup -q
@@ -54,6 +63,11 @@ cp bin/vcf-info-fields.conf %{buildroot}%{_sysconfdir}/%{name}/
 
 
 %changelog
+* Mon Jun 10 2013 Cristina Yenyxe Gonzalez <cgonzalez@cipf.es> - 0.99.2
+- VCF merging tool more tolerant to different reference alleles
+- Variant effect checked for all alternate alleles of a single variant
+- Memory leaks in hpg-var-effect supressed
+
 * Wed May 07 2013 Cristina Yenyxe Gonzalez <cgonzalez@cipf.es> - 0.99.1
 - New VCF filters by gene, region+type, being or not an indel, and inheritance 
   pattern (dominant/recessive)
