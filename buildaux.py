@@ -11,7 +11,7 @@ def FindHeaderFiles(self, target):
                     
                 all[item.abspath] = True
 
-                if item.path.endswith('.h'):
+                if item.path.endswith('.h') and not item.path.startswith('/usr'):
                     if not item.exists():
                         item = item.srcnode()
                     src.append(item.abspath)
@@ -39,7 +39,7 @@ def FindAllSourceFiles(self, target):
                     if not item.exists():
                         item = item.srcnode()
                     src.append(item.abspath)
-                elif item.path.endswith('.h'):
+                elif item.path.endswith('.h') and not item.path.startswith('/usr'):
                     if not item.exists():
                         item = item.srcnode()
                     src.append(item.abspath)
