@@ -99,6 +99,19 @@ int** get_k_folds(unsigned int num_samples_affected, unsigned int num_samples_un
     return folds;
 }
 
+uint8_t *get_k_folds_masks(unsigned int num_samples, unsigned int k, int **folds, unsigned int *sizes) {
+    uint8_t *fold_masks = calloc (num_samples * k, sizeof(uint8_t));
+
+    // Toggle masks
+    for (int i = 0; i < k; i++) {
+        for (int j = 0; j < sizes[3 * i]; j++) {
+            fold_masks[i * num_samples + folds[i][j]] = 1;
+        }
+    }
+
+    return fold_masks;
+}
+
 
 uint8_t *get_genotypes_for_combination_and_fold(int order, int comb[order], int num_samples, 
                                                 int num_samples_in_fold, int fold_samples[num_samples_in_fold], 

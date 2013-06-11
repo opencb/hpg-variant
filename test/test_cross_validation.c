@@ -35,11 +35,13 @@ START_TEST (test_get_k_folds) {
     int **folds;
     unsigned int *sizes;
     unsigned int k;
-    int i;
+    uint8_t *masks;
+    int i, idx_in_fold, num_toggled;
     
     // 400 { 200 aff, 200 unaff} in 10-fold
     k = 10;
     folds = get_k_folds(200, 200, k, &sizes);
+    masks = get_k_folds_masks(400, k, folds, sizes);
     for (i = 0; i < k; i++) {
         fail_unless (sizes[3 * i] == 40 && sizes[3 * i + 1] == 20 && sizes[3 * i + 2] == 20, "Fold size must be (40,20,20)");
         
@@ -49,11 +51,25 @@ START_TEST (test_get_k_folds) {
         for (int j = 0; j < sizes[3 * i + 2]; j++) {
             fail_if(folds[i][sizes[3 * i + 1] + j] < 200, "(200,200,10) Unaffected samples can't have the index of affected ones");
         }
+
+        idx_in_fold = 0;
+        num_toggled = 0;
+        for (int j = 0; j < 400; j++) {
+            if (j == folds[i][idx_in_fold]) {
+                fail_if(masks[i * 400 + j] == 0, "Samples in fold must be a 1 mask");
+                idx_in_fold++;
+                num_toggled++;
+            } else {
+                fail_if(masks[i * 400 + j] == 1, "Samples in fold must be a 0 mask");
+            }
+        }
+        fail_if(num_toggled < sizes[3 * i], "There must be the same number of 1 masks than samples in a fold");
     }
     
     // 400 { 150 aff, 250 unaff} in 4-fold
     k = 4;
     folds = get_k_folds(150, 250, 4, &sizes);
+    masks = get_k_folds_masks(400, k, folds, sizes);
     i = 0; fail_unless (sizes[3 * i] == 101 && sizes[3 * i + 1] == 38 && sizes[3 * i + 2] == 63, "Fold #0 size must be (101,38,63)");
     i = 1; fail_unless (sizes[3 * i] == 101 && sizes[3 * i + 1] == 38 && sizes[3 * i + 2] == 63, "Fold #1 size must be (101,38,63)");
     i = 2; fail_unless (sizes[3 * i] == 99 && sizes[3 * i + 1] == 37 && sizes[3 * i + 2] == 62, "Fold #2 size must be (99,37,62)");
@@ -66,11 +82,25 @@ START_TEST (test_get_k_folds) {
         for (int j = 0; j < sizes[3 * i + 2]; j++) {
             fail_if(folds[i][sizes[3 * i + 1] + j] < 150, "(150,250,4) Unaffected samples can't have the index of affected ones");
         }
+
+        idx_in_fold = 0;
+        num_toggled = 0;
+        for (int j = 0; j < 400; j++) {
+            if (j == folds[i][idx_in_fold]) {
+                fail_if(masks[i * 400 + j] == 0, "Samples in fold must be a 1 mask");
+                idx_in_fold++;
+                num_toggled++;
+            } else {
+                fail_if(masks[i * 400 + j] == 1, "Samples in fold must be a 0 mask");
+            }
+        }
+        fail_if(num_toggled < sizes[3 * i], "There must be the same number of 1 masks than samples in a fold");
     }
     
     // 400 { 150 aff, 250 unaff} in 10-fold
     k = 10;
     folds = get_k_folds(150, 250, k, &sizes);
+    masks = get_k_folds_masks(400, k, folds, sizes);
     for (i = 0; i < k; i++) {
         fail_unless (sizes[3 * i] == 40 && sizes[3 * i + 1] == 15 && sizes[3 * i + 2] == 25, "Fold size must be (40,15,25)");
         
@@ -80,12 +110,26 @@ START_TEST (test_get_k_folds) {
         for (int j = 0; j < sizes[3 * i + 2]; j++) {
             fail_if(folds[i][sizes[3 * i + 1] + j] < 150, "(150,250,10) Unaffected samples can't have the index of affected ones");
         }
+
+        idx_in_fold = 0;
+        num_toggled = 0;
+        for (int j = 0; j < 400; j++) {
+            if (j == folds[i][idx_in_fold]) {
+                fail_if(masks[i * 400 + j] == 0, "Samples in fold must be a 1 mask");
+                idx_in_fold++;
+                num_toggled++;
+            } else {
+                fail_if(masks[i * 400 + j] == 1, "Samples in fold must be a 0 mask");
+            }
+        }
+        fail_if(num_toggled < sizes[3 * i], "There must be the same number of 1 masks than samples in a fold");
     }
     
     
     // 125 { 50 aff, 75 unaff} in 5-fold
     k = 5;
     folds = get_k_folds(50, 75, k, &sizes);
+    masks = get_k_folds_masks(125, k, folds, sizes);
     for (i = 0; i < k; i++) {
         fail_unless (sizes[3 * i] == 25 && sizes[3 * i + 1] == 10 && sizes[3 * i + 2] == 15, "Fold size must be (25,10,15)");
         
@@ -95,11 +139,25 @@ START_TEST (test_get_k_folds) {
         for (int j = 0; j < sizes[3 * i + 2]; j++) {
             fail_if(folds[i][sizes[3 * i + 1] + j] < 50, "(50,75,5) Unaffected samples can't have the index of affected ones");
         }
+
+        idx_in_fold = 0;
+        num_toggled = 0;
+        for (int j = 0; j < 125; j++) {
+            if (j == folds[i][idx_in_fold]) {
+                fail_if(masks[i * 125 + j] == 0, "Samples in fold must be a 1 mask");
+                idx_in_fold++;
+                num_toggled++;
+            } else {
+                fail_if(masks[i * 125 + j] == 1, "Samples in fold must be a 0 mask");
+            }
+        }
+        fail_if(num_toggled < sizes[3 * i], "There must be the same number of 1 masks than samples in a fold");
     }
     
     // 125 { 50 aff, 75 unaff} in 7-fold
     k = 7;
     folds = get_k_folds(50, 75, k, &sizes);
+    masks = get_k_folds_masks(125, k, folds, sizes);
     i = 0; fail_unless (sizes[3 * i] == 19 && sizes[3 * i + 1] == 8 && sizes[3 * i + 2] == 11, "Fold #0 size must be (19,8,11)");
     for (i = 1; i < k-2; i++) {
         fail_unless (sizes[3 * i] == 18 && sizes[3 * i + 1] == 7 && sizes[3 * i + 2] == 11, "Fold size must be (18,7,11)");
@@ -114,11 +172,25 @@ START_TEST (test_get_k_folds) {
         for (int j = 0; j < sizes[3 * i + 2]; j++) {
             fail_if(folds[i][sizes[3 * i + 1] + j] < 50, "(50,75,7) Unaffected samples can't have the index of affected ones");
         }
+
+        idx_in_fold = 0;
+        num_toggled = 0;
+        for (int j = 0; j < 125; j++) {
+            if (j == folds[i][idx_in_fold]) {
+                fail_if(masks[i * 125 + j] == 0, "Samples in fold must be a 1 mask");
+                idx_in_fold++;
+                num_toggled++;
+            } else {
+                fail_if(masks[i * 125 + j] == 1, "Samples in fold must be a 0 mask");
+            }
+        }
+        fail_if(num_toggled < sizes[3 * i], "There must be the same number of 1 masks than samples in a fold");
     }
     
     // 125 { 50 aff, 75 unaff} in 10-fold
     k = 10;
     folds = get_k_folds(50, 75, k, &sizes);
+    masks = get_k_folds_masks(125, k, folds, sizes);
     for (i = 0; i < 5; i++) {
         fail_unless (sizes[3 * i] == 13 && sizes[3 * i + 1] == 5 && sizes[3 * i + 2] == 8, "Fold size must be (13,5,8)");
     }
@@ -133,11 +205,25 @@ START_TEST (test_get_k_folds) {
         for (int j = 0; j < sizes[3 * i + 2]; j++) {
             fail_if(folds[i][sizes[3 * i + 1] + j] < 50, "(50,75,10) Unaffected samples can't have the index of affected ones");
         }
+
+        idx_in_fold = 0;
+        num_toggled = 0;
+        for (int j = 0; j < 125; j++) {
+            if (j == folds[i][idx_in_fold]) {
+                fail_if(masks[i * 125 + j] == 0, "Samples in fold must be a 1 mask");
+                idx_in_fold++;
+                num_toggled++;
+            } else {
+                fail_if(masks[i * 125 + j] == 1, "Samples in fold must be a 0 mask");
+            }
+        }
+        fail_if(num_toggled < sizes[3 * i], "There must be the same number of 1 masks than samples in a fold");
     }
     
     // 20 { 8 aff, 12 unaff) in 8-fold
     k = 8;
     folds = get_k_folds(8, 12, k, &sizes);
+    masks = get_k_folds_masks(20, k, folds, sizes);
     for (i = 0; i < 4; i++) {
         fail_unless (sizes[3 * i] == 3 && sizes[3 * i + 1] == 1 && sizes[3 * i + 2] == 2, "Fold size must be (3,1,2)");
     }
@@ -152,11 +238,25 @@ START_TEST (test_get_k_folds) {
         for (int j = 0; j < sizes[3 * i + 2]; j++) {
             fail_if(folds[i][sizes[3 * i + 1] + j] < 8, "(8,12,8) Unaffected samples can't have the index of affected ones");
         }
+
+        idx_in_fold = 0;
+        num_toggled = 0;
+        for (int j = 0; j < 20; j++) {
+            if (j == folds[i][idx_in_fold]) {
+                fail_if(masks[i * 20 + j] == 0, "Samples in fold must be a 1 mask");
+                idx_in_fold++;
+                num_toggled++;
+            } else {
+                fail_if(masks[i * 20 + j] == 1, "Samples in fold must be a 0 mask");
+            }
+        }
+        fail_if(num_toggled < sizes[3 * i], "There must be the same number of 1 masks than samples in a fold");
     }
     
     // 20 { 8 aff, 12 unaff) in 10-fold
     k = 10;
     folds = get_k_folds(8, 12, k, &sizes);
+    masks = get_k_folds_masks(20, k, folds, sizes);
     for (i = 0; i < 2; i++) {
         fail_unless (sizes[3 * i] == 3 && sizes[3 * i + 1] == 1 && sizes[3 * i + 2] == 2, "Fold size must be (3,1,2)");
     }
@@ -174,12 +274,26 @@ START_TEST (test_get_k_folds) {
         for (int j = 0; j < sizes[3 * i + 2]; j++) {
             fail_if(folds[i][sizes[3 * i + 1] + j] < 8, "(8,12,10) Unaffected samples can't have the index of affected ones");
         }
+
+        idx_in_fold = 0;
+        num_toggled = 0;
+        for (int j = 0; j < 20; j++) {
+            if (j == folds[i][idx_in_fold]) {
+                fail_if(masks[i * 20 + j] == 0, "Samples in fold must be a 1 mask");
+                idx_in_fold++;
+                num_toggled++;
+            } else {
+                fail_if(masks[i * 20 + j] == 1, "Samples in fold must be a 0 mask");
+            }
+        }
+        fail_if(num_toggled < sizes[3 * i], "There must be the same number of 1 masks than samples in a fold");
     }
     
     
     // 20 { 16 aff, 4 unaff) in 5-fold
     k = 5;
     folds = get_k_folds(16, 4, k, &sizes);
+    masks = get_k_folds_masks(20, k, folds, sizes);
     i = 0; fail_unless (sizes[3 * i] == 5 && sizes[3 * i + 1] == 4 && sizes[3 * i + 2] == 1, "Fold #0 size must be (5,4,1)");
     i = 1; fail_unless (sizes[3 * i] == 4 && sizes[3 * i + 1] == 3 && sizes[3 * i + 2] == 1, "Fold #1 size must be (4,3,1)");
     i = 2; fail_unless (sizes[3 * i] == 4 && sizes[3 * i + 1] == 3 && sizes[3 * i + 2] == 1, "Fold #2 size must be (4,3,1)");
@@ -193,11 +307,25 @@ START_TEST (test_get_k_folds) {
         for (int j = 0; j < sizes[3 * i + 2]; j++) {
             fail_if(folds[i][sizes[3 * i + 1] + j] < 16, "(16,4,5) Unaffected samples can't have the index of affected ones");
         }
+
+        idx_in_fold = 0;
+        num_toggled = 0;
+        for (int j = 0; j < 20; j++) {
+            if (j == folds[i][idx_in_fold]) {
+                fail_if(masks[i * 20 + j] == 0, "Samples in fold must be a 1 mask");
+                idx_in_fold++;
+                num_toggled++;
+            } else {
+                fail_if(masks[i * 20 + j] == 1, "Samples in fold must be a 0 mask");
+            }
+        }
+        fail_if(num_toggled < sizes[3 * i], "There must be the same number of 1 masks than samples in a fold");
     }
     
     // 20 { 16 aff, 4 unaff) in 10-fold
     k = 10;
     folds = get_k_folds(16, 4, k, &sizes);
+    masks = get_k_folds_masks(20, k, folds, sizes);
     for (i = 0; i < 4; i++) {
         fail_unless (sizes[3 * i] == 3 && sizes[3 * i + 1] == 2 && sizes[3 * i + 2] == 1, "Fold size must be (3,2,1)");
     }
@@ -215,233 +343,246 @@ START_TEST (test_get_k_folds) {
         for (int j = 0; j < sizes[3 * i + 2]; j++) {
             fail_if(folds[i][sizes[3 * i + 1] + j] < 16, "(16,4,10) Unaffected samples can't have the index of affected ones");
         }
+
+        idx_in_fold = 0;
+        num_toggled = 0;
+        for (int j = 0; j < 20; j++) {
+            if (j == folds[i][idx_in_fold]) {
+                fail_if(masks[i * 20 + j] == 0, "Samples in fold must be a 1 mask");
+                idx_in_fold++;
+                num_toggled++;
+            } else {
+                fail_if(masks[i * 20 + j] == 1, "Samples in fold must be a 0 mask");
+            }
+        }
+        fail_if(num_toggled < sizes[3 * i], "There must be the same number of 1 masks than samples in a fold");
     }
     
 }
 END_TEST
 
 
-START_TEST (test_get_genotypes_for_block_exclude_fold) {
-    int order = 2, num_folds = 3, stride = 3, num_blocks = 3;
-    unsigned int *sizes;
-    
-    int num_variants = 9, num_samples = 12, num_samples_in_fold = 4;
-    int folds[3][4] = { { 0, 1, 6, 7 }, { 4, 5, 10, 11 }, { 2, 3, 8, 9 } };
-    
-    masks_info info; masks_info_init(order, 4, 4, &info);
-    
-    uint8_t genotypes[] = { 0, 1, 1, 0, 1, 2, 2, 1, 2, 1, 1, 2,   // First block
-                            1, 2, 2, 1, 2, 0, 0, 2, 0, 2, 2, 0,
-                            2, 0, 0, 2, 0, 1, 1, 0, 1, 0, 0, 1,
-                            0, 1, 0, 1, 1, 2, 1, 2, 2, 0, 2, 0,   // Second block
-                            1, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1,
-                            1, 1, 2, 2, 2, 2, 2, 2, 2, 0, 1, 2,
-                            1, 0, 1, 2, 0, 2, 0, 2, 0, 2, 2, 1,   // Third block
-                            1, 2, 2, 1, 1, 0, 1, 0, 1, 2, 0, 2,
-                            2, 0, 0, 0, 1, 2, 0, 2, 2, 1, 1, 0 };
-        
-    int block_2d[] = { 0, 0 };
-    do {
-        printf("BLOCK %d,%d\n", block_2d[0], block_2d[1]);
-        uint8_t *block_starts[2];
-        block_starts[0] = genotypes + block_2d[0] * stride * num_samples;
-        block_starts[1] = genotypes + block_2d[1] * stride * num_samples;
-        
-        // Test first combination in the block
-        int comb[order];
-        get_first_combination_in_block(order, comb, block_2d, stride);
-        int snp_offset[] = { comb[0] % stride, comb[1] % stride };
-        
-        // Run for each fold
-        for (int f = 0; f < num_folds; f++) {
-//             printf("Combination (%d,%d) and fold %d\n", comb[0], comb[1], f);
-            
-            int next_fold = (f < 2) ? f + 1 : 0 ;
-            uint8_t *val[order];
-            for (int i = 0; i < order; i++) {
-                val[i] = get_genotypes_for_block_exclude_fold(num_variants, num_samples, info, num_samples_in_fold, folds[f], stride, block_2d[i], block_starts[i]);
-            }
-            
-//             for (int i = 0; i < order; i++) {
-//                 printf("* val (%d) = { ", i);
-//                 for (int k = 0; k < stride; k++) {
-// //                     for (int j = 0; j < (num_samples - num_samples_in_fold); j++) {
-// //                         printf("%u ", val[i][k * (num_samples - num_samples_in_fold) + j]);
-// //                     }
-// 
-//                     for (int j = 0; j < info.num_samples_per_mask; j++) {
-//                         printf("%u ", val[i][k * info.num_samples_per_mask + j]);
-//                     }
-//                     printf("\t");
-//                 }
-//                 printf("}\n");
-//             }
-//             printf("\n");
-            
-            // TODO add real tests for this function!
-            if (f == 0) {
-                check_copied_genotypes_fold_0(val, block_starts, snp_offset, num_samples);
-            }/* else if (f == 1) {
-                check_copied_genotypes_fold_1(val, block_starts, snp_offset, num_samples);
-            } else if (f == 2) {
-                check_copied_genotypes_fold_2(val, block_starts, snp_offset, num_samples);
-            }*/
-            
-            for (int i = 0; i < order; i++) {
-                free(val[i]);
-            }
-        }
-        
-        // Test next combinations
-//         while (get_next_combination_in_block(order, comb, block_2d, stride, num_variants)) {
-//             int snp_offset[] = { comb[0] % stride, comb[1] % stride };
-//             
-//             for (int f = 0; f < num_folds; f++) {
-//                 printf("Combination (%d,%d) and fold %d\n", comb[0], comb[1], f);
-//             
-//                 int next_fold = (f < 2) ? f + 1 : 0 ;
-//                 uint8_t *val[order];
-//             for (int i = 0; i < order; i++) {
-//                 val[i] = get_genotypes_for_block_exclude_fold(num_variants, num_samples, info, num_samples_in_fold, folds[f], stride, block_2d[i], block_starts[i]);
-//             }
-//             
-// //             for (int i = 0; i < order; i++) {
-// //                 printf("* val (%d) = { ", i);
-// //                 for (int k = 0; k < stride; k++) {
-// //                     for (int j = 0; j < (num_samples - num_samples_in_fold); j++) {
-// //                         printf("%u ", val[i][k * (num_samples - num_samples_in_fold) + j]);
-// //                     }
-// //                     printf("\t");
-// //                 }
-// //                 printf("}\n");
-// //             }
-// //             printf("\n");
-//             
-//             // TODO add real tests for this function!
-// //             if (f == 0) {
-// //                 check_copied_genotypes_fold_0(val, block_starts, snp_offset, num_samples);
-// //             } else if (f == 1) {
-// //                 check_copied_genotypes_fold_1(val, block_starts, snp_offset, num_samples);
-// //             } else if (f == 2) {
-// //                 check_copied_genotypes_fold_2(val, block_starts, snp_offset, num_samples);
-// //             }
-//             
-//             
-//                 for (int i = 0; i < order; i++) {
-//                     free(val[i]);
-//                 }
-//             }
-//         }
-        
-//         printf("\n-----------\n");
-    } while (get_next_block(num_blocks, order, block_2d));
-}
-END_TEST
-
-
-START_TEST (test_get_genotypes_for_combination_exclude_fold) {
-    int order = 2, num_folds = 3, stride = 3, num_blocks = 3;
-    unsigned int *sizes;
-    
-    int num_variants = 9, num_samples = 12, num_samples_in_fold = 4;
-    int folds[3][4] = { { 0, 1, 6, 7 }, { 4, 5, 10, 11 }, { 2, 3, 8, 9 } };
-    
-    uint8_t genotypes[] = { 0, 1, 1, 0, 1, 2, 2, 1, 2, 1, 1, 2,   // First block
-                            1, 2, 2, 1, 2, 0, 0, 2, 0, 2, 2, 0,
-                            2, 0, 0, 2, 0, 1, 1, 0, 1, 0, 0, 1,
-                            0, 1, 0, 1, 1, 2, 1, 2, 2, 0, 2, 0,   // Second block
-                            1, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1,
-                            1, 1, 2, 2, 2, 2, 2, 2, 2, 0, 1, 2,
-                            1, 0, 1, 2, 0, 2, 0, 2, 0, 2, 2, 1,   // Third block
-                            1, 2, 2, 1, 1, 0, 1, 0, 1, 2, 0, 2,
-                            2, 0, 0, 0, 1, 2, 0, 2, 2, 1, 1, 0 };
-        
-//     printf("Genotypes = {\n");
-//     for (int i = 0; i < 9; i++) {
-//         printf("\t{ ");
-//         for (int j = 0; j < 12; j++) {
-//             printf("%d ", genotypes[i * 12 + j]);
-//         }
-//         printf(" }\n");
-//     }
-//     printf(" }\n\n");
-    
-    int block_2d[] = { 0, 0 };
-    do {
-//         printf("BLOCK %d,%d\n", block_2d[0], block_2d[1]);
-        uint8_t *block_starts[2];
-        block_starts[0] = genotypes + block_2d[0] * stride * num_samples;
-        block_starts[1] = genotypes + block_2d[1] * stride * num_samples;
-        
-        // Test first combination in the block
-        int comb[order];
-        get_first_combination_in_block(order, comb, block_2d, stride);
-        int snp_offset[] = { comb[0] % stride, comb[1] % stride };
-        
-        // Run for each fold
-        for (int f = 0; f < num_folds; f++) {
-//             printf("Combination (%d,%d) and fold %d\n", comb[0], comb[1], f);
-            
-            int next_fold = (f < 2) ? f + 1 : 0 ;
-            uint8_t *val = get_genotypes_for_combination_exclude_fold(order, comb, num_samples, num_samples_in_fold, folds[f], stride, block_starts);
-            
-//             printf("* val = { ");
-//             for (int i = 0; i < order; i++) {
-//                 for (int j = 0; j < (num_samples - num_samples_in_fold); j++) {
-//                     printf("%u ", val[i * (num_samples - num_samples_in_fold) + j]);
-//                 }
-//                 printf("\t");
-//             }
-//             printf("}\n\n");
-            
-            if (f == 0) {
-                check_copied_genotypes_fold_0(val, block_starts, snp_offset, num_samples);
-            } else if (f == 1) {
-                check_copied_genotypes_fold_1(val, block_starts, snp_offset, num_samples);
-            } else if (f == 2) {
-                check_copied_genotypes_fold_2(val, block_starts, snp_offset, num_samples);
-            }
-            
-            free(val);
-        }
-        
-        // Test next combinations
-        while (get_next_combination_in_block(order, comb, block_2d, stride, num_variants)) {
-            int snp_offset[] = { comb[0] % stride, comb[1] % stride };
-            
-            for (int f = 0; f < num_folds; f++) {
-//                 printf("Combination (%d,%d) and fold %d\n", comb[0], comb[1], f);
-            
-                int next_fold = (f < 2) ? f + 1 : 0 ;
-                uint8_t *val = get_genotypes_for_combination_exclude_fold(order, comb, num_samples, num_samples_in_fold, folds[f], stride, block_starts);
-                
-//                 printf("* val = { ");
-//                 for (int j = 0; j < order; j++) {
-//                     for (int k = 0; k < (num_samples - num_samples_in_fold); k++) {
-//                         printf("%u ", val[j * (num_samples - num_samples_in_fold) + k]);
-//                     }
-//                     printf("\t");
-//                 }
-//                 printf("}\n\n");
-            
-                if (f == 0) {
-                    check_copied_genotypes_fold_0(val, block_starts, snp_offset, num_samples);
-                } else if (f == 1) {
-                    check_copied_genotypes_fold_1(val, block_starts, snp_offset, num_samples);
-                } else if (f == 2) {
-                    check_copied_genotypes_fold_2(val, block_starts, snp_offset, num_samples);
-                }
-            
-                free(val);
-            }
-        }
-        
-//         free(comb);
-        
-//         printf("\n-----------\n");
-    } while (get_next_block(num_blocks, order, block_2d));
-}
-END_TEST
+//START_TEST (test_get_genotypes_for_block_exclude_fold) {
+//    int order = 2, num_folds = 3, stride = 3, num_blocks = 3;
+//    unsigned int *sizes;
+//
+//    int num_variants = 9, num_samples = 12, num_samples_in_fold = 4;
+//    int folds[3][4] = { { 0, 1, 6, 7 }, { 4, 5, 10, 11 }, { 2, 3, 8, 9 } };
+//
+//    masks_info info; masks_info_init(order, 1, 4, 4, &info);
+//
+//    uint8_t genotypes[] = { 0, 1, 1, 0, 1, 2, 2, 1, 2, 1, 1, 2,   // First block
+//                            1, 2, 2, 1, 2, 0, 0, 2, 0, 2, 2, 0,
+//                            2, 0, 0, 2, 0, 1, 1, 0, 1, 0, 0, 1,
+//                            0, 1, 0, 1, 1, 2, 1, 2, 2, 0, 2, 0,   // Second block
+//                            1, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1,
+//                            1, 1, 2, 2, 2, 2, 2, 2, 2, 0, 1, 2,
+//                            1, 0, 1, 2, 0, 2, 0, 2, 0, 2, 2, 1,   // Third block
+//                            1, 2, 2, 1, 1, 0, 1, 0, 1, 2, 0, 2,
+//                            2, 0, 0, 0, 1, 2, 0, 2, 2, 1, 1, 0 };
+//
+//    int block_2d[] = { 0, 0 };
+//    do {
+//        printf("BLOCK %d,%d\n", block_2d[0], block_2d[1]);
+//        uint8_t *block_starts[2];
+//        block_starts[0] = genotypes + block_2d[0] * stride * num_samples;
+//        block_starts[1] = genotypes + block_2d[1] * stride * num_samples;
+//
+//        // Test first combination in the block
+//        int comb[order];
+//        get_first_combination_in_block(order, comb, block_2d, stride);
+//        int snp_offset[] = { comb[0] % stride, comb[1] % stride };
+//
+//        // Run for each fold
+//        for (int f = 0; f < num_folds; f++) {
+////             printf("Combination (%d,%d) and fold %d\n", comb[0], comb[1], f);
+//
+//            int next_fold = (f < 2) ? f + 1 : 0 ;
+//            uint8_t *val[order];
+//            for (int i = 0; i < order; i++) {
+//                val[i] = get_genotypes_for_block_exclude_fold(num_variants, num_samples, info, num_samples_in_fold, folds[f], stride, block_2d[i], block_starts[i]);
+//            }
+//
+////             for (int i = 0; i < order; i++) {
+////                 printf("* val (%d) = { ", i);
+////                 for (int k = 0; k < stride; k++) {
+//// //                     for (int j = 0; j < (num_samples - num_samples_in_fold); j++) {
+//// //                         printf("%u ", val[i][k * (num_samples - num_samples_in_fold) + j]);
+//// //                     }
+////
+////                     for (int j = 0; j < info.num_samples_per_mask; j++) {
+////                         printf("%u ", val[i][k * info.num_samples_per_mask + j]);
+////                     }
+////                     printf("\t");
+////                 }
+////                 printf("}\n");
+////             }
+////             printf("\n");
+//
+//            // TODO add real tests for this function!
+//            if (f == 0) {
+//                check_copied_genotypes_fold_0(val, block_starts, snp_offset, num_samples);
+//            }/* else if (f == 1) {
+//                check_copied_genotypes_fold_1(val, block_starts, snp_offset, num_samples);
+//            } else if (f == 2) {
+//                check_copied_genotypes_fold_2(val, block_starts, snp_offset, num_samples);
+//            }*/
+//
+//            for (int i = 0; i < order; i++) {
+//                free(val[i]);
+//            }
+//        }
+//
+//        // Test next combinations
+////         while (get_next_combination_in_block(order, comb, block_2d, stride, num_variants)) {
+////             int snp_offset[] = { comb[0] % stride, comb[1] % stride };
+////
+////             for (int f = 0; f < num_folds; f++) {
+////                 printf("Combination (%d,%d) and fold %d\n", comb[0], comb[1], f);
+////
+////                 int next_fold = (f < 2) ? f + 1 : 0 ;
+////                 uint8_t *val[order];
+////             for (int i = 0; i < order; i++) {
+////                 val[i] = get_genotypes_for_block_exclude_fold(num_variants, num_samples, info, num_samples_in_fold, folds[f], stride, block_2d[i], block_starts[i]);
+////             }
+////
+//// //             for (int i = 0; i < order; i++) {
+//// //                 printf("* val (%d) = { ", i);
+//// //                 for (int k = 0; k < stride; k++) {
+//// //                     for (int j = 0; j < (num_samples - num_samples_in_fold); j++) {
+//// //                         printf("%u ", val[i][k * (num_samples - num_samples_in_fold) + j]);
+//// //                     }
+//// //                     printf("\t");
+//// //                 }
+//// //                 printf("}\n");
+//// //             }
+//// //             printf("\n");
+////
+////             // TODO add real tests for this function!
+//// //             if (f == 0) {
+//// //                 check_copied_genotypes_fold_0(val, block_starts, snp_offset, num_samples);
+//// //             } else if (f == 1) {
+//// //                 check_copied_genotypes_fold_1(val, block_starts, snp_offset, num_samples);
+//// //             } else if (f == 2) {
+//// //                 check_copied_genotypes_fold_2(val, block_starts, snp_offset, num_samples);
+//// //             }
+////
+////
+////                 for (int i = 0; i < order; i++) {
+////                     free(val[i]);
+////                 }
+////             }
+////         }
+//
+////         printf("\n-----------\n");
+//    } while (get_next_block(num_blocks, order, block_2d));
+//}
+//END_TEST
+//
+//
+//START_TEST (test_get_genotypes_for_combination_exclude_fold) {
+//    int order = 2, num_folds = 3, stride = 3, num_blocks = 3;
+//    unsigned int *sizes;
+//
+//    int num_variants = 9, num_samples = 12, num_samples_in_fold = 4;
+//    int folds[3][4] = { { 0, 1, 6, 7 }, { 4, 5, 10, 11 }, { 2, 3, 8, 9 } };
+//
+//    uint8_t genotypes[] = { 0, 1, 1, 0, 1, 2, 2, 1, 2, 1, 1, 2,   // First block
+//                            1, 2, 2, 1, 2, 0, 0, 2, 0, 2, 2, 0,
+//                            2, 0, 0, 2, 0, 1, 1, 0, 1, 0, 0, 1,
+//                            0, 1, 0, 1, 1, 2, 1, 2, 2, 0, 2, 0,   // Second block
+//                            1, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1,
+//                            1, 1, 2, 2, 2, 2, 2, 2, 2, 0, 1, 2,
+//                            1, 0, 1, 2, 0, 2, 0, 2, 0, 2, 2, 1,   // Third block
+//                            1, 2, 2, 1, 1, 0, 1, 0, 1, 2, 0, 2,
+//                            2, 0, 0, 0, 1, 2, 0, 2, 2, 1, 1, 0 };
+//
+////     printf("Genotypes = {\n");
+////     for (int i = 0; i < 9; i++) {
+////         printf("\t{ ");
+////         for (int j = 0; j < 12; j++) {
+////             printf("%d ", genotypes[i * 12 + j]);
+////         }
+////         printf(" }\n");
+////     }
+////     printf(" }\n\n");
+//
+//    int block_2d[] = { 0, 0 };
+//    do {
+////         printf("BLOCK %d,%d\n", block_2d[0], block_2d[1]);
+//        uint8_t *block_starts[2];
+//        block_starts[0] = genotypes + block_2d[0] * stride * num_samples;
+//        block_starts[1] = genotypes + block_2d[1] * stride * num_samples;
+//
+//        // Test first combination in the block
+//        int comb[order];
+//        get_first_combination_in_block(order, comb, block_2d, stride);
+//        int snp_offset[] = { comb[0] % stride, comb[1] % stride };
+//
+//        // Run for each fold
+//        for (int f = 0; f < num_folds; f++) {
+////             printf("Combination (%d,%d) and fold %d\n", comb[0], comb[1], f);
+//
+//            int next_fold = (f < 2) ? f + 1 : 0 ;
+//            uint8_t *val = get_genotypes_for_combination_exclude_fold(order, comb, num_samples, num_samples_in_fold, folds[f], stride, block_starts);
+//
+////             printf("* val = { ");
+////             for (int i = 0; i < order; i++) {
+////                 for (int j = 0; j < (num_samples - num_samples_in_fold); j++) {
+////                     printf("%u ", val[i * (num_samples - num_samples_in_fold) + j]);
+////                 }
+////                 printf("\t");
+////             }
+////             printf("}\n\n");
+//
+//            if (f == 0) {
+//                check_copied_genotypes_fold_0(val, block_starts, snp_offset, num_samples);
+//            } else if (f == 1) {
+//                check_copied_genotypes_fold_1(val, block_starts, snp_offset, num_samples);
+//            } else if (f == 2) {
+//                check_copied_genotypes_fold_2(val, block_starts, snp_offset, num_samples);
+//            }
+//
+//            free(val);
+//        }
+//
+//        // Test next combinations
+//        while (get_next_combination_in_block(order, comb, block_2d, stride, num_variants)) {
+//            int snp_offset[] = { comb[0] % stride, comb[1] % stride };
+//
+//            for (int f = 0; f < num_folds; f++) {
+////                 printf("Combination (%d,%d) and fold %d\n", comb[0], comb[1], f);
+//
+//                int next_fold = (f < 2) ? f + 1 : 0 ;
+//                uint8_t *val = get_genotypes_for_combination_exclude_fold(order, comb, num_samples, num_samples_in_fold, folds[f], stride, block_starts);
+//
+////                 printf("* val = { ");
+////                 for (int j = 0; j < order; j++) {
+////                     for (int k = 0; k < (num_samples - num_samples_in_fold); k++) {
+////                         printf("%u ", val[j * (num_samples - num_samples_in_fold) + k]);
+////                     }
+////                     printf("\t");
+////                 }
+////                 printf("}\n\n");
+//
+//                if (f == 0) {
+//                    check_copied_genotypes_fold_0(val, block_starts, snp_offset, num_samples);
+//                } else if (f == 1) {
+//                    check_copied_genotypes_fold_1(val, block_starts, snp_offset, num_samples);
+//                } else if (f == 2) {
+//                    check_copied_genotypes_fold_2(val, block_starts, snp_offset, num_samples);
+//                }
+//
+//                free(val);
+//            }
+//        }
+//
+////         free(comb);
+//
+////         printf("\n-----------\n");
+//    } while (get_next_block(num_blocks, order, block_2d));
+//}
+//END_TEST
 
 
 
@@ -464,14 +605,14 @@ Suite *create_test_suite(void) {
     TCase *tc_k_fold = tcase_create("k-fold creation");
     tcase_add_test(tc_k_fold, test_get_k_folds);
     
-    TCase *tc_genotypes = tcase_create("Genotype and fold association");
-    tcase_add_test(tc_genotypes, test_get_genotypes_for_block_exclude_fold);
+//    TCase *tc_genotypes = tcase_create("Genotype and fold association");
+//    tcase_add_test(tc_genotypes, test_get_genotypes_for_block_exclude_fold);
 //     tcase_add_test(tc_genotypes, test_get_genotypes_for_combination_exclude_fold);
     
     // Add test cases to a test suite
     Suite *fs = suite_create("k-fold cross validation");
     suite_add_tcase(fs, tc_k_fold);
-    suite_add_tcase(fs, tc_genotypes);
+//    suite_add_tcase(fs, tc_genotypes);
     
     return fs;
 }

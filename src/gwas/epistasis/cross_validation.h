@@ -13,6 +13,7 @@
 
 int** get_k_folds(unsigned int samples_affected, unsigned int samples_unaffected, unsigned int k, unsigned int **sizes);
 
+uint8_t *get_k_folds_masks(unsigned int num_samples, unsigned int k, int **folds, unsigned int *sizes);
 
 uint8_t *get_genotypes_for_combination_and_fold(int order, int comb[order], int num_samples, 
                                                 int num_samples_in_fold, int fold_samples[num_samples_in_fold], 
