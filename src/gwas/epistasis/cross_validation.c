@@ -101,14 +101,11 @@ int** get_k_folds(unsigned int num_samples_affected, unsigned int num_samples_un
 
 uint8_t *get_k_folds_masks(unsigned int num_samples, unsigned int k, int **folds, unsigned int *sizes) {
     uint8_t *fold_masks = calloc (num_samples * k, sizeof(uint8_t));
-
-    // Toggle masks
     for (int i = 0; i < k; i++) {
         for (int j = 0; j < sizes[3 * i]; j++) {
             fold_masks[i * num_samples + folds[i][j]] = 1;
         }
     }
-
     return fold_masks;
 }
 
@@ -135,6 +132,43 @@ uint8_t *get_genotypes_for_combination_and_fold(int order, int comb[order], int 
         }
     }
     
+    return genotypes;
+}
+
+uint8_t *get_genotypes_for_block(int num_variants, int num_samples, masks_info info,
+                                 int stride, int block_coord, uint8_t *block_start, uint8_t *genotypes) {
+    size_t genotypes_copied = 0;   // Copied genotypes of a SNP
+    size_t bytes_copied = 0;       // Total bytes copied (all genotypes and padding)
+
+    // The last SNP in a block can be in the stride-th position or be the absolute
+    // last SNP available, if the stride was greater than the number of variants
+    for (int i = 0; i < stride && (block_coord * stride + i) < num_variants; i++) {
+        size_t affected_base_idx = i * info.num_samples_per_mask;
+        size_t unaffected_base_idx = affected_base_idx + info.num_affected_with_padding;
+        // Copy genotypes of affected samples
+        memcpy(genotypes + affected_base_idx, block_start + i * num_samples, info.num_affected * sizeof(uint8_t));
+        bytes_copied += info.num_affected;
+        genotypes_copied += info.num_affected;
+
+        // Padding between affected and unaffected sets
+        memset(genotypes + affected_base_idx + info.num_affected, 0, (info.num_affected_with_padding - info.num_affected) * sizeof(uint8_t));
+        bytes_copied += info.num_affected_with_padding - info.num_affected;
+
+        // Copy genotypes of unaffected samples
+        memcpy(genotypes + unaffected_base_idx, block_start + i * num_samples, info.num_unaffected * sizeof(uint8_t));
+        bytes_copied += info.num_unaffected;
+        genotypes_copied += info.num_unaffected;
+
+        // Padding at the end
+        memset(genotypes + unaffected_base_idx + info.num_unaffected, 0, (info.num_unaffected_with_padding - info.num_unaffected) * sizeof(uint8_t));
+        bytes_copied += info.num_unaffected_with_padding - info.num_unaffected;
+
+
+        LOG_DEBUG_F("[%d] genotypes copied = %d\tbytes copied = %d\n\n", i, genotypes_copied, bytes_copied);
+        assert(genotypes_copied == num_samples * (i+1));
+        assert(bytes_copied == info.num_samples_per_mask * (i+1));
+    }
+
     return genotypes;
 }
 

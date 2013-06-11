@@ -362,6 +362,105 @@ START_TEST (test_get_k_folds) {
 END_TEST
 
 
+START_TEST (test_get_genotypes_for_block) {
+    int order = 2, num_folds = 3, stride = 3, num_blocks = 3;
+    unsigned int *sizes;
+
+    int num_variants = 9, num_samples = 12, num_samples_in_fold = 4;
+    int folds[3][4] = { { 0, 1, 6, 7 }, { 4, 5, 10, 11 }, { 2, 3, 8, 9 } };
+
+//        masks_info info; masks_info_init(order, 1, 4, 4, &info);
+    masks_info info; masks_info_init(order, 1, 5, 7, &info);
+
+    uint8_t genotypes[] = { 0, 1, 1, 0, 1, 2, 2, 1, 2, 1, 1, 2,   // First block
+                            1, 2, 2, 1, 2, 0, 0, 2, 0, 2, 2, 0,
+                            2, 0, 0, 2, 0, 1, 1, 0, 1, 0, 0, 1,
+                            0, 1, 0, 1, 1, 2, 1, 2, 2, 0, 2, 0,   // Second block
+                            1, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1,
+                            1, 1, 2, 2, 2, 2, 2, 2, 2, 0, 1, 2,
+                            1, 0, 1, 2, 0, 2, 0, 2, 0, 2, 2, 1,   // Third block
+                            1, 2, 2, 1, 1, 0, 1, 0, 1, 2, 0, 2,
+                            2, 0, 0, 0, 1, 2, 0, 2, 2, 1, 1, 0 };
+
+    int block_2d[] = { 0, 0 };
+    uint8_t *block_genotypes[order];
+    for (int s = 0; s < order; s++) {
+        block_genotypes[s] = _mm_malloc(stride * info.num_samples_per_mask * sizeof(uint8_t), 16);
+    }
+
+    char msg[64];
+
+    do {
+        printf("BLOCK %d,%d\n", block_2d[0], block_2d[1]);
+        uint8_t *block_starts[2];
+        block_starts[0] = genotypes + block_2d[0] * stride * num_samples;
+        block_starts[1] = genotypes + block_2d[1] * stride * num_samples;
+
+        block_genotypes[0] = get_genotypes_for_block(num_variants, num_samples, info,
+                                                     stride, block_2d[0], block_starts[0],
+                                                     block_genotypes[0]);
+
+        block_genotypes[1] = get_genotypes_for_block(num_variants, num_samples, info,
+                                                     stride, block_2d[1], block_starts[1],
+                                                     block_genotypes[1]);
+
+//        for (int i = 0; i < order; i++) {
+//         printf("* block_genotypes (%d) = {\n", i);
+//         for (int j = 0; j < stride; j++) {
+//             for (int k = 0; k < info.num_samples_per_mask; k++) {
+//                 printf("%u ", block_genotypes[i][j * info.num_samples_per_mask + k]);
+//             }
+//             printf("\n");
+//         }
+//         printf("}\n");
+//        }
+//        printf("\n");
+
+        for (int i = 0; i < order; i++) {
+            for (int j = 0; j < stride; j++) {
+                // Test affected
+                for (int k = 0; k < info.num_affected; k++) {
+                    sprintf(msg, "Block %d, position %d,%d: expected %u but got %u\n", i, j, k,
+                            block_starts[i][j * num_samples + k],
+                            block_genotypes[i][j * info.num_samples_per_mask + k]);
+                    fail_if(block_starts[i][j * num_samples + k] != block_genotypes[i][j * info.num_samples_per_mask + k], msg);
+                }
+
+                // Test padding 1
+                for (int k = info.num_affected; k < info.num_affected_with_padding; k++) {
+                    sprintf(msg, "Block %d, position %d,%d (padding 1): expected %u but got %u\n", i, j, k,
+                            0,
+                            block_genotypes[i][j * info.num_samples_per_mask + k]);
+                    fail_if(0 != block_genotypes[i][j * info.num_samples_per_mask + k], msg);
+                }
+
+                // Test unaffected
+                for (int k = 0; k < info.num_unaffected; k++) {
+                    sprintf(msg, "Block %d, position %d,%d: expected %u but got %u\n", i, j, k,
+                            block_starts[i][j * num_samples + k],
+                            block_genotypes[i][j * info.num_samples_per_mask + info.num_affected_with_padding + k]);
+                    fail_if(block_starts[i][j * num_samples + k] != block_genotypes[i][j * info.num_samples_per_mask + info.num_affected_with_padding + k], msg);
+                }
+
+                // Test padding 2
+                for (int k = info.num_affected_with_padding + info.num_unaffected; k < info.num_samples_per_mask; k++) {
+                    sprintf(msg, "Block %d, position %d,%d (padding 2): expected %u but got %u\n", i, j, k,
+                            0,
+                            block_genotypes[i][j * info.num_samples_per_mask + k]);
+                    fail_if(0 != block_genotypes[i][j * info.num_samples_per_mask + k], msg);
+                }
+            }
+        }
+
+    } while (get_next_block(num_blocks, order, block_2d));
+
+
+    for (int i = 0; i < order; i++) {
+        free(block_genotypes[i]);
+    }
+}
+END_TEST
+
 //START_TEST (test_get_genotypes_for_block_exclude_fold) {
 //    int order = 2, num_folds = 3, stride = 3, num_blocks = 3;
 //    unsigned int *sizes;
@@ -605,14 +704,15 @@ Suite *create_test_suite(void) {
     TCase *tc_k_fold = tcase_create("k-fold creation");
     tcase_add_test(tc_k_fold, test_get_k_folds);
     
-//    TCase *tc_genotypes = tcase_create("Genotype and fold association");
+    TCase *tc_genotypes = tcase_create("Genotype and fold association");
+    tcase_add_test(tc_genotypes, test_get_genotypes_for_block);
 //    tcase_add_test(tc_genotypes, test_get_genotypes_for_block_exclude_fold);
-//     tcase_add_test(tc_genotypes, test_get_genotypes_for_combination_exclude_fold);
+//    tcase_add_test(tc_genotypes, test_get_genotypes_for_combination_exclude_fold);
     
     // Add test cases to a test suite
     Suite *fs = suite_create("k-fold cross validation");
     suite_add_tcase(fs, tc_k_fold);
-//    suite_add_tcase(fs, tc_genotypes);
+    suite_add_tcase(fs, tc_genotypes);
     
     return fs;
 }
