@@ -68,7 +68,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
         // Initialize folds, first block coordinates, genotype combinations and rankings for each repetition
         unsigned int *sizes, *training_sizes;
         int **folds = get_k_folds(num_affected, num_unaffected, options_data->num_folds, &sizes);
-        uint8_t *fold_masks = get_k_folds_masks(num_samples, options_data->num_folds, folds, sizes);
+        uint8_t *fold_masks = get_k_folds_masks(num_affected, num_unaffected, options_data->num_folds, folds, sizes);
         
         // Calculate size of training datasets
         training_sizes = calloc(3 * options_data->num_folds, sizeof(unsigned int));

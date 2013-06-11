@@ -14,6 +14,8 @@
 
 Suite *create_test_suite(void);
 
+void check_fold_masks(int num_affected, int num_unaffected, int **folds, int i, int *sizes, uint8_t *masks);
+
 void check_copied_genotypes_fold_0(uint8_t **genotypes, uint8_t *block_starts[2], int snp_offset[2], int num_samples);
 
 void check_copied_genotypes_fold_1(uint8_t *genotypes, uint8_t *block_starts[2], int snp_offset[2], int num_samples);
@@ -36,227 +38,177 @@ START_TEST (test_get_k_folds) {
     unsigned int *sizes;
     unsigned int k;
     uint8_t *masks;
-    int i, idx_in_fold, num_toggled;
+    int i, idx_in_fold;
+    int num_affected, num_unaffected, num_samples, num_toggled;
+    int num_affected_with_padding, num_unaffected_with_padding, num_samples_with_padding;
+    char msg[64];
     
     // 400 { 200 aff, 200 unaff} in 10-fold
     k = 10;
-    folds = get_k_folds(200, 200, k, &sizes);
-    masks = get_k_folds_masks(400, k, folds, sizes);
+    num_affected = 200;
+    num_unaffected = 200;
+
+    folds = get_k_folds(num_affected, num_unaffected, k, &sizes);
+    masks = get_k_folds_masks(num_affected, num_unaffected, k, folds, sizes);
     for (i = 0; i < k; i++) {
         fail_unless (sizes[3 * i] == 40 && sizes[3 * i + 1] == 20 && sizes[3 * i + 2] == 20, "Fold size must be (40,20,20)");
-        
+
         for (int j = 0; j < sizes[3 * i + 1]; j++) {
-            fail_if(folds[i][j] >= 200, "(200,200,10) Affected samples can't have the index of unaffected ones");
+            fail_if(folds[i][j] >= num_affected, "(200,200,10) Affected samples can't have the index of unaffected ones");
         }
         for (int j = 0; j < sizes[3 * i + 2]; j++) {
-            fail_if(folds[i][sizes[3 * i + 1] + j] < 200, "(200,200,10) Unaffected samples can't have the index of affected ones");
+            fail_if(folds[i][sizes[3 * i + 1] + j] < num_affected, "(200,200,10) Unaffected samples can't have the index of affected ones");
         }
 
-        idx_in_fold = 0;
-        num_toggled = 0;
-        for (int j = 0; j < 400; j++) {
-            if (j == folds[i][idx_in_fold]) {
-                fail_if(masks[i * 400 + j] == 0, "Samples in fold must be a 1 mask");
-                idx_in_fold++;
-                num_toggled++;
-            } else {
-                fail_if(masks[i * 400 + j] == 1, "Samples in fold must be a 0 mask");
-            }
-        }
-        fail_if(num_toggled < sizes[3 * i], "There must be the same number of 1 masks than samples in a fold");
+        check_fold_masks(num_affected, num_unaffected, folds, i, sizes, masks);
     }
-    
+
     // 400 { 150 aff, 250 unaff} in 4-fold
     k = 4;
-    folds = get_k_folds(150, 250, 4, &sizes);
-    masks = get_k_folds_masks(400, k, folds, sizes);
+    num_affected = 150;
+    num_unaffected = 250;
+
+    folds = get_k_folds(num_affected, num_unaffected, k, &sizes);
+    masks = get_k_folds_masks(num_affected, num_unaffected, k, folds, sizes);
     i = 0; fail_unless (sizes[3 * i] == 101 && sizes[3 * i + 1] == 38 && sizes[3 * i + 2] == 63, "Fold #0 size must be (101,38,63)");
     i = 1; fail_unless (sizes[3 * i] == 101 && sizes[3 * i + 1] == 38 && sizes[3 * i + 2] == 63, "Fold #1 size must be (101,38,63)");
     i = 2; fail_unless (sizes[3 * i] == 99 && sizes[3 * i + 1] == 37 && sizes[3 * i + 2] == 62, "Fold #2 size must be (99,37,62)");
     i = 3; fail_unless (sizes[3 * i] == 99 && sizes[3 * i + 1] == 37 && sizes[3 * i + 2] == 62, "Fold #3 size must be (99,37,62)");
-    
+
     for (i = 0; i < k; i++) {
         for (int j = 0; j < sizes[3 * i + 1]; j++) {
-            fail_if(folds[i][j] >= 150, "(150,250,4) Affected samples can't have the index of unaffected ones");
+            fail_if(folds[i][j] >= num_affected, "(150,250,4) Affected samples can't have the index of unaffected ones");
         }
         for (int j = 0; j < sizes[3 * i + 2]; j++) {
-            fail_if(folds[i][sizes[3 * i + 1] + j] < 150, "(150,250,4) Unaffected samples can't have the index of affected ones");
+            fail_if(folds[i][sizes[3 * i + 1] + j] < num_affected, "(150,250,4) Unaffected samples can't have the index of affected ones");
         }
 
-        idx_in_fold = 0;
-        num_toggled = 0;
-        for (int j = 0; j < 400; j++) {
-            if (j == folds[i][idx_in_fold]) {
-                fail_if(masks[i * 400 + j] == 0, "Samples in fold must be a 1 mask");
-                idx_in_fold++;
-                num_toggled++;
-            } else {
-                fail_if(masks[i * 400 + j] == 1, "Samples in fold must be a 0 mask");
-            }
-        }
-        fail_if(num_toggled < sizes[3 * i], "There must be the same number of 1 masks than samples in a fold");
+        check_fold_masks(num_affected, num_unaffected, folds, i, sizes, masks);
     }
-    
+
     // 400 { 150 aff, 250 unaff} in 10-fold
     k = 10;
-    folds = get_k_folds(150, 250, k, &sizes);
-    masks = get_k_folds_masks(400, k, folds, sizes);
+    num_affected = 150;
+    num_unaffected = 250;
+
+    folds = get_k_folds(num_affected, num_unaffected, k, &sizes);
+    masks = get_k_folds_masks(num_affected, num_unaffected, k, folds, sizes);
     for (i = 0; i < k; i++) {
         fail_unless (sizes[3 * i] == 40 && sizes[3 * i + 1] == 15 && sizes[3 * i + 2] == 25, "Fold size must be (40,15,25)");
-        
+
         for (int j = 0; j < sizes[3 * i + 1]; j++) {
-            fail_if(folds[i][j] >= 150, "(150,250,10) Affected samples can't have the index of unaffected ones");
+            fail_if(folds[i][j] >= num_affected, "(150,250,10) Affected samples can't have the index of unaffected ones");
         }
         for (int j = 0; j < sizes[3 * i + 2]; j++) {
-            fail_if(folds[i][sizes[3 * i + 1] + j] < 150, "(150,250,10) Unaffected samples can't have the index of affected ones");
+            fail_if(folds[i][sizes[3 * i + 1] + j] < num_affected, "(150,250,10) Unaffected samples can't have the index of affected ones");
         }
 
-        idx_in_fold = 0;
-        num_toggled = 0;
-        for (int j = 0; j < 400; j++) {
-            if (j == folds[i][idx_in_fold]) {
-                fail_if(masks[i * 400 + j] == 0, "Samples in fold must be a 1 mask");
-                idx_in_fold++;
-                num_toggled++;
-            } else {
-                fail_if(masks[i * 400 + j] == 1, "Samples in fold must be a 0 mask");
-            }
-        }
-        fail_if(num_toggled < sizes[3 * i], "There must be the same number of 1 masks than samples in a fold");
+        check_fold_masks(num_affected, num_unaffected, folds, i, sizes, masks);
     }
-    
-    
+
+
     // 125 { 50 aff, 75 unaff} in 5-fold
     k = 5;
-    folds = get_k_folds(50, 75, k, &sizes);
-    masks = get_k_folds_masks(125, k, folds, sizes);
+    num_affected = 50;
+    num_unaffected = 75;
+
+    folds = get_k_folds(num_affected, num_unaffected, k, &sizes);
+    masks = get_k_folds_masks(num_affected, num_unaffected, k, folds, sizes);
     for (i = 0; i < k; i++) {
         fail_unless (sizes[3 * i] == 25 && sizes[3 * i + 1] == 10 && sizes[3 * i + 2] == 15, "Fold size must be (25,10,15)");
-        
+
         for (int j = 0; j < sizes[3 * i + 1]; j++) {
-            fail_if(folds[i][j] >= 50, "(50,75,5) Affected samples can't have the index of unaffected ones");
+            fail_if(folds[i][j] >= num_affected, "(50,75,5) Affected samples can't have the index of unaffected ones");
         }
         for (int j = 0; j < sizes[3 * i + 2]; j++) {
-            fail_if(folds[i][sizes[3 * i + 1] + j] < 50, "(50,75,5) Unaffected samples can't have the index of affected ones");
+            fail_if(folds[i][sizes[3 * i + 1] + j] < num_affected, "(50,75,5) Unaffected samples can't have the index of affected ones");
         }
 
-        idx_in_fold = 0;
-        num_toggled = 0;
-        for (int j = 0; j < 125; j++) {
-            if (j == folds[i][idx_in_fold]) {
-                fail_if(masks[i * 125 + j] == 0, "Samples in fold must be a 1 mask");
-                idx_in_fold++;
-                num_toggled++;
-            } else {
-                fail_if(masks[i * 125 + j] == 1, "Samples in fold must be a 0 mask");
-            }
-        }
-        fail_if(num_toggled < sizes[3 * i], "There must be the same number of 1 masks than samples in a fold");
+        check_fold_masks(num_affected, num_unaffected, folds, i, sizes, masks);
     }
-    
+
     // 125 { 50 aff, 75 unaff} in 7-fold
     k = 7;
-    folds = get_k_folds(50, 75, k, &sizes);
-    masks = get_k_folds_masks(125, k, folds, sizes);
+    num_affected = 50;
+    num_unaffected = 75;
+
+    folds = get_k_folds(num_affected, num_unaffected, k, &sizes);
+    masks = get_k_folds_masks(num_affected, num_unaffected, k, folds, sizes);
     i = 0; fail_unless (sizes[3 * i] == 19 && sizes[3 * i + 1] == 8 && sizes[3 * i + 2] == 11, "Fold #0 size must be (19,8,11)");
     for (i = 1; i < k-2; i++) {
         fail_unless (sizes[3 * i] == 18 && sizes[3 * i + 1] == 7 && sizes[3 * i + 2] == 11, "Fold size must be (18,7,11)");
     }
     i = k-2; fail_unless (sizes[3 * i] == 17 && sizes[3 * i + 1] == 7 && sizes[3 * i + 2] == 10, "Fold k-2 size must be (17,7,10)");
     i = k-1; fail_unless (sizes[3 * i] == 17 && sizes[3 * i + 1] == 7 && sizes[3 * i + 2] == 10, "Fold k-1 size must be (17,7,10)");
-    
+
     for (i = 0; i < k; i++) {
         for (int j = 0; j < sizes[3 * i + 1]; j++) {
-            fail_if(folds[i][j] >= 50, "(50,75,7) Affected samples can't have the index of unaffected ones");
+            fail_if(folds[i][j] >= num_affected, "(50,75,7) Affected samples can't have the index of unaffected ones");
         }
         for (int j = 0; j < sizes[3 * i + 2]; j++) {
-            fail_if(folds[i][sizes[3 * i + 1] + j] < 50, "(50,75,7) Unaffected samples can't have the index of affected ones");
+            fail_if(folds[i][sizes[3 * i + 1] + j] < num_affected, "(50,75,7) Unaffected samples can't have the index of affected ones");
         }
 
-        idx_in_fold = 0;
-        num_toggled = 0;
-        for (int j = 0; j < 125; j++) {
-            if (j == folds[i][idx_in_fold]) {
-                fail_if(masks[i * 125 + j] == 0, "Samples in fold must be a 1 mask");
-                idx_in_fold++;
-                num_toggled++;
-            } else {
-                fail_if(masks[i * 125 + j] == 1, "Samples in fold must be a 0 mask");
-            }
-        }
-        fail_if(num_toggled < sizes[3 * i], "There must be the same number of 1 masks than samples in a fold");
+        check_fold_masks(num_affected, num_unaffected, folds, i, sizes, masks);
     }
-    
+
     // 125 { 50 aff, 75 unaff} in 10-fold
     k = 10;
-    folds = get_k_folds(50, 75, k, &sizes);
-    masks = get_k_folds_masks(125, k, folds, sizes);
+    num_affected = 50;
+    num_unaffected = 75;
+
+    folds = get_k_folds(num_affected, num_unaffected, k, &sizes);
+    masks = get_k_folds_masks(num_affected, num_unaffected, k, folds, sizes);
     for (i = 0; i < 5; i++) {
         fail_unless (sizes[3 * i] == 13 && sizes[3 * i + 1] == 5 && sizes[3 * i + 2] == 8, "Fold size must be (13,5,8)");
     }
     for (i = 5; i < k; i++) {
         fail_unless (sizes[3 * i] == 12 && sizes[3 * i + 1] == 5 && sizes[3 * i + 2] == 7, "Fold size must be (12,5,7)");
     }
-    
+
     for (i = 0; i < k; i++) {
         for (int j = 0; j < sizes[3 * i + 1]; j++) {
-            fail_if(folds[i][j] >= 50, "(50,75,10) Affected samples can't have the index of unaffected ones");
+            fail_if(folds[i][j] >= num_affected, "(50,75,10) Affected samples can't have the index of unaffected ones");
         }
         for (int j = 0; j < sizes[3 * i + 2]; j++) {
-            fail_if(folds[i][sizes[3 * i + 1] + j] < 50, "(50,75,10) Unaffected samples can't have the index of affected ones");
+            fail_if(folds[i][sizes[3 * i + 1] + j] < num_affected, "(50,75,10) Unaffected samples can't have the index of affected ones");
         }
 
-        idx_in_fold = 0;
-        num_toggled = 0;
-        for (int j = 0; j < 125; j++) {
-            if (j == folds[i][idx_in_fold]) {
-                fail_if(masks[i * 125 + j] == 0, "Samples in fold must be a 1 mask");
-                idx_in_fold++;
-                num_toggled++;
-            } else {
-                fail_if(masks[i * 125 + j] == 1, "Samples in fold must be a 0 mask");
-            }
-        }
-        fail_if(num_toggled < sizes[3 * i], "There must be the same number of 1 masks than samples in a fold");
+        check_fold_masks(num_affected, num_unaffected, folds, i, sizes, masks);
     }
-    
+
     // 20 { 8 aff, 12 unaff) in 8-fold
     k = 8;
-    folds = get_k_folds(8, 12, k, &sizes);
-    masks = get_k_folds_masks(20, k, folds, sizes);
+    num_affected = 8;
+    num_unaffected = 12;
+
+    folds = get_k_folds(num_affected, num_unaffected, k, &sizes);
+    masks = get_k_folds_masks(num_affected, num_unaffected, k, folds, sizes);
     for (i = 0; i < 4; i++) {
         fail_unless (sizes[3 * i] == 3 && sizes[3 * i + 1] == 1 && sizes[3 * i + 2] == 2, "Fold size must be (3,1,2)");
     }
     for (i = 4; i < k; i++) {
         fail_unless (sizes[3 * i] == 2 && sizes[3 * i + 1] == 1 && sizes[3 * i + 2] == 1, "Fold size must be (2,1,1)");
     }
-    
+
     for (i = 0; i < k; i++) {
         for (int j = 0; j < sizes[3 * i + 1]; j++) {
-            fail_if(folds[i][j] >= 8, "(8,12,8) Affected samples can't have the index of unaffected ones");
+            fail_if(folds[i][j] >= num_affected, "(8,12,8) Affected samples can't have the index of unaffected ones");
         }
         for (int j = 0; j < sizes[3 * i + 2]; j++) {
-            fail_if(folds[i][sizes[3 * i + 1] + j] < 8, "(8,12,8) Unaffected samples can't have the index of affected ones");
+            fail_if(folds[i][sizes[3 * i + 1] + j] < num_affected, "(8,12,8) Unaffected samples can't have the index of affected ones");
         }
 
-        idx_in_fold = 0;
-        num_toggled = 0;
-        for (int j = 0; j < 20; j++) {
-            if (j == folds[i][idx_in_fold]) {
-                fail_if(masks[i * 20 + j] == 0, "Samples in fold must be a 1 mask");
-                idx_in_fold++;
-                num_toggled++;
-            } else {
-                fail_if(masks[i * 20 + j] == 1, "Samples in fold must be a 0 mask");
-            }
-        }
-        fail_if(num_toggled < sizes[3 * i], "There must be the same number of 1 masks than samples in a fold");
+        check_fold_masks(num_affected, num_unaffected, folds, i, sizes, masks);
     }
     
     // 20 { 8 aff, 12 unaff) in 10-fold
     k = 10;
-    folds = get_k_folds(8, 12, k, &sizes);
-    masks = get_k_folds_masks(20, k, folds, sizes);
+    num_affected = 8;
+    num_unaffected = 12;
+
+    folds = get_k_folds(num_affected, num_unaffected, k, &sizes);
+    masks = get_k_folds_masks(num_affected, num_unaffected, k, folds, sizes);
     for (i = 0; i < 2; i++) {
         fail_unless (sizes[3 * i] == 3 && sizes[3 * i + 1] == 1 && sizes[3 * i + 2] == 2, "Fold size must be (3,1,2)");
     }
@@ -269,31 +221,23 @@ START_TEST (test_get_k_folds) {
     
     for (i = 0; i < k; i++) {
         for (int j = 0; j < sizes[3 * i + 1]; j++) {
-            fail_if(folds[i][j] >= 8, "(8,12,10) Affected samples can't have the index of unaffected ones");
+            fail_if(folds[i][j] >= num_affected, "(8,12,10) Affected samples can't have the index of unaffected ones");
         }
         for (int j = 0; j < sizes[3 * i + 2]; j++) {
-            fail_if(folds[i][sizes[3 * i + 1] + j] < 8, "(8,12,10) Unaffected samples can't have the index of affected ones");
+            fail_if(folds[i][sizes[3 * i + 1] + j] < num_affected, "(8,12,10) Unaffected samples can't have the index of affected ones");
         }
 
-        idx_in_fold = 0;
-        num_toggled = 0;
-        for (int j = 0; j < 20; j++) {
-            if (j == folds[i][idx_in_fold]) {
-                fail_if(masks[i * 20 + j] == 0, "Samples in fold must be a 1 mask");
-                idx_in_fold++;
-                num_toggled++;
-            } else {
-                fail_if(masks[i * 20 + j] == 1, "Samples in fold must be a 0 mask");
-            }
-        }
-        fail_if(num_toggled < sizes[3 * i], "There must be the same number of 1 masks than samples in a fold");
+        check_fold_masks(num_affected, num_unaffected, folds, i, sizes, masks);
     }
     
     
     // 20 { 16 aff, 4 unaff) in 5-fold
     k = 5;
-    folds = get_k_folds(16, 4, k, &sizes);
-    masks = get_k_folds_masks(20, k, folds, sizes);
+    num_affected = 16;
+    num_unaffected = 4;
+
+    folds = get_k_folds(num_affected, num_unaffected, k, &sizes);
+    masks = get_k_folds_masks(num_affected, num_unaffected, k, folds, sizes);
     i = 0; fail_unless (sizes[3 * i] == 5 && sizes[3 * i + 1] == 4 && sizes[3 * i + 2] == 1, "Fold #0 size must be (5,4,1)");
     i = 1; fail_unless (sizes[3 * i] == 4 && sizes[3 * i + 1] == 3 && sizes[3 * i + 2] == 1, "Fold #1 size must be (4,3,1)");
     i = 2; fail_unless (sizes[3 * i] == 4 && sizes[3 * i + 1] == 3 && sizes[3 * i + 2] == 1, "Fold #2 size must be (4,3,1)");
@@ -302,30 +246,22 @@ START_TEST (test_get_k_folds) {
     
     for (i = 0; i < k; i++) {
         for (int j = 0; j < sizes[3 * i + 1]; j++) {
-            fail_if(folds[i][j] >= 16, "(16,4,5) Affected samples can't have the index of unaffected ones");
+            fail_if(folds[i][j] >= num_affected, "(16,4,5) Affected samples can't have the index of unaffected ones");
         }
         for (int j = 0; j < sizes[3 * i + 2]; j++) {
-            fail_if(folds[i][sizes[3 * i + 1] + j] < 16, "(16,4,5) Unaffected samples can't have the index of affected ones");
+            fail_if(folds[i][sizes[3 * i + 1] + j] < num_affected, "(16,4,5) Unaffected samples can't have the index of affected ones");
         }
 
-        idx_in_fold = 0;
-        num_toggled = 0;
-        for (int j = 0; j < 20; j++) {
-            if (j == folds[i][idx_in_fold]) {
-                fail_if(masks[i * 20 + j] == 0, "Samples in fold must be a 1 mask");
-                idx_in_fold++;
-                num_toggled++;
-            } else {
-                fail_if(masks[i * 20 + j] == 1, "Samples in fold must be a 0 mask");
-            }
-        }
-        fail_if(num_toggled < sizes[3 * i], "There must be the same number of 1 masks than samples in a fold");
+        check_fold_masks(num_affected, num_unaffected, folds, i, sizes, masks);
     }
     
     // 20 { 16 aff, 4 unaff) in 10-fold
     k = 10;
-    folds = get_k_folds(16, 4, k, &sizes);
-    masks = get_k_folds_masks(20, k, folds, sizes);
+    num_affected = 16;
+    num_unaffected = 4;
+
+    folds = get_k_folds(num_affected, num_unaffected, k, &sizes);
+    masks = get_k_folds_masks(num_affected, num_unaffected, k, folds, sizes);
     for (i = 0; i < 4; i++) {
         fail_unless (sizes[3 * i] == 3 && sizes[3 * i + 1] == 2 && sizes[3 * i + 2] == 1, "Fold size must be (3,2,1)");
     }
@@ -338,24 +274,13 @@ START_TEST (test_get_k_folds) {
     
     for (i = 0; i < k; i++) {
         for (int j = 0; j < sizes[3 * i + 1]; j++) {
-            fail_if(folds[i][j] >= 16, "(16,4,10) Affected samples can't have the index of unaffected ones");
+            fail_if(folds[i][j] >= num_affected, "(16,4,10) Affected samples can't have the index of unaffected ones");
         }
         for (int j = 0; j < sizes[3 * i + 2]; j++) {
-            fail_if(folds[i][sizes[3 * i + 1] + j] < 16, "(16,4,10) Unaffected samples can't have the index of affected ones");
+            fail_if(folds[i][sizes[3 * i + 1] + j] < num_affected, "(16,4,10) Unaffected samples can't have the index of affected ones");
         }
 
-        idx_in_fold = 0;
-        num_toggled = 0;
-        for (int j = 0; j < 20; j++) {
-            if (j == folds[i][idx_in_fold]) {
-                fail_if(masks[i * 20 + j] == 0, "Samples in fold must be a 1 mask");
-                idx_in_fold++;
-                num_toggled++;
-            } else {
-                fail_if(masks[i * 20 + j] == 1, "Samples in fold must be a 0 mask");
-            }
-        }
-        fail_if(num_toggled < sizes[3 * i], "There must be the same number of 1 masks than samples in a fold");
+        check_fold_masks(num_affected, num_unaffected, folds, i, sizes, masks);
     }
     
 }
@@ -721,6 +646,76 @@ Suite *create_test_suite(void) {
 /* ******************************
  *          Auxiliary           *
  * *****************************/
+
+void check_fold_masks(int num_affected, int num_unaffected, int **folds, int i, int *sizes, uint8_t *masks) {
+    int idx_in_fold = 0, num_toggled = 0;
+    int num_affected_with_padding = 16 * (int) ceil(((double) num_affected) / 16);
+    int num_unaffected_with_padding = 16 * (int) ceil(((double) num_unaffected) / 16);
+    int num_samples_with_padding = num_affected_with_padding + num_unaffected_with_padding;
+    char msg[64];
+
+//    printf("in fold %d {\n", i);
+//    for (int m = 0; m < num_samples_with_padding; m++) {
+//        if (m == folds[i][idx_in_fold]) {
+//            printf("%3d ", m);
+//            idx_in_fold++;
+//        } else {
+//            printf("    ");
+//        }
+//    }
+//    printf("}\n");
+//
+//    printf("masks %d {\n", i);
+//    for (int m = 0; m < num_samples_with_padding; m++) {
+//        printf("%3d ", masks[i * num_samples_with_padding + m]);
+//    }
+//    printf("}\n");
+//
+//    idx_in_fold = 0;
+
+    // Affected samples masks
+    for (int j = 0; j < num_affected; j++) {
+        if (j == folds[i][idx_in_fold]) {
+            sprintf(msg, "Sample %d in fold must be a 1 mask\n", folds[i][idx_in_fold]);
+            fail_if(masks[i * num_samples_with_padding + j] == 0, msg);
+            idx_in_fold++;
+            num_toggled++;
+        } else {
+            sprintf(msg, "Sample %d not in fold must be a 0 mask\n", folds[i][idx_in_fold]);
+            fail_if(masks[i * num_samples_with_padding + j] == 1, msg);
+        }
+    }
+
+    // Padding 1
+    for (int j = num_affected; j < num_affected_with_padding; j++) {
+        fail_if(masks[i * num_samples_with_padding + j] == 1, "Padding 1 must be a 0 mask");
+    }
+
+    int padding_size = num_affected_with_padding - num_affected;
+
+    // Unaffected samples masks
+    for (int j = 0; j < num_unaffected; j++) {
+        // Masks are displaced with relation to the list of samples in a fold
+        if (j + num_affected_with_padding - padding_size == folds[i][idx_in_fold]) {
+//            printf("YIF) j = %d\tnawp = %d\tfolds[i][%d] = %d\tpad size = %d\n", j, num_affected_with_padding, idx_in_fold, folds[i][idx_in_fold], padding_size);
+//            sprintf(msg, "Sample %d in fold must be a 1 mask\n", folds[i][idx_in_fold]);
+            fail_if(masks[i * num_samples_with_padding + j + num_affected_with_padding] == 0, msg);
+            idx_in_fold++;
+            num_toggled++;
+        } else {
+//            printf("NIF) j = %d\tnawp = %d\tfolds[i][%d] = %d\tpad size = %d\n", j, num_affected_with_padding, idx_in_fold, folds[i][idx_in_fold], padding_size);
+            fail_if(masks[i * num_samples_with_padding + j + num_affected_with_padding] == 1, msg);
+        }
+    }
+
+    // Padding 2
+    for (int j = num_affected_with_padding + num_unaffected; j < num_samples_with_padding; j++) {
+        fail_if(masks[i * num_samples_with_padding + j] == 1, "Padding 2 must be a 0 mask");
+    }
+
+    fail_if(num_toggled < sizes[3 * i], "There must be the same number of 1 masks than samples in a fold");
+}
+
 
 void check_copied_genotypes_fold_0(uint8_t **genotypes, uint8_t *block_starts[2], int snp_offset[2], int num_samples) {
     // Test first SNP
