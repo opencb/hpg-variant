@@ -75,6 +75,17 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
         int **folds = get_k_folds(num_affected, num_unaffected, num_folds, &sizes);
         uint8_t *fold_masks = get_k_folds_masks(num_affected, num_unaffected, num_folds, folds, sizes);
         
+/*
+        printf("fold_masks = {\n");
+        for (int i = 0; i < num_folds; i++) {
+            for (int j = 0; j < info.num_samples_with_padding; j++) {
+                printf("%u ", fold_masks[i * info.num_samples_with_padding + j]);
+            }
+            printf("\n");
+        }
+        printf("}\n");
+*/
+        
         // Calculate size of training datasets
         training_sizes = calloc(3 * num_folds, sizeof(unsigned int));
         for (int i = 0; i < num_folds; i++) {
@@ -216,30 +227,42 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
 
                 
                 // TODO get_genotypes_masks_for_block instead of for combinations list
-                // would reduce the number of masks stored but also
-                // reduce data locality when copying to SSE registers
+                // would reduce the number of masks stored but also data locality when copying to SSE registers
                 uint8_t *masks = set_genotypes_masks(order, combination_genotypes, info.num_combinations_in_a_row, info); // Grouped by SNP
 
-//                printf("masks = {\n");
-//                for (int c = 0; c < info.num_combinations_in_a_row; c++) {
-//                    uint8_t *base_pos = masks + c * info.num_masks;
-//                    printf("comb %d = {\n", c);
-//                    for (int m = 0; m < order; m++) {
-//                        for (int g = 0; g < NUM_GENOTYPES; g++) {
-//                            for (int s = 0; s < info.num_samples_with_padding; s++) {
-//                                printf("%3u ", base_pos[m * NUM_GENOTYPES * info.num_samples_with_padding + g * info.num_samples_with_padding + s]);//masks[c * info.num_masks + m * info.num_samples_with_padding + s]);
-//                            }
-//                            printf("\n");
-//                        }
-//                        printf("\n");
-//                    }
-//                    printf("}\n");
-//                }
-//                printf("}\n-------------\n");
+/*
+                printf("masks = {\n");
+                for (int c = 0; c < info.num_combinations_in_a_row; c++) {
+                    uint8_t *base_pos = masks + c * info.num_masks;
+                    printf("comb %d = {\n", c);
+                    for (int m = 0; m < order; m++) {
+                        for (int g = 0; g < NUM_GENOTYPES; g++) {
+                            for (int s = 0; s < info.num_samples_with_padding; s++) {
+                                printf("%3u ", base_pos[m * NUM_GENOTYPES * info.num_samples_with_padding + g * info.num_samples_with_padding + s]);
+                            }
+                            printf("\n");
+                        }
+                        printf("\n");
+                    }
+                    printf("}\n");
+                }
+                printf("}\n-------------\n");
+*/
 
                 // Get counts for the provided genotypes
                 combination_counts_all_folds(order, fold_masks, num_folds, genotype_permutations, info, counts_aff, counts_unaff);
 
+/*
+                printf("counts_aff = {\n");
+                for (int c = 0; c < info.num_combinations_in_a_row; c++) {
+                    for (int m = 0; m < info.num_cell_counts_per_combination; m++) {
+                        printf("%2d ", counts_aff[c * info.num_cell_counts_per_combination + m]);
+                    }
+                    printf("\n");
+                }
+                printf("}\n-------------\n");
+*/
+                
                 // TODO copy-paste of the rest of the pipeline
                 /* Right now it will be executed as it previously was, but for the sake of parallelization
                  * it could be better to make the choose_high_risk_combinations function work over
@@ -250,6 +273,18 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                     unsigned int num_risky[info.num_combinations_in_a_row];
                     memset(num_risky, 0, info.num_combinations_in_a_row * sizeof(int));
                     
+/*
+                    printf("* counts_aff = {\n");
+                    for (int c = 0; c < info.num_combinations_in_a_row; c++) {
+                        for (int m = 0; m < info.num_cell_counts_per_combination; m++) {
+                            printf("%2d ", counts_aff[i * info.num_combinations_in_a_row * info.num_cell_counts_per_combination + 
+                                                      c * info.num_cell_counts_per_combination + m]);
+                        }
+                        printf("\n");
+                    }
+                    printf("}\n-------------\n");
+*/
+                
                     int *risky_idx = choose_high_risk_combinations2(counts_aff + i * info.num_combinations_in_a_row * info.num_cell_counts_per_combination, 
                                                                     counts_unaff + i * info.num_combinations_in_a_row * info.num_cell_counts_per_combination, 
                                                                     info.num_combinations_in_a_row, info.num_cell_counts_per_combination,
@@ -337,6 +372,8 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
     //                     free(genotypes_for_testing);
 
                 }
+                
+                //exit(0);
             } while (get_next_combination_in_block(order, comb, block_coords, stride, num_variants));
 
             // TODO process combinations out of a full set
@@ -354,7 +391,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
             // TODO get_genotypes_masks_for_block instead of for combinations list
             // would reduce the number of masks stored but also
             // reduce data locality when copying to SSE registers
-            uint8_t *masks = set_genotypes_masks(order, combination_genotypes, info.num_combinations_in_a_row, info); // Grouped by SNP
+            uint8_t *masks = set_genotypes_masks(order, combination_genotypes, cur_comb_idx + 1, info); // Grouped by SNP
 
 //                printf("masks = {\n");
 //                for (int c = 0; c < info.num_combinations_in_a_row; c++) {
