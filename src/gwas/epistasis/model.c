@@ -208,7 +208,11 @@ void combination_counts_all_folds(int order, uint8_t *fold_masks, int num_folds,
             // Assign to count in fold
             for (int f = 0; f < num_folds; f++) {
                 LOG_DEBUG_F("%d) aff comb idx (%d) = %d\n", f, c, count[f]);
+/*
                 counts_aff[rc * num_folds * info.num_cell_counts_per_combination + f * info.num_cell_counts_per_combination + c] = count[f];
+*/
+                counts_aff[f * info.num_combinations_in_a_row * info.num_cell_counts_per_combination + 
+                           rc * info.num_cell_counts_per_combination + c] = count[f];
             }
 
             memset(count, 0, num_folds * sizeof(int));
@@ -237,7 +241,11 @@ void combination_counts_all_folds(int order, uint8_t *fold_masks, int num_folds,
             // Assign to count in fold
             for (int f = 0; f < num_folds; f++) {
                 LOG_DEBUG_F("%d) unaff comb idx (%d) = %d\n", f, c, count[f]);
+/*
                 counts_unaff[rc * num_folds * info.num_cell_counts_per_combination + f * info.num_cell_counts_per_combination + c] = count[f];
+*/
+                counts_unaff[f * info.num_combinations_in_a_row * info.num_cell_counts_per_combination + 
+                           rc * info.num_cell_counts_per_combination + c] = count[f];
             }
         }
     }
