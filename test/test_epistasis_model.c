@@ -311,52 +311,43 @@ START_TEST(test_get_counts_all_folds_order_3) {
     combination_counts_all_folds(order, masks_folds, num_folds,
                                  combinations, info, 
                                  counts_o3_aff, counts_o3_unaff);
-/*
-    fail_if(num_counts != 27, "There must be 27 order 3 combinations");
-*/
     
-//     for (int i = 0; i < order; i++) {
-//         print_gt_combination(masks + i * 3 * info.num_samples_per_mask, i, 3 * info.num_samples_per_mask);
-//     }
+    // Some elements from fold 0
+    fail_if(counts_o3_aff[0] != 0 || counts_o3_unaff[0] != 0, "A(0,0,0) -> 0,0");
+    fail_if(counts_o3_aff[1] != 2 || counts_o3_unaff[1] != 1, "A(0,0,1) -> 2,1");
+    fail_if(counts_o3_aff[2] != 0 || counts_o3_unaff[2] != 0, "A(0,0,2) -> 0,0");
+    fail_if(counts_o3_aff[4] != 0 || counts_o3_unaff[4] != 1, "A(0,1,1) -> 0,1");
+    fail_if(counts_o3_aff[5] != 0 || counts_o3_unaff[5] != 0, "A(0,1,2) -> 0,0");
+    fail_if(counts_o3_aff[8] != 0 || counts_o3_unaff[8] != 1, "A(0,2,2) -> 0,1");
     
-    int idx = 0;
-    fail_if(counts_o3_aff[idx] != 0     || counts_o3_unaff[idx] != 0, "A(0,0,0) -> 0,0");
-    fail_if(counts_o3_aff[idx + 1] != 2 || counts_o3_unaff[idx + 1] != 0, "A(0,0,1) -> 2,0");
-    fail_if(counts_o3_aff[idx + 2] != 0 || counts_o3_unaff[idx + 2] != 0, "A(0,0,2) -> 0,0");
+    fail_if(counts_o3_aff[9]  != 0 || counts_o3_unaff[9]  != 0, "A(1,0,0) -> 0,0");
+    fail_if(counts_o3_aff[11] != 0 || counts_o3_unaff[11] != 1, "A(1,0,2) -> 0,1");
+    fail_if(counts_o3_aff[12] != 1 || counts_o3_unaff[12] != 0, "A(1,1,0) -> 1,0");
+    fail_if(counts_o3_aff[15] != 0 || counts_o3_unaff[15] != 0, "A(1,2,0) -> 0,0");
     
-    fail_if(counts_o3_aff[idx + 3] != 0 || counts_o3_unaff[idx + 3] != 1, "A(0,1,0) -> 0,1");
-    fail_if(counts_o3_aff[idx + 4] != 0 || counts_o3_unaff[idx + 4] != 0, "A(0,1,1) -> 0,0");
-    fail_if(counts_o3_aff[idx + 5] != 1 || counts_o3_unaff[idx + 5] != 0, "A(0,1,2) -> 1,0");
+    fail_if(counts_o3_aff[18] != 0 || counts_o3_unaff[18] != 0, "A(2,0,0) -> 0,0");
+    fail_if(counts_o3_aff[19] != 1 || counts_o3_unaff[19] != 1, "A(2,0,1) -> 1,1");
+    fail_if(counts_o3_aff[21] != 0 || counts_o3_unaff[21] != 1, "A(2,1,0) -> 0,1");
+    fail_if(counts_o3_aff[24] != 0 || counts_o3_unaff[24] != 1, "A(2,2,0) -> 0,1");
     
-    fail_if(counts_o3_aff[idx + 6] != 0 || counts_o3_unaff[idx + 6] != 0, "A(0,2,0) -> 0,0");
-    fail_if(counts_o3_aff[idx + 7] != 0 || counts_o3_unaff[idx + 7] != 0, "A(0,2,1) -> 0,0");
-    fail_if(counts_o3_aff[idx + 8] != 0 || counts_o3_unaff[idx + 8] != 0, "A(0,2,2) -> 0,0");
+    // Some elements from fold 1
+    int base_idx = 27;
+    fail_if(counts_o3_aff[base_idx + 0] != 0 || counts_o3_unaff[base_idx + 0] != 0, "A(0,0,0) -> 0,0");
+    fail_if(counts_o3_aff[base_idx + 1] != 2 || counts_o3_unaff[base_idx + 1] != 0, "A(0,0,1) -> 2,0");
+    fail_if(counts_o3_aff[base_idx + 2] != 0 || counts_o3_unaff[base_idx + 2] != 0, "A(0,0,2) -> 0,0");
+    fail_if(counts_o3_aff[base_idx + 4] != 0 || counts_o3_unaff[base_idx + 4] != 1, "A(0,1,1) -> 0,1");
+    fail_if(counts_o3_aff[base_idx + 5] != 1 || counts_o3_unaff[base_idx + 5] != 0, "A(0,1,2) -> 1,0");
+    fail_if(counts_o3_aff[base_idx + 8] != 0 || counts_o3_unaff[base_idx + 8] != 1, "A(0,2,2) -> 0,1");
     
-    idx = 9;
-    fail_if(counts_o3_aff[idx] != 0     || counts_o3_unaff[idx] != 0, "A(1,0,0) -> 0,0");
-    fail_if(counts_o3_aff[idx + 1] != 0 || counts_o3_unaff[idx + 1] != 0, "A(1,0,1) -> 0,0");
-    fail_if(counts_o3_aff[idx + 2] != 0 || counts_o3_unaff[idx + 2] != 1, "A(1,0,2) -> 0,1");
+    fail_if(counts_o3_aff[base_idx + 9]  != 0 || counts_o3_unaff[base_idx + 9]  != 0, "A(1,0,0) -> 0,0");
+    fail_if(counts_o3_aff[base_idx + 11] != 0 || counts_o3_unaff[base_idx + 11] != 2, "A(1,0,2) -> 0,2");
+    fail_if(counts_o3_aff[base_idx + 12] != 0 || counts_o3_unaff[base_idx + 12] != 0, "A(1,1,0) -> 0,0");
+    fail_if(counts_o3_aff[base_idx + 15] != 0 || counts_o3_unaff[base_idx + 15] != 0, "A(1,2,0) -> 0,0");
     
-    fail_if(counts_o3_aff[idx + 3] != 1 || counts_o3_unaff[idx + 3] != 0, "A(1,1,0) -> 1,0");
-    fail_if(counts_o3_aff[idx + 4] != 0 || counts_o3_unaff[idx + 4] != 0, "A(1,1,1) -> 0,0");
-    fail_if(counts_o3_aff[idx + 5] != 0 || counts_o3_unaff[idx + 5] != 0, "A(1,1,2) -> 0,0");
-    
-    fail_if(counts_o3_aff[idx + 6] != 0 || counts_o3_unaff[idx + 6] != 0, "A(1,2,0) -> 0,0");
-    fail_if(counts_o3_aff[idx + 7] != 0 || counts_o3_unaff[idx + 7] != 0, "A(1,2,1) -> 0,0");
-    fail_if(counts_o3_aff[idx + 8] != 0 || counts_o3_unaff[idx + 8] != 0, "A(1,2,2) -> 0,0");
-    
-    idx = 18;
-    fail_if(counts_o3_aff[idx] != 0     || counts_o3_unaff[idx] != 1, "A(2,0,0) -> 0,1");
-    fail_if(counts_o3_aff[idx + 1] != 0 || counts_o3_unaff[idx + 1] != 0, "A(2,0,1) -> 0,0");
-    fail_if(counts_o3_aff[idx + 2] != 0 || counts_o3_unaff[idx + 2] != 0, "A(2,0,2) -> 0,0");
-    
-    fail_if(counts_o3_aff[idx + 3] != 0 || counts_o3_unaff[idx + 3] != 1, "A(2,1,0) -> 0,1");
-    fail_if(counts_o3_aff[idx + 4] != 0 || counts_o3_unaff[idx + 4] != 0, "A(2,1,1) -> 0,0");
-    fail_if(counts_o3_aff[idx + 5] != 0 || counts_o3_unaff[idx + 5] != 0, "A(2,1,2) -> 0,0");
-    
-    fail_if(counts_o3_aff[idx + 6] != 0 || counts_o3_unaff[idx + 6] != 0, "A(2,2,0) -> 0,0");
-    fail_if(counts_o3_aff[idx + 7] != 0 || counts_o3_unaff[idx + 7] != 0, "A(2,2,1) -> 0,0");
-    fail_if(counts_o3_aff[idx + 8] != 0 || counts_o3_unaff[idx + 8] != 0, "A(2,2,2) -> 0,0");
+    fail_if(counts_o3_aff[base_idx + 18] != 0 || counts_o3_unaff[base_idx + 18] != 1, "A(2,0,0) -> 0,1");
+    fail_if(counts_o3_aff[base_idx + 19] != 1 || counts_o3_unaff[base_idx + 19] != 1, "A(2,0,1) -> 1,1");
+    fail_if(counts_o3_aff[base_idx + 21] != 0 || counts_o3_unaff[base_idx + 21] != 1, "A(2,1,0) -> 0,1");
+    fail_if(counts_o3_aff[base_idx + 24] != 0 || counts_o3_unaff[base_idx + 24] != 1, "A(2,2,0) -> 0,1");
     
     free(combinations);
 }

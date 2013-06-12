@@ -118,7 +118,7 @@ void combination_counts(int order, uint8_t *masks, uint8_t **genotype_permutatio
         uint8_t *rc_masks = info.masks + rc * order * NUM_GENOTYPES * info.num_samples_with_padding;
         for (int c = 0; c < num_genotype_permutations; c++) {
             permutation = genotype_permutations[c];
-             print_gt_combination(permutation, c, order);
+            // print_gt_combination(permutation, c, order);
             count = 0;
 
             for (int i = 0; i < info.num_affected; i += 16) {
@@ -183,9 +183,6 @@ void combination_counts_all_folds(int order, uint8_t *fold_masks, int num_folds,
             // print_gt_combination(permutation, c, order);
             
             memset(count, 0, num_folds * sizeof(int));
-/*
-            count = 0;
-*/
 
             for (int i = 0; i < info.num_affected; i += 16) {
                 // Aligned loading
@@ -198,40 +195,23 @@ void combination_counts_all_folds(int order, uint8_t *fold_masks, int num_folds,
                     snp_and = _mm_and_si128(snp_and, snp_cmp);
                 }
 
-                printf("Affected in position %d: ", i);
-                print128_num(snp_and);
-                
-                // TODO Final AND with fold_masks
+                // Final AND with fold_masks
                 for (int f = 0; f < num_folds; f++) {
                     snp_cmp = _mm_load_si128(fold_masks + f * info.num_samples_with_padding + i);
-                    snp_result = _mm_and_si128(snp_and, snp_cmp);  // snp_cmp contains the ones NOT in the training set
-                    
-                    printf("Fold mask %d: ", i);
-                    print128_num(snp_cmp);
-                    
-                    printf("* Affected in position %d: ", i);
-                    print128_num(snp_result);
+                    snp_result = _mm_and_si128(snp_and, snp_cmp);
                     
                     count[f] += _mm_popcnt_u64(_mm_extract_epi64(snp_result, 0)) +
                                 _mm_popcnt_u64(_mm_extract_epi64(snp_result, 1));
                 }
             }
 
-            // TODO Assign to count in fold
+            // Assign to count in fold
             for (int f = 0; f < num_folds; f++) {
-/*
-                LOG_DEBUG_F("%d) aff comb idx (%d) = %d\n", f, c, count[f] / 8);
-                counts_aff[rc * num_folds * info.num_cell_counts_per_combination + f * info.num_cell_counts_per_combination + c] = count[f] / 8;
-*/
                 LOG_DEBUG_F("%d) aff comb idx (%d) = %d\n", f, c, count[f]);
                 counts_aff[rc * num_folds * info.num_cell_counts_per_combination + f * info.num_cell_counts_per_combination + c] = count[f];
             }
 
             memset(count, 0, num_folds * sizeof(int));
-            printf("----------------\n");
-/*
-            count = 0;
-*/
 
             for (int i = 0; i < info.num_unaffected; i += 16) {
                 // Aligned loading
@@ -244,36 +224,21 @@ void combination_counts_all_folds(int order, uint8_t *fold_masks, int num_folds,
                     snp_and = _mm_and_si128(snp_and, snp_cmp);
                 }
 
-                printf("Unaffected in position %d: ", i);
-                print128_num(snp_and);
-                
                 // TODO Final AND with fold_masks
                 for (int f = 0; f < num_folds; f++) {
                     snp_cmp = _mm_load_si128(fold_masks + f * info.num_samples_with_padding + info.num_affected_with_padding + i);
-                    snp_result = _mm_and_si128(snp_cmp, snp_and);  // snp_cmp contains the ones NOT in the training set
-                    
-                    printf("Fold mask %d: ", i);
-                    print128_num(snp_cmp);
-                    
-                    printf("* Unaffected in position %d: ", i);
-                    print128_num(snp_result);
+                    snp_result = _mm_and_si128(snp_cmp, snp_and);
                     
                     count[f] += _mm_popcnt_u64(_mm_extract_epi64(snp_result, 0)) +
                                 _mm_popcnt_u64(_mm_extract_epi64(snp_result, 1));
                 }
             }
 
-            // TODO Assign to count in fold
+            // Assign to count in fold
             for (int f = 0; f < num_folds; f++) {
-/*
-                LOG_DEBUG_F("%d) unaff comb idx (%d) = %d\n", f, c, count[f] / 8);
-                counts_unaff[rc * num_folds * info.num_cell_counts_per_combination + f * info.num_cell_counts_per_combination + c] = count[f] / 8;
-*/
                 LOG_DEBUG_F("%d) unaff comb idx (%d) = %d\n", f, c, count[f]);
                 counts_unaff[rc * num_folds * info.num_cell_counts_per_combination + f * info.num_cell_counts_per_combination + c] = count[f];
             }
-
-            printf("\n=================\n");
         }
     }
 }
