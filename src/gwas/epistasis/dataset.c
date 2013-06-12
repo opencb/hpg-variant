@@ -125,7 +125,7 @@ int get_next_combination_in_block(int order, int comb[order], int block_coordina
 }
 
 uint8_t **get_genotype_combinations(int order, int *num_combinations) {
-    *num_combinations = pow(3, order);
+    *num_combinations = pow(NUM_GENOTYPES, order);
     uint8_t **combinations = malloc (*num_combinations * sizeof(uint8_t*));
     combinations[0] = calloc(order, sizeof(uint8_t));
     

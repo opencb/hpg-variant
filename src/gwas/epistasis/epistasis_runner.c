@@ -46,10 +46,12 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
     /*************** Precalculate the rest of variables the algorithm needs  ***************/
     
     int order = options_data->order;
+    int stride = options_data->stride;
+    int num_folds = options_data->num_folds;
     int num_samples = num_affected + num_unaffected;
-    int num_blocks_per_dim = ceil((double) num_variants / options_data->stride);
+    int num_blocks_per_dim = ceil((double) num_variants / stride);
     
-    LOG_INFO_F("Combinations of order %d, %d variants per block\n", options_data->order, options_data->stride); 
+    LOG_INFO_F("Combinations of order %d, %d variants per block\n", order, stride);
     LOG_INFO_F("%d variants, %d blocks per dimension\n", num_variants, num_blocks_per_dim);
     
     // Precalculate which genotype combinations can be tested for a given order (order 2 -> {(0,0), (0,1), ... , (2,1), (2,2)})
@@ -65,333 +67,505 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
     for (int r = 0; r < options_data->num_cv_repetitions; r++) {
         LOG_INFO_F("Running cross-validation #%d...\n", r+1);
         
+        // Masks information (number (un)affected with padding, buffers, and so on)
+        masks_info info; masks_info_init(order, COMBINATIONS_ROW_SSE, num_affected, num_unaffected, &info);
+
         // Initialize folds, first block coordinates, genotype combinations and rankings for each repetition
         unsigned int *sizes, *training_sizes;
-        int **folds = get_k_folds(num_affected, num_unaffected, options_data->num_folds, &sizes);
-        uint8_t *fold_masks = get_k_folds_masks(num_affected, num_unaffected, options_data->num_folds, folds, sizes);
+        int **folds = get_k_folds(num_affected, num_unaffected, num_folds, &sizes);
+        uint8_t *fold_masks = get_k_folds_masks(num_affected, num_unaffected, num_folds, folds, sizes);
         
         // Calculate size of training datasets
-        training_sizes = calloc(3 * options_data->num_folds, sizeof(unsigned int));
-        for (int i = 0; i < options_data->num_folds; i++) {
+        training_sizes = calloc(3 * num_folds, sizeof(unsigned int));
+        for (int i = 0; i < num_folds; i++) {
             training_sizes[3 * i] = num_samples - sizes[3 * i];
             training_sizes[3 * i + 1] = num_affected - sizes[3 * i + 1];
             training_sizes[3 * i + 2] = num_unaffected - sizes[3 * i + 2];
         }
         
         // Initialize rankings for each repetition
-        linked_list_t *ranking_risky[options_data->num_folds];
-        for (int i = 0; i < options_data->num_folds; i++) {
+        linked_list_t *ranking_risky[num_folds];
+        for (int i = 0; i < num_folds; i++) {
             ranking_risky[i] = linked_list_new(COLLECTION_MODE_ASYNCHRONIZED);
         }
         
-        // Run for each fold
-        #pragma omp parallel for firstprivate(sizes, training_sizes) num_threads(shared_options_data->num_threads)
-        for (int i = 0; i < options_data->num_folds; i++) {
-            // Masks information (number (un)affected with padding, buffers, and so on)
-            masks_info info; masks_info_init(order, COMBINATIONS_ROW_SSE, training_sizes[3 * i + 1], training_sizes[3 * i + 2], &info);
-            // Coordinates of the block being tested
-            int block_coords[order]; memset(block_coords, 0, order * sizeof(int));
-            // Coordinates of the previous block (for reducing data copies)
-            int prev_block_coords[order];
+        // Coordinates of the block being tested
+        int block_coords[order]; memset(block_coords, 0, order * sizeof(int));
+        // Coordinates of the previous block (for reducing data copies)
+        int prev_block_coords[order];
+        for (int s = 0; s < order; s++) {
+            prev_block_coords[s] = -1;
+        }
+        // Scratchpad for block genotypes
+        uint8_t *scratchpad[order];
+        for (int s = 0; s < order; s++) {
+            scratchpad[s] = _mm_malloc(stride * info.num_samples_with_padding * sizeof(uint8_t), 16);
+        }
+        // Genotypes for the current block
+        uint8_t *block_genotypes[order];
+
+        // Counts per genotype combination
+        // Grouped by combination, then fold, then permutation, so there is spatial locality when getting confusion matrix
+        int max_num_counts = 16 * (int) ceil(((double) info.num_cell_counts_per_combination * info.num_combinations_in_a_row * num_folds) / 16);
+        int *counts_aff = _mm_malloc(max_num_counts * sizeof(int), 16);
+        int *counts_unaff = _mm_malloc(max_num_counts * sizeof(int), 16);
+        
+        do {
+            // TODO OpenMP parallelization: Each block will be run in a separate thread
+
+            // -------------------- Get genotypes of block --------------------
+
+            uint8_t *block_starts[order];
+//             printf("block starts = { ");
             for (int s = 0; s < order; s++) {
-                prev_block_coords[s] = -1;
+                block_starts[s] = genotypes + block_coords[s] * stride * num_samples;
+//                 printf("%d ", block_coords[s] * stride);
             }
-            // Scratchpad for block genotypes
-            uint8_t *scratchpad[order];
-            for (int s = 0; s < order; s++) {
-                scratchpad[s] = _mm_malloc(options_data->stride * info.num_samples_per_mask * sizeof(uint8_t), 16);
+//             printf("}\n");
+
+            // Initialize first coordinate (only if it's different from the previous)
+            if (prev_block_coords[0] != block_coords[0]) {
+//                block_genotypes[0] = get_genotypes_for_block_exclude_fold(num_variants, num_samples, info, sizes[3 * i], folds[i],
+//                                                                          stride, block_coords[0], block_starts[0],
+//                                                                          scratchpad[0]);
+                block_genotypes[0] = get_genotypes_for_block(num_variants, num_samples, info, stride,
+                                                             block_coords[0], block_starts[0], scratchpad[0]);
             }
-            // Genotypes for the current block (and excluding a fold)
-            uint8_t *block_genotypes[order];
+
+            // Initialize the rest of coordinates
+            for (int m = 1; m < order; m++) {
+                if (prev_block_coords[m] != block_coords[m]) {
+                    bool already_present = false;
+                    // If any coordinate is the same as a previous one, don't copy, but reference directly
+                    for (int n = 0; n < m; n++) {
+                        if (block_coords[m] == block_coords[n]) {
+//                             printf("taking %d -> %d\n", n, m);
+                            block_genotypes[m] = block_genotypes[n];
+                            already_present = true;
+                            break;
+                        }
+                    }
+
+                    if (!already_present) {
+                        // If not equals to a previous one, retrieve data
+//                         printf("getting %d\n", m);
+//                        block_genotypes[m] = get_genotypes_for_block_exclude_fold(num_variants, num_samples, info, sizes[3 * i], folds[i],
+//                                                                                stride, block_coords[m], block_starts[m],
+//                                                                                scratchpad[m]);
+                        block_genotypes[m] = get_genotypes_for_block(num_variants, num_samples, info, stride,
+                                                                     block_coords[m], block_starts[m], scratchpad[m]);
+                    }
+                }
+            }
+
+
+//            printf("padded block (%d*%d) = {\n", stride, info.num_samples_with_padding);
+//            for (int m = 0; m < MIN(stride, num_variants); m++) {
+//                for (int n = 0; n < info.num_samples_with_padding; n++) {
+//                    printf("%d ", block_genotypes[0][m * info.num_samples_with_padding + n]);
+//                }
+//                printf("\n");
+//            }
+//            printf("}\n");
+//
+//            printf("padded block (%d*%d) = {\n", stride, info.num_samples_with_padding);
+//            for (int m = 0; m < MIN(stride, num_variants); m++) {
+//                for (int n = 0; n < info.num_samples_with_padding; n++) {
+//                    printf("%d ", block_genotypes[1][m * info.num_samples_with_padding + n]);
+//                }
+//                printf("\n");
+//            }
+//            printf("}\n-------------------------\n");
+
+            // -------------------- Get genotypes of block (end) --------------------
+
             // Combination of variants being tested
             int comb[order];
-            // Counts per genotype combination
-            int max_num_counts = 16 * (int) ceil(((double) info.num_counts_per_combination * info.num_combinations_in_a_row) / 16);
-            int *counts_aff = _mm_malloc(max_num_counts * sizeof(int), 16);
-            int *counts_unaff = _mm_malloc(max_num_counts * sizeof(int), 16);
-            // Confusion matrix
-            unsigned int conf_matrix[4];
-            // Last rejected risky combination
-            risky_combination *risky_rejected = NULL;
-            
+            // Array of combinations to process in a row
+            int combs[info.num_combinations_in_a_row * order];
+            int cur_comb_idx = -1;
+
+            // Test first combination in the block
+            get_first_combination_in_block(order, comb, block_coords, stride);
+
             do {
-                uint8_t *block_starts[order];
-    //             printf("block starts = { ");
-                for (int s = 0; s < order; s++) {
-                    block_starts[s] = genotypes + block_coords[s] * options_data->stride * num_samples;
-    //                 printf("%d ", block_coords[s] * options_data->stride);
+
+                // print_combination(comb, 0, order);
+
+                cur_comb_idx = (cur_comb_idx < info.num_combinations_in_a_row - 1) ? cur_comb_idx+1 : 0;
+                memcpy(combs + cur_comb_idx * order, comb, order * sizeof(int));
+
+                if (cur_comb_idx < info.num_combinations_in_a_row - 1) {
+                    continue; // Nothing to do until we have an amount (COMBINATIONS_ROW_SSE) of combinations ready
                 }
-    //             printf("}\n");
-                
-                // Initialize first coordinate (only if it's different from the previous)
-                if (prev_block_coords[0] != block_coords[0]) {
-                    block_genotypes[0] = get_genotypes_for_block_exclude_fold(num_variants, num_samples, info, sizes[3 * i], folds[i], 
-                                                                              options_data->stride, block_coords[0], block_starts[0],
-                                                                              scratchpad[0]);
-                }
-                
-                // Initialize the rest of coordinates. If any of them is the same as a previous one, don't copy, but reference directly
-                for (int m = 1; m < order; m++) {
-                    if (prev_block_coords[m] != block_coords[m]) {
-                        bool already_present = false;
-                        for (int n = 0; n < m; n++) {
-                            if (block_coords[m] == block_coords[n]) {
-    //                             printf("taking %d -> %d\n", n, m);
-                                block_genotypes[m] = block_genotypes[n];
-                                already_present = true;
-                                break;
-                            } 
-                        }
 
-                        if (!already_present) {
-                            // If not equals to a previous one, retrieve data
-    //                         printf("getting %d\n", m);
-                            block_genotypes[m] = get_genotypes_for_block_exclude_fold(num_variants, num_samples, info, sizes[3 * i], folds[i], 
-                                                                                    options_data->stride, block_coords[m], block_starts[m],
-                                                                                    scratchpad[m]);
-                        }
-                    }
-                }
-                
-/*
-                printf("padded block (%d*%d) = {\n", options_data->stride, info.num_samples_per_mask);
-                for (int m = 0; m < MIN(options_data->stride, num_variants); m++) {
-                    for (int n = 0; n < info.num_samples_per_mask; n++) {
-                        printf("%d ", block_genotypes[0][m * info.num_samples_per_mask + n]);
-                    }
-                    printf("\n");
-                }
-                printf("}\n");
-*/
-               
-                // Array of combinations to process in a row
-                int combs[info.num_combinations_in_a_row * order];
-                int cur_comb_idx = -1;
-                
-                // Test first combination in the block
-                get_first_combination_in_block(order, comb, block_coords, options_data->stride);
-                
-                do {
-                    
-//                     print_combination(comb, 0, order);
-                    
-                    cur_comb_idx = (cur_comb_idx < info.num_combinations_in_a_row - 1) ? cur_comb_idx+1 : 0;
-                    memcpy(combs + cur_comb_idx * order, comb, order * sizeof(int));
-                    
-                    if (cur_comb_idx < info.num_combinations_in_a_row - 1) {
-                        continue; // Nothing to do until we have an amount (COMBINATIONS_ROW_SSE) of combinations ready
-                    }
-                    
-                    // Get genotypes of that combination
-                    uint8_t *combination_genotypes[info.num_combinations_in_a_row * order];
-                    for (int c = 0; c < info.num_combinations_in_a_row; c++) {
-                        for (int s = 0; s < order; s++) {
-                            // Get combination address from block
-                            combination_genotypes[c * order + s] = block_genotypes[s] + 
-                                                                   (combs[c * order + s] % options_data->stride) * info.num_samples_per_mask;
-                        }
-                    }
-                    
-                    // Get counts for the provided genotypes
-                    uint8_t *masks = set_genotypes_masks(order, combination_genotypes, info.num_combinations_in_a_row, info); // Grouped by SNP
-                    combination_counts(order, masks, genotype_permutations, num_genotype_permutations, counts_aff, counts_unaff, info);
-                    
-                    // Get high risk pairs for those counts
-                    void *aux_info;
-                    unsigned int num_risky[info.num_combinations_in_a_row]; memset(num_risky, 0, info.num_combinations_in_a_row * sizeof(int));
-                    int *risky_idx = choose_high_risk_combinations2(counts_aff, counts_unaff, 
-                                                                    info.num_combinations_in_a_row, info.num_counts_per_combination, 
-                                                                    info.num_affected, info.num_unaffected, 
-                                                                    num_risky, &aux_info, mdr_high_risk_combinations2);
-                    
-/*
-                    printf("num risky = { ");
-                    for (int rc = 0; rc < info.num_combinations_in_a_row; rc++) {
-                        printf("%d ", num_risky[rc]);
-                    }
-                    printf("}\n");
-                    
-                    printf("risky gts = { ");
-                    for (int rc = 0; rc < info.num_combinations_in_a_row * info.num_counts_per_combination; rc++) {
-                        printf("%d ", risky_idx[rc]);
-                    }
-                    printf("}\n");
-*/
-                    
-                    int risky_begin_idx = 0;
-                    for (int rc = 0; rc < info.num_combinations_in_a_row; rc++) {
-                        uint8_t *comb = combs + rc * order;
-                        uint8_t **my_genotypes = combination_genotypes + rc * order;
-                        
-                        // ------------------- BEGIN get_model_from_combination_in_fold -----------------------
-                        
-                        risky_combination *risky_comb = NULL;
+                // -------------------- Get genotypes of combinations --------------------
 
-                        // Filter non-risky SNP combinations
-                        if (num_risky > 0) {
-                            // Put together the info about the SNP combination and its genotype combinations
-                            if (risky_rejected) {
-                                risky_comb = risky_combination_copy(order, comb, genotype_permutations, 
-                                                                    num_risky[rc], risky_idx + risky_begin_idx,
-                                                                    aux_info, risky_rejected);
-                            } else {
-                                risky_comb = risky_combination_new(order, comb, genotype_permutations, 
-                                                                   num_risky[rc], risky_idx + risky_begin_idx,
-                                                                   aux_info);
-                            }
-                        }
-
-                        risky_begin_idx += num_risky[rc];
-
-                        // ------------------- END get_model_from_combination_in_fold -----------------------
-                        
-                        if (risky_comb) {
-                            // Check the model against the testing dataset
-                            double accuracy = 0.0f;
-
-    //                        if (options_data->evaluation_mode == TESTING) {
-    //                             uint8_t *testing_genotypes = get_genotypes_for_combination_and_fold(order, risky_comb->combination, 
-    //                                                                                                 num_samples, sizes[3 * i + 1] + sizes[3 * i + 2], 
-    //                                                                                                 folds[i], options_data->stride, block_starts);
-    //                             accuracy = test_model(order, risky_comb, testing_genotypes, sizes[3 * i + 1], sizes[3 * i + 2], &confusion_time);
-    //                             free(testing_genotypes);
-    //                        } else {
-                                accuracy = test_model(order, risky_comb, my_genotypes, info, conf_matrix);
-    //                        }
-    //                         printf("*  Balanced accuracy: %.3f\n", accuracy);
-
-                            int position = add_to_model_ranking(risky_comb, options_data->max_ranking_size, ranking_risky[i], &risky_rejected);
-        //                     if (position >= 0) {
-        //                         printf("Combination inserted at position %d\n", position);
-        //                     } else {
-        //                         printf("Combination not inserted\n");
-        //                     }
-
-                            // If not inserted it means it is not among the most risky combinations, so free it
-                            if (position < 0 && risky_comb != risky_rejected) {
-                                risky_combination_free(risky_comb);
-                            }
-                        }
-                        
-                    }
-                    
-                    free(risky_idx);
-
-//                     free(reference);
-
-//                     for (int c = 0; c < num_samples; c++) {
-//                         free(genotypes_for_testing[c]);
-//                     }
-//                     free(genotypes_for_testing);
-                    
-                } while (get_next_combination_in_block(order, comb, block_coords, options_data->stride, num_variants)); // Test next combinations
-                
-                // TODO -------------- Run check for last combinations -------------
-                
-                // Get genotypes of that combination
+                // Get genotypes of a row of combinations
                 uint8_t *combination_genotypes[info.num_combinations_in_a_row * order];
-                for (int c = 0; c < cur_comb_idx + 1; c++) {
+                for (int c = 0; c < info.num_combinations_in_a_row; c++) {
                     for (int s = 0; s < order; s++) {
-                        // Get combination address from block
-                        combination_genotypes[c * order + s] = block_genotypes[s] + 
-                                                                (combs[c * order + s] % options_data->stride) * info.num_samples_per_mask;
+                        // Derive combination address from block
+                        combination_genotypes[c * order + s] = block_genotypes[s] +
+                                                               (combs[c * order + s] % stride) * info.num_samples_with_padding;
                     }
                 }
-                
-                // Get counts for the provided genotypes
-                uint8_t *masks = set_genotypes_masks(order, combination_genotypes, cur_comb_idx + 1, info); // Grouped by SNP
-                combination_counts(order, masks, genotype_permutations, num_genotype_permutations, counts_aff, counts_unaff, info);
 
-                // Get high risk pairs for those counts
-                void *aux_info;
-                unsigned int num_risky[info.num_combinations_in_a_row]; memset(num_risky, 0, info.num_combinations_in_a_row * sizeof(int));
-                int *risky_idx = choose_high_risk_combinations2(counts_aff, counts_unaff, 
-                                                                info.num_combinations_in_a_row, info.num_counts_per_combination, 
-                                                                info.num_affected, info.num_unaffected, 
-                                                                num_risky, &aux_info, mdr_high_risk_combinations2);
-                
-                int risky_begin_idx = 0;
-                for (int rc = 0; rc < cur_comb_idx + 1; rc++) {
-                    uint8_t *comb = combs + rc * order;
-                    uint8_t **my_genotypes = combination_genotypes + rc * order;
+                // -------------------- Get genotypes of combinations (end) -------------------
 
-                    // ------------------- BEGIN get_model_from_combination_in_fold -----------------------
 
-                    risky_combination *risky_comb = NULL;
+                // -------------------- Get genotype masks of combinations --------------------
 
-                    // Filter non-risky SNP combinations
-                    if (num_risky > 0) {
-                        // Put together the info about the SNP combination and its genotype combinations
-                        if (risky_rejected) {
-                            risky_comb = risky_combination_copy(order, comb, genotype_permutations, 
-                                                                num_risky[rc], risky_idx + risky_begin_idx,
-                                                                aux_info, risky_rejected);
-                        } else {
-                            risky_comb = risky_combination_new(order, comb, genotype_permutations, 
-                                                                num_risky[rc], risky_idx + risky_begin_idx,
-                                                                aux_info);
-                        }
-                    }
-                    
-                    risky_begin_idx += num_risky[rc];
+                // TODO get_genotypes_masks_for_block instead of for combinations list
+                // would reduce the number of masks stored but also
+                // reduce data locality when copying to SSE registers
+                uint8_t *masks = set_genotypes_masks(order, combination_genotypes, info.num_combinations_in_a_row, info); // Grouped by SNP
 
-                    // ------------------- END get_model_from_combination_in_fold -----------------------
-
-                    if (risky_comb) {
-                        // Check the model against the testing dataset
-                        double accuracy = 0.0f;
-
-//                        if (options_data->evaluation_mode == TESTING) {
-//                             uint8_t *testing_genotypes = get_genotypes_for_combination_and_fold(order, risky_comb->combination, 
-//                                                                                                 num_samples, sizes[3 * i + 1] + sizes[3 * i + 2], 
-//                                                                                                 folds[i], options_data->stride, block_starts);
-//                             accuracy = test_model(order, risky_comb, testing_genotypes, sizes[3 * i + 1], sizes[3 * i + 2], &confusion_time);
-//                             free(testing_genotypes);
-//                        } else {
-                            accuracy = test_model(order, risky_comb, my_genotypes, info, conf_matrix);
+//                printf("masks = {\n");
+//                for (int c = 0; c < info.num_combinations_in_a_row; c++) {
+//                    uint8_t *base_pos = masks + c * info.num_masks;
+//                    printf("comb %d = {\n", c);
+//                    for (int m = 0; m < order; m++) {
+//                        for (int g = 0; g < NUM_GENOTYPES; g++) {
+//                            for (int s = 0; s < info.num_samples_with_padding; s++) {
+//                                printf("%3u ", base_pos[m * NUM_GENOTYPES * info.num_samples_with_padding + g * info.num_samples_with_padding + s]);//masks[c * info.num_masks + m * info.num_samples_with_padding + s]);
+//                            }
+//                            printf("\n");
 //                        }
-//                         printf("*  Balanced accuracy: %.3f\n", accuracy);
+//                        printf("\n");
+//                    }
+//                    printf("}\n");
+//                }
+//                printf("}\n-------------\n");
 
-                        int position = add_to_model_ranking(risky_comb, options_data->max_ranking_size, ranking_risky[i], &risky_rejected);
-    //                     if (position >= 0) {
-    //                         printf("Combination inserted at position %d\n", position);
-    //                     } else {
-    //                         printf("Combination not inserted\n");
-    //                     }
+                // -------------------- Get genotype masks of combinations (end) --------------------
 
-                        // If not inserted it means it is not among the most risky combinations, so free it
-                        if (position < 0 && risky_comb != risky_rejected) {
-                            risky_combination_free(risky_comb);
-                        }
-                    }
-                }
-                
-                free(risky_idx);
 
-                // TODO -------------- End check for last combinations -------------
-                
-                memcpy(prev_block_coords, block_coords, order * sizeof(int));
-            } while (get_next_block(num_blocks_per_dim, order, block_coords));
-            
-            _mm_free(info.masks);
-            for (int s = 0; s < order; s++) {
-                _mm_free(scratchpad[s]);
-            }
-            if (risky_rejected) {
-                risky_combination_free(risky_rejected);
-            }
-            _mm_free(counts_aff);
-            _mm_free(counts_unaff);
-        }
+                // -------------------- Get counts of combinations --------------------
+
+
+                // Get counts for the provided genotypes
+//                // TODO combination_counts
+//                combination_counts(order, masks, genotype_permutations, num_genotype_permutations, counts_aff, counts_unaff, info);
+//
+                // -------------------- Get counts of combinations (end) --------------------
+
+
+//                // TODO copy-paste of the rest of the pipeline (there's no difference in how it will be executed)
+
+            } while (get_next_combination_in_block(order, comb, block_coords, stride, num_variants));
+
+            // TODO process combinations out of a full set
+
+        } while (get_next_block(num_blocks_per_dim, order, block_coords));
+//        // Run for each fold
+//        #pragma omp parallel for firstprivate(sizes, training_sizes) num_threads(shared_options_data->num_threads)
+//        for (int i = 0; i < num_folds; i++) {
+//            // Masks information (number (un)affected with padding, buffers, and so on)
+//            masks_info info; masks_info_init(order, COMBINATIONS_ROW_SSE, training_sizes[3 * i + 1], training_sizes[3 * i + 2], &info);
+//            // Coordinates of the block being tested
+//            int block_coords[order]; memset(block_coords, 0, order * sizeof(int));
+//            // Coordinates of the previous block (for reducing data copies)
+//            int prev_block_coords[order];
+//            for (int s = 0; s < order; s++) {
+//                prev_block_coords[s] = -1;
+//            }
+//            // Scratchpad for block genotypes
+//            uint8_t *scratchpad[order];
+//            for (int s = 0; s < order; s++) {
+//                scratchpad[s] = _mm_malloc(stride * info.num_samples_per_mask * sizeof(uint8_t), 16);
+//            }
+//            // Genotypes for the current block (and excluding a fold)
+//            uint8_t *block_genotypes[order];
+//            // Combination of variants being tested
+//            int comb[order];
+//            // Counts per genotype combination
+//            int max_num_counts = 16 * (int) ceil(((double) info.num_counts_per_combination * info.num_combinations_in_a_row) / 16);
+//            int *counts_aff = _mm_malloc(max_num_counts * sizeof(int), 16);
+//            int *counts_unaff = _mm_malloc(max_num_counts * sizeof(int), 16);
+//            // Confusion matrix
+//            unsigned int conf_matrix[4];
+//            // Last rejected risky combination
+//            risky_combination *risky_rejected = NULL;
+//
+//            do {
+//                uint8_t *block_starts[order];
+//    //             printf("block starts = { ");
+//                for (int s = 0; s < order; s++) {
+//                    block_starts[s] = genotypes + block_coords[s] * stride * num_samples;
+//    //                 printf("%d ", block_coords[s] * stride);
+//                }
+//    //             printf("}\n");
+//
+//                // Initialize first coordinate (only if it's different from the previous)
+//                if (prev_block_coords[0] != block_coords[0]) {
+//                    block_genotypes[0] = get_genotypes_for_block_exclude_fold(num_variants, num_samples, info, sizes[3 * i], folds[i],
+//                                                                              stride, block_coords[0], block_starts[0],
+//                                                                              scratchpad[0]);
+//                }
+//
+//                // Initialize the rest of coordinates. If any of them is the same as a previous one, don't copy, but reference directly
+//                for (int m = 1; m < order; m++) {
+//                    if (prev_block_coords[m] != block_coords[m]) {
+//                        bool already_present = false;
+//                        for (int n = 0; n < m; n++) {
+//                            if (block_coords[m] == block_coords[n]) {
+//    //                             printf("taking %d -> %d\n", n, m);
+//                                block_genotypes[m] = block_genotypes[n];
+//                                already_present = true;
+//                                break;
+//                            }
+//                        }
+//
+//                        if (!already_present) {
+//                            // If not equals to a previous one, retrieve data
+//    //                         printf("getting %d\n", m);
+//                            block_genotypes[m] = get_genotypes_for_block_exclude_fold(num_variants, num_samples, info, sizes[3 * i], folds[i],
+//                                                                                    stride, block_coords[m], block_starts[m],
+//                                                                                    scratchpad[m]);
+//                        }
+//                    }
+//                }
+//
+///*
+//                printf("padded block (%d*%d) = {\n", stride, info.num_samples_per_mask);
+//                for (int m = 0; m < MIN(stride, num_variants); m++) {
+//                    for (int n = 0; n < info.num_samples_per_mask; n++) {
+//                        printf("%d ", block_genotypes[0][m * info.num_samples_per_mask + n]);
+//                    }
+//                    printf("\n");
+//                }
+//                printf("}\n");
+//*/
+//
+//                // Array of combinations to process in a row
+//                int combs[info.num_combinations_in_a_row * order];
+//                int cur_comb_idx = -1;
+//
+//                // Test first combination in the block
+//                get_first_combination_in_block(order, comb, block_coords, stride);
+//
+//                do {
+//
+////                     print_combination(comb, 0, order);
+//
+//                    cur_comb_idx = (cur_comb_idx < info.num_combinations_in_a_row - 1) ? cur_comb_idx+1 : 0;
+//                    memcpy(combs + cur_comb_idx * order, comb, order * sizeof(int));
+//
+//                    if (cur_comb_idx < info.num_combinations_in_a_row - 1) {
+//                        continue; // Nothing to do until we have an amount (COMBINATIONS_ROW_SSE) of combinations ready
+//                    }
+//
+//                    // Get genotypes of that combination
+//                    uint8_t *combination_genotypes[info.num_combinations_in_a_row * order];
+//                    for (int c = 0; c < info.num_combinations_in_a_row; c++) {
+//                        for (int s = 0; s < order; s++) {
+//                            // Get combination address from block
+//                            combination_genotypes[c * order + s] = block_genotypes[s] +
+//                                                                   (combs[c * order + s] % stride) * info.num_samples_per_mask;
+//                        }
+//                    }
+//
+//                    // Get counts for the provided genotypes
+//                    uint8_t *masks = set_genotypes_masks(order, combination_genotypes, info.num_combinations_in_a_row, info); // Grouped by SNP
+//                    combination_counts(order, masks, genotype_permutations, num_genotype_permutations, counts_aff, counts_unaff, info);
+//
+//                    // Get high risk pairs for those counts
+//                    void *aux_info;
+//                    unsigned int num_risky[info.num_combinations_in_a_row]; memset(num_risky, 0, info.num_combinations_in_a_row * sizeof(int));
+//                    int *risky_idx = choose_high_risk_combinations2(counts_aff, counts_unaff,
+//                                                                    info.num_combinations_in_a_row, info.num_counts_per_combination,
+//                                                                    info.num_affected, info.num_unaffected,
+//                                                                    num_risky, &aux_info, mdr_high_risk_combinations2);
+//
+///*
+//                    printf("num risky = { ");
+//                    for (int rc = 0; rc < info.num_combinations_in_a_row; rc++) {
+//                        printf("%d ", num_risky[rc]);
+//                    }
+//                    printf("}\n");
+//
+//                    printf("risky gts = { ");
+//                    for (int rc = 0; rc < info.num_combinations_in_a_row * info.num_counts_per_combination; rc++) {
+//                        printf("%d ", risky_idx[rc]);
+//                    }
+//                    printf("}\n");
+//*/
+//
+//                    int risky_begin_idx = 0;
+//                    for (int rc = 0; rc < info.num_combinations_in_a_row; rc++) {
+//                        uint8_t *comb = combs + rc * order;
+//                        uint8_t **my_genotypes = combination_genotypes + rc * order;
+//
+//                        // ------------------- BEGIN get_model_from_combination_in_fold -----------------------
+//
+//                        risky_combination *risky_comb = NULL;
+//
+//                        // Filter non-risky SNP combinations
+//                        if (num_risky > 0) {
+//                            // Put together the info about the SNP combination and its genotype combinations
+//                            if (risky_rejected) {
+//                                risky_comb = risky_combination_copy(order, comb, genotype_permutations,
+//                                                                    num_risky[rc], risky_idx + risky_begin_idx,
+//                                                                    aux_info, risky_rejected);
+//                            } else {
+//                                risky_comb = risky_combination_new(order, comb, genotype_permutations,
+//                                                                   num_risky[rc], risky_idx + risky_begin_idx,
+//                                                                   aux_info);
+//                            }
+//                        }
+//
+//                        risky_begin_idx += num_risky[rc];
+//
+//                        // ------------------- END get_model_from_combination_in_fold -----------------------
+//
+//                        if (risky_comb) {
+//                            // Check the model against the testing dataset
+//                            double accuracy = 0.0f;
+//
+//    //                        if (options_data->evaluation_mode == TESTING) {
+//    //                             uint8_t *testing_genotypes = get_genotypes_for_combination_and_fold(order, risky_comb->combination,
+//    //                                                                                                 num_samples, sizes[3 * i + 1] + sizes[3 * i + 2],
+//    //                                                                                                 folds[i], stride, block_starts);
+//    //                             accuracy = test_model(order, risky_comb, testing_genotypes, sizes[3 * i + 1], sizes[3 * i + 2], &confusion_time);
+//    //                             free(testing_genotypes);
+//    //                        } else {
+//                                accuracy = test_model(order, risky_comb, my_genotypes, info, conf_matrix);
+//    //                        }
+//    //                         printf("*  Balanced accuracy: %.3f\n", accuracy);
+//
+//                            int position = add_to_model_ranking(risky_comb, options_data->max_ranking_size, ranking_risky[i], &risky_rejected);
+//        //                     if (position >= 0) {
+//        //                         printf("Combination inserted at position %d\n", position);
+//        //                     } else {
+//        //                         printf("Combination not inserted\n");
+//        //                     }
+//
+//                            // If not inserted it means it is not among the most risky combinations, so free it
+//                            if (position < 0 && risky_comb != risky_rejected) {
+//                                risky_combination_free(risky_comb);
+//                            }
+//                        }
+//
+//                    }
+//
+//                    free(risky_idx);
+//
+////                     free(reference);
+//
+////                     for (int c = 0; c < num_samples; c++) {
+////                         free(genotypes_for_testing[c]);
+////                     }
+////                     free(genotypes_for_testing);
+//
+//                } while (get_next_combination_in_block(order, comb, block_coords, stride, num_variants)); // Test next combinations
+//
+//                // TODO -------------- Run check for last combinations -------------
+//
+//                // Get genotypes of that combination
+//                uint8_t *combination_genotypes[info.num_combinations_in_a_row * order];
+//                for (int c = 0; c < cur_comb_idx + 1; c++) {
+//                    for (int s = 0; s < order; s++) {
+//                        // Get combination address from block
+//                        combination_genotypes[c * order + s] = block_genotypes[s] +
+//                                                                (combs[c * order + s] % stride) * info.num_samples_per_mask;
+//                    }
+//                }
+//
+//                // Get counts for the provided genotypes
+//                uint8_t *masks = set_genotypes_masks(order, combination_genotypes, cur_comb_idx + 1, info); // Grouped by SNP
+//                combination_counts(order, masks, genotype_permutations, num_genotype_permutations, counts_aff, counts_unaff, info);
+//
+//                // Get high risk pairs for those counts
+//                void *aux_info;
+//                unsigned int num_risky[info.num_combinations_in_a_row]; memset(num_risky, 0, info.num_combinations_in_a_row * sizeof(int));
+//                int *risky_idx = choose_high_risk_combinations2(counts_aff, counts_unaff,
+//                                                                info.num_combinations_in_a_row, info.num_counts_per_combination,
+//                                                                info.num_affected, info.num_unaffected,
+//                                                                num_risky, &aux_info, mdr_high_risk_combinations2);
+//
+//                int risky_begin_idx = 0;
+//                for (int rc = 0; rc < cur_comb_idx + 1; rc++) {
+//                    uint8_t *comb = combs + rc * order;
+//                    uint8_t **my_genotypes = combination_genotypes + rc * order;
+//
+//                    // ------------------- BEGIN get_model_from_combination_in_fold -----------------------
+//
+//                    risky_combination *risky_comb = NULL;
+//
+//                    // Filter non-risky SNP combinations
+//                    if (num_risky > 0) {
+//                        // Put together the info about the SNP combination and its genotype combinations
+//                        if (risky_rejected) {
+//                            risky_comb = risky_combination_copy(order, comb, genotype_permutations,
+//                                                                num_risky[rc], risky_idx + risky_begin_idx,
+//                                                                aux_info, risky_rejected);
+//                        } else {
+//                            risky_comb = risky_combination_new(order, comb, genotype_permutations,
+//                                                                num_risky[rc], risky_idx + risky_begin_idx,
+//                                                                aux_info);
+//                        }
+//                    }
+//
+//                    risky_begin_idx += num_risky[rc];
+//
+//                    // ------------------- END get_model_from_combination_in_fold -----------------------
+//
+//                    if (risky_comb) {
+//                        // Check the model against the testing dataset
+//                        double accuracy = 0.0f;
+//
+////                        if (options_data->evaluation_mode == TESTING) {
+////                             uint8_t *testing_genotypes = get_genotypes_for_combination_and_fold(order, risky_comb->combination,
+////                                                                                                 num_samples, sizes[3 * i + 1] + sizes[3 * i + 2],
+////                                                                                                 folds[i], stride, block_starts);
+////                             accuracy = test_model(order, risky_comb, testing_genotypes, sizes[3 * i + 1], sizes[3 * i + 2], &confusion_time);
+////                             free(testing_genotypes);
+////                        } else {
+//                            accuracy = test_model(order, risky_comb, my_genotypes, info, conf_matrix);
+////                        }
+////                         printf("*  Balanced accuracy: %.3f\n", accuracy);
+//
+//                        int position = add_to_model_ranking(risky_comb, options_data->max_ranking_size, ranking_risky[i], &risky_rejected);
+//    //                     if (position >= 0) {
+//    //                         printf("Combination inserted at position %d\n", position);
+//    //                     } else {
+//    //                         printf("Combination not inserted\n");
+//    //                     }
+//
+//                        // If not inserted it means it is not among the most risky combinations, so free it
+//                        if (position < 0 && risky_comb != risky_rejected) {
+//                            risky_combination_free(risky_comb);
+//                        }
+//                    }
+//                }
+//
+//                free(risky_idx);
+//
+//                // TODO -------------- End check for last combinations -------------
+//
+//                memcpy(prev_block_coords, block_coords, order * sizeof(int));
+//            } while (get_next_block(num_blocks_per_dim, order, block_coords));
+//
+//            _mm_free(info.masks);
+//            for (int s = 0; s < order; s++) {
+//                _mm_free(scratchpad[s]);
+//            }
+//            if (risky_rejected) {
+//                risky_combination_free(risky_rejected);
+//            }
+//            _mm_free(counts_aff);
+//            _mm_free(counts_unaff);
+//        }
         
         // Merge all rankings in one
         size_t repetition_ranking_size = 0;
-        for (int i = 0; i < options_data->num_folds; i++) {
+        for (int i = 0; i < num_folds; i++) {
             repetition_ranking_size += ranking_risky[i]->size;
         }
         risky_combination *repetition_ranking[repetition_ranking_size];
         size_t current_index = 0;
-        for (int i = 0; i < options_data->num_folds; i++) {
+        for (int i = 0; i < num_folds; i++) {
             linked_list_iterator_t* iter = linked_list_iterator_new(ranking_risky[i]);
             
             risky_combination *element = NULL;
@@ -419,7 +593,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                 current->accuracy += element->accuracy;
                 risky_combination_free(element);
             } else {
-                current->accuracy /= options_data->num_folds;
+                current->accuracy /= num_folds;
                 int position = add_to_model_ranking(current, repetition_ranking_size, sorted_repetition_ranking, &removed);
                 current = element;
                 if (removed) {
@@ -443,7 +617,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
         best_models[r] = sorted_repetition_ranking;
         
         // Free data por this repetition
-        for (int i = 0; i < options_data->num_folds; i++) {
+        for (int i = 0; i < num_folds; i++) {
             free(folds[i]);
             linked_list_free(ranking_risky[i], NULL);
         }

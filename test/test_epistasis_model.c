@@ -185,6 +185,183 @@ START_TEST(test_get_counts) {
 }
 END_TEST
 
+START_TEST(test_get_counts_all_folds_order_2) {
+    int order = 2, num_folds = 5;
+    int num_affected = 5, num_unaffected = 10;
+    
+    // Genotypes of all SNPs
+    uint8_t masks_gt0[]   = { 0, 0, 1, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 1, 0, 2, 1, 0, 2, 1, 0, 2, 0, 0, 0, 0, 0, 0 };
+    uint8_t masks_gt1[]   = { 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 2, 2, 0, 0, 0, 0, 0, 0 };
+    uint8_t masks_gt2[]   = { 1, 2, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 1, 0, 1, 1, 1, 2, 2, 0, 0, 0, 0, 0, 0, 0 };
+    uint8_t *masks_genotypes[] = { masks_gt0, masks_gt1, masks_gt2 };
+    
+    // Masks that associate each sample to its folds
+    uint8_t masks_folds[] = { 1, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0,
+                              1, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0,
+                              1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0,
+                              1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0,
+                              0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0 };
+    
+    masks_info info; masks_info_init(order, 1, num_affected, num_unaffected, &info);
+    
+    uint8_t *masks = set_genotypes_masks(order, masks_genotypes, 1, info);
+    
+    int num_combinations;
+    uint8_t **combinations = get_genotype_combinations(order, &num_combinations);
+    
+    // Order 2
+    int num_counts = pow(NUM_GENOTYPES, order) * num_folds;
+    int counts_o2_aff[num_counts], counts_o2_unaff[num_counts];
+    combination_counts_all_folds(order, masks_folds, num_folds,
+                                 combinations, info, 
+                                 counts_o2_aff, counts_o2_unaff);
+    
+    int base_idx;
+    
+    // Fold 0
+    base_idx = 0;
+    fail_if(counts_o2_aff[base_idx + 0] != 2 || counts_o2_unaff[base_idx + 0] != 1, "A(0,0) -> 2,1");
+    fail_if(counts_o2_aff[base_idx + 1] != 0 || counts_o2_unaff[base_idx + 1] != 1, "A(0,1) -> 0,1");
+    fail_if(counts_o2_aff[base_idx + 2] != 0 || counts_o2_unaff[base_idx + 2] != 1, "A(0,2) -> 0,1");
+    fail_if(counts_o2_aff[base_idx + 3] != 0 || counts_o2_unaff[base_idx + 3] != 2, "A(1,0) -> 0,2");
+    fail_if(counts_o2_aff[base_idx + 4] != 1 || counts_o2_unaff[base_idx + 4] != 0, "A(1,1) -> 1,0");
+    fail_if(counts_o2_aff[base_idx + 5] != 0 || counts_o2_unaff[base_idx + 5] != 0, "A(1,2) -> 0,0");
+    fail_if(counts_o2_aff[base_idx + 6] != 1 || counts_o2_unaff[base_idx + 6] != 1, "A(2,0) -> 1,1");
+    fail_if(counts_o2_aff[base_idx + 7] != 0 || counts_o2_unaff[base_idx + 7] != 1, "A(2,1) -> 0,1");
+    fail_if(counts_o2_aff[base_idx + 8] != 0 || counts_o2_unaff[base_idx + 8] != 1, "A(2,2) -> 0,1");
+    
+    // Fold 1
+    base_idx += 9;
+    fail_if(counts_o2_aff[base_idx + 0] != 2 || counts_o2_unaff[base_idx + 0] != 0, "A(0,0) -> 2,0");
+    fail_if(counts_o2_aff[base_idx + 1] != 1 || counts_o2_unaff[base_idx + 1] != 1, "A(0,1) -> 1,1");
+    fail_if(counts_o2_aff[base_idx + 2] != 0 || counts_o2_unaff[base_idx + 2] != 1, "A(0,2) -> 0,1");
+    fail_if(counts_o2_aff[base_idx + 3] != 0 || counts_o2_unaff[base_idx + 3] != 2, "A(1,0) -> 0,2");
+    fail_if(counts_o2_aff[base_idx + 4] != 0 || counts_o2_unaff[base_idx + 4] != 0, "A(1,1) -> 0,0");
+    fail_if(counts_o2_aff[base_idx + 5] != 0 || counts_o2_unaff[base_idx + 5] != 0, "A(1,2) -> 0,0");
+    fail_if(counts_o2_aff[base_idx + 6] != 1 || counts_o2_unaff[base_idx + 6] != 2, "A(2,0) -> 1,2");
+    fail_if(counts_o2_aff[base_idx + 7] != 0 || counts_o2_unaff[base_idx + 7] != 1, "A(2,1) -> 0,1");
+    fail_if(counts_o2_aff[base_idx + 8] != 0 || counts_o2_unaff[base_idx + 8] != 1, "A(2,2) -> 0,1");
+    
+    // Fold 2
+    base_idx += 9;
+    fail_if(counts_o2_aff[base_idx + 0] != 1 || counts_o2_unaff[base_idx + 0] != 1, "A(0,0) -> 1,1");
+    fail_if(counts_o2_aff[base_idx + 1] != 1 || counts_o2_unaff[base_idx + 1] != 1, "A(0,1) -> 1,1");
+    fail_if(counts_o2_aff[base_idx + 2] != 0 || counts_o2_unaff[base_idx + 2] != 0, "A(0,2) -> 0,0");
+    fail_if(counts_o2_aff[base_idx + 3] != 0 || counts_o2_unaff[base_idx + 3] != 3, "A(1,0) -> 0,3");
+    fail_if(counts_o2_aff[base_idx + 4] != 1 || counts_o2_unaff[base_idx + 4] != 0, "A(1,1) -> 1,0");
+    fail_if(counts_o2_aff[base_idx + 5] != 0 || counts_o2_unaff[base_idx + 5] != 0, "A(1,2) -> 0,0");
+    fail_if(counts_o2_aff[base_idx + 6] != 1 || counts_o2_unaff[base_idx + 6] != 2, "A(2,0) -> 1,2");
+    fail_if(counts_o2_aff[base_idx + 7] != 0 || counts_o2_unaff[base_idx + 7] != 1, "A(2,1) -> 0,1");
+    fail_if(counts_o2_aff[base_idx + 8] != 0 || counts_o2_unaff[base_idx + 8] != 0, "A(2,2) -> 0,0");
+    
+    // Fold 3
+    base_idx += 9;
+    fail_if(counts_o2_aff[base_idx + 0] != 2 || counts_o2_unaff[base_idx + 0] != 1, "A(0,0) -> 2,1");
+    fail_if(counts_o2_aff[base_idx + 1] != 1 || counts_o2_unaff[base_idx + 1] != 0, "A(0,1) -> 1,0");
+    fail_if(counts_o2_aff[base_idx + 2] != 0 || counts_o2_unaff[base_idx + 2] != 1, "A(0,2) -> 0,1");
+    fail_if(counts_o2_aff[base_idx + 3] != 0 || counts_o2_unaff[base_idx + 3] != 3, "A(1,0) -> 0,3");
+    fail_if(counts_o2_aff[base_idx + 4] != 1 || counts_o2_unaff[base_idx + 4] != 0, "A(1,1) -> 1,0");
+    fail_if(counts_o2_aff[base_idx + 5] != 0 || counts_o2_unaff[base_idx + 5] != 0, "A(1,2) -> 0,0");
+    fail_if(counts_o2_aff[base_idx + 6] != 0 || counts_o2_unaff[base_idx + 6] != 2, "A(2,0) -> 0,2");
+    fail_if(counts_o2_aff[base_idx + 7] != 0 || counts_o2_unaff[base_idx + 7] != 0, "A(2,1) -> 0,0");
+    fail_if(counts_o2_aff[base_idx + 8] != 0 || counts_o2_unaff[base_idx + 8] != 1, "A(2,2) -> 0,1");
+    
+    // Fold 4
+    base_idx += 9;
+    fail_if(counts_o2_aff[base_idx + 0] != 1 || counts_o2_unaff[base_idx + 0] != 1, "A(0,0) -> 1,1");
+    fail_if(counts_o2_aff[base_idx + 1] != 1 || counts_o2_unaff[base_idx + 1] != 1, "A(0,1) -> 1,1");
+    fail_if(counts_o2_aff[base_idx + 2] != 0 || counts_o2_unaff[base_idx + 2] != 1, "A(0,2) -> 0,1");
+    fail_if(counts_o2_aff[base_idx + 3] != 0 || counts_o2_unaff[base_idx + 3] != 2, "A(1,0) -> 0,2");
+    fail_if(counts_o2_aff[base_idx + 4] != 1 || counts_o2_unaff[base_idx + 4] != 0, "A(1,1) -> 1,0");
+    fail_if(counts_o2_aff[base_idx + 5] != 0 || counts_o2_unaff[base_idx + 5] != 0, "A(1,2) -> 0,0");
+    fail_if(counts_o2_aff[base_idx + 6] != 1 || counts_o2_unaff[base_idx + 6] != 1, "A(2,0) -> 1,1");
+    fail_if(counts_o2_aff[base_idx + 7] != 0 || counts_o2_unaff[base_idx + 7] != 1, "A(2,1) -> 0,1");
+    fail_if(counts_o2_aff[base_idx + 8] != 0 || counts_o2_unaff[base_idx + 8] != 1, "A(2,2) -> 0,1");
+    
+    free(combinations);
+}
+END_TEST
+    
+START_TEST(test_get_counts_all_folds_order_3) {
+    int order = 3, num_folds = 5;
+    int num_affected = 5, num_unaffected = 10;
+    
+    // Genotypes of all SNPs
+    uint8_t masks_gt0[]   = { 0, 0, 1, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 1, 0, 2, 1, 0, 2, 1, 0, 2, 0, 0, 0, 0, 0, 0 };
+    uint8_t masks_gt1[]   = { 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 2, 2, 0, 0, 0, 0, 0, 0 };
+    uint8_t masks_gt2[]   = { 1, 2, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 1, 0, 1, 1, 1, 2, 2, 0, 0, 0, 0, 0, 0, 0 };
+    uint8_t *masks_genotypes[] = { masks_gt0, masks_gt1, masks_gt2 };
+    
+    // Masks that associate each sample to its folds
+    uint8_t masks_folds[] = { 1, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0,
+                              1, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0,
+                              1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0,
+                              1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0,
+                              0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0 };
+    
+    masks_info info; masks_info_init(order, 1, num_affected, num_unaffected, &info);
+    
+    uint8_t *masks = set_genotypes_masks(order, masks_genotypes, 1, info);
+    
+    int num_combinations;
+    uint8_t **combinations = get_genotype_combinations(order, &num_combinations);
+    
+    int num_counts = pow(NUM_GENOTYPES, order) * num_folds;
+    int counts_o3_aff[num_counts], counts_o3_unaff[num_counts];
+    combination_counts_all_folds(order, masks_folds, num_folds,
+                                 combinations, info, 
+                                 counts_o3_aff, counts_o3_unaff);
+/*
+    fail_if(num_counts != 27, "There must be 27 order 3 combinations");
+*/
+    
+//     for (int i = 0; i < order; i++) {
+//         print_gt_combination(masks + i * 3 * info.num_samples_per_mask, i, 3 * info.num_samples_per_mask);
+//     }
+    
+    int idx = 0;
+    fail_if(counts_o3_aff[idx] != 0     || counts_o3_unaff[idx] != 0, "A(0,0,0) -> 0,0");
+    fail_if(counts_o3_aff[idx + 1] != 2 || counts_o3_unaff[idx + 1] != 0, "A(0,0,1) -> 2,0");
+    fail_if(counts_o3_aff[idx + 2] != 0 || counts_o3_unaff[idx + 2] != 0, "A(0,0,2) -> 0,0");
+    
+    fail_if(counts_o3_aff[idx + 3] != 0 || counts_o3_unaff[idx + 3] != 1, "A(0,1,0) -> 0,1");
+    fail_if(counts_o3_aff[idx + 4] != 0 || counts_o3_unaff[idx + 4] != 0, "A(0,1,1) -> 0,0");
+    fail_if(counts_o3_aff[idx + 5] != 1 || counts_o3_unaff[idx + 5] != 0, "A(0,1,2) -> 1,0");
+    
+    fail_if(counts_o3_aff[idx + 6] != 0 || counts_o3_unaff[idx + 6] != 0, "A(0,2,0) -> 0,0");
+    fail_if(counts_o3_aff[idx + 7] != 0 || counts_o3_unaff[idx + 7] != 0, "A(0,2,1) -> 0,0");
+    fail_if(counts_o3_aff[idx + 8] != 0 || counts_o3_unaff[idx + 8] != 0, "A(0,2,2) -> 0,0");
+    
+    idx = 9;
+    fail_if(counts_o3_aff[idx] != 0     || counts_o3_unaff[idx] != 0, "A(1,0,0) -> 0,0");
+    fail_if(counts_o3_aff[idx + 1] != 0 || counts_o3_unaff[idx + 1] != 0, "A(1,0,1) -> 0,0");
+    fail_if(counts_o3_aff[idx + 2] != 0 || counts_o3_unaff[idx + 2] != 1, "A(1,0,2) -> 0,1");
+    
+    fail_if(counts_o3_aff[idx + 3] != 1 || counts_o3_unaff[idx + 3] != 0, "A(1,1,0) -> 1,0");
+    fail_if(counts_o3_aff[idx + 4] != 0 || counts_o3_unaff[idx + 4] != 0, "A(1,1,1) -> 0,0");
+    fail_if(counts_o3_aff[idx + 5] != 0 || counts_o3_unaff[idx + 5] != 0, "A(1,1,2) -> 0,0");
+    
+    fail_if(counts_o3_aff[idx + 6] != 0 || counts_o3_unaff[idx + 6] != 0, "A(1,2,0) -> 0,0");
+    fail_if(counts_o3_aff[idx + 7] != 0 || counts_o3_unaff[idx + 7] != 0, "A(1,2,1) -> 0,0");
+    fail_if(counts_o3_aff[idx + 8] != 0 || counts_o3_unaff[idx + 8] != 0, "A(1,2,2) -> 0,0");
+    
+    idx = 18;
+    fail_if(counts_o3_aff[idx] != 0     || counts_o3_unaff[idx] != 1, "A(2,0,0) -> 0,1");
+    fail_if(counts_o3_aff[idx + 1] != 0 || counts_o3_unaff[idx + 1] != 0, "A(2,0,1) -> 0,0");
+    fail_if(counts_o3_aff[idx + 2] != 0 || counts_o3_unaff[idx + 2] != 0, "A(2,0,2) -> 0,0");
+    
+    fail_if(counts_o3_aff[idx + 3] != 0 || counts_o3_unaff[idx + 3] != 1, "A(2,1,0) -> 0,1");
+    fail_if(counts_o3_aff[idx + 4] != 0 || counts_o3_unaff[idx + 4] != 0, "A(2,1,1) -> 0,0");
+    fail_if(counts_o3_aff[idx + 5] != 0 || counts_o3_unaff[idx + 5] != 0, "A(2,1,2) -> 0,0");
+    
+    fail_if(counts_o3_aff[idx + 6] != 0 || counts_o3_unaff[idx + 6] != 0, "A(2,2,0) -> 0,0");
+    fail_if(counts_o3_aff[idx + 7] != 0 || counts_o3_unaff[idx + 7] != 0, "A(2,2,1) -> 0,0");
+    fail_if(counts_o3_aff[idx + 8] != 0 || counts_o3_unaff[idx + 8] != 0, "A(2,2,2) -> 0,0");
+    
+    free(combinations);
+}
+END_TEST
+
 
 START_TEST(test_get_confusion_matrix) {
     int order = 2;
@@ -298,6 +475,8 @@ Suite *create_test_suite(void) {
     TCase *tc_counts = tcase_create("Genotype counts");
     tcase_add_test(tc_counts, test_get_masks);
     tcase_add_test(tc_counts, test_get_counts);
+    tcase_add_test(tc_counts, test_get_counts_all_folds_order_2);
+    tcase_add_test(tc_counts, test_get_counts_all_folds_order_3);
     
     TCase *tc_ranking = tcase_create("Evaluation and ranking");
     tcase_add_test(tc_ranking, test_get_confusion_matrix);

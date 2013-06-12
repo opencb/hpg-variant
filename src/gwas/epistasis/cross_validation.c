@@ -99,38 +99,30 @@ int** get_k_folds(unsigned int num_samples_affected, unsigned int num_samples_un
     return folds;
 }
 
-//uint8_t *get_k_folds_masks(unsigned int num_samples, unsigned int k, int **folds, unsigned int *sizes) {
-//    uint8_t *fold_masks = calloc (num_samples * k, sizeof(uint8_t));
-//    for (int i = 0; i < k; i++) {
-//        for (int j = 0; j < sizes[3 * i]; j++) {
-//            fold_masks[i * num_samples + folds[i][j]] = 1;
-//        }
-//    }
-//    return fold_masks;
-//}
-
-
 uint8_t *get_k_folds_masks(unsigned int num_samples_affected, unsigned int num_samples_unaffected, unsigned int k, int **folds, unsigned int *sizes) {
+    // TODO use masks_info members instead of num_samples_affected and num_samples_unaffected
     unsigned int num_affected_with_padding = 16 * (int) ceil(((double) num_samples_affected) / 16);
     unsigned int num_unaffected_with_padding = 16 * (int) ceil(((double) num_samples_unaffected) / 16);
     unsigned int num_samples_with_padding = num_affected_with_padding + num_unaffected_with_padding;
     unsigned int padding_size = num_affected_with_padding - num_samples_affected;
 
     uint8_t *fold_masks = _mm_malloc (num_samples_with_padding * k * sizeof(uint8_t), 16);
-    memset(fold_masks, 0, num_samples_with_padding * k * sizeof(uint8_t));
+    memset(fold_masks, 1, num_samples_with_padding * k * sizeof(uint8_t));
 
     for (int i = 0; i < k; i++) {
         // Set masks of affected samples
         for (int j = 0; j < sizes[3 * i + 1]; j++) {
             LOG_DEBUG_F("A) position = %d\n", i * num_samples_with_padding + folds[i][j]);
-            fold_masks[i * num_samples_with_padding + folds[i][j]] = 1;
+            fold_masks[i * num_samples_with_padding + folds[i][j]] = 0;
         }
 
         // Set masks of unaffected samples
         for (int j = sizes[3 * i + 1]; j < sizes[3 * i]; j++) {
             LOG_DEBUG_F("U) position = %d\n", i * num_samples_with_padding + folds[i][j] + padding_size);
-            fold_masks[i * num_samples_with_padding + folds[i][j] + padding_size] = 1;
+            fold_masks[i * num_samples_with_padding + folds[i][j] + padding_size] = 0;
         }
+        
+        // TODO could be necessary to set the padding to zero?
     }
     return fold_masks;
 }
@@ -169,7 +161,7 @@ uint8_t *get_genotypes_for_block(int num_variants, int num_samples, masks_info i
     // The last SNP in a block can be in the stride-th position or be the absolute
     // last SNP available, if the stride was greater than the number of variants
     for (int i = 0; i < stride && (block_coord * stride + i) < num_variants; i++) {
-        size_t affected_base_idx = i * info.num_samples_per_mask;
+        size_t affected_base_idx = i * info.num_samples_with_padding;
         size_t unaffected_base_idx = affected_base_idx + info.num_affected_with_padding;
         // Copy genotypes of affected samples
         memcpy(genotypes + affected_base_idx, block_start + i * num_samples, info.num_affected * sizeof(uint8_t));
@@ -181,7 +173,7 @@ uint8_t *get_genotypes_for_block(int num_variants, int num_samples, masks_info i
         bytes_copied += info.num_affected_with_padding - info.num_affected;
 
         // Copy genotypes of unaffected samples
-        memcpy(genotypes + unaffected_base_idx, block_start + i * num_samples, info.num_unaffected * sizeof(uint8_t));
+        memcpy(genotypes + unaffected_base_idx, block_start + i * num_samples + info.num_affected, info.num_unaffected * sizeof(uint8_t));
         bytes_copied += info.num_unaffected;
         genotypes_copied += info.num_unaffected;
 
@@ -192,7 +184,7 @@ uint8_t *get_genotypes_for_block(int num_variants, int num_samples, masks_info i
 
         LOG_DEBUG_F("[%d] genotypes copied = %d\tbytes copied = %d\n\n", i, genotypes_copied, bytes_copied);
         assert(genotypes_copied == num_samples * (i+1));
-        assert(bytes_copied == info.num_samples_per_mask * (i+1));
+        assert(bytes_copied == info.num_samples_with_padding * (i+1));
     }
 
     return genotypes;
