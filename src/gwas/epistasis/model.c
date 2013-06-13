@@ -74,11 +74,7 @@ int add_to_model_ranking(risky_combination *risky_comb, int max_ranking_size, li
                     
                     if (current_ranking_size >= max_ranking_size) {
                         linked_list_iterator_last(iter);
-                        risky_combination *deleted = linked_list_iterator_remove(iter);
-                        risky_combination_free(deleted);
-/*
                         *removed = linked_list_iterator_remove(iter);
-*/
                     }
                     
                     linked_list_iterator_free(iter);

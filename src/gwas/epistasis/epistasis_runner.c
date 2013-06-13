@@ -141,9 +141,6 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
 
             // Initialize first coordinate (only if it's different from the previous)
             if (prev_block_coords[0] != block_coords[0]) {
-//                block_genotypes[0] = get_genotypes_for_block_exclude_fold(num_variants, num_samples, info, sizes[3 * i], folds[i],
-//                                                                          stride, block_coords[0], block_starts[0],
-//                                                                          scratchpad[0]);
                 block_genotypes[0] = get_genotypes_for_block(num_variants, num_samples, info, stride,
                                                              block_coords[0], block_starts[0], scratchpad[0]);
             }
@@ -164,10 +161,6 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
 
                     if (!already_present) {
                         // If not equals to a previous one, retrieve data
-//                         printf("getting %d\n", m);
-//                        block_genotypes[m] = get_genotypes_for_block_exclude_fold(num_variants, num_samples, info, sizes[3 * i], folds[i],
-//                                                                                stride, block_coords[m], block_starts[m],
-//                                                                                scratchpad[m]);
                         block_genotypes[m] = get_genotypes_for_block(num_variants, num_samples, info, stride,
                                                                      block_coords[m], block_starts[m], scratchpad[m]);
                     }
@@ -317,19 +310,16 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                         // Filter non-risky SNP combinations
                         if (num_risky > 0) {
                             // Put together the info about the SNP combination and its genotype combinations
-/*
                             if (risky_rejected) {
                                 risky_comb = risky_combination_copy(order, comb, genotype_permutations,
                                                                     num_risky[rc], risky_idx + risky_begin_idx,
                                                                     aux_info, risky_rejected);
+                                risky_rejected = NULL;
                             } else {
-*/
                                 risky_comb = risky_combination_new(order, comb, genotype_permutations,
                                                                 num_risky[rc], risky_idx + risky_begin_idx,
                                                                 aux_info);
-/*
                             }
-*/
                         }
 
                         risky_begin_idx += num_risky[rc];
@@ -358,9 +348,6 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
         //                         printf("Combination not inserted\n");
         //                     }
 
-/*
-                            if (risky_rejected) { free(risky_rejected); }
-*/
                             // If not inserted it means it is not among the most risky combinations, so free it
                             if (position < 0 && risky_comb != risky_rejected) {
                                 risky_combination_free(risky_comb);
@@ -461,19 +448,16 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                     // Filter non-risky SNP combinations
                     if (num_risky > 0) {
                         // Put together the info about the SNP combination and its genotype combinations
-/*
                         if (risky_rejected) {
                             risky_comb = risky_combination_copy(order, comb, genotype_permutations,
                                                                 num_risky[rc], risky_idx + risky_begin_idx,
                                                                 aux_info, risky_rejected);
+                            risky_rejected = NULL;
                         } else {
-*/
                             risky_comb = risky_combination_new(order, comb, genotype_permutations,
                                                             num_risky[rc], risky_idx + risky_begin_idx,
                                                             aux_info);
-/*
                         }
-*/
                     }
 
                     risky_begin_idx += num_risky[rc];
@@ -502,9 +486,6 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
     //                         printf("Combination not inserted\n");
     //                     }
 
-/*
-                        if (risky_rejected) { free(risky_rejected); }
-*/
                         // If not inserted it means it is not among the most risky combinations, so free it
                         if (position < 0 && risky_comb != risky_rejected) {
                             risky_combination_free(risky_comb);
@@ -642,6 +623,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
         free(folds);
         free(sizes);
         free(training_sizes);
+        _mm_free(fold_masks);
     }
     
     
