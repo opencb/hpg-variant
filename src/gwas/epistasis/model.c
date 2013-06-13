@@ -74,7 +74,11 @@ int add_to_model_ranking(risky_combination *risky_comb, int max_ranking_size, li
                     
                     if (current_ranking_size >= max_ranking_size) {
                         linked_list_iterator_last(iter);
+                        risky_combination *deleted = linked_list_iterator_remove(iter);
+                        risky_combination_free(deleted);
+/*
                         *removed = linked_list_iterator_remove(iter);
+*/
                     }
                     
                     linked_list_iterator_free(iter);
@@ -382,6 +386,7 @@ risky_combination* risky_combination_new(int order, int comb[order], uint8_t** p
     risky_combination *risky = malloc(sizeof(risky_combination));
     risky->order = order;
     risky->combination = malloc(order * sizeof(int));
+    risky->accuracy = 0.0f;
     risky->genotypes = malloc(pow(NUM_GENOTYPES, order) * order * sizeof(uint8_t)); // Maximum possible
     risky->num_risky_genotypes = num_risky;
     risky->auxiliary_info = aux_info; // TODO improvement: set this using a method-dependant (MDR, MB-MDR) function
@@ -400,6 +405,7 @@ risky_combination* risky_combination_copy(int order, int comb[order], uint8_t** 
     assert(risky);
     risky->num_risky_genotypes = num_risky;
     risky->auxiliary_info = aux_info; // TODO improvement: set this using a method-dependant (MDR, MB-MDR) function
+    risky->accuracy = 0.0f;
     
     memcpy(risky->combination, comb, order * sizeof(int));
     for (int i = 0; i < num_risky; i++) {

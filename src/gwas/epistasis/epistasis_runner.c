@@ -267,7 +267,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                 /* Right now it will be executed as it previously was, but for the sake of parallelization
                  * it could be better to make the choose_high_risk_combinations function work over
                  */
-                for (int i = 0; i < num_folds; i++) {
+                for (int f = 0; f < num_folds; f++) {
                     // Get high risk pairs for those counts
                     void *aux_info;
                     unsigned int num_risky[info.num_combinations_in_a_row];
@@ -285,8 +285,8 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                     printf("}\n-------------\n");
 */
                 
-                    int *risky_idx = choose_high_risk_combinations2(counts_aff + i * info.num_combinations_in_a_row * info.num_cell_counts_per_combination, 
-                                                                    counts_unaff + i * info.num_combinations_in_a_row * info.num_cell_counts_per_combination, 
+                    int *risky_idx = choose_high_risk_combinations2(counts_aff + f * info.num_combinations_in_a_row * info.num_cell_counts_per_combination, 
+                                                                    counts_unaff + f * info.num_combinations_in_a_row * info.num_cell_counts_per_combination, 
                                                                     info.num_combinations_in_a_row, info.num_cell_counts_per_combination,
                                                                     info.num_affected, info.num_unaffected,
                                                                     num_risky, &aux_info, mdr_high_risk_combinations2);
@@ -307,7 +307,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
 
                     int risky_begin_idx = 0;
                     for (int rc = 0; rc < info.num_combinations_in_a_row; rc++) {
-                        uint8_t *comb = combs + rc * order;
+                        int *comb = combs + rc * order;
                         uint8_t **my_genotypes = combination_genotypes + rc * order;
 
                         // ------------------- BEGIN get_model_from_combination_in_fold -----------------------
@@ -317,15 +317,19 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                         // Filter non-risky SNP combinations
                         if (num_risky > 0) {
                             // Put together the info about the SNP combination and its genotype combinations
+/*
                             if (risky_rejected) {
                                 risky_comb = risky_combination_copy(order, comb, genotype_permutations,
                                                                     num_risky[rc], risky_idx + risky_begin_idx,
                                                                     aux_info, risky_rejected);
                             } else {
+*/
                                 risky_comb = risky_combination_new(order, comb, genotype_permutations,
                                                                 num_risky[rc], risky_idx + risky_begin_idx,
                                                                 aux_info);
+/*
                             }
+*/
                         }
 
                         risky_begin_idx += num_risky[rc];
@@ -347,13 +351,16 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
     //                        }
     //                         printf("*  Balanced accuracy: %.3f\n", accuracy);
 
-                            int position = add_to_model_ranking(risky_comb, options_data->max_ranking_size, ranking_risky[i], &risky_rejected);
+                            int position = add_to_model_ranking(risky_comb, options_data->max_ranking_size, ranking_risky[f], &risky_rejected);
         //                     if (position >= 0) {
         //                         printf("Combination inserted at position %d\n", position);
         //                     } else {
         //                         printf("Combination not inserted\n");
         //                     }
 
+/*
+                            if (risky_rejected) { free(risky_rejected); }
+*/
                             // If not inserted it means it is not among the most risky combinations, so free it
                             if (position < 0 && risky_comb != risky_rejected) {
                                 risky_combination_free(risky_comb);
@@ -373,13 +380,12 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
 
                 }
                 
-                //exit(0);
             } while (get_next_combination_in_block(order, comb, block_coords, stride, num_variants));
 
             // TODO process combinations out of a full set
             // Get genotypes of a row of combinations
             uint8_t *combination_genotypes[info.num_combinations_in_a_row * order];
-            for (int c = 0; c < info.num_combinations_in_a_row; c++) {
+            for (int c = 0; c < cur_comb_idx + 1; c++) {
                 for (int s = 0; s < order; s++) {
                     // Derive combination address from block
                     combination_genotypes[c * order + s] = block_genotypes[s] +
@@ -415,8 +421,8 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
 
             // TODO copy-paste of the rest of the pipeline
             /* Right now it will be executed as it previously was, but for the sake of parallelization
-                * it could be better to make the choose_high_risk_combinations function work over
-                */
+             * it could be better to make the choose_high_risk_combinations function work over
+             */
             for (int f = 0; f < num_folds; f++) {
                 // Get high risk pairs for those counts
                 void *aux_info;
@@ -444,8 +450,8 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
 */
 
                 int risky_begin_idx = 0;
-                for (int rc = 0; rc < info.num_combinations_in_a_row; rc++) {
-                    uint8_t *comb = combs + rc * order;
+                for (int rc = 0; rc < cur_comb_idx + 1; rc++) {
+                    int *comb = combs + rc * order;
                     uint8_t **my_genotypes = combination_genotypes + rc * order;
 
                     // ------------------- BEGIN get_model_from_combination_in_fold -----------------------
@@ -455,15 +461,19 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                     // Filter non-risky SNP combinations
                     if (num_risky > 0) {
                         // Put together the info about the SNP combination and its genotype combinations
+/*
                         if (risky_rejected) {
                             risky_comb = risky_combination_copy(order, comb, genotype_permutations,
                                                                 num_risky[rc], risky_idx + risky_begin_idx,
                                                                 aux_info, risky_rejected);
                         } else {
+*/
                             risky_comb = risky_combination_new(order, comb, genotype_permutations,
                                                             num_risky[rc], risky_idx + risky_begin_idx,
                                                             aux_info);
+/*
                         }
+*/
                     }
 
                     risky_begin_idx += num_risky[rc];
@@ -492,6 +502,9 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
     //                         printf("Combination not inserted\n");
     //                     }
 
+/*
+                        if (risky_rejected) { free(risky_rejected); }
+*/
                         // If not inserted it means it is not among the most risky combinations, so free it
                         if (position < 0 && risky_comb != risky_rejected) {
                             risky_combination_free(risky_comb);
@@ -510,11 +523,24 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
 //                     free(genotypes_for_testing);
 
             }
-            
 
             memcpy(prev_block_coords, block_coords, order * sizeof(int));
         } while (get_next_block(num_blocks_per_dim, order, block_coords));
 
+/*
+        for (int f = 0; f < num_folds; f++) {
+            printf("Ranking fold %d = {\n", f);
+            risky_combination *element = NULL;
+            linked_list_iterator_t* iter = linked_list_iterator_new(ranking_risky[f]);
+            while(element = linked_list_iterator_curr(iter)) {
+                printf("(%d %d - %.3f) ", element->combination[0], element->combination[1], element->accuracy);
+                linked_list_iterator_next(iter);
+            }
+            linked_list_iterator_free(iter);
+            printf("\n\n");
+        }
+*/
+        
         // Free memory used during cross-validation
         _mm_free(info.masks);
         for (int s = 0; s < order; s++) {
@@ -534,6 +560,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
         }
         risky_combination *repetition_ranking[repetition_ranking_size];
         size_t current_index = 0;
+        
         for (int i = 0; i < num_folds; i++) {
             linked_list_iterator_t* iter = linked_list_iterator_new(ranking_risky[i]);
             
@@ -541,7 +568,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
             while(element = linked_list_iterator_curr(iter)) {
                 repetition_ranking[current_index] = element;
                 current_index++;
-//                 printf("(%d %d - %.3f) ", element->combination[0], element->combination[1], element->accuracy);
+                // printf("(%d %d - %.3f) ", element->combination[0], element->combination[1], element->accuracy);
                 linked_list_iterator_next(iter);
             }
             linked_list_iterator_free(iter);
@@ -551,6 +578,16 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
         // qsort by coordinates
         qsort(repetition_ranking, repetition_ranking_size, sizeof(risky_combination*), compare_risky);
         
+/*
+        printf("Ranking sorted = {\n");
+        for (int i = 0; i < repetition_ranking_size; i++) {
+            risky_combination *element = repetition_ranking[i];
+            printf("(%d %d - %.3f) ", element->combination[0], element->combination[1], element->accuracy);
+        }
+        printf("\n");
+*/
+        
+        
         // Sum all values of each position and get the mean of accuracies
         linked_list_t *sorted_repetition_ranking = linked_list_new(COLLECTION_MODE_ASYNCHRONIZED);
         risky_combination *current = repetition_ranking[0];
@@ -558,13 +595,23 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
         
         for (int i = 1; i < repetition_ranking_size; i++) {
             risky_combination *element = repetition_ranking[i];
-            if (!compare_risky(&current, &element)) {
-                current->accuracy += element->accuracy;
 /*
-                risky_combination_free(element);
+            printf("current = (%d %d - %.3f)\telement = (%d %d - %.3f)\n", 
+                    current->combination[0], current->combination[1], current->accuracy, 
+                    element->combination[0], element->combination[1], element->accuracy);
 */
+            if (!compare_risky(&current, &element)) {
+                assert(current != element);
+                current->accuracy += element->accuracy;
+                risky_combination_free(element);
             } else {
                 current->accuracy /= num_folds;
+                
+/*
+                printf("final acc = (%d %d - %.3f)\n", 
+                        current->combination[0], current->combination[1], current->accuracy);
+*/
+                
                 int position = add_to_model_ranking(current, repetition_ranking_size, sorted_repetition_ranking, &removed);
                 current = element;
                 if (removed) {

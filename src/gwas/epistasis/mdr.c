@@ -27,6 +27,7 @@ int *mdr_high_risk_combinations2(int *counts_affected, int *counts_unaffected, i
                                  void **aux_return_values) {
     int max_num_high_risk = 16 * (int) ceil(((double) num_counts) / 16);
     int *high_risk = _mm_malloc(max_num_high_risk * sizeof(int), 16);
+    memset(high_risk, 0, max_num_high_risk * sizeof(int));
     
     __m128 affected_unaffected_ratio = _mm_set1_ps((float) num_affected / num_unaffected);
     __m128 counts_affected_sse, counts_unaffected_sse, total_in_cell;
