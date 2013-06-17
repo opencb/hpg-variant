@@ -147,8 +147,6 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
 
             // Confusion matrix
             unsigned int conf_matrix[4];
-            // Last rejected risky combination
-            risky_combination *risky_rejected = NULL;
 
             // *************** Variables private to each task (block) (end) ***************
 
@@ -329,19 +327,12 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
 
                         // Filter non-risky SNP combinations
                         if (num_risky > 0) {
-//                            // Put together the info about the SNP combination and its genotype combinations
-//                            if (risky_rejected) {
-//                                risky_comb = risky_combination_copy(order, comb, genotype_permutations,
-//                                                                    num_risky[rc], risky_idx + risky_begin_idx,
-//                                                                    aux_info, risky_rejected);
-//                                risky_rejected = NULL;
-//                            } else {
-                                risky_comb = risky_combination_new(order, comb, genotype_permutations,
-                                                                num_risky[rc], risky_idx + risky_begin_idx,
-                                                                aux_info);
-//                            }
+                            // Put together the info about the SNP combination and its genotype combinations
+                            risky_comb = risky_combination_new(order, comb, genotype_permutations,
+                                                               num_risky[rc], risky_idx + risky_begin_idx,
+                                                               aux_info);
                         }
-//
+
                         risky_begin_idx += num_risky[rc];
 
                         // ------------------- END get_model_from_combination_in_fold -----------------------
@@ -365,7 +356,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
 
 #pragma omp critical
                             {
-                            position = add_to_model_ranking(risky_comb, options_data->max_ranking_size, ranking_risky[f], &risky_rejected);
+                            position = add_to_model_ranking(risky_comb, options_data->max_ranking_size, ranking_risky[f]);
                             }
         //                     if (position >= 0) {
         //                         printf("Combination inserted at position %d\n", position);
@@ -374,7 +365,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
         //                     }
 
                             // If not inserted it means it is not among the most risky combinations, so free it
-                            if (position < 0 && risky_comb != risky_rejected) {
+                            if (position < 0) {
                                 risky_combination_free(risky_comb);
                             }
                         }
@@ -472,17 +463,10 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
 
                     // Filter non-risky SNP combinations
                     if (num_risky > 0) {
-//                        // Put together the info about the SNP combination and its genotype combinations
-//                        if (risky_rejected) {
-//                            risky_comb = risky_combination_copy(order, comb, genotype_permutations,
-//                                                                num_risky[rc], risky_idx + risky_begin_idx,
-//                                                                aux_info, risky_rejected);
-//                            risky_rejected = NULL;
-//                        } else {
-                            risky_comb = risky_combination_new(order, comb, genotype_permutations,
-                                                            num_risky[rc], risky_idx + risky_begin_idx,
-                                                            aux_info);
-//                        }
+                        // Put together the info about the SNP combination and its genotype combinations
+                        risky_comb = risky_combination_new(order, comb, genotype_permutations,
+                                                        num_risky[rc], risky_idx + risky_begin_idx,
+                                                        aux_info);
                     }
 
                     risky_begin_idx += num_risky[rc];
@@ -508,7 +492,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
 
 #pragma omp critical
                         {
-                        position = add_to_model_ranking(risky_comb, options_data->max_ranking_size, ranking_risky[f], &risky_rejected);
+                        position = add_to_model_ranking(risky_comb, options_data->max_ranking_size, ranking_risky[f]);
                         }
     //                     if (position >= 0) {
     //                         printf("Combination inserted at position %d\n", position);
@@ -517,7 +501,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
     //                     }
 
                         // If not inserted it means it is not among the most risky combinations, so free it
-                        if (position < 0 && risky_comb != risky_rejected) {
+                        if (position < 0) {
                             risky_combination_free(risky_comb);
                         }
                     }
@@ -538,9 +522,6 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
             _mm_free(info.masks);
             for (int s = 0; s < order; s++) {
                 _mm_free(scratchpad[s]);
-            }
-            if (risky_rejected) {
-                risky_combination_free(risky_rejected);
             }
             _mm_free(counts_aff);
             _mm_free(counts_unaff);
@@ -607,7 +588,6 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
         // Sum all values of each position and get the mean of accuracies
         linked_list_t *sorted_repetition_ranking = linked_list_new(COLLECTION_MODE_ASYNCHRONIZED);
         risky_combination *current = repetition_ranking[0];
-        risky_combination *removed = NULL;
         
         for (int i = 1; i < repetition_ranking_size; i++) {
             risky_combination *element = repetition_ranking[i];
@@ -628,13 +608,8 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                         current->combination[0], current->combination[1], current->accuracy);
 */
                 
-                int position = add_to_model_ranking(current, repetition_ranking_size, sorted_repetition_ranking, &removed);
+                int position = add_to_model_ranking(current, repetition_ranking_size, sorted_repetition_ranking);
                 current = element;
-                if (removed) {
-                    printf("Let's remove combination!\n");
-                    risky_combination_free(removed);
-                    printf("Combination removed!\n");
-                }
             }
         }
         

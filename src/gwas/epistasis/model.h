@@ -71,7 +71,7 @@ risky_combination *get_model_from_combination_in_fold(int order, int comb[order]
 
 double test_model(int order, risky_combination *risky_comb, uint8_t **val, masks_info info, unsigned int *conf_matrix);
 
-int add_to_model_ranking(risky_combination *risky_comb, int max_ranking_size, linked_list_t *ranking_risky, risky_combination **removed);
+int add_to_model_ranking(risky_combination *risky_comb, int max_ranking_size, linked_list_t *ranking_risky);
 
 
 /* **************************

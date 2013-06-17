@@ -29,7 +29,7 @@
 #include <string.h>
 #include <unistd.h>
 
-// #include <omp.h>
+ #include <omp.h>
 
 #include <commons/log.h>
 #include <containers/khash.h>
