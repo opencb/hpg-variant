@@ -94,7 +94,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
         // Initialize rankings for each repetition
         linked_list_t **ranking_risky = malloc (num_folds * sizeof(linked_list_t*));
         for (int i = 0; i < num_folds; i++) {
-            ranking_risky[i] = linked_list_new(COLLECTION_MODE_SYNCHRONIZED);
+            ranking_risky[i] = linked_list_new(COLLECTION_MODE_ASYNCHRONIZED);
         }
         
         // Coordinates of the block being tested
@@ -106,7 +106,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
     {
         do {
 
-            // TODO OpenMP parallelization: Each block will be run in a separate thread
+            // OpenMP parallelization: Each block will be run in a separate thread
 #pragma omp task
             {
 

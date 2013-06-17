@@ -163,6 +163,7 @@ void combination_counts(int order, uint8_t *masks, uint8_t **genotype_permutatio
         }
     }
 }
+
 void print128_num(__m128i var) {
     uint8_t *val = (uint8_t*) &var;//can also use uint32_t instead of 16_t
     printf(" %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i \n", 
@@ -210,10 +211,7 @@ void combination_counts_all_folds(int order, uint8_t *fold_masks, int num_folds,
             // Assign to count in fold
             for (int f = 0; f < num_folds; f++) {
                 LOG_DEBUG_F("%d) aff comb idx (%d) = %d\n", f, c, count[f]);
-/*
-                counts_aff[rc * num_folds * info.num_cell_counts_per_combination + f * info.num_cell_counts_per_combination + c] = count[f];
-*/
-                counts_aff[f * info.num_combinations_in_a_row * info.num_cell_counts_per_combination + 
+                counts_aff[f * info.num_combinations_in_a_row * info.num_cell_counts_per_combination +
                            rc * info.num_cell_counts_per_combination + c] = count[f];
             }
 
@@ -230,7 +228,7 @@ void combination_counts_all_folds(int order, uint8_t *fold_masks, int num_folds,
                     snp_and = _mm_and_si128(snp_and, snp_cmp);
                 }
 
-                // TODO Final AND with fold_masks
+                // Final AND with fold_masks
                 for (int f = 0; f < num_folds; f++) {
                     snp_cmp = _mm_load_si128(fold_masks + f * info.num_samples_with_padding + info.num_affected_with_padding + i);
                     snp_result = _mm_and_si128(snp_cmp, snp_and);
@@ -243,10 +241,7 @@ void combination_counts_all_folds(int order, uint8_t *fold_masks, int num_folds,
             // Assign to count in fold
             for (int f = 0; f < num_folds; f++) {
                 LOG_DEBUG_F("%d) unaff comb idx (%d) = %d\n", f, c, count[f]);
-/*
-                counts_unaff[rc * num_folds * info.num_cell_counts_per_combination + f * info.num_cell_counts_per_combination + c] = count[f];
-*/
-                counts_unaff[f * info.num_combinations_in_a_row * info.num_cell_counts_per_combination + 
+                counts_unaff[f * info.num_combinations_in_a_row * info.num_cell_counts_per_combination +
                            rc * info.num_cell_counts_per_combination + c] = count[f];
             }
         }
