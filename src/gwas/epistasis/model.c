@@ -53,17 +53,17 @@ int add_to_model_ranking(risky_combination *risky_comb, int max_ranking_size, li
     // Step 6 -> Construct ranking of the best N combinations
     risky_combination *last_element = (linked_list_size(ranking_risky) > 0) ? linked_list_get_last(ranking_risky) : NULL;
     size_t current_ranking_size = ranking_risky->size;
-    
+
     linked_list_iterator_t* iter = linked_list_iterator_new(ranking_risky);
     risky_combination *element = NULL;
-    
+
     if (current_ranking_size > 0) {
         if (last_element) {
             LOG_DEBUG_F("To insert %.3f\tRanking's last is %.3f\n", risky_comb->accuracy, last_element->accuracy);
         } else {
             LOG_DEBUG_F("To insert %.3\n", risky_comb->accuracy );
         }
-        
+
         // If accuracy is not greater than the last element, don't bother inserting
         if (risky_comb->accuracy > last_element->accuracy) {
             int position = 0;
@@ -71,12 +71,14 @@ int add_to_model_ranking(risky_combination *risky_comb, int max_ranking_size, li
                 LOG_DEBUG_F("To insert %.3f\tIn ranking (pos #%d) %.3f\n", risky_comb->accuracy, position, element->accuracy);
                 if (risky_comb->accuracy > element->accuracy) {
                     linked_list_iterator_insert(risky_comb, iter);
-                    
+
                     if (current_ranking_size >= max_ranking_size) {
                         linked_list_iterator_last(iter);
-                        *removed = linked_list_iterator_remove(iter);
+//                        *removed = linked_list_iterator_remove(iter);
+                        risky_combination *deleted = linked_list_iterator_remove(iter);
+                        risky_combination_free(deleted);
                     }
-                    
+
                     linked_list_iterator_free(iter);
                     return position;
                 }
@@ -84,7 +86,7 @@ int add_to_model_ranking(risky_combination *risky_comb, int max_ranking_size, li
                 position++;
             }
         }
-        
+
         if (current_ranking_size < max_ranking_size) {
             LOG_DEBUG_F("To insert %.3f at the end", risky_comb->accuracy);
             linked_list_insert_last(risky_comb, ranking_risky);
@@ -96,7 +98,7 @@ int add_to_model_ranking(risky_combination *risky_comb, int max_ranking_size, li
         linked_list_iterator_free(iter);
         return ranking_risky->size - 1;
     }
-    
+
     linked_list_iterator_free(iter);
     
     return -1;
