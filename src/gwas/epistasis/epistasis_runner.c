@@ -91,10 +91,10 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
         }
         
         // Initialize rankings for each repetition
-        struct fheap **ranking_risky = malloc(num_folds * sizeof(struct fheap*));
+        struct heap **ranking_risky = malloc(num_folds * sizeof(struct heap*));
         for (int i = 0; i < num_folds; i++) {
-            ranking_risky[i] = malloc(sizeof(struct fheap));
-            fheap_init(ranking_risky[i]);
+            ranking_risky[i] = malloc(sizeof(struct heap));
+            heap_init(ranking_risky[i]);
         }
         
         // Coordinates of the block being tested
@@ -446,10 +446,6 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
         }
 */
         
-        // Free memory used during cross-validation
-        
-        
-        
         // Merge all rankings in one
         size_t repetition_ranking_size = 0;
         for (int i = 0; i < num_folds; i++) {
@@ -459,12 +455,12 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
         size_t current_index = 0;
         
         for (int i = 0; i < num_folds; i++) {
-            struct fheap_node *hn;
+            struct heap_node *hn;
             risky_combination *element = NULL;
 
 //            printf("Ranking fold %d = {\n", i);
-            while (!fheap_empty(ranking_risky[i])) {
-                hn = fheap_take(ranking_risky[i]);
+            while (!heap_empty(ranking_risky[i])) {
+                hn = heap_take(compare_risky_heap_min, ranking_risky[i]);
                 element = (risky_combination*) hn->value;
                 repetition_ranking[current_index] = element;
                 current_index++;

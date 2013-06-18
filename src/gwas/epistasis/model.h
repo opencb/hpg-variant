@@ -17,7 +17,7 @@
 #include <containers/linked_list.h>
 
 #include "dataset.h"
-#include "fheap.h"
+#include "heap.h"
 #include "mdr.h"
 
 #define NUM_GENOTYPES           3
@@ -67,7 +67,7 @@ enum eval_function { CA, BA, wBA, GAMMA, TAU_B };
 
 double test_model(int order, risky_combination *risky_comb, uint8_t **val, masks_info info, unsigned int *conf_matrix);
 
-int add_to_model_ranking_heap(risky_combination *risky_comb, int max_ranking_size, fheap *ranking_risky);
+int add_to_model_ranking_heap(risky_combination *risky_comb, int max_ranking_size, struct heap *ranking_risky);
 
 int add_to_model_ranking(risky_combination *risky_comb, int max_ranking_size, linked_list_t *ranking_risky);
 
@@ -132,5 +132,9 @@ void risky_combination_free(risky_combination *combination);
 void confusion_matrix(int order, risky_combination *combination, masks_info info, uint8_t **genotypes, unsigned int *matrix);
 
 double evaluate_model(unsigned int *confusion_matrix, enum eval_function function);
+
+int compare_risky_heap_max(struct heap_node* a, struct heap_node* b);
+
+int compare_risky_heap_min(struct heap_node* a, struct heap_node* b);
 
 #endif

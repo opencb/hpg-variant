@@ -1,4 +1,4 @@
-/* fheap.h -- Binomial Heaps with integer priorities
+/* heap.h -- Binomial Heaps
  *
  * Copyright (c) 2008, Bjoern B. Brandenburg <bbb [at] cs.unc.edu>
  *
@@ -28,57 +28,57 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef FHEAP_H
-#define FHEAP_H
+#ifndef HEAP_H
+#define HEAP_H
 
 #include <stdlib.h>
 #include <limits.h>
 
 #define NOT_IN_HEAP UINT_MAX
 
-typedef struct fheap_node {
-	struct fheap_node* 	parent;
-	struct fheap_node* 	next;
-	struct fheap_node* 	child;
+struct heap_node {
+	struct heap_node* 	parent;
+	struct heap_node* 	next;
+	struct heap_node* 	child;
 
 	unsigned int 		degree;
-	float	    		key;
-	const void*	       	value;
-	struct fheap_node**	ref;
-} fheap_node;
+	void*			    value;
+	struct heap_node**	ref;
+};
 
-typedef struct fheap {
-	struct fheap_node* 	head;
+struct heap {
+	struct heap_node* 	head;
 	/* We cache the minimum of the heap.
 	 * This speeds up repeated peek operations.
 	 */
-	struct fheap_node*	min;
+	struct heap_node*	min;
+	size_t size;
+};
 
-	int size;
-} fheap;
+/* item comparison function:
+ * return 1 if a has higher prio than b, 0 otherwise
+ */
+typedef int (*heap_prio_t)(struct heap_node* a, struct heap_node* b);
 
-
-static inline void fheap_init(struct fheap* heap)
+static inline void heap_init(struct heap* heap)
 {
 	heap->head = NULL;
 	heap->min  = NULL;
 	heap->size = 0;
 }
 
-static inline void fheap_node_init_ref(struct fheap_node** _h,
-				      float key, const void* value)
+static inline void heap_node_init_ref(struct heap_node** _h, void* value)
 {
-	struct fheap_node* h = *_h;
+	struct heap_node* h = *_h;
 	h->parent = NULL;
 	h->next   = NULL;
 	h->child  = NULL;
 	h->degree = NOT_IN_HEAP;
 	h->value  = value;
 	h->ref    = _h;
-	h->key    = key;
 }
 
-static inline void fheap_node_init(struct fheap_node* h, float key, const void* value)
+static inline void heap_node_init(struct heap_node* h, void* value)
 {
 	h->parent = NULL;
 	h->next   = NULL;
@@ -86,32 +86,31 @@ static inline void fheap_node_init(struct fheap_node* h, float key, const void* 
 	h->degree = NOT_IN_HEAP;
 	h->value  = value;
 	h->ref    = NULL;
-	h->key    = key;
 }
 
-static inline const void* fheap_node_value(struct fheap_node* h)
+static inline void* heap_node_value(struct heap_node* h)
 {
 	return h->value;
 }
 
-static inline int fheap_node_in_heap(struct fheap_node* h)
+static inline int heap_node_in_heap(struct heap_node* h)
 {
 	return h->degree != NOT_IN_HEAP;
 }
 
-static inline int fheap_empty(struct fheap* heap)
+static inline int heap_empty(struct heap* heap)
 {
 	return heap->head == NULL && heap->min == NULL;
 }
 
-static inline int fheap_size(struct fheap* heap)
+static inline int heap_size(struct heap* heap)
 {
     return heap->size;
 }
 
 /* make child a subtree of root */
-static inline void __fheap_link(struct fheap_node* root,
-			       struct fheap_node* child)
+static inline void __heap_link(struct heap_node* root,
+			       struct heap_node* child)
 {
 	child->parent = root;
 	child->next   = root->child;
@@ -120,11 +119,11 @@ static inline void __fheap_link(struct fheap_node* root,
 }
 
 /* merge root lists */
-static inline struct fheap_node* __fheap_merge(struct fheap_node* a,
-					     struct fheap_node* b)
+static inline struct heap_node* __heap_merge(struct heap_node* a,
+					     struct heap_node* b)
 {
-	struct fheap_node* head = NULL;
-	struct fheap_node** pos = &head;
+	struct heap_node* head = NULL;
+	struct heap_node** pos = &head;
 
 	while (a && b) {
 		if (a->degree < b->degree) {
@@ -144,10 +143,10 @@ static inline struct fheap_node* __fheap_merge(struct fheap_node* a,
 }
 
 /* reverse a linked list of nodes. also clears parent pointer */
-static inline struct fheap_node* __fheap_reverse(struct fheap_node* h)
+static inline struct heap_node* __heap_reverse(struct heap_node* h)
 {
-	struct fheap_node* tail = NULL;
-	struct fheap_node* next;
+	struct heap_node* tail = NULL;
+	struct heap_node* next;
 
 	if (!h)
 		return h;
@@ -164,11 +163,10 @@ static inline struct fheap_node* __fheap_reverse(struct fheap_node* h)
 	return h;
 }
 
-static inline void __fheap_min(struct fheap* heap,
-			      struct fheap_node** prev,
-			      struct fheap_node** node)
+static inline void __heap_min(heap_prio_t higher_prio, struct heap* heap,
+			      struct heap_node** prev, struct heap_node** node)
 {
-	struct fheap_node *_prev, *cur;
+	struct heap_node *_prev, *cur;
 	*prev = NULL;
 
 	if (!heap->head) {
@@ -180,7 +178,7 @@ static inline void __fheap_min(struct fheap* heap,
 	_prev = heap->head;
 	cur   = heap->head->next;
 	while (cur) {
-		if (cur->key < (*node)->key) {
+		if (higher_prio(cur, *node)) {
 			*node = cur;
 			*prev = _prev;
 		}
@@ -189,10 +187,11 @@ static inline void __fheap_min(struct fheap* heap,
 	}
 }
 
-static inline void __fheap_union(struct fheap* heap, struct fheap_node* h2)
+static inline void __heap_union(heap_prio_t higher_prio, struct heap* heap,
+				struct heap_node* h2)
 {
-	struct fheap_node* h1;
-	struct fheap_node *prev, *x, *next;
+	struct heap_node* h1;
+	struct heap_node *prev, *x, *next;
 	if (!h2)
 		return;
 	h1 = heap->head;
@@ -200,7 +199,7 @@ static inline void __fheap_union(struct fheap* heap, struct fheap_node* h2)
 		heap->head = h2;
 		return;
 	}
-	h1 = __fheap_merge(h1, h2);
+	h1 = __heap_merge(h1, h2);
 	prev = NULL;
 	x    = h1;
 	next = x->next;
@@ -210,17 +209,17 @@ static inline void __fheap_union(struct fheap* heap, struct fheap_node* h2)
 			/* nothing to do, advance */
 			prev = x;
 			x    = next;
-		} else if (x->key < next->key) {
+		} else if (higher_prio(x, next)) {
 			/* x becomes the root of next */
 			x->next = next->next;
-			__fheap_link(x, next);
+			__heap_link(x, next);
 		} else {
 			/* next becomes the root of x */
 			if (prev)
 				prev->next = next;
 			else
 				h1 = next;
-			__fheap_link(next, x);
+			__heap_link(next, x);
 			x = next;
 		}
 		next = x->next;
@@ -228,110 +227,114 @@ static inline void __fheap_union(struct fheap* heap, struct fheap_node* h2)
 	heap->head = h1;
 }
 
-static inline struct fheap_node* __fheap_extract_min(struct fheap* heap)
+static inline struct heap_node* __heap_extract_min(heap_prio_t higher_prio,
+						   struct heap* heap)
 {
-	struct fheap_node *prev, *node;
-	__fheap_min(heap, &prev, &node);
+	struct heap_node *prev, *node;
+	__heap_min(higher_prio, heap, &prev, &node);
 	if (!node)
 		return NULL;
 	if (prev)
 		prev->next = node->next;
 	else
 		heap->head = node->next;
-	__fheap_union(heap, __fheap_reverse(node->child));
+	__heap_union(higher_prio, heap, __heap_reverse(node->child));
 	return node;
 }
 
 /* insert (and reinitialize) a node into the heap */
-static inline void fheap_insert(struct fheap* heap, struct fheap_node* node)
+static inline void heap_insert(heap_prio_t higher_prio, struct heap* heap,
+			       struct heap_node* node)
 {
-	struct fheap_node *min;
+	struct heap_node *min;
 	node->child  = NULL;
 	node->parent = NULL;
 	node->next   = NULL;
 	node->degree = 0;
-	if (heap->min && node->key < heap->min->key) {
+	if (heap->min && higher_prio(node, heap->min)) {
 		/* swap min cache */
 		min = heap->min;
 		min->child  = NULL;
 		min->parent = NULL;
 		min->next   = NULL;
 		min->degree = 0;
-		__fheap_union(heap, min);
+		__heap_union(higher_prio, heap, min);
 		heap->min   = node;
 	} else
-		__fheap_union(heap, node);
+		__heap_union(higher_prio, heap, node);
 
-	(heap->size)++;
+    heap->size++;
 }
 
-static inline void __fheap_uncache_min(struct fheap* heap)
+static inline void __uncache_min(heap_prio_t higher_prio, struct heap* heap)
 {
-	struct fheap_node* min;
+	struct heap_node* min;
 	if (heap->min) {
 		min = heap->min;
 		heap->min = NULL;
-		fheap_insert(heap, min);
+		heap_insert(higher_prio, heap, min);
 	}
 }
 
 /* merge addition into target */
-static inline void fheap_union(struct fheap* target, struct fheap* addition)
+static inline void heap_union(heap_prio_t higher_prio,
+			      struct heap* target, struct heap* addition)
 {
+    size_t final_size = target->size + addition->size;
+
 	/* first insert any cached minima, if necessary */
-	__fheap_uncache_min(target);
-	__fheap_uncache_min(addition);
-	__fheap_union(target, addition->head);
+	__uncache_min(higher_prio, target);
+	__uncache_min(higher_prio, addition);
+	__heap_union(higher_prio, target, addition->head);
 	/* this is a destructive merge */
 	addition->head = NULL;
+
+	target->size = final_size;
 }
 
-static inline struct fheap_node* fheap_peek(struct fheap* heap)
+static inline struct heap_node* heap_peek(heap_prio_t higher_prio,
+					  struct heap* heap)
 {
 	if (!heap->min)
-		heap->min = __fheap_extract_min(heap);
+		heap->min = __heap_extract_min(higher_prio, heap);
 	return heap->min;
 }
 
-static inline struct fheap_node* fheap_take(struct fheap* heap)
+static inline struct heap_node* heap_take(heap_prio_t higher_prio,
+					  struct heap* heap)
 {
-	struct fheap_node *node;
+	struct heap_node *node;
 	if (!heap->min)
-		heap->min = __fheap_extract_min(heap);
+		heap->min = __heap_extract_min(higher_prio, heap);
 	node = heap->min;
 	heap->min = NULL;
 	if (node) {
 		node->degree = NOT_IN_HEAP;
-	    (heap->size)--;
+		heap->size--;
 	}
 	return node;
 }
 
-static inline void fheap_decrease(struct fheap* heap, struct fheap_node* node,
-        float new_key)
+static inline void heap_decrease(heap_prio_t higher_prio, struct heap* heap,
+				 struct heap_node* node)
 {
-	struct fheap_node *parent;
-	struct fheap_node** tmp_ref;
-	const void* tmp;
-	float   tmp_key;
+	struct heap_node *parent;
+	struct heap_node** tmp_ref;
+	void* tmp;
 
 	/* node's priority was decreased, we need to update its position */
-	if (!node->ref || new_key >= node->key)
+	if (!node->ref)
 		return;
-	node->key = new_key;
 	if (heap->min != node) {
-		if (heap->min && node->key < heap->min->key)
-			__fheap_uncache_min(heap);
+		if (heap->min && higher_prio(node, heap->min))
+			__uncache_min(higher_prio, heap);
 		/* bubble up */
 		parent = node->parent;
-		while (parent && node->key < parent->key) {
+		while (parent && higher_prio(node, parent)) {
 			/* swap parent and node */
 			tmp           = parent->value;
-			tmp_key       = parent->key;
 			parent->value = node->value;
-			parent->key   = node->key;
 			node->value   = tmp;
-			node->key     = tmp_key;
 			/* swap references */
 			if (parent->ref)
 				*(parent->ref) = node;
@@ -346,12 +349,12 @@ static inline void fheap_decrease(struct fheap* heap, struct fheap_node* node,
 	}
 }
 
-static inline void fheap_delete(struct fheap* heap, struct fheap_node* node)
+static inline void heap_delete(heap_prio_t higher_prio, struct heap* heap,
+			       struct heap_node* node)
 {
-	struct fheap_node *parent, *prev, *pos;
-	struct fheap_node** tmp_ref;
-	const void* tmp;
-	float tmp_key;
+	struct heap_node *parent, *prev, *pos;
+	struct heap_node** tmp_ref;
+	void* tmp;
 
 	if (!node->ref) /* can only delete if we have a reference */
 		return;
@@ -361,11 +364,8 @@ static inline void fheap_delete(struct fheap* heap, struct fheap_node* node)
 		while (parent) {
 			/* swap parent and node */
 			tmp           = parent->value;
-			tmp_key       = parent->key;
 			parent->value = node->value;
-			parent->key   = node->key;
 			node->value   = tmp;
-			node->key     = tmp_key;
 			/* swap references */
 			if (parent->ref)
 				*(parent->ref) = node;
@@ -390,11 +390,12 @@ static inline void fheap_delete(struct fheap* heap, struct fheap_node* node)
 			prev->next = node->next;
 		else
 			heap->head = node->next;
-		__fheap_union(heap, __fheap_reverse(node->child));
-	} else
+		__heap_union(higher_prio, heap, __heap_reverse(node->child));
+	} else {
 		heap->min = NULL;
+	    heap->size--;
+	}
 	node->degree = NOT_IN_HEAP;
-	(heap->size)--;
 }
 
 #endif /* HEAP_H */

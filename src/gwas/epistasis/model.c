@@ -16,22 +16,22 @@ double test_model(int order, risky_combination *risky_comb, uint8_t **val, masks
     return eval;
 }
 
-int add_to_model_ranking_heap(risky_combination *risky_comb, int max_ranking_size, fheap *ranking_risky) {
+int add_to_model_ranking_heap(risky_combination *risky_comb, int max_ranking_size, struct heap *ranking_risky) {
     // Step 6 -> Construct ranking of the best N combinations
     size_t current_ranking_size = ranking_risky->size;
 
     if (current_ranking_size > 0) {
-        fheap_node *last_node = fheap_peek(ranking_risky);
+        struct heap_node *last_node = heap_peek(compare_risky_heap_min, ranking_risky);
         risky_combination *last_element = last_node->value;
 
         // If accuracy is not greater than the last element, don't bother inserting
         if (risky_comb->accuracy > last_element->accuracy) {
-            fheap_node *hn = malloc (sizeof(fheap_node));
-            fheap_node_init(hn, risky_comb->accuracy, risky_comb);
-            fheap_insert(ranking_risky, hn);
+            struct heap_node *hn = malloc (sizeof(struct heap_node));
+            heap_node_init(hn, risky_comb);
+            heap_insert(compare_risky_heap_min, ranking_risky, hn);
 
             if (current_ranking_size >= max_ranking_size) {
-                fheap_node *removed = fheap_take(ranking_risky);
+                struct heap_node *removed = heap_take(compare_risky_heap_min, ranking_risky);
                 risky_combination_free((risky_combination*) removed->value);
                 free(removed);
             }
@@ -41,15 +41,15 @@ int add_to_model_ranking_heap(risky_combination *risky_comb, int max_ranking_siz
 
         if (current_ranking_size < max_ranking_size) {
             LOG_DEBUG_F("To insert %.3f at the end", risky_comb->accuracy);
-            fheap_node *hn = malloc (sizeof(fheap_node));
-            fheap_node_init(hn, risky_comb->accuracy, risky_comb);
-            fheap_insert(ranking_risky, hn);
+            struct heap_node *hn = malloc (sizeof(struct heap_node));
+            heap_node_init(hn, risky_comb);
+            heap_insert(compare_risky_heap_min, ranking_risky, hn);
             return ranking_risky->size - 1;
         }
     } else {
-        fheap_node *hn = malloc (sizeof(fheap_node));
-        fheap_node_init(hn, risky_comb->accuracy, risky_comb);
-        fheap_insert(ranking_risky, hn);
+        struct heap_node *hn = malloc (sizeof(struct heap_node));
+        heap_node_init(hn, risky_comb);
+        heap_insert(compare_risky_heap_min, ranking_risky, hn);
         return ranking_risky->size - 1;
 
     }
@@ -541,3 +541,15 @@ double evaluate_model(unsigned int *confusion_matrix, enum eval_function functio
     }
 }
 
+
+int compare_risky_heap_max(struct heap_node* a, struct heap_node* b) {
+    risky_combination *r1 = (risky_combination*) a->value;
+    risky_combination *r2 = (risky_combination*) b->value;
+    return r1->accuracy > r2->accuracy;
+}
+
+int compare_risky_heap_min(struct heap_node* a, struct heap_node* b) {
+    risky_combination *r1 = (risky_combination*) a->value;
+    risky_combination *r2 = (risky_combination*) b->value;
+    return r1->accuracy < r2->accuracy;
+}
