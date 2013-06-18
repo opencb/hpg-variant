@@ -124,13 +124,6 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
             // Masks information (number (un)affected with padding, buffers, and so on)
             masks_info info; masks_info_init(order, COMBINATIONS_ROW_SSE, num_affected, num_unaffected, &info);
 
-    /*
-            // Coordinates of the previous block (for reducing data copies)
-            int prev_block_coords[order];
-            for (int s = 0; s < order; s++) {
-                prev_block_coords[s] = -1;
-            }
-    */
             // Scratchpad for block genotypes
             uint8_t *scratchpad[order];
             for (int s = 0; s < order; s++) {
@@ -237,45 +230,12 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                     }
                 }
 
-
-                // TODO get_genotypes_masks_for_block instead of for combinations list
-                // would reduce the number of masks stored but also data locality when copying to SSE registers
                 uint8_t *masks = set_genotypes_masks(order, combination_genotypes, info.num_combinations_in_a_row, info); // Grouped by SNP
-
-/*
-                printf("masks = {\n");
-                for (int c = 0; c < info.num_combinations_in_a_row; c++) {
-                    uint8_t *base_pos = masks + c * info.num_masks;
-                    printf("comb %d = {\n", c);
-                    for (int m = 0; m < order; m++) {
-                        for (int g = 0; g < NUM_GENOTYPES; g++) {
-                            for (int s = 0; s < info.num_samples_with_padding; s++) {
-                                printf("%3u ", base_pos[m * NUM_GENOTYPES * info.num_samples_with_padding + g * info.num_samples_with_padding + s]);
-                            }
-                            printf("\n");
-                        }
-                        printf("\n");
-                    }
-                    printf("}\n");
-                }
-                printf("}\n-------------\n");
-*/
 
                 // Get counts for the provided genotypes
                 combination_counts_all_folds(order, fold_masks, num_folds, genotype_permutations, info, counts_aff, counts_unaff);
 
-/*
-                printf("counts_aff = {\n");
-                for (int c = 0; c < info.num_combinations_in_a_row; c++) {
-                    for (int m = 0; m < info.num_cell_counts_per_combination; m++) {
-                        printf("%2d ", counts_aff[c * info.num_cell_counts_per_combination + m]);
-                    }
-                    printf("\n");
-                }
-                printf("}\n-------------\n");
-*/
-
-                /* Right now the rest of the pipile will be executed as it previously was, but for the sake of parallelization
+                /* Right now the rest of the pipeline will be executed as it previously was, but for the sake of parallelization
                  * it could be better to make the choose_high_risk_combinations function work over
                  */
                 for (int f = 0; f < num_folds; f++) {
@@ -284,44 +244,16 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                     unsigned int num_risky[info.num_combinations_in_a_row];
                     memset(num_risky, 0, info.num_combinations_in_a_row * sizeof(int));
 
-/*
-                    printf("* counts_aff = {\n");
-                    for (int c = 0; c < info.num_combinations_in_a_row; c++) {
-                        for (int m = 0; m < info.num_cell_counts_per_combination; m++) {
-                            printf("%2d ", counts_aff[i * info.num_combinations_in_a_row * info.num_cell_counts_per_combination +
-                                                      c * info.num_cell_counts_per_combination + m]);
-                        }
-                        printf("\n");
-                    }
-                    printf("}\n-------------\n");
-*/
-
                     int *risky_idx = choose_high_risk_combinations2(counts_aff + f * info.num_combinations_in_a_row * info.num_cell_counts_per_combination,
                                                                     counts_unaff + f * info.num_combinations_in_a_row * info.num_cell_counts_per_combination,
                                                                     info.num_combinations_in_a_row, info.num_cell_counts_per_combination,
                                                                     info.num_affected, info.num_unaffected,
                                                                     num_risky, &aux_info, mdr_high_risk_combinations2);
 
-    /*
-                    printf("num risky = { ");
-                    for (int rc = 0; rc < info.num_combinations_in_a_row; rc++) {
-                        printf("%d ", num_risky[rc]);
-                    }
-                    printf("}\n");
-
-                    printf("risky gts = { ");
-                    for (int rc = 0; rc < info.num_combinations_in_a_row * info.num_counts_per_combination; rc++) {
-                        printf("%d ", risky_idx[rc]);
-                    }
-                    printf("}\n");
-    */
-
                     int risky_begin_idx = 0;
                     for (int rc = 0; rc < info.num_combinations_in_a_row; rc++) {
                         int *comb = combs + rc * order;
                         uint8_t **my_genotypes = combination_genotypes + rc * order;
-
-                        // ------------------- BEGIN get_model_from_combination_in_fold -----------------------
 
                         risky_combination *risky_comb = NULL;
 
@@ -334,8 +266,6 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                         }
 
                         risky_begin_idx += num_risky[rc];
-
-                        // ------------------- END get_model_from_combination_in_fold -----------------------
 
                         if (risky_comb) {
                             // Check the model against the testing dataset
@@ -358,11 +288,6 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                             {
                             position = add_to_model_ranking(risky_comb, options_data->max_ranking_size, ranking_risky[f]);
                             }
-        //                     if (position >= 0) {
-        //                         printf("Combination inserted at position %d\n", position);
-        //                     } else {
-        //                         printf("Combination not inserted\n");
-        //                     }
 
                             // If not inserted it means it is not among the most risky combinations, so free it
                             if (position < 0) {
@@ -386,7 +311,8 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
 
             } while (get_next_combination_in_block(order, comb, my_block_coords, stride, num_variants));
 
-            // TODO process combinations out of a full set
+            // -------------------- Process combinations out of a full set --------------------
+
             // Get genotypes of a row of combinations
             uint8_t *combination_genotypes[info.num_combinations_in_a_row * order];
             for (int c = 0; c < cur_comb_idx + 1; c++) {
@@ -397,33 +323,12 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                 }
             }
 
-
-            // TODO get_genotypes_masks_for_block instead of for combinations list
-            // would reduce the number of masks stored but also
-            // reduce data locality when copying to SSE registers
             uint8_t *masks = set_genotypes_masks(order, combination_genotypes, cur_comb_idx + 1, info); // Grouped by SNP
-
-//                printf("masks = {\n");
-//                for (int c = 0; c < info.num_combinations_in_a_row; c++) {
-//                    uint8_t *base_pos = masks + c * info.num_masks;
-//                    printf("comb %d = {\n", c);
-//                    for (int m = 0; m < order; m++) {
-//                        for (int g = 0; g < NUM_GENOTYPES; g++) {
-//                            for (int s = 0; s < info.num_samples_with_padding; s++) {
-//                                printf("%3u ", base_pos[m * NUM_GENOTYPES * info.num_samples_with_padding + g * info.num_samples_with_padding + s]);//masks[c * info.num_masks + m * info.num_samples_with_padding + s]);
-//                            }
-//                            printf("\n");
-//                        }
-//                        printf("\n");
-//                    }
-//                    printf("}\n");
-//                }
-//                printf("}\n-------------\n");
 
             // Get counts for the provided genotypes
             combination_counts_all_folds(order, fold_masks, num_folds, genotype_permutations, info, counts_aff, counts_unaff);
 
-            /* Right now the rest of the pipile will be executed as it previously was, but for the sake of parallelization
+            /* Right now the rest of the pipeline will be executed as it previously was, but for the sake of parallelization
              * it could be better to make the choose_high_risk_combinations function work over
              */
             for (int f = 0; f < num_folds; f++) {
@@ -494,11 +399,6 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                         {
                         position = add_to_model_ranking(risky_comb, options_data->max_ranking_size, ranking_risky[f]);
                         }
-    //                     if (position >= 0) {
-    //                         printf("Combination inserted at position %d\n", position);
-    //                     } else {
-    //                         printf("Combination not inserted\n");
-    //                     }
 
                         // If not inserted it means it is not among the most risky combinations, so free it
                         if (position < 0) {
@@ -525,7 +425,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
             }
             _mm_free(counts_aff);
             _mm_free(counts_unaff);
-//
+
             }
         } while (get_next_block(num_blocks_per_dim, order, block_coords));
 

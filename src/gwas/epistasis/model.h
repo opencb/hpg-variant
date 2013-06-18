@@ -64,11 +64,6 @@ enum eval_function { CA, BA, wBA, GAMMA, TAU_B };
  *       Main pipeline      *
  * **************************/
 
-risky_combination *get_model_from_combination_in_fold(int order, int comb[order], uint8_t **genotypes, 
-                                                      int num_genotype_combinations, uint8_t **genotype_combinations, 
-                                                      int num_counts, int counts_aff[num_counts], int counts_unaff[num_counts],
-                                                      masks_info info, risky_combination *risky_scratchpad);
-
 double test_model(int order, risky_combination *risky_comb, uint8_t **val, masks_info info, unsigned int *conf_matrix);
 
 int add_to_model_ranking(risky_combination *risky_comb, int max_ranking_size, linked_list_t *ranking_risky);
@@ -101,9 +96,11 @@ uint8_t* set_genotypes_masks(int order, uint8_t **genotypes, int num_combination
 
 void masks_info_init(int order, int num_combinations_in_a_row, int num_affected, int num_unaffected, masks_info *info);
 
+
 /* **************************
  *         High risk        *
  * **************************/
+
 int* choose_high_risk_combinations2(unsigned int* counts_aff, unsigned int* counts_unaff, 
                                    unsigned int num_combinations, unsigned int num_counts_per_combination,
                                    unsigned int num_affected, unsigned int num_unaffected, 
