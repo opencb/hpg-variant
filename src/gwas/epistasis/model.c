@@ -5,38 +5,6 @@
  *       Main pipeline      *
  * **************************/
 
-risky_combination *get_model_from_combination_in_fold(int order, int comb[order], uint8_t **genotypes, 
-                                                      int num_genotype_combinations, uint8_t **genotype_combinations, 
-                                                      int num_counts, int counts_aff[num_counts], int counts_unaff[num_counts],
-                                                      masks_info info, risky_combination *risky_scratchpad) {
-    risky_combination *risky_comb = NULL;
-    
-    // Get counts for the provided genotypes
-    uint8_t *masks = set_genotypes_masks(order, genotypes, info.num_combinations_in_a_row, info); // Grouped by SNP
-    combination_counts(order, masks, genotype_combinations, num_genotype_combinations, counts_aff, counts_unaff, info);
-    
-    // Get high risk pairs for those counts
-    void *aux_info;
-    int num_risky;
-    int *risky_idx = choose_high_risk_combinations(counts_aff, counts_unaff, num_counts, info.num_affected, info.num_unaffected, 
-                                                   &num_risky, &aux_info, mdr_high_risk_combinations);
-    
-    // Filter non-risky SNP combinations
-    if (num_risky > 0) {
-        // Put together the info about the SNP combination and its genotype combinations
-        if (risky_scratchpad) {
-            risky_comb = risky_combination_copy(order, comb, genotype_combinations, num_risky, risky_idx, aux_info, risky_scratchpad);
-        } else {
-            risky_comb = risky_combination_new(order, comb, genotype_combinations, num_risky, risky_idx, aux_info);
-        }
-    }
-    
-    free(risky_idx);
-    
-    return risky_comb;
-}
-
-
 double test_model(int order, risky_combination *risky_comb, uint8_t **val, masks_info info, unsigned int *conf_matrix) {
     // Get the matrix containing {FP,FN,TP,TN}
     confusion_matrix(order, risky_comb, info, val, conf_matrix);
