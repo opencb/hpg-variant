@@ -19,7 +19,6 @@
  */
 
 #include "epistasis_runner.h"
-#include "gwas/assoc/assoc.h"
 
 
 static void show_best_models_per_repetition(int order, int num_cv_repetitions, linked_list_t *best_models[]);
@@ -92,9 +91,10 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
         }
         
         // Initialize rankings for each repetition
-        linked_list_t **ranking_risky = malloc (num_folds * sizeof(linked_list_t*));
+        struct fheap **ranking_risky = malloc(num_folds * sizeof(struct fheap*));
         for (int i = 0; i < num_folds; i++) {
-            ranking_risky[i] = linked_list_new(COLLECTION_MODE_ASYNCHRONIZED);
+            ranking_risky[i] = malloc(sizeof(struct fheap));
+            fheap_init(ranking_risky[i]);
         }
         
         // Coordinates of the block being tested
@@ -286,7 +286,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
 
 #pragma omp critical
                             {
-                            position = add_to_model_ranking(risky_comb, options_data->max_ranking_size, ranking_risky[f]);
+                            position = add_to_model_ranking_heap(risky_comb, options_data->max_ranking_size, ranking_risky[f]);
                             }
 
                             // If not inserted it means it is not among the most risky combinations, so free it
@@ -397,7 +397,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
 
 #pragma omp critical
                         {
-                        position = add_to_model_ranking(risky_comb, options_data->max_ranking_size, ranking_risky[f]);
+                        position = add_to_model_ranking_heap(risky_comb, options_data->max_ranking_size, ranking_risky[f]);
                         }
 
                         // If not inserted it means it is not among the most risky combinations, so free it
@@ -459,17 +459,26 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
         size_t current_index = 0;
         
         for (int i = 0; i < num_folds; i++) {
-            linked_list_iterator_t* iter = linked_list_iterator_new(ranking_risky[i]);
-            
+            struct fheap_node *hn;
             risky_combination *element = NULL;
-            while(element = linked_list_iterator_curr(iter)) {
+
+//            printf("Ranking fold %d = {\n", i);
+            while (!fheap_empty(ranking_risky[i])) {
+                hn = fheap_take(ranking_risky[i]);
+                element = (risky_combination*) hn->value;
                 repetition_ranking[current_index] = element;
                 current_index++;
-                // printf("(%d %d - %.3f) ", element->combination[0], element->combination[1], element->accuracy);
-                linked_list_iterator_next(iter);
+                free(hn);
+
+//                printf("(%d ", element->combination[0]);
+//                for (int s = 1; s < order; s++) {
+//                    printf("%d ", element->combination[s]);
+//                }
+//                printf("- %.3f) ", element->accuracy);
             }
-            linked_list_iterator_free(iter);
+//            printf("}\n\n");
         }
+
         assert(current_index == repetition_ranking_size);
         
         // qsort by coordinates
@@ -479,11 +488,15 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
         printf("Ranking sorted = {\n");
         for (int i = 0; i < repetition_ranking_size; i++) {
             risky_combination *element = repetition_ranking[i];
-            printf("(%d %d - %.3f) ", element->combination[0], element->combination[1], element->accuracy);
+
+            printf("(%2d ", element->combination[0]);
+            for (int s = 1; s < order; s++) {
+                printf("%2d ", element->combination[s]);
+            }
+            printf("- %.3f) ", element->accuracy);
         }
         printf("\n");
 */
-        
         
         // Sum all values of each position and get the mean of accuracies
         linked_list_t *sorted_repetition_ranking = linked_list_new(COLLECTION_MODE_ASYNCHRONIZED);
@@ -512,23 +525,30 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                 current = element;
             }
         }
+        // Don't leave last element out!
+        current->accuracy /= num_folds;
+        add_to_model_ranking(current, repetition_ranking_size, sorted_repetition_ranking);
         
-//         // Show full ranking
-//         linked_list_iterator_t* iter = linked_list_iterator_new(sorted_repetition_ranking);
-//         risky_combination *element = NULL;
-//         while(element = linked_list_iterator_next(iter)) {
-//             printf("(%d %d - %.3f) ", element->combination[0], element->combination[1], element->accuracy);
-//         }
-//         printf("\n");
-//         linked_list_iterator_free(iter);
-        
+        // Show full ranking
+/*
+        linked_list_iterator_t* iter = linked_list_iterator_new(sorted_repetition_ranking);
+        risky_combination *element = NULL;
+        printf("Final ranking = {\n");
+        while(element = linked_list_iterator_curr(iter)) {
+            printf("(%d %d - %.3f) ", element->combination[0], element->combination[1], element->accuracy);
+            linked_list_iterator_next(iter);
+        }
+        printf("}\n");
+        linked_list_iterator_free(iter);
+*/
+
         // Save the models ranking
         best_models[r] = sorted_repetition_ranking;
         
         // Free data por this repetition
         for (int i = 0; i < num_folds; i++) {
             free(folds[i]);
-            linked_list_free(ranking_risky[i], NULL);
+            free(ranking_risky[i]);
         }
         free(ranking_risky);
         free(folds);

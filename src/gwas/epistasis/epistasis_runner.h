@@ -40,6 +40,7 @@
 #include "cross_validation.h"
 #include "dataset.h"
 #include "epistasis.h"
+#include "fheap.h"
 #include "model.h"
 
 KHASH_MAP_INIT_STR(cvc, int);

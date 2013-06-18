@@ -16,6 +16,46 @@ double test_model(int order, risky_combination *risky_comb, uint8_t **val, masks
     return eval;
 }
 
+int add_to_model_ranking_heap(risky_combination *risky_comb, int max_ranking_size, fheap *ranking_risky) {
+    // Step 6 -> Construct ranking of the best N combinations
+    size_t current_ranking_size = ranking_risky->size;
+
+    if (current_ranking_size > 0) {
+        fheap_node *last_node = fheap_peek(ranking_risky);
+        risky_combination *last_element = last_node->value;
+
+        // If accuracy is not greater than the last element, don't bother inserting
+        if (risky_comb->accuracy > last_element->accuracy) {
+            fheap_node *hn = malloc (sizeof(fheap_node));
+            fheap_node_init(hn, risky_comb->accuracy, risky_comb);
+            fheap_insert(ranking_risky, hn);
+
+            if (current_ranking_size >= max_ranking_size) {
+                fheap_node *removed = fheap_take(ranking_risky);
+                risky_combination_free((risky_combination*) removed->value);
+                free(removed);
+            }
+
+            return ranking_risky->size - 1;
+        }
+
+        if (current_ranking_size < max_ranking_size) {
+            LOG_DEBUG_F("To insert %.3f at the end", risky_comb->accuracy);
+            fheap_node *hn = malloc (sizeof(fheap_node));
+            fheap_node_init(hn, risky_comb->accuracy, risky_comb);
+            fheap_insert(ranking_risky, hn);
+            return ranking_risky->size - 1;
+        }
+    } else {
+        fheap_node *hn = malloc (sizeof(fheap_node));
+        fheap_node_init(hn, risky_comb->accuracy, risky_comb);
+        fheap_insert(ranking_risky, hn);
+        return ranking_risky->size - 1;
+
+    }
+
+    return -1;
+}
 
 int add_to_model_ranking(risky_combination *risky_comb, int max_ranking_size, linked_list_t *ranking_risky) {
     // Step 6 -> Construct ranking of the best N combinations

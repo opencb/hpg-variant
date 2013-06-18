@@ -17,6 +17,7 @@
 #include <containers/linked_list.h>
 
 #include "dataset.h"
+#include "fheap.h"
 #include "mdr.h"
 
 #define NUM_GENOTYPES           3
@@ -65,6 +66,8 @@ enum eval_function { CA, BA, wBA, GAMMA, TAU_B };
  * **************************/
 
 double test_model(int order, risky_combination *risky_comb, uint8_t **val, masks_info info, unsigned int *conf_matrix);
+
+int add_to_model_ranking_heap(risky_combination *risky_comb, int max_ranking_size, fheap *ranking_risky);
 
 int add_to_model_ranking(risky_combination *risky_comb, int max_ranking_size, linked_list_t *ranking_risky);
 
