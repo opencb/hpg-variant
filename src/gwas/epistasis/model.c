@@ -264,12 +264,12 @@ int* choose_high_risk_combinations(unsigned int* counts_aff, unsigned int* count
 }
 
 risky_combination* risky_combination_new(int order, int comb[order], uint8_t** possible_genotypes_combinations, 
-                                         int num_risky, int* risky_idx, void *aux_info) {
+                                         int num_risky, int* risky_idx, void *aux_info, masks_info info) {
     risky_combination *risky = malloc(sizeof(risky_combination));
     risky->order = order;
     risky->combination = malloc(order * sizeof(int));
     risky->accuracy = 0.0f;
-    risky->genotypes = malloc(pow(NUM_GENOTYPES, order) * order * sizeof(uint8_t)); // Maximum possible
+    risky->genotypes = malloc(info.num_cell_counts_per_combination * order * sizeof(uint8_t)); // Maximum possible
     risky->num_risky_genotypes = num_risky;
     risky->auxiliary_info = aux_info; // TODO improvement: set this using a method-dependant (MDR, MB-MDR) function
     

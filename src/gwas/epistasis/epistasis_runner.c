@@ -263,7 +263,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                             // Put together the info about the SNP combination and its genotype combinations
                             risky_comb = risky_combination_new(order, comb, genotype_permutations,
                                                                num_risky[rc], risky_idx + risky_begin_idx,
-                                                               aux_info);
+                                                               aux_info, info);
                         }
 
                         risky_begin_idx += num_risky[rc];
@@ -301,8 +301,6 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                     free(risky_idx);
 
 
-//                     free(reference);
-//
 //                     for (int c = 0; c < num_samples; c++) {
 //                         free(genotypes_for_testing[c]);
 //                     }
@@ -371,8 +369,8 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                     if (num_risky > 0) {
                         // Put together the info about the SNP combination and its genotype combinations
                         risky_comb = risky_combination_new(order, comb, genotype_permutations,
-                                                        num_risky[rc], risky_idx + risky_begin_idx,
-                                                        aux_info);
+                                                           num_risky[rc], risky_idx + risky_begin_idx,
+                                                           aux_info, info);
                     }
 
                     risky_begin_idx += num_risky[rc];
@@ -411,8 +409,6 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
 
                 free(risky_idx);
 
-//                     free(reference);
-//
 //                     for (int c = 0; c < num_samples; c++) {
 //                         free(genotypes_for_testing[c]);
 //                     }

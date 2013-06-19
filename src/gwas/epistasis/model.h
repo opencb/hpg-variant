@@ -106,7 +106,7 @@ int* choose_high_risk_combinations(unsigned int* counts_aff, unsigned int* count
 
 
 risky_combination *risky_combination_new(int order, int comb[order], uint8_t **possible_genotypes_combinations, 
-                                         int num_risky, int *risky_idx, void *aux_info);
+                                         int num_risky, int *risky_idx, void *aux_info, masks_info info);
 
 risky_combination* risky_combination_copy(int order, int comb[order], uint8_t** possible_genotypes_combinations, 
                                           int num_risky, int* risky_idx, void *aux_info, risky_combination* risky);
