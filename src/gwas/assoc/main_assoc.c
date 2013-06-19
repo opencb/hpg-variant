@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
+ * Copyright (c) 2012-2013 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
  * Copyright (c) 2012 Ignacio Medina (ICM-CIPF)
  *
  * This file is part of hpg-variant.
@@ -35,7 +35,7 @@ int association(int argc, char *argv[], const char *configuration_file) {
     if (argc == 1 || !strcmp(argv[1], "--help")) {
         argtable = merge_assoc_options(assoc_options, shared_options, arg_end(assoc_options->num_options + shared_options->num_options));
         show_usage("hpg-var-gwas assoc", argtable, assoc_options->num_options + shared_options->num_options);
-        arg_freetable(argtable, assoc_options->num_options + shared_options->num_options);
+        arg_freetable(argtable, 30);
         return 0;
     }
 
@@ -67,20 +67,13 @@ int association(int argc, char *argv[], const char *configuration_file) {
     shared_options_data_t *shared_options_data = new_shared_options_data(shared_options);
     assoc_options_data_t *options_data = new_assoc_options_data(assoc_options);
 
-    // Step 5: Perform the operations related to the selected GWAS sub-tool
-//     switch (options_data->task) {
-//         case TDT:
-//             run_tdt_test(shared_options_data, options_data);
-//         break;
-//         case ASSOCIATION_BASIC:
-//         case FISHER:
-            run_association_test(shared_options_data, options_data);
-//         break;
-//     }
+    // Step 5: Perform the GWAS test
+    run_association_test(shared_options_data, options_data);
     
     free_assoc_options_data(options_data);
     free_shared_options_data(shared_options_data);
-    arg_freetable(argtable, assoc_options->num_options + shared_options->num_options);
+    arg_freetable(argtable, 30);
+    free(configuration_file);
 
     return 0;
 }

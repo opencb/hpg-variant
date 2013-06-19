@@ -9,7 +9,7 @@ env = Environment(tools = ['default', 'packaging'],
                   CFLAGS = '-std=c99 -D_XOPEN_SOURCE=600 -D_GNU_SOURCE -msse4.2 -fopenmp',
                   CPPPATH = ['#', '#src', '#include', bioinfo_path, commons_path, math_path, '/usr/include', '/usr/local/include', '/usr/include/libxml2'],
                   LIBPATH = [commons_path, bioinfo_path, '/usr/lib', '/usr/local/lib'],
-                  LIBS = ['common', 'bioinfo', 'curl', 'gsl', 'gslcblas', 'm', 'xml2', 'z'],
+                  LIBS = ['common', 'bioinfo', 'curl', 'dl', 'gsl', 'gslcblas', 'm', 'xml2', 'z'],
                   LINKFLAGS = ['-fopenmp'])
                   
 if int(ARGUMENTS.get('debug', '0')) == 1:
@@ -49,13 +49,11 @@ t = SConscript("test/SConscript", exports = ['env', 'debug', 'commons_path', 'bi
 # For the packaging manager: Don't forget to point the XXX_INCLUDE_PATH and XXX_LIBRARY_PATH 
 # variables to the application libraries folder!!
 tb = env.Package(NAME          = 'hpg-variant',
-                VERSION        = '0.4',
+                VERSION        = '0.99.2',
                 PACKAGEVERSION = 0,
                 PACKAGETYPE    = 'src_targz',
                 source         = env.FindSourceFiles() + env.FindHeaderFiles(progs) + 
-                             [ '#libs/libargtable2.a', '#libs/libcprops.a',
-                               Glob('#include/*.h'), Glob('#include/cprops/*.h'),
-                               '#buildaux.py', '#buildvars.py', '#libs/common-libs/buildvars.py', '#libs/bioinfo-libs/buildvars.py',
+                             [ '#buildaux.py', '#libs/bioinfo-libs/buildvars.py',
                                '#deb/SConscript', '#rpm/SConscript', '#rpm/hpg-variant.spec',
                                '#COPYING', '#INSTALL' ] )
 Alias('tarball', tb)

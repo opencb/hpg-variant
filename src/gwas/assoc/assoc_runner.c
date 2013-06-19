@@ -25,8 +25,8 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
     list_init("output", shared_options_data->num_threads, INT_MAX, output_list);
 
     int ret_code = 0;
-    vcf_file_t *file = vcf_open(shared_options_data->vcf_filename, shared_options_data->max_batches);
-    if (!file) {
+    vcf_file_t *vcf_file = vcf_open(shared_options_data->vcf_filename, shared_options_data->max_batches);
+    if (!vcf_file) {
         LOG_FATAL("VCF file does not exist!\n");
     }
     
@@ -58,7 +58,7 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
             
             double start = omp_get_wtime();
 
-            ret_code = vcf_read(file, 0,
+            ret_code = vcf_read(vcf_file, 0,
                                 (shared_options_data->batch_bytes > 0) ? shared_options_data->batch_bytes : shared_options_data->batch_lines,
                                 shared_options_data->batch_bytes <= 0);
 
@@ -66,13 +66,13 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
             double total = stop - start;
 
             if (ret_code) {
-                LOG_FATAL_F("Error %d while reading the file %s\n", ret_code, file->filename);
+                LOG_FATAL_F("Error %d while reading the file %s\n", ret_code, vcf_file->filename);
             }
 
             LOG_INFO_F("[%dR] Time elapsed = %f s\n", omp_get_thread_num(), total);
             LOG_INFO_F("[%dR] Time elapsed = %e ms\n", omp_get_thread_num(), total*1000);
 
-            notify_end_reading(file);
+            notify_end_reading(vcf_file);
         }
 
 #pragma omp section
@@ -82,7 +82,9 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
             omp_set_nested(1);
             
             volatile int initialization_done = 0;
-            individual_t **individuals;
+            // Pedigree information
+            individual_t **individuals = NULL;
+            khash_t(ids) *sample_ids = NULL;
             
             // Create chain of filters for the VCF file
             filter_t **filters = NULL;
@@ -104,8 +106,12 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
 
             char *text_begin, *text_end;
             vcf_reader_status *status;
-            while(text_begin = fetch_vcf_text_batch(file)) {
+            while(text_begin = fetch_vcf_text_batch(vcf_file)) {
                 text_end = text_begin + strlen(text_begin);
+                if (text_begin == text_end) { // EOF
+                    free(text_begin);
+                    break;
+                }
                 
 # pragma omp critical
                 {
@@ -114,19 +120,21 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
                 }
                 
                 if (shared_options_data->batch_bytes > 0) {
-                    ret_code = run_vcf_parser(text_begin, text_end, 0, file, status);
+                    ret_code = run_vcf_parser(text_begin, text_end, 0, vcf_file, status);
                 } else if (shared_options_data->batch_lines > 0) {
-                    ret_code = run_vcf_parser(text_begin, text_end, shared_options_data->batch_lines, file, status);
+                    ret_code = run_vcf_parser(text_begin, text_end, shared_options_data->batch_lines, vcf_file, status);
                 }
                 
                 // Initialize structures needed for association tests and write headers of output files
-                if (!initialization_done && file->samples_names->size > 0) {
+                if (!initialization_done && vcf_file->samples_names->size > 0) {
 # pragma omp critical
                 {
                     // Guarantee that just one thread performs this operation
                     if (!initialization_done) {
+                        // Create map to associate the position of individuals in the list of samples defined in the VCF file
+                        sample_ids = associate_samples_and_positions(vcf_file);
                         // Sort individuals in PED as defined in the VCF file
-                        individuals = sort_individuals(file, ped_file);
+                        individuals = sort_individuals(vcf_file, ped_file);
                         
 /*
                         printf("num samples = %zu\n", get_num_vcf_samples(file));
@@ -141,17 +149,17 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
                         // Add headers associated to the defined filters
                         vcf_header_entry_t **filter_headers = get_filters_as_vcf_headers(filters, num_filters);
                         for (int j = 0; j < num_filters; j++) {
-                            add_vcf_header_entry(filter_headers[j], file);
+                            add_vcf_header_entry(filter_headers[j], vcf_file);
                         }
                         
                         // Write file format, header entries and delimiter
-                        if (passed_file != NULL) { write_vcf_header(file, passed_file); }
-                        if (failed_file != NULL) { write_vcf_header(file, failed_file); }
+                        if (passed_file != NULL) { write_vcf_header(vcf_file, passed_file); }
+                        if (failed_file != NULL) { write_vcf_header(vcf_file, failed_file); }
                         
                         LOG_DEBUG("VCF header written\n");
                         
                         if (options_data->task == FISHER) {
-                            factorial_logarithms = init_logarithm_array(get_num_vcf_samples(file) * 10);
+                            factorial_logarithms = init_logarithm_array(get_num_vcf_samples(vcf_file) * 10);
                         }
                         
                         initialization_done = 1;
@@ -164,7 +172,7 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
                     continue;
                 }
                 
-                vcf_batch_t *batch = fetch_vcf_batch(file);
+                vcf_batch_t *batch = fetch_vcf_batch(vcf_file);
                 
                 if (i % 100 == 0) {
                     LOG_INFO_F("Batch %d reached by thread %d - %zu/%zu records \n", 
@@ -172,12 +180,14 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
                             batch->records->size, batch->records->capacity);
                 }
 
+                assert(batch);
+                
                 // Launch association test over records that passed the filters
                 array_list_t *failed_records = NULL;
-                array_list_t *passed_records = filter_records(filters, num_filters, batch->records, &failed_records);
+                array_list_t *passed_records = filter_records(filters, num_filters, individuals, sample_ids, batch->records, &failed_records);
                 if (passed_records->size > 0) {
                     assoc_test(options_data->task, (vcf_record_t**) passed_records->items, passed_records->size, 
-                                individuals, get_num_vcf_samples(file), factorial_logarithms, output_list);
+                                individuals, get_num_vcf_samples(vcf_file), factorial_logarithms, output_list);
                 }
                 
                 // Write records that passed and failed filters to separate files, and free them
@@ -189,7 +199,7 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
                 vcf_batch_free(batch);
             }  
             
-            notify_end_parsing(file);
+            notify_end_parsing(vcf_file);
             }
 
             double stop = omp_get_wtime();
@@ -204,7 +214,9 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
                 filter->free_func(filter);
             }
             free(filters);
-            free(individuals);
+            
+            if (sample_ids) { kh_destroy(ids, sample_ids); }
+            if (individuals) { free(individuals); }
 
             // Decrease list writers count
             for (int i = 0; i < shared_options_data->num_threads; i++) {
@@ -248,9 +260,8 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
     }
    
     free(output_list);
-    vcf_close(file);
-    // TODO delete conflicts among frees
-    ped_close(ped_file, 0);
+    vcf_close(vcf_file);
+    ped_close(ped_file, 1);
         
     return ret_code;
 }

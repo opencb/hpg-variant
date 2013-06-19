@@ -19,6 +19,7 @@
  */
 
 #include "split.h"
+#include <malloc.h>
 
 /* ******************************
  *      Splitting per variant   *
@@ -44,11 +45,75 @@ int split_by_chromosome(vcf_record_t **variants, int num_variants, list_t* outpu
     // For each variant, its output filename will be 'chromosome<#chr>_<original_filename>.vcf'
     for (int i = 0; i < num_variants; i++) {
         record = variants[i];
-        output_prefix = (char*) calloc (record->chromosome_len + 12, sizeof(char));
+        output_prefix = (char*) calloc (12 + record->chromosome_len, sizeof(char));
         strncat(output_prefix, "chromosome_", 11);
         strncat(output_prefix, record->chromosome, record->chromosome_len);
         split_result = new_split_result(vcf_record_copy(record), output_prefix);
         
+        // Insert results in output list
+        list_item_t *item = list_item_new(i, 0, split_result);
+        list_insert_item(item, output_list);
+    }
+    
+    return 0;
+}
+
+int split_by_coverage(vcf_record_t **variants, int num_variants, long *intervals, int num_intervals, list_t* output_list) {
+    char *output_prefix;
+    vcf_record_t *record;
+    split_result_t *split_result;
+    
+    // Get length of the string containing the value of the last (and greatest) interval
+    char limit_buf[64];
+    sprintf(limit_buf, "%ld", intervals[num_intervals-1]);
+    size_t last_limit_len = strlen(limit_buf);
+    
+    // For each variant, its output filename will be 'coverage_<#limit1>_<#limit2>_<original_filename>.vcf'
+    for (int i = 0; i < num_variants; i++) {
+        record = variants[i];
+        output_prefix = (char*) calloc (11 + last_limit_len * 2, sizeof(char));
+	
+        char *info = strndup(record->info, record->info_len);
+        char *value_str = get_field_value_in_info("DP", info);
+        int value = atoi(value_str);
+        free(info);
+        
+        long limit_lo = 0, limit_hi = 0;
+        
+        if (value <= intervals[0]) {
+            // Within first interval
+            limit_hi = intervals[0];
+        } else {
+            int interval_found = 0;
+            // Within intermediate interval
+            for (int j = 1; j < num_intervals; j++) {
+                if (value <= intervals[j]) {
+                    limit_lo = intervals[j-1];
+                    limit_hi = intervals[j];
+                    interval_found = 1;
+                    break;
+                }
+            }
+            
+            // Within last interval
+            if (!interval_found) {
+                limit_lo = intervals[num_intervals-1];
+                limit_hi = LONG_MAX;
+            }
+        }
+        
+/*
+        free(value_str);
+*/
+        
+        if (limit_hi < LONG_MAX) {
+            sprintf(output_prefix, "coverage_%ld_%ld", limit_lo, limit_hi);
+        } else {
+            sprintf(output_prefix, "coverage_%ld_N", limit_lo);
+        }
+
+        split_result = new_split_result(vcf_record_copy(record), output_prefix);
+
         // Insert results in output list
         list_item_t *item = list_item_new(i, 0, split_result);
         list_insert_item(item, output_list);

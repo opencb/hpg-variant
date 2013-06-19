@@ -26,7 +26,7 @@ void assoc_test(enum ASSOC_task test_type, vcf_record_t **variants, int num_vari
 
     vcf_record_t *record;
     individual_t *individual;
-    char *sample_data;
+    char *sample_data, *format;
     
     int gt_position;
     int allele1, allele2;
@@ -42,7 +42,9 @@ void assoc_test(enum ASSOC_task test_type, vcf_record_t **variants, int num_vari
         A1 = 0; A2 = 0;
         U1 = 0; U2 = 0;
 
-        gt_position = get_field_position_in_format("GT", strndup(record->format, record->format_len));
+        format = strndup(record->format, record->format_len);
+        gt_position = get_field_position_in_format("GT", format);
+        free(format);
     
         // Count over individuals
         for (int j = 0; j < num_samples; j++) {

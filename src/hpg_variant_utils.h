@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
+ * Copyright (c) 2012-2013 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
  * Copyright (c) 2012 Ignacio Medina (ICM-CIPF)
  *
  * This file is part of hpg-variant.
@@ -72,21 +72,18 @@ void close_job_status_file(FILE *file);
  * ***********************/
 
 /**
- * @brief Creates output files depending on the tool options given as input
- * @param shared_options Options for deciding whether to create the output files or not
+ * @brief Creates files that will contain the output of filtering tools, using the VCF input filename as prefix.
+ * @param shared_options Options for deciding the destination of the filter output
  * @param passed_file File containing entries that pass filters tests
  * @param failed_file File containing entries that don't pass filters tests
  * @return 0 if no errors occurred, 1 otherwise
- * 
- * If an output filename has been provided as command-line argument, creates 2 files with that prefix. 
- * If no output filename has been provided but some filters are applied, uses the original filename as prefix.
- * If no output filename nor filters are provided, don't create output files.
  */
 int get_filtering_output_files(shared_options_data_t *shared_options, FILE **passed_file, FILE **failed_file);
 
 int write_filtering_output_files(array_list_t *passed_records, array_list_t *failed_records, FILE* passed_file, FILE* failed_file);
 
-array_list_t *filter_records(filter_t** filters, int num_filters, array_list_t *input_records, array_list_t **failed_records);
+array_list_t *filter_records(filter_t** filters, int num_filters, individual_t **individuals, khash_t(ids) *sample_ids, 
+                             array_list_t *input_records, array_list_t **failed_records);
 
 void free_filtered_records(array_list_t *passed_records, array_list_t *failed_records, array_list_t *input_records);
 

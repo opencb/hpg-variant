@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
+ * Copyright (c) 2012-2013 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
  * Copyright (c) 2012 Ignacio Medina (ICM-CIPF)
  *
  * This file is part of hpg-variant.
@@ -25,8 +25,8 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
     list_init("output", shared_options_data->num_threads, INT_MAX, output_list);
 
     int ret_code = 0;
-    vcf_file_t *file = vcf_open(shared_options_data->vcf_filename, shared_options_data->max_batches);
-    if (!file) {
+    vcf_file_t *vcf_file = vcf_open(shared_options_data->vcf_filename, shared_options_data->max_batches);
+    if (!vcf_file) {
         LOG_FATAL("VCF file does not exist!\n");
     }
     
@@ -58,20 +58,20 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
             
             double start = omp_get_wtime();
 
-            ret_code = vcf_read(file, 0,
+            ret_code = vcf_read(vcf_file, 0,
                                 (shared_options_data->batch_bytes > 0) ? shared_options_data->batch_bytes : shared_options_data->batch_lines,
                                 shared_options_data->batch_bytes <= 0);
 
             double stop = omp_get_wtime();
 
             if (ret_code) {
-                LOG_FATAL_F("Error %d while reading the file %s\n", ret_code, file->filename);
+                LOG_FATAL_F("Error %d while reading the file %s\n", ret_code, vcf_file->filename);
             }
 
             LOG_INFO_F("[%dR] Time elapsed = %f s\n", omp_get_thread_num(), stop - start);
             LOG_INFO_F("[%dR] Time elapsed = %e ms\n", omp_get_thread_num(), (stop - start) * 1000);
 
-            notify_end_reading(file);
+            notify_end_reading(vcf_file);
         }
 
 #pragma omp section
@@ -82,6 +82,10 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
             omp_set_nested(1);
             
             volatile int initialization_done = 0;
+            // Pedigree information
+            family_t **families = (family_t**) cp_hashtable_get_values(ped_file->families);
+            int num_families = get_num_families(ped_file);
+            individual_t **individuals = NULL;
             khash_t(ids) *sample_ids = NULL;
             
             // Create chain of filters for the VCF file
@@ -96,17 +100,18 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
             double start = omp_get_wtime();
             
             int i = 0;
-#pragma omp parallel num_threads(shared_options_data->num_threads) shared(initialization_done, sample_ids, filters)
+#pragma omp parallel num_threads(shared_options_data->num_threads)
             {
             LOG_DEBUG_F("Level %d: number of threads in the team - %d\n", 11, omp_get_num_threads());
             
-            family_t **families = (family_t**) cp_hashtable_get_values(ped_file->families);
-            int num_families = get_num_families(ped_file);
-            
             char *text_begin, *text_end;
             vcf_reader_status *status;
-            while(text_begin = fetch_vcf_text_batch(file)) {
+            while(text_begin = fetch_vcf_text_batch(vcf_file)) {
                 text_end = text_begin + strlen(text_begin);
+                if (text_begin == text_end) { // EOF
+                    free(text_begin);
+                    break;
+                }
                 
 #pragma omp critical 
                 {
@@ -115,33 +120,35 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
                 }
                 
                 if (shared_options_data->batch_bytes > 0) {
-                    ret_code = run_vcf_parser(text_begin, text_end, 0, file, status);
+                    ret_code = run_vcf_parser(text_begin, text_end, 0, vcf_file, status);
                 } else if (shared_options_data->batch_lines > 0) {
-                    ret_code = run_vcf_parser(text_begin, text_end, shared_options_data->batch_lines, file, status);
+                    ret_code = run_vcf_parser(text_begin, text_end, shared_options_data->batch_lines, vcf_file, status);
                 }
                 
                 if (ret_code > 0) {
-                    LOG_FATAL_F("Error %d while parsing the file %s\n", ret_code, file->filename);
+                    LOG_FATAL_F("Error %d while parsing the file %s\n", ret_code, vcf_file->filename);
                 }
                 
                 // Initialize structures needed for TDT and write headers of output files
-                if (!initialization_done && file->samples_names->size > 0) {
+                if (!initialization_done && vcf_file->samples_names->size > 0) {
 #pragma omp critical
                 {
                     // Guarantee that just one thread performs this operation
                     if (!initialization_done) {
                         // Create map to associate the position of individuals in the list of samples defined in the VCF file
-                        sample_ids = associate_samples_and_positions(file);
+                        sample_ids = associate_samples_and_positions(vcf_file);
+                        // Sort individuals in PED as defined in the VCF file
+                        individuals = sort_individuals(vcf_file, ped_file);
                         
                         // Add headers associated to the defined filters
                         vcf_header_entry_t **filter_headers = get_filters_as_vcf_headers(filters, num_filters);
                         for (int j = 0; j < num_filters; j++) {
-                            add_vcf_header_entry(filter_headers[j], file);
+                            add_vcf_header_entry(filter_headers[j], vcf_file);
                         }
                         
                         // Write file format, header entries and delimiter
-                        if (passed_file != NULL) { write_vcf_header(file, passed_file); }
-                        if (failed_file != NULL) { write_vcf_header(file, failed_file); }
+                        if (passed_file != NULL) { write_vcf_header(vcf_file, passed_file); }
+                        if (failed_file != NULL) { write_vcf_header(vcf_file, failed_file); }
                         
                         LOG_DEBUG("VCF header written\n");
                         
@@ -155,7 +162,7 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
                     continue;
                 }
                 
-                vcf_batch_t *batch = fetch_vcf_batch(file);
+                vcf_batch_t *batch = fetch_vcf_batch(vcf_file);
 
                 if (i % 100 == 0) {
                     LOG_INFO_F("Batch %d reached by thread %d - %zu/%zu records \n", 
@@ -167,7 +174,7 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
                 array_list_t *failed_records = NULL;
                 assert(batch);
                 assert(batch->records);
-                array_list_t *passed_records = filter_records(filters, num_filters, batch->records, &failed_records);
+                array_list_t *passed_records = filter_records(filters, num_filters, individuals, sample_ids, batch->records, &failed_records);
                 if (passed_records->size > 0) {
                     ret_code = tdt_test((vcf_record_t**) passed_records->items, passed_records->size, families, num_families, sample_ids, output_list);
                     if (ret_code) {
@@ -184,7 +191,7 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
                 vcf_batch_free(batch);
             }
             
-            notify_end_parsing(file);
+            notify_end_parsing(vcf_file);
             }
 
             double stop = omp_get_wtime();
@@ -193,8 +200,6 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
             LOG_INFO_F("[%d] Time elapsed = %e ms\n", omp_get_thread_num(), (stop - start) * 1000);
 
             // Free resources
-            if (sample_ids) { kh_destroy(ids, sample_ids); }
-            
             if (filters) {
                 for (int i = 0; i < num_filters; i++) {
                     filter_t *filter = filters[i];
@@ -202,6 +207,10 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
                 }
                 free(filters);
             }
+            
+            if (sample_ids) { kh_destroy(ids, sample_ids); }
+            if (individuals) { free(individuals); }
+            free(families);
             
             // Decrease list writers count
             for (int i = 0; i < shared_options_data->num_threads; i++) {
@@ -248,10 +257,8 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
     }
     
     free(output_list);
-    vcf_close(file);
-    // TODO delete conflicts among frees
-//     ped_close(ped_file, 0);
-    
+    vcf_close(vcf_file);
+    ped_close(ped_file, 1);
     
     return ret_code;
 }

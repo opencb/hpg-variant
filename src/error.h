@@ -61,7 +61,7 @@
 
 // -- Split tool errors
 #define CRITERION_NOT_SPECIFIED                 500
-
+#define INTERVALS_NOT_SPECIFIED                 501
 // -- Stats tool errors
 
 #endif

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
+ * Copyright (c) 2012-2013 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
  * Copyright (c) 2012 Ignacio Medina (ICM-CIPF)
  *
  * This file is part of hpg-variant.
@@ -35,7 +35,7 @@ int main(int argc, char *argv[]) {
     if (argc == 1 || !strcmp(argv[1], "-h") || !strcmp(argv[1], "--help")) {
         argtable = merge_effect_options(effect_options, shared_options, arg_end(effect_options->num_options + shared_options->num_options));
         show_usage(argv[0], argtable, effect_options->num_options + shared_options->num_options);
-        arg_freetable(argtable, effect_options->num_options + shared_options->num_options);
+        arg_freetable(argtable, 30);
         return 0;
     }
 
@@ -92,7 +92,9 @@ int main(int argc, char *argv[]) {
     
     free_effect_options_data(effect_options_data);
     free_shared_options_data(shared_options_data);
-    arg_freetable(argtable, effect_options->num_options + shared_options->num_options - 1);
+    arg_freetable(argtable, 30);
+    array_list_free(config_search_paths, free);
+    free(configuration_file);
 
     stop_log();
     

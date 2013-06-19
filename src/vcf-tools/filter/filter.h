@@ -72,13 +72,6 @@ static void free_filter_options_data(filter_options_data_t *options_data);
 
 
 /* ******************************
- *       Tool execution         *
- * ******************************/
-
-int run_filter(shared_options_data_t *shared_options_data, filter_options_data_t *options_data);
-
-
-/* ******************************
  *       Options parsing        *
  * ******************************/
 

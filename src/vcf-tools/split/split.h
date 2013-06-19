@@ -21,9 +21,9 @@
 #ifndef VCF_TOOLS_SPLIT_H
 #define VCF_TOOLS_SPLIT_H
 
-#include <getopt.h>
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
 
 
 #include <bioformats/vcf/vcf_file_structure.h>
@@ -34,17 +34,20 @@
 #include "error.h"
 #include "shared_options.h"
 
-#define NUM_SPLIT_OPTIONS  1
+#define NUM_SPLIT_OPTIONS  2
 
-enum Split_criterion { NONE, CHROMOSOME, GENE };
+enum Split_criterion { NONE, SPLIT_CHROMOSOME, SPLIT_COVERAGE };
 
 typedef struct split_options {
     struct arg_str *criterion;   /**< Criterion for splitting the file */
+    struct arg_str *intervals;
     int num_options;
 } split_options_t;
 
 typedef struct split_options_data {
     enum Split_criterion criterion;   /**< Criterion for splitting the file */
+    long *intervals;
+    int num_intervals;
 } split_options_data_t;
 
 
@@ -82,6 +85,8 @@ void free_split_result(split_result_t* split_result);
  * ******************************/
 
 int split_by_chromosome(vcf_record_t **variants, int num_variants, list_t* output_list);
+
+int split_by_coverage(vcf_record_t **variants, int num_variants, long *intervals, int num_intervals, list_t* output_list);
 
 /* ******************************
  *      Options parsing         *

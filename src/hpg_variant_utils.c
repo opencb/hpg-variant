@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
+ * Copyright (c) 2012-2013 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
  * Copyright (c) 2012 Ignacio Medina (ICM-CIPF)
  *
  * This file is part of hpg-variant.
@@ -28,20 +28,25 @@
 array_list_t *get_configuration_search_paths(int argc, char *argv[]) {
     char *c = get_config_path_from_args(argc, argv);
     char *config_dirpaths[3] = { c, getcwd(NULL, 0), strdup("/etc/hpg-variant") };
+    char *home = get_config_home_folder(config_dirpaths, 3);
 
-    char *h = get_config_home_folder(config_dirpaths, 3);
-
-    return sort_config_paths_by_priority(c, h);
+    array_list_t *paths = sort_config_paths_by_priority(c, home);
+    
+    free(config_dirpaths[0]);
+    free(config_dirpaths[1]);
+    free(config_dirpaths[2]);
+    free(home);
+    
+    return paths;
 }
 
 char *get_config_path_from_args(int argc, char *argv[]) {
-    FILE *config_dir = NULL;
     char *config_dirpath = NULL;
     struct stat sb;
 
     for (int i = 0; i < argc-1; i++) {
         if (!strcmp("--config", argv[i])) {
-            config_dirpath = argv[i+1];
+            config_dirpath = strdup(argv[i+1]);
             break;
         }
     }
@@ -56,7 +61,7 @@ char *get_config_path_from_args(int argc, char *argv[]) {
         return NULL;
 
     }
-
+    
     return config_dirpath;
 }
 
@@ -65,7 +70,6 @@ char *get_config_home_folder(char *config_dirpaths[], int num_dirpaths) {
         return NULL;
     }
 
-    FILE *home_config_dir = NULL;
     char *home_config_dirpath = malloc (1024 * sizeof(char));
     char hpg_variant_conf_path_src[1024];
     char hpg_variant_conf_path_dest[1024];
@@ -138,13 +142,13 @@ array_list_t *sort_config_paths_by_priority(char *config_arg_path, char *home_pa
 
     array_list_t *paths = array_list_new(num_paths, 1.1, COLLECTION_MODE_ASYNCHRONIZED);
     if (config_arg_path) {
-        array_list_insert(config_arg_path, paths);
+        array_list_insert(strdup(config_arg_path), paths);
     }
 
     array_list_insert(getcwd(NULL, 0), paths);
 
     if (home_path) {
-        array_list_insert(home_path, paths);
+        array_list_insert(strdup(home_path), paths);
     }
 
     array_list_insert(strndup("/etc/hpg-variant", 16), paths);
@@ -207,16 +211,13 @@ void close_job_status_file(FILE* file) {
  * ***********************/
 
 int get_filtering_output_files(shared_options_data_t *shared_options, FILE** passed_file, FILE** failed_file) {
-    if (shared_options == NULL) {
-        return 1;
-    }
+    assert(shared_options);
     
-    char *prefix_filename, *passed_filename, *failed_filename;
     int filename_len = 0;
     int dirname_len = strlen(shared_options->output_directory);
+    char prefix_filename[strlen(shared_options->vcf_filename)];
     
     if (shared_options->chain != NULL) {
-        prefix_filename = calloc(strlen(shared_options->vcf_filename), sizeof(char));
         get_filename_from_path(shared_options->vcf_filename, prefix_filename);
         filename_len = strlen(prefix_filename);
     } else {
@@ -226,18 +227,16 @@ int get_filtering_output_files(shared_options_data_t *shared_options, FILE** pas
     
     LOG_DEBUG_F("prefix filename = %s\n", prefix_filename);
     
-    passed_filename = (char*) calloc (dirname_len + filename_len + 11, sizeof(char));
+    char passed_filename[dirname_len + filename_len + 11];
+    char failed_filename[dirname_len + filename_len + 11];
+    
     sprintf(passed_filename, "%s/%s.filtered", shared_options->output_directory, prefix_filename);
-    *passed_file = fopen(passed_filename, "w");
-
-    failed_filename = (char*) calloc (dirname_len + filename_len + 11, sizeof(char));
     sprintf(failed_filename, "%s/%s.rejected", shared_options->output_directory, prefix_filename);
+    
+    *passed_file = fopen(passed_filename, "w");
     *failed_file = fopen(failed_filename, "w");
     
     LOG_DEBUG_F("passed filename = %s\nfailed filename = %s\n", passed_filename, failed_filename);
-    
-    free(passed_filename);
-    free(failed_filename);
     
     return 0;
 }
@@ -269,13 +268,14 @@ int write_filtering_output_files(array_list_t *passed_records, array_list_t *fai
     return ret_code;
 }
 
-array_list_t *filter_records(filter_t** filters, int num_filters, array_list_t *input_records, array_list_t **failed_records) {
+array_list_t *filter_records(filter_t** filters, int num_filters, individual_t **individuals, khash_t(ids) *sample_ids, 
+                             array_list_t *input_records, array_list_t **failed_records) {
     array_list_t *passed_records = NULL;
     if (filters == NULL || num_filters == 0) {
         passed_records = input_records;
     } else {
         *failed_records = array_list_new(input_records->size + 1, 1, COLLECTION_MODE_ASYNCHRONIZED);
-        passed_records = run_filter_chain(input_records, *failed_records, filters, num_filters);
+        passed_records = run_filter_chain(input_records, *failed_records, individuals, sample_ids, filters, num_filters);
     }
     return passed_records;
 }
@@ -343,5 +343,5 @@ int *create_chunks(int length, int max_chunk_size, int *num_chunks, int **chunk_
 }
 
 int compare_int(const void *a, const void *b) {
-  return ( *(int*)a - *(int*)b );
+    return ( *(int*)a - *(int*)b );
 }

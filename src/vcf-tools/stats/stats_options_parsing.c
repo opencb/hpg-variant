@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
+ * Copyright (c) 2012-2013 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
  * Copyright (c) 2012 Ignacio Medina (ICM-CIPF)
  *
  * This file is part of hpg-variant.
@@ -86,8 +86,7 @@ void **parse_stats_options(int argc, char *argv[], stats_options_t *stats_option
 }
 
 void **merge_stats_options(stats_options_t *stats_options, shared_options_t *shared_options, struct arg_end *arg_end) {
-    size_t opts_size = stats_options->num_options + shared_options->num_options - 11;
-    void **tool_options = malloc (opts_size * sizeof(void*));
+    void **tool_options = malloc (15 * sizeof(void*));
     // Input/output files
     tool_options[0] = shared_options->vcf_filename;
     tool_options[1] = shared_options->ped_filename;
@@ -97,19 +96,20 @@ void **merge_stats_options(stats_options_t *stats_options, shared_options_t *sha
     // Stats arguments
     tool_options[4] = stats_options->variant_stats;
     tool_options[5] = stats_options->sample_stats;
+    tool_options[6] = stats_options->save_db;
     
     // Configuration file
-    tool_options[6] = shared_options->config_file;
+    tool_options[7] = shared_options->config_file;
     
     // Advanced configuration
-    tool_options[7] = shared_options->max_batches;
-    tool_options[8] = shared_options->batch_lines;
-    tool_options[9] = shared_options->batch_bytes;
-    tool_options[10] = shared_options->num_threads;
-    tool_options[11] = shared_options->entries_per_thread;
-    tool_options[12] = shared_options->mmap_vcf_files;
+    tool_options[8] = shared_options->max_batches;
+    tool_options[9] = shared_options->batch_lines;
+    tool_options[10] = shared_options->batch_bytes;
+    tool_options[11] = shared_options->num_threads;
+    tool_options[12] = shared_options->entries_per_thread;
+    tool_options[13] = shared_options->mmap_vcf_files;
     
-    tool_options[13] = arg_end;
+    tool_options[14] = arg_end;
     
     return tool_options;
 }
@@ -118,34 +118,38 @@ void **merge_stats_options(stats_options_t *stats_options, shared_options_t *sha
 int verify_stats_options(stats_options_t *stats_options, shared_options_t *shared_options) {
     // Check whether the input VCF file is defined
     if (shared_options->vcf_filename->count == 0) {
-        LOG_ERROR("Please specify the input VCF file.\n");
+        LOG_ERROR("Please specify the input VCF file.");
         return VCF_FILE_NOT_SPECIFIED;
     }
     
     // Check whether batch lines or bytes are defined
     if (*(shared_options->batch_lines->ival) == 0 && *(shared_options->batch_bytes->ival) == 0) {
-        LOG_ERROR("Please specify the size of the reading batches (in lines or bytes).\n");
+        LOG_ERROR("Please specify the size of the reading batches (in lines or bytes).");
         return BATCH_SIZE_NOT_SPECIFIED;
     }
     
     // Check if both batch lines or bytes are defined
     if (*(shared_options->batch_lines->ival) > 0 && *(shared_options->batch_bytes->ival) > 0) {
-        LOG_WARN("The size of reading batches has been specified both in lines and bytes. The size in bytes will be used.\n");
+        LOG_WARN("The size of reading batches has been specified both in lines and bytes. The size in bytes will be used.");
         return 0;
     }
     
     // Check whether variant or sample stats are requested
     // If none of them is, set variant stats as default
     if (stats_options->variant_stats->count + stats_options->sample_stats->count == 0) {
-        LOG_INFO("Statistics requested neither for variants nor samples. Only-variants taken as default.\n");
+        LOG_INFO("Statistics requested neither for variants nor samples. Only-variants taken as default.");
         stats_options->variant_stats->count = 1;
-        return 0;
     }
     
     // Check whether the input PED file is defined when sample stats are requested
     if (stats_options->sample_stats->count > 0 && shared_options->ped_filename->count == 0) {
-        LOG_ERROR("Please specify the input PED file.\n");
+        LOG_ERROR("Please specify the input PED file.");
         return PED_FILE_NOT_SPECIFIED;
+    }
+    
+    // If no PED file is specified, not all statistics can be calculated
+    if (shared_options->ped_filename->count == 0) {
+        LOG_WARN("Input PED file not specified: not all statistics can be calculated.");
     }
     
     return 0;

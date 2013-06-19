@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
+ * Copyright (c) 2012-2013 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
  * Copyright (c) 2012 Ignacio Medina (ICM-CIPF)
  *
  * This file is part of hpg-variant.
@@ -25,11 +25,8 @@ shared_options_t *new_shared_cli_options(int ped_required) {
     shared_options_t *options_data = (shared_options_t*) calloc (1, sizeof(shared_options_t));
     
     options_data->vcf_filename = arg_file1("v", "vcf-file", NULL, "VCF file used as input");
-    if (ped_required) {
-        options_data->ped_filename = arg_file1("p", "ped-file", NULL, "PED file used as input");
-    } else {
-        options_data->ped_filename = arg_file0("p", "ped-file", NULL, "PED file used as input");
-    }
+    options_data->ped_filename = ped_required ? arg_file1("p", "ped-file", NULL, "PED file used as input") :
+                                                arg_file0("p", "ped-file", NULL, "PED file used as input");
     options_data->output_filename = arg_file0(NULL, "out", NULL, "Filename prefix for main output files");
     options_data->output_directory = arg_str0(NULL, "outdir", NULL, "Directory where the output files will be stored");
     
@@ -51,10 +48,13 @@ shared_options_t *new_shared_cli_options(int ped_required) {
     options_data->gene = arg_str0(NULL, "gene", NULL, "Filter: by a comma-separated list of genes");
     options_data->region = arg_str0(NULL, "region", NULL, "Filter: by a list of regions (chr1:start1-end1,chr2:start2-end2...)");
     options_data->region_file = arg_file0(NULL, "region-file", NULL, "Filter: by a list of regions (read from a GFF file)");
-    options_data->snp = arg_str0(NULL, "snp", NULL, "Filter: by being a SNP or not");
+    options_data->region_type = arg_str0(NULL, "region-type", NULL, "Filter: by type of region (used along with the 'region-file' argument)");
+    options_data->snp = arg_str0(NULL, "snp", NULL, "Filter: by being a SNP or not (include/exclude)");
+    options_data->indel = arg_str0(NULL, "indel", NULL, "Filter: by being an indel or not (include/exclude)");
+    options_data->dominant = arg_dbl0(NULL, "inh-dom", NULL, "Filter: by percentage of samples following dominant inheritance pattern (decimal like 0.1)");
+    options_data->recessive = arg_dbl0(NULL, "inh-rec", NULL, "Filter: by percentage of samples following recessive inheritance pattern (decimal like 0.1)");
     
     options_data->config_file = arg_file0(NULL, "config", NULL, "File that contains the parameters for configuring the application");
-    
     options_data->mmap_vcf_files = arg_lit0(NULL, "mmap-vcf", "Whether to map VCF files to virtual memory or use the I/O API");
     
     options_data->num_options = NUM_GLOBAL_OPTIONS;
@@ -66,7 +66,7 @@ shared_options_data_t* new_shared_options_data(shared_options_t* options) {
     shared_options_data_t *options_data = (shared_options_data_t*) calloc (1, sizeof(shared_options_data_t));
     
     options_data->vcf_filename = strdup(*(options->vcf_filename->filename));
-    options_data->ped_filename = strdup(*(options->ped_filename->filename));
+    options_data->ped_filename = (options->ped_filename->count > 0) ? strdup(*(options->ped_filename->filename)) : NULL;
     options_data->output_filename = strdup(*(options->output_filename->filename));
     options_data->output_directory = strdup(*(options->output_directory->sval));
     
@@ -106,10 +106,11 @@ shared_options_data_t* new_shared_options_data(shared_options_t* options) {
         options_data->chain = add_to_filter_chain(filter, options_data->chain);
         LOG_DEBUG_F("maximum missing values = %.3f\n", ((missing_values_filter_args*)filter->args)->max_missing);
     }
-    if (options->snp->count > 0) {
-        filter = snp_filter_new(strcmp(*(options->snp->sval), "exclude"));
+    if (options->gene->count > 0) {
+        filter = gene_filter_new(strdup(*(options->gene->sval)), 0,
+                                 *(options->host_url->sval), *(options->species->sval), *(options->version->sval));
         options_data->chain = add_to_filter_chain(filter, options_data->chain);
-        LOG_DEBUG_F("snp filter to %s SNPs\n", *(options->snp->sval));
+        LOG_DEBUG_F("gene = %s\n", *(options->gene->sval));
     }
     if (options->gene->count > 0) {
         filter = gene_filter_new(strdup(*(options->gene->sval)), 0,
@@ -119,16 +120,38 @@ shared_options_data_t* new_shared_options_data(shared_options_t* options) {
     }
     if (options->region->count > 0) {
         filter = region_exact_filter_new(strdup(*(options->region->sval)), 0,
+                                         strdup(*(options->region_type)->sval),
                                          *(options->host_url->sval), *(options->species->sval), *(options->version->sval));
         options_data->chain = add_to_filter_chain(filter, options_data->chain);
         LOG_DEBUG_F("regions = %s\n", *(options->region->sval));
     } 
     
     if (options->region_file->count > 0) {
-        filter = region_exact_filter_new(strdup(*(options->region->sval)), 1, 
+        char *type = (options->region_type->count > 0) ? strdup(*(options->region_type->sval)) : NULL;
+        filter = region_exact_filter_new(strdup(*(options->region_file->filename)), 1, type,
                                          *(options->host_url->sval), *(options->species->sval), *(options->version->sval));
         options_data->chain = add_to_filter_chain(filter, options_data->chain);
-        LOG_DEBUG_F("regions file = %s\n", *(options->region->sval));
+        LOG_DEBUG_F("regions file = %s\n", *(options->region_file->filename));
+    }
+    if (options->snp->count > 0) {
+        filter = snp_filter_new(strcmp(*(options->snp->sval), "exclude"));
+        options_data->chain = add_to_filter_chain(filter, options_data->chain);
+        LOG_DEBUG_F("snp filter to %s SNPs\n", *(options->snp->sval));
+    }
+    if (options->indel->count > 0) {
+        filter = indel_filter_new(strcmp(*(options->indel->sval), "exclude"));
+        options_data->chain = add_to_filter_chain(filter, options_data->chain);
+        LOG_DEBUG_F("indel filter to %s indels\n", *(options->indel->sval));
+    }
+    if (options->dominant->count > 0) {
+        filter = inheritance_pattern_filter_new(DOMINANT, *(options->dominant->dval));
+        options_data->chain = add_to_filter_chain(filter, options_data->chain);
+        LOG_DEBUG_F("dominant inheritance filter = %.2f\n", *(options->dominant->dval));
+    }
+    if (options->recessive->count > 0) {
+        filter = inheritance_pattern_filter_new(RECESSIVE, *(options->recessive->dval));
+        options_data->chain = add_to_filter_chain(filter, options_data->chain);
+        LOG_DEBUG_F("recessive inheritance filter = %.2f\n", *(options->recessive->dval));
     }
     
     // If not previously defined, set the value present in the command-line
@@ -142,8 +165,7 @@ shared_options_data_t* new_shared_options_data(shared_options_t* options) {
 
 void free_shared_options_data(shared_options_data_t *options_data) {
     if (options_data->vcf_filename)     { free(options_data->vcf_filename); }
-    // TODO ped filename freed in ped_close
-//     if (options_data->ped_filename)     { free(options_data->ped_filename); }
+    if (options_data->ped_filename)     { free(options_data->ped_filename); }
     if (options_data->output_directory) { free(options_data->output_directory); }
     if (options_data->output_filename)  { free(options_data->output_filename); }
     if (options_data->host_url)         { free(options_data->host_url); }

@@ -20,6 +20,7 @@
 
 #include "split.h"
 #include "split_runner.h"
+#include "commons/string_utils.h"
 
 
 int vcf_tool_split(int argc, char *argv[], const char *configuration_file) {
@@ -36,7 +37,7 @@ int vcf_tool_split(int argc, char *argv[], const char *configuration_file) {
     if (argc == 1 || !strcmp(argv[1], "-h") || !strcmp(argv[1], "--help")) {
         argtable = merge_split_options(split_options, shared_options, arg_end(split_options->num_options + shared_options->num_options));
         show_usage("hpg-var-vcf split", argtable, split_options->num_options + shared_options->num_options);
-        arg_freetable(argtable, split_options->num_options + shared_options->num_options - 12);
+        arg_freetable(argtable, 12);
         return 0;
     }
 
@@ -74,7 +75,7 @@ int vcf_tool_split(int argc, char *argv[], const char *configuration_file) {
 
     free_split_options_data(options_data);
     free_shared_options_data(shared_options_data);
-    arg_freetable(argtable, split_options->num_options + shared_options->num_options - 12);
+    arg_freetable(argtable, 12);
 
     return 0;
 }
@@ -83,20 +84,29 @@ split_options_t *new_split_cli_options() {
     split_options_t *options = (split_options_t*) malloc (sizeof(split_options_t));
     options->num_options = NUM_SPLIT_OPTIONS;
     options->criterion = arg_str1(NULL, "criterion", NULL, "Criterion for splitting the file");
+    options->intervals = arg_str0(NULL, "intervals", NULL, "Values of intervals for splitting the file");
     return options;
 }
 
 split_options_data_t *new_split_options_data(split_options_t *options) {
     split_options_data_t *options_data = (split_options_data_t*) malloc (sizeof(split_options_data_t));
 
-    char *criterion_str = *(options->criterion->sval);
-    if (!strcmp("chromosome", criterion_str)) {
-        options_data->criterion = CHROMOSOME;
-    } else if (!strcmp("gene", criterion_str)) {
-        LOG_ERROR("Gene criterion not implemented yet!");
-        options_data->criterion = NONE;
-    } else {
-        options_data->criterion = NONE;
+    if (!strcasecmp("chromosome", *(options->criterion->sval))) {
+        options_data->criterion = SPLIT_CHROMOSOME;
+        
+    } else if (!strcasecmp("coverage", *(options->criterion->sval))) {
+        options_data->criterion = SPLIT_COVERAGE;
+	char* intervals_str = strdup(*(options->intervals->sval));
+	char** tokens = split(intervals_str, ",", &(options_data->num_intervals));
+	
+	options_data->intervals = malloc(options_data->num_intervals * sizeof(long));
+	for (int i = 0; i < options_data->num_intervals; i++) {
+            options_data->intervals[i] = atol(tokens[i]);
+            free(tokens[i]);
+	}
+	
+        free(tokens);
+        free(intervals_str);
     }
 
     return options_data;

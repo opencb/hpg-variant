@@ -4,10 +4,10 @@ Import('env') # exported by parent SConstruct
 
 # Here's the core info for the DEBIAN/control file of the package
 DEBNAME = "hpg-variant"
-DEBVERSION = "0.4"
+DEBVERSION = "0.99.2"
 DEBMAINT = "Cristina Yenyxe Gonzalez Garcia <cgonzalez@cipf.es>"
 DEBARCH = "amd64"
-DEBDEPENDS = "libc6, libconfig8, libcurl4-openssl-dev, libgsl0ldbl, libxml2, zlib1g"
+DEBDEPENDS = "libc6, libcurl4-openssl-dev, libgsl0ldbl, libxml2, zlib1g"
 DEBSECTION = "science"
 DEBDESC = ''.join([ "Bioinformatics tool suite for analyzing genomic variations\n", 
 " HPG Variant is a suite for the analysis of genomic data extracted from Next\n",

@@ -27,25 +27,31 @@
 
 #include <omp.h>
 
+#include <bioformats/db/db_utils.h>
 #include <bioformats/ped/ped_file.h>
+#include <bioformats/vcf/vcf_db.h>
 #include <bioformats/vcf/vcf_file_structure.h>
 #include <bioformats/vcf/vcf_file.h>
 #include <bioformats/vcf/vcf_stats.h>
+#include <bioformats/vcf/vcf_stats_report.h>
 #include <commons/file_utils.h>
 #include <commons/log.h>
 #include <commons/config/libconfig.h>
+#include <commons/sqlite/sqlite3.h>
+#include <containers/khash.h>
 
 #include "error.h"
 #include "shared_options.h"
 #include "hpg_variant_utils.h"
 
-#define NUM_STATS_OPTIONS  2
+#define NUM_STATS_OPTIONS  3
 #define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
 
 
 typedef struct stats_options {
-    struct arg_lit *variant_stats;  /**< Whether to get stats about variants. */
-    struct arg_lit *sample_stats;   /**< Whether to get stats about samples. */
+    struct arg_lit *variant_stats;      /**< Whether to get stats about variants. */
+    struct arg_lit *sample_stats;       /**< Whether to get stats about samples. */
+    struct arg_lit *save_db;            /**< Whether to save stats to a database. */
     
     int num_options;
 } stats_options_t;
@@ -57,6 +63,7 @@ typedef struct stats_options {
 typedef struct stats_options_data {
     int variant_stats;  /**< Whether to get stats about variants. */
     int sample_stats;   /**< Whether to get stats about samples. */
+    int save_db;        /**< Whether to save stats to a database. */
 } stats_options_data_t;
 
 

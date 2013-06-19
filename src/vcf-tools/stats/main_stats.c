@@ -35,7 +35,7 @@ int vcf_tool_stats(int argc, char *argv[], const char *configuration_file) {
     if (argc == 1 || !strcmp(argv[1], "-h") || !strcmp(argv[1], "--help")) {
         argtable = merge_stats_options(stats_options, shared_options, arg_end(stats_options->num_options + shared_options->num_options));
         show_usage("hpg-var-vcf stats", argtable, stats_options->num_options + shared_options->num_options);
-        arg_freetable(argtable, stats_options->num_options + shared_options->num_options - 11);
+        arg_freetable(argtable, 15);
         return 0;
     }
 
@@ -73,7 +73,7 @@ int vcf_tool_stats(int argc, char *argv[], const char *configuration_file) {
 
     free_stats_options_data(options_data);
     free_shared_options_data(shared_options_data);
-    arg_freetable(argtable, stats_options->num_options + shared_options->num_options - 11);
+    arg_freetable(argtable, 15);
 
     return 0;
 }
@@ -82,6 +82,7 @@ stats_options_t *new_stats_cli_options() {
     stats_options_t *options = (stats_options_t*) malloc (sizeof(stats_options_t));
     options->sample_stats = arg_lit0(NULL, "samples", "Get statistics about samples");
     options->variant_stats = arg_lit0(NULL, "variants", "Get statistics about variants, both per variant and per file (default)");
+    options->save_db = arg_lit0(NULL, "db", "Save statistics to SQLite3 database file");
     options->num_options = NUM_STATS_OPTIONS;
     return options;
 }
@@ -90,6 +91,7 @@ stats_options_data_t *new_stats_options_data(stats_options_t *options) {
     stats_options_data_t *options_data = (stats_options_data_t*) malloc (sizeof(stats_options_data_t));
     options_data->sample_stats = options->sample_stats->count;
     options_data->variant_stats = options->variant_stats->count;
+    options_data->save_db = options->save_db->count;
     return options_data;
 }
 

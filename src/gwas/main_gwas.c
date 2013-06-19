@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
+ * Copyright (c) 2012-2013 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
  * Copyright (c) 2012 Ignacio Medina (ICM-CIPF)
  *
  * This file is part of hpg-variant.
@@ -53,6 +53,8 @@ int main(int argc, char *argv[]) {
     if (exit_code > 0) {
         fprintf(stderr, "Tool %s terminated with failure (exit code = %d)\n", tool, exit_code);
     }
+    
+    array_list_free(config_search_paths, free);
     
     stop_log();
     
