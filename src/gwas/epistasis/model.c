@@ -2,157 +2,62 @@
 
 
 /* **************************
- *       Main pipeline      *
- * **************************/
-
-double test_model(int order, risky_combination *risky_comb, uint8_t **genotypes, masks_info info, unsigned int *conf_matrix) {
-    // Get the matrix containing {FP,FN,TP,TN}
-    confusion_matrix(order, risky_comb, info, genotypes, conf_matrix);
-    
-    // Evaluate the model, basing on the confusion matrix
-    double eval = evaluate_model(conf_matrix, BA);
-    risky_comb->accuracy = eval;
-    
-    return eval;
-}
-
-int add_to_model_ranking_heap(risky_combination *risky_comb, int max_ranking_size, struct heap *ranking_risky) {
-    // Step 6 -> Construct ranking of the best N combinations
-    size_t current_ranking_size = ranking_risky->size;
-
-    if (current_ranking_size > 0) {
-        struct heap_node *last_node = heap_peek(compare_risky_heap_min, ranking_risky);
-        risky_combination *last_element = last_node->value;
-
-        // If accuracy is not greater than the last element, don't bother inserting
-        if (risky_comb->accuracy > last_element->accuracy) {
-            struct heap_node *hn = malloc (sizeof(struct heap_node));
-            heap_node_init(hn, risky_comb);
-            heap_insert(compare_risky_heap_min, ranking_risky, hn);
-
-            if (current_ranking_size >= max_ranking_size) {
-                struct heap_node *removed = heap_take(compare_risky_heap_min, ranking_risky);
-                risky_combination_free((risky_combination*) removed->value);
-                free(removed);
-            }
-
-            return ranking_risky->size - 1;
-        }
-
-        if (current_ranking_size < max_ranking_size) {
-            LOG_DEBUG_F("To insert %.3f at the end", risky_comb->accuracy);
-            struct heap_node *hn = malloc (sizeof(struct heap_node));
-            heap_node_init(hn, risky_comb);
-            heap_insert(compare_risky_heap_min, ranking_risky, hn);
-            return ranking_risky->size - 1;
-        }
-    } else {
-        struct heap_node *hn = malloc (sizeof(struct heap_node));
-        heap_node_init(hn, risky_comb);
-        heap_insert(compare_risky_heap_min, ranking_risky, hn);
-        return ranking_risky->size - 1;
-
-    }
-
-    return -1;
-}
-
-int add_to_cv_model_ranking_heap(risky_combination *risky_comb, int max_ranking_size, struct heap *ranking_risky) {
-    // Step 6 -> Construct ranking of the best N combinations
-    size_t current_ranking_size = ranking_risky->size;
-
-    if (current_ranking_size > 0) {
-        struct heap_node *last_node = heap_peek(compare_risky_heap_max, ranking_risky);
-        risky_combination *last_element = last_node->value;
-
-        // If accuracy is not greater than the last element, don't bother inserting
-        if (risky_comb->accuracy > last_element->accuracy) {
-            struct heap_node *hn = malloc (sizeof(struct heap_node));
-            heap_node_init(hn, risky_comb);
-            heap_insert(compare_risky_heap_max, ranking_risky, hn);
-
-            if (current_ranking_size >= max_ranking_size) {
-                struct heap_node *removed = heap_take(compare_risky_heap_max, ranking_risky);
-                risky_combination_free((risky_combination*) removed->value);
-                free(removed);
-            }
-
-            return ranking_risky->size - 1;
-        }
-
-        if (current_ranking_size < max_ranking_size) {
-            LOG_DEBUG_F("To insert %.3f at the end", risky_comb->accuracy);
-            struct heap_node *hn = malloc (sizeof(struct heap_node));
-            heap_node_init(hn, risky_comb);
-            heap_insert(compare_risky_heap_max, ranking_risky, hn);
-            return ranking_risky->size - 1;
-        }
-    } else {
-        struct heap_node *hn = malloc (sizeof(struct heap_node));
-        heap_node_init(hn, risky_comb);
-        heap_insert(compare_risky_heap_max, ranking_risky, hn);
-        return ranking_risky->size - 1;
-
-    }
-
-    return -1;
-}
-
-int add_to_model_ranking(risky_combination *risky_comb, int max_ranking_size, linked_list_t *ranking_risky) {
-    // Step 6 -> Construct ranking of the best N combinations
-    risky_combination *last_element = (linked_list_size(ranking_risky) > 0) ? linked_list_get_last(ranking_risky) : NULL;
-    size_t current_ranking_size = ranking_risky->size;
-
-    if (current_ranking_size > 0) {
-        if (last_element) {
-            LOG_DEBUG_F("To insert %.3f\tRanking's last is %.3f\n", risky_comb->accuracy, last_element->accuracy);
-        } else {
-            LOG_DEBUG_F("To insert %.3\n", risky_comb->accuracy );
-        }
-
-        linked_list_iterator_t* iter = linked_list_iterator_new(ranking_risky);
-        risky_combination *element = NULL;
-
-        // If accuracy is not greater than the last element, don't bother inserting
-        if (risky_comb->accuracy > last_element->accuracy) {
-            int position = 0;
-            while (element = linked_list_iterator_curr(iter)) {
-                LOG_DEBUG_F("To insert %.3f\tIn ranking (pos #%d) %.3f\n", risky_comb->accuracy, position, element->accuracy);
-                if (risky_comb->accuracy > element->accuracy) {
-                    linked_list_iterator_insert(risky_comb, iter);
-
-                    if (current_ranking_size >= max_ranking_size) {
-                        linked_list_iterator_last(iter);
-                        risky_combination_free(linked_list_iterator_remove(iter));
-                    }
-
-                    linked_list_iterator_free(iter);
-                    return position;
-                }
-                element = linked_list_iterator_next(iter);
-                position++;
-            }
-        }
-
-        linked_list_iterator_free(iter);
-
-        if (current_ranking_size < max_ranking_size) {
-            LOG_DEBUG_F("To insert %.3f at the end", risky_comb->accuracy);
-            linked_list_insert_last(risky_comb, ranking_risky);
-            return ranking_risky->size - 1;
-        }
-    } else {
-        linked_list_insert_last(risky_comb, ranking_risky);
-        return ranking_risky->size - 1;
-    }
-
-    return -1;
-}
-
-
-/* **************************
  *          Counts          *
  * **************************/
+
+uint8_t* set_genotypes_masks(int order, uint8_t **genotypes, int num_combinations, masks_info info) {
+    /*
+     * Structure: Genotypes of a SNP in each 'row'
+     *
+     * SNP(0) - Mask genotype 0 (all samples)
+     * SNP(0) - Mask genotype 1 (all samples)
+     * SNP(0) - Mask genotype 2 (all samples)
+     *
+     * SNP(1) - Mask genotype 0 (all samples)
+     * SNP(1) - Mask genotype 1 (all samples)
+     * SNP(1) - Mask genotype 2 (all samples)
+     *
+     * ...
+     *
+     * SNP(order-1) - Mask genotype 0 (all samples)
+     * SNP(order-1) - Mask genotype 1 (all samples)
+     * SNP(order-1) - Mask genotype 2 (all samples)
+     */
+    __m128i reference_genotype; // The genotype to compare for generating a mask (of the form {0 0 0 0 ... }, {1 1 1 1 ... })
+    __m128i input_genotypes;    // Genotypes from the input dataset
+    __m128i mask;               // Comparison between the reference genotype and input genotypes
+    
+    uint8_t *masks = info.masks;
+    
+    for (int c = 0; c < num_combinations; c++) {
+        masks = info.masks + c * info.num_masks;
+        uint8_t **combination_genotypes = genotypes + c * order;
+
+        for (int j = 0; j < order; j++) {
+            for (int i = 0; i < NUM_GENOTYPES; i++) {
+                reference_genotype = _mm_set1_epi8(i);
+
+                // Set value of masks
+                for (int k = 0; k < info.num_samples_with_padding; k += 16) {
+                    input_genotypes = _mm_load_si128(combination_genotypes[j] + k);
+                    mask = _mm_cmpeq_epi8(input_genotypes, reference_genotype);
+                    _mm_store_si128(masks + j * NUM_GENOTYPES * (info.num_samples_with_padding) + i * (info.num_samples_with_padding) + k, mask);
+                }
+
+                // Set padding with zeroes
+                memset(masks + j * NUM_GENOTYPES * (info.num_samples_with_padding) + i * (info.num_samples_with_padding) + info.num_affected,
+                    0, info.num_affected_with_padding - info.num_affected);
+                memset(masks + j * NUM_GENOTYPES * (info.num_samples_with_padding) + i * (info.num_samples_with_padding) +
+                    info.num_affected_with_padding + info.num_unaffected,
+                    0, info.num_unaffected_with_padding - info.num_unaffected);
+            }
+        }
+    }
+
+    masks = info.masks;
+
+    return masks;
+}
 
 void combination_counts(int order, uint8_t *masks, uint8_t **genotype_permutations, int num_genotype_permutations,
                         int *counts_aff, int *counts_unaff, masks_info info) {
@@ -207,13 +112,6 @@ void combination_counts(int order, uint8_t *masks, uint8_t **genotype_permutatio
             counts_unaff[rc * info.num_cell_counts_per_combination + c] = count / 8;
         }
     }
-}
-
-void print128_num(__m128i var) {
-    uint8_t *val = (uint8_t*) &var;//can also use uint32_t instead of 16_t
-    printf(" %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i \n", 
-            val[0], val[1], val[2], val[3], val[4], val[5], val[6], val[7],
-            val[8], val[9], val[10], val[11], val[12], val[13], val[14], val[15]);
 }
 
 void combination_counts_all_folds(int order, uint8_t *fold_masks, int num_folds,
@@ -291,60 +189,6 @@ void combination_counts_all_folds(int order, uint8_t *fold_masks, int num_folds,
             }
         }
     }
-}
-
-uint8_t* set_genotypes_masks(int order, uint8_t **genotypes, int num_combinations, masks_info info) {
-    /* 
-     * Structure: Genotypes of a SNP in each 'row'
-     * 
-     * SNP(0) - Mask genotype 0 (all samples)
-     * SNP(0) - Mask genotype 1 (all samples)
-     * SNP(0) - Mask genotype 2 (all samples)
-     * 
-     * SNP(1) - Mask genotype 0 (all samples)
-     * SNP(1) - Mask genotype 1 (all samples)
-     * SNP(1) - Mask genotype 2 (all samples)
-     * 
-     * ...
-     * 
-     * SNP(order-1) - Mask genotype 0 (all samples)
-     * SNP(order-1) - Mask genotype 1 (all samples)
-     * SNP(order-1) - Mask genotype 2 (all samples)
-     */
-    __m128i reference_genotype; // The genotype to compare for generating a mask (of the form {0 0 0 0 ... }, {1 1 1 1 ... })
-    __m128i input_genotypes;    // Genotypes from the input dataset
-    __m128i mask;               // Comparison between the reference genotype and input genotypes
-    
-    uint8_t *masks = info.masks;
-    
-    for (int c = 0; c < num_combinations; c++) {
-        masks = info.masks + c * info.num_masks;
-        uint8_t **combination_genotypes = genotypes + c * order;
-        
-        for (int j = 0; j < order; j++) {
-            for (int i = 0; i < NUM_GENOTYPES; i++) {
-                reference_genotype = _mm_set1_epi8(i);
-
-                // Set value of masks
-                for (int k = 0; k < info.num_samples_with_padding; k += 16) {
-                    input_genotypes = _mm_load_si128(combination_genotypes[j] + k);
-                    mask = _mm_cmpeq_epi8(input_genotypes, reference_genotype);
-                    _mm_store_si128(masks + j * NUM_GENOTYPES * (info.num_samples_with_padding) + i * (info.num_samples_with_padding) + k, mask);
-                }
-
-                // Set padding with zeroes
-                memset(masks + j * NUM_GENOTYPES * (info.num_samples_with_padding) + i * (info.num_samples_with_padding) + info.num_affected,
-                    0, info.num_affected_with_padding - info.num_affected);
-                memset(masks + j * NUM_GENOTYPES * (info.num_samples_with_padding) + i * (info.num_samples_with_padding) + 
-                    info.num_affected_with_padding + info.num_unaffected,
-                    0, info.num_unaffected_with_padding - info.num_unaffected);
-            }
-        }
-    }
-    
-    masks = info.masks;
-    
-    return masks;
 }
 
 void masks_info_init(int order, int num_combinations_in_a_row, int num_affected, int num_unaffected, masks_info *info) {
@@ -464,6 +308,17 @@ void risky_combination_free(risky_combination* combination) {
  *  Evaluation and ranking  *
  * **************************/
 
+double test_model(int order, risky_combination *risky_comb, uint8_t **genotypes, masks_info info, unsigned int *conf_matrix) {
+    // Get the matrix containing {FP,FN,TP,TN}
+    confusion_matrix(order, risky_comb, info, genotypes, conf_matrix);
+
+    // Evaluate the model, basing on the confusion matrix
+    double eval = evaluate_model(conf_matrix, BA);
+    risky_comb->accuracy = eval;
+
+    return eval;
+}
+
 void confusion_matrix(int order, risky_combination *combination, masks_info info, uint8_t **genotypes, unsigned int *matrix) {
     int num_samples = info.num_samples_with_padding;
     uint8_t confusion_masks[combination->num_risky_genotypes * num_samples];
@@ -562,7 +417,6 @@ void confusion_matrix(int order, risky_combination *combination, masks_info info
 */
 }
 
-
 double evaluate_model(unsigned int *confusion_matrix, enum eval_function function) {
     double TP = confusion_matrix[0], FN = confusion_matrix[1], FP = confusion_matrix[2], TN = confusion_matrix[3];
     
@@ -580,6 +434,48 @@ double evaluate_model(unsigned int *confusion_matrix, enum eval_function functio
         case TAU_B:
             return (TP * TN - FP * FN) / sqrt((TP + FN) * (TN + FP) * (TP + FP) * (TN + FN));
     }
+}
+
+int add_to_model_ranking(risky_combination *risky_comb, int max_ranking_size, struct heap *ranking_risky,
+                         int (*priority_func) (struct heap_node* a, struct heap_node* b)) {
+    // Step 6 -> Construct ranking of the best N combinations
+    size_t current_ranking_size = ranking_risky->size;
+
+    if (current_ranking_size > 0) {
+        struct heap_node *last_node = heap_peek(priority_func, ranking_risky);
+        risky_combination *last_element = last_node->value;
+
+        // If accuracy is not greater than the last element, don't bother inserting
+        if (risky_comb->accuracy > last_element->accuracy) {
+            struct heap_node *hn = malloc (sizeof(struct heap_node));
+            heap_node_init(hn, risky_comb);
+            heap_insert(priority_func, ranking_risky, hn);
+
+            if (current_ranking_size >= max_ranking_size) {
+                struct heap_node *removed = heap_take(priority_func, ranking_risky);
+                risky_combination_free((risky_combination*) removed->value);
+                free(removed);
+            }
+
+            return ranking_risky->size - 1;
+        }
+
+        if (current_ranking_size < max_ranking_size) {
+            LOG_DEBUG_F("To insert %.3f at the end", risky_comb->accuracy);
+            struct heap_node *hn = malloc (sizeof(struct heap_node));
+            heap_node_init(hn, risky_comb);
+            heap_insert(priority_func, ranking_risky, hn);
+            return ranking_risky->size - 1;
+        }
+    } else {
+        struct heap_node *hn = malloc (sizeof(struct heap_node));
+        heap_node_init(hn, risky_comb);
+        heap_insert(priority_func, ranking_risky, hn);
+        return ranking_risky->size - 1;
+
+    }
+
+    return -1;
 }
 
 

@@ -287,7 +287,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
 
 #pragma omp critical
                             {
-                            position = add_to_model_ranking_heap(risky_comb, options_data->max_ranking_size, ranking_risky[f]);
+                            position = add_to_model_ranking(risky_comb, options_data->max_ranking_size, ranking_risky[f], compare_risky_heap_min);
                             }
 
                             // If not inserted it means it is not among the most risky combinations, so free it
@@ -398,7 +398,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
 
 #pragma omp critical
                         {
-                        position = add_to_model_ranking_heap(risky_comb, options_data->max_ranking_size, ranking_risky[f]);
+                        position = add_to_model_ranking(risky_comb, options_data->max_ranking_size, ranking_risky[f], compare_risky_heap_min);
                         }
 
                         // If not inserted it means it is not among the most risky combinations, so free it
@@ -518,13 +518,13 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                         current->combination[0], current->combination[1], current->accuracy);
 */
                 
-                int position = add_to_cv_model_ranking_heap(current, repetition_ranking_size, sorted_repetition_ranking);
+                add_to_model_ranking(current, repetition_ranking_size, sorted_repetition_ranking, compare_risky_heap_max);
                 current = element;
             }
         }
         // Don't leave last element out!
         current->accuracy /= num_folds;
-        add_to_cv_model_ranking_heap(current, repetition_ranking_size, sorted_repetition_ranking);
+        add_to_model_ranking(current, repetition_ranking_size, sorted_repetition_ranking, compare_risky_heap_max);
         
         // Show full ranking
 /*

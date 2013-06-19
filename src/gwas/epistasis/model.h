@@ -62,19 +62,10 @@ enum eval_function { CA, BA, wBA, GAMMA, TAU_B };
 
 
 /* **************************
- *       Main pipeline      *
- * **************************/
-
-double test_model(int order, risky_combination *risky_comb, uint8_t **genotypes, masks_info info, unsigned int *conf_matrix);
-
-int add_to_model_ranking_heap(risky_combination *risky_comb, int max_ranking_size, struct heap *ranking_risky);
-
-int add_to_model_ranking(risky_combination *risky_comb, int max_ranking_size, linked_list_t *ranking_risky);
-
-
-/* **************************
  *          Counts          *
  * **************************/
+
+uint8_t* set_genotypes_masks(int order, uint8_t **genotypes, int num_combinations, masks_info info);
 
 /**
  * @brief Gets the number of ocurrences of each genotype both in affected and unaffected groups.
@@ -94,8 +85,6 @@ void combination_counts(int order, uint8_t *masks, uint8_t **genotype_combinatio
 void combination_counts_all_folds(int order, uint8_t *fold_masks, int num_folds,
                                   uint8_t **genotype_permutations, masks_info info, 
                                   int *counts_aff, int *counts_unaff);
-
-uint8_t* set_genotypes_masks(int order, uint8_t **genotypes, int num_combinations, masks_info info);
 
 void masks_info_init(int order, int num_combinations_in_a_row, int num_affected, int num_unaffected, masks_info *info);
 
@@ -129,9 +118,14 @@ void risky_combination_free(risky_combination *combination);
  *  Evaluation and ranking  *
  * **************************/
 
+double test_model(int order, risky_combination *risky_comb, uint8_t **genotypes, masks_info info, unsigned int *conf_matrix);
+
 void confusion_matrix(int order, risky_combination *combination, masks_info info, uint8_t **genotypes, unsigned int *matrix);
 
 double evaluate_model(unsigned int *confusion_matrix, enum eval_function function);
+
+int add_to_model_ranking(risky_combination *risky_comb, int max_ranking_size, struct heap *ranking_risky,
+                         int (*priority_func) (struct heap_node* a, struct heap_node* b));
 
 int compare_risky_heap_max(struct heap_node* a, struct heap_node* b);
 
