@@ -5,9 +5,9 @@
  *       Main pipeline      *
  * **************************/
 
-double test_model(int order, risky_combination *risky_comb, uint8_t **val, masks_info info, unsigned int *conf_matrix) {
+double test_model(int order, risky_combination *risky_comb, uint8_t **genotypes, masks_info info, unsigned int *conf_matrix) {
     // Get the matrix containing {FP,FN,TP,TN}
-    confusion_matrix(order, risky_comb, info, val, conf_matrix);
+    confusion_matrix(order, risky_comb, info, genotypes, conf_matrix);
     
     // Evaluate the model, basing on the confusion matrix
     double eval = evaluate_model(conf_matrix, BA);
@@ -50,6 +50,47 @@ int add_to_model_ranking_heap(risky_combination *risky_comb, int max_ranking_siz
         struct heap_node *hn = malloc (sizeof(struct heap_node));
         heap_node_init(hn, risky_comb);
         heap_insert(compare_risky_heap_min, ranking_risky, hn);
+        return ranking_risky->size - 1;
+
+    }
+
+    return -1;
+}
+
+int add_to_cv_model_ranking_heap(risky_combination *risky_comb, int max_ranking_size, struct heap *ranking_risky) {
+    // Step 6 -> Construct ranking of the best N combinations
+    size_t current_ranking_size = ranking_risky->size;
+
+    if (current_ranking_size > 0) {
+        struct heap_node *last_node = heap_peek(compare_risky_heap_max, ranking_risky);
+        risky_combination *last_element = last_node->value;
+
+        // If accuracy is not greater than the last element, don't bother inserting
+        if (risky_comb->accuracy > last_element->accuracy) {
+            struct heap_node *hn = malloc (sizeof(struct heap_node));
+            heap_node_init(hn, risky_comb);
+            heap_insert(compare_risky_heap_max, ranking_risky, hn);
+
+            if (current_ranking_size >= max_ranking_size) {
+                struct heap_node *removed = heap_take(compare_risky_heap_max, ranking_risky);
+                risky_combination_free((risky_combination*) removed->value);
+                free(removed);
+            }
+
+            return ranking_risky->size - 1;
+        }
+
+        if (current_ranking_size < max_ranking_size) {
+            LOG_DEBUG_F("To insert %.3f at the end", risky_comb->accuracy);
+            struct heap_node *hn = malloc (sizeof(struct heap_node));
+            heap_node_init(hn, risky_comb);
+            heap_insert(compare_risky_heap_max, ranking_risky, hn);
+            return ranking_risky->size - 1;
+        }
+    } else {
+        struct heap_node *hn = malloc (sizeof(struct heap_node));
+        heap_node_init(hn, risky_comb);
+        heap_insert(compare_risky_heap_max, ranking_risky, hn);
         return ranking_risky->size - 1;
 
     }

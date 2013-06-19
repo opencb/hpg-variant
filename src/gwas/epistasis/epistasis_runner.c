@@ -21,9 +21,9 @@
 #include "epistasis_runner.h"
 
 
-static void show_best_models_per_repetition(int order, int num_cv_repetitions, linked_list_t *best_models[]);
-static khash_t(cvc) *prepare_models_for_cvc(int order, int num_cv_repetitions, int max_val_len, linked_list_t *best_models[]);
-static int choose_best_model(int order, int num_cv_repetitions, int max_val_len, linked_list_t *best_models[], khash_t(cvc) *models_for_cvc, char **bestkey);
+static void show_best_models_per_repetition(int order, int num_cv_repetitions, struct heap *best_models[]);
+static khash_t(cvc) *prepare_models_for_cvc(int order, int num_cv_repetitions, int max_val_len, struct heap *best_models[]);
+static int choose_best_model(int order, int num_cv_repetitions, int max_val_len, struct heap *best_models[], khash_t(cvc) *models_for_cvc, char **bestkey);
 
 
 int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_data_t* options_data) {
@@ -58,7 +58,8 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
     uint8_t **genotype_permutations = get_genotype_combinations(order, &num_genotype_permutations);
     
     // Ranking of best models in each repetition
-    linked_list_t *best_models[options_data->num_cv_repetitions];
+//    linked_list_t *best_models[options_data->num_cv_repetitions];
+    struct heap *best_models[options_data->num_cv_repetitions];
     
     /**************************** End of variables precalculus  ****************************/
     
@@ -495,7 +496,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
 */
         
         // Sum all values of each position and get the mean of accuracies
-        linked_list_t *sorted_repetition_ranking = linked_list_new(COLLECTION_MODE_ASYNCHRONIZED);
+        struct heap *sorted_repetition_ranking = malloc(sizeof(struct heap)); heap_init(sorted_repetition_ranking);
         risky_combination *current = repetition_ranking[0];
         
         for (int i = 1; i < repetition_ranking_size; i++) {
@@ -517,13 +518,13 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                         current->combination[0], current->combination[1], current->accuracy);
 */
                 
-                int position = add_to_model_ranking(current, repetition_ranking_size, sorted_repetition_ranking);
+                int position = add_to_cv_model_ranking_heap(current, repetition_ranking_size, sorted_repetition_ranking);
                 current = element;
             }
         }
         // Don't leave last element out!
         current->accuracy /= num_folds;
-        add_to_model_ranking(current, repetition_ranking_size, sorted_repetition_ranking);
+        add_to_cv_model_ranking_heap(current, repetition_ranking_size, sorted_repetition_ranking);
         
         // Show full ranking
 /*
@@ -575,7 +576,14 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
     }
     free(genotype_permutations);
     for (int r = 0; r < options_data->num_cv_repetitions; r++) {
-        linked_list_free(best_models[r], risky_combination_free);
+        struct heap_node *hn;
+        risky_combination *element = NULL;
+
+        while (!heap_empty(best_models[r])) {
+            hn = heap_take(compare_risky_heap_max, best_models[r]);
+            risky_combination_free((risky_combination*) hn->value);
+            free(hn);
+        }
     }
     epistasis_dataset_close(input_file, file_len);
     
@@ -603,9 +611,10 @@ int compare_risky(const void *risky_1, const void *risky_2) {
     return 0;
 }
 
-static void show_best_models_per_repetition(int order, int num_cv_repetitions, linked_list_t *best_models[]) {
+static void show_best_models_per_repetition(int order, int num_cv_repetitions, struct heap *best_models[]) {
     for (int r = 0; r < num_cv_repetitions; r++) {
-        risky_combination *element = linked_list_get(0, best_models[r]);
+        struct heap_node *hn = heap_peek(compare_risky_heap_max, best_models[r]);
+        risky_combination *element = (risky_combination*) hn->value;
         assert(element);
         assert(element->combination);
         printf("CV %d\t(", r);
@@ -616,10 +625,11 @@ static void show_best_models_per_repetition(int order, int num_cv_repetitions, l
     }
 }
 
-static khash_t(cvc) *prepare_models_for_cvc(int order, int num_cv_repetitions, int max_val_len, linked_list_t *best_models[]) {
+static khash_t(cvc) *prepare_models_for_cvc(int order, int num_cv_repetitions, int max_val_len, struct heap *best_models[]) {
     khash_t(cvc) *models_for_cvc = kh_init(cvc);
     for (int r = 0; r < num_cv_repetitions; r++) {
-        risky_combination *risky = linked_list_get(0, best_models[r]);
+        struct heap_node *hn = heap_peek(compare_risky_heap_max, best_models[r]);
+        risky_combination *risky = (risky_combination*) hn->value;
         
         // key = snp1_snp2_..._snpN
         char *key = calloc(order * (max_val_len + 1), sizeof(char));
@@ -644,7 +654,7 @@ static khash_t(cvc) *prepare_models_for_cvc(int order, int num_cv_repetitions, i
     return models_for_cvc;
 }
 
-static int choose_best_model(int order, int num_cv_repetitions, int max_val_len, linked_list_t *best_models[], khash_t(cvc) *models_for_cvc, char **bestkey) {
+static int choose_best_model(int order, int num_cv_repetitions, int max_val_len, struct heap *best_models[], khash_t(cvc) *models_for_cvc, char **bestkey) {
     int bestvalue = 0;
     for (int k = kh_begin(models_for_cvc); k < kh_end(models_for_cvc); k++) {
         if (kh_exist(models_for_cvc, k)) {
@@ -661,7 +671,8 @@ static int choose_best_model(int order, int num_cv_repetitions, int max_val_len,
                 
                 // Sum all accuracies for the best and the candidate
                 for (int r = 0; r < num_cv_repetitions; r++) {
-                    risky_combination *element = linked_list_get_first(best_models[r]);
+                    struct heap_node *hn = heap_peek(compare_risky_heap_max, best_models[r]);
+                    risky_combination *element = (risky_combination*) hn->value;
                     
                     // maybe_key = snp1_snp2_..._snpN
                     char *maybe_key = calloc(order * (max_val_len + 1), sizeof(char));

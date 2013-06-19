@@ -65,7 +65,7 @@ enum eval_function { CA, BA, wBA, GAMMA, TAU_B };
  *       Main pipeline      *
  * **************************/
 
-double test_model(int order, risky_combination *risky_comb, uint8_t **val, masks_info info, unsigned int *conf_matrix);
+double test_model(int order, risky_combination *risky_comb, uint8_t **genotypes, masks_info info, unsigned int *conf_matrix);
 
 int add_to_model_ranking_heap(risky_combination *risky_comb, int max_ranking_size, struct heap *ranking_risky);
 
