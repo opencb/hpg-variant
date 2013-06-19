@@ -29,9 +29,10 @@
 #include <string.h>
 #include <unistd.h>
 
- #include <omp.h>
+#include <omp.h>
 
 #include <commons/log.h>
+#include <containers/heap.h>
 #include <containers/khash.h>
 
 #include "shared_options.h"
@@ -40,7 +41,6 @@
 #include "cross_validation.h"
 #include "dataset.h"
 #include "epistasis.h"
-#include "heap.h"
 #include "model.h"
 
 KHASH_MAP_INIT_STR(cvc, int);

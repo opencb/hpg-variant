@@ -14,10 +14,10 @@
 
 #include <commons/log.h>
 #include <containers/array_list.h>
+#include <containers/heap.h>
 #include <containers/linked_list.h>
 
 #include "dataset.h"
-#include "heap.h"
 #include "mdr.h"
 
 #define NUM_GENOTYPES           3
