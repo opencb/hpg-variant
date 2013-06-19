@@ -334,7 +334,7 @@ void confusion_matrix(int order, risky_combination *combination, masks_info info
         // First SNP in the combination
         comb_genotypes = _mm_set1_epi8(combination->genotypes[i * order]);
         
-        for (int k = 0; k < info.num_samples_with_padding; k += 16) {
+        for (int k = 0; k < num_samples; k += 16) {
             input_genotypes = _mm_load_si128(genotypes[0] + k);
             mask = _mm_cmpeq_epi8(input_genotypes, comb_genotypes);
             _mm_store_si128(confusion_masks + i * num_samples + k, mask);
@@ -344,7 +344,7 @@ void confusion_matrix(int order, risky_combination *combination, masks_info info
         for (int j = 1; j < order; j++) {
             comb_genotypes = _mm_set1_epi8(combination->genotypes[i * order + j]);
             
-            for (int k = 0; k < info.num_samples_with_padding; k += 16) {
+            for (int k = 0; k < num_samples; k += 16) {
                 input_genotypes = _mm_load_si128(genotypes[j] + k);
                 mask = _mm_load_si128(confusion_masks + i * num_samples + k);
                 mask = _mm_and_si128(mask, _mm_cmpeq_epi8(input_genotypes, comb_genotypes));
@@ -369,7 +369,7 @@ void confusion_matrix(int order, risky_combination *combination, masks_info info
     __m128i final_or, other_mask;
     
     for (int k = 0; k < num_samples; k += 16) {
-        final_or = _mm_load_si128(confusion_masks + k); // TODO first mask
+        final_or = _mm_load_si128(confusion_masks + k); // First mask
         
         // Merge all positives (1) and negatives (0)
         for (int j = 1; j < combination->num_risky_genotypes; j++) {
