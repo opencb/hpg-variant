@@ -35,7 +35,7 @@ int epistasis(int argc, char *argv[], const char *configuration_file) {
     if (argc == 1 || !strcmp(argv[1], "-h") || !strcmp(argv[1], "--help")) {
         argtable = merge_epistasis_options(epistasis_options, shared_options, arg_end(epistasis_options->num_options + shared_options->num_options));
         show_usage("hpg-var-gwas epi", argtable, epistasis_options->num_options + shared_options->num_options);
-        arg_freetable(argtable, epistasis_options->num_options + shared_options->num_options);
+        arg_freetable(argtable, 10);
         return 0;
     }
 
@@ -49,7 +49,7 @@ int epistasis(int argc, char *argv[], const char *configuration_file) {
     config_errors &= read_epistasis_configuration(configuration_file, epistasis_options, shared_options);
     
     if (config_errors) {
-        LOG_FATAL("Configuration file read with errors\n");
+        LOG_ERROR("Configuration file read with errors\n");
         return CANT_READ_CONFIG_FILE;
     }
 
@@ -73,7 +73,7 @@ int epistasis(int argc, char *argv[], const char *configuration_file) {
     
     free_epistasis_options_data(epistasis_options_data);
     free_shared_options_data(shared_options_data);
-    arg_freetable(argtable, epistasis_options->num_options + shared_options->num_options - 1);
+    arg_freetable(argtable, 10);
 
     return 0;
 }

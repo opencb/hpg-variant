@@ -29,6 +29,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include <mpi.h>
 #include <omp.h>
 
 #include <commons/log.h>

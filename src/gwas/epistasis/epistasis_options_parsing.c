@@ -104,8 +104,7 @@ void **parse_epistasis_options(int argc, char *argv[], epistasis_options_t *epis
 }
 
 void **merge_epistasis_options(epistasis_options_t *epistasis_options, shared_options_t *shared_options, struct arg_end *arg_end) {
-    size_t opts_size = epistasis_options->num_options + shared_options->num_options + 1;
-    void **tool_options = malloc (opts_size * sizeof(void*));
+    void **tool_options = malloc (10 * sizeof(void*));
     // Input/output files
     tool_options[0] = epistasis_options->dataset_filename;
     

@@ -55,18 +55,30 @@ epi_model = penv.Program('epistasis_model.test',
                       ]
            )
 
-merge = penv.Program('merge.test', 
-             source = ['test_merge.c',
-                       Glob('#src/*.o'), Glob('#src/vcf-tools/merge/*.o'),
+#merge = penv.Program('merge.test', 
+             #source = ['test_merge.c',
+                       #Glob('#src/*.o'), Glob('#src/vcf-tools/merge/*.o'),
+                       #"%s/libcommon.a" % commons_path,
+                       #"%s/libbioinfo.a" % bioinfo_path,
+                       #"%s/libhpgmath.a" % math_path
+                      #]
+           #)
+
+tdt = penv.Program('tdt.test', 
+             source = ['test_tdt_runner.c',
+                       Glob('#src/*.o'), Glob('#src/gwas/tdt/*.o'),
                        "%s/libcommon.a" % commons_path,
                        "%s/libbioinfo.a" % bioinfo_path,
                        "%s/libhpgmath.a" % math_path
                       ]
            )
 
-tdt = penv.Program('tdt.test', 
-             source = ['test_tdt_runner.c',
-                       Glob('#src/*.o'), Glob('#src/gwas/tdt/*.o'),
+mpi_env = env.Clone()
+mpi_env.Append(CPPPATH = '/usr/lib/openmpi/include/')
+mpi_env.Append(LIBS = 'mpi')
+mpi = mpi_env.Program('mpi.test', 
+             source = ['mpi_blocks_test.c', 
+                       Glob('#src/*.o'), '#src/gwas/epistasis/cross_validation.o', '#src/gwas/epistasis/dataset.o', '#src/gwas/epistasis/mdr.o', '#src/gwas/epistasis/model.o', 
                        "%s/libcommon.a" % commons_path,
                        "%s/libbioinfo.a" % bioinfo_path,
                        "%s/libhpgmath.a" % math_path

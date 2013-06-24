@@ -48,7 +48,15 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
     int stride = options_data->stride;
     int num_folds = options_data->num_folds;
     int num_samples = num_affected + num_unaffected;
-    int num_blocks_per_dim = ceil((double) num_variants / stride);
+    size_t num_blocks_per_dim = ceil((double) num_variants / stride);
+    size_t num_block_coords = 0;
+    size_t max_num_block_coords = (size_t) pow(num_blocks_per_dim, order);
+    
+    int num_mpi_ranks = 1, mpi_rank;
+    MPI_Comm_size(MPI_COMM_WORLD, &num_mpi_ranks);
+    MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+    
+    printf("num mpi process %d of %d\n", mpi_rank, num_mpi_ranks);
     
     LOG_INFO_F("Combinations of order %d, %d variants per block\n", order, stride);
     LOG_INFO_F("%d variants, %d blocks per dimension\n", num_variants, num_blocks_per_dim);
@@ -58,10 +66,78 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
     uint8_t **genotype_permutations = get_genotype_combinations(order, &num_genotype_permutations);
     
     // Ranking of best models in each repetition
-//    linked_list_t *best_models[options_data->num_cv_repetitions];
     struct heap *best_models[options_data->num_cv_repetitions];
     
-    /**************************** End of variables precalculus  ****************************/
+    /**************************** End of variables precalculus *****************************/
+    
+    
+    /****************************** MPI workload distribution ******************************/
+    int *block_coords, *node_block_coords;
+    int curr_idx, next_idx;
+    
+    if (mpi_rank == 0) {
+        printf("Blocks per dim = %zu\tMax block coords = %zu\n", num_blocks_per_dim, max_num_block_coords);
+        block_coords = calloc(max_num_block_coords * order, sizeof(int));
+        
+        // Calculate all blocks coordinates
+        do {
+            curr_idx = num_block_coords * order;
+            next_idx = curr_idx + order;
+            memcpy(block_coords + next_idx, block_coords + curr_idx, order * sizeof(int));
+            curr_idx = next_idx;
+            num_block_coords++;
+/*
+            printf("(%d %d) ", block_coords[curr_idx], block_coords[curr_idx+1]);
+*/
+        } while (get_next_block(num_blocks_per_dim, order, block_coords + curr_idx));
+    }
+    
+    // Send total number of blocks to all processes
+    MPI_Bcast(&num_block_coords, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    
+    // Prepare arguments for scatterv
+    int block_counts[num_mpi_ranks];
+    int block_offsets[num_mpi_ranks];
+
+    if (mpi_rank == 0) {
+        printf("nbc = %zu\tmod = %zu\n", num_block_coords, num_block_coords % num_mpi_ranks);
+    }
+    
+    for (int p = 0; p < num_mpi_ranks; p++) {
+        if (p < num_block_coords % num_mpi_ranks) {
+            block_counts[p] = order * (num_block_coords / num_mpi_ranks + 1);
+        } else {
+            block_counts[p] = order * (num_block_coords / num_mpi_ranks);
+        }
+    }
+
+    block_offsets[0] = 0;
+    for (int p = 1; p < num_mpi_ranks; p++) {
+        block_offsets[p] = block_offsets[p-1] + block_counts[p-1];
+    }
+    
+    node_block_coords = calloc(block_counts[mpi_rank] * order, sizeof(int));
+    
+    if (mpi_rank == 0) {
+        for (int p = 0; p < num_mpi_ranks; p++) {
+            printf("(%d, off %d) ", block_counts[p], block_offsets[p]);
+        }
+        printf("\n");
+    }
+    
+    // MPI_Scatterv sends block coordinates to all processes
+    MPI_Scatterv(block_coords, block_counts, block_offsets, MPI_INT, 
+                 node_block_coords, block_counts[mpi_rank], MPI_INT,
+                 0, MPI_COMM_WORLD);
+    
+    if (mpi_rank == 0) {
+        free(block_coords);
+    }
+    
+    num_block_coords = block_counts[mpi_rank] / order;
+    
+    /************************** End of MPI workload distribution ***************************/
+    
     
     
     for (int r = 0; r < options_data->num_cv_repetitions; r++) {
@@ -98,21 +174,10 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
             heap_init(ranking_risky[i]);
         }
         
-        // Coordinates of the block being tested
-        int block_coords[order]; memset(block_coords, 0, order * sizeof(int));
-
-#pragma omp parallel num_threads(shared_options_data->num_threads)
-{
-#pragma omp single
-    {
-        do {
-
-            // OpenMP parallelization: Each block will be run in a separate thread
-#pragma omp task
-            {
-
-            int tid = omp_get_thread_num();
-            int my_block_coords[order];
+#pragma omp parallel for num_threads(shared_options_data->num_threads)
+        for (int i = 0; i < num_block_coords; i++) {
+            // Coordinates of the block being tested
+            int task_block_coords[order];
             
             // Initialize rankings for each repetition
             struct heap **ranking_risky_local = malloc(num_folds * sizeof(struct heap*));
@@ -121,10 +186,8 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                 heap_init(ranking_risky_local[i]);
             }
         
-#pragma omp critical
-            {
-                memcpy(my_block_coords, block_coords, order * sizeof(int));
-            }
+            memcpy(task_block_coords, node_block_coords + i * order, order * sizeof(int));
+                
 //            printf("%d) cv %d, block %d %d\n", omp_get_thread_num(), r, my_block_coords[0], my_block_coords[1]);
 
             // ***************** Variables private to each task (block) *****************
@@ -158,21 +221,21 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
             uint8_t *block_starts[order];
 //             printf("block starts = { ");
             for (int s = 0; s < order; s++) {
-                block_starts[s] = genotypes + my_block_coords[s] * stride * num_samples;
+                block_starts[s] = genotypes + task_block_coords[s] * stride * num_samples;
 //                 printf("%d ", block_coords[s] * stride);
             }
 //             printf("}\n");
 
             // Initialize first coordinate (only if it's different from the previous)
             block_genotypes[0] = get_genotypes_for_block(num_variants, num_samples, info, stride,
-                                                         my_block_coords[0], block_starts[0], scratchpad[0]);
+                                                         task_block_coords[0], block_starts[0], scratchpad[0]);
 
             // Initialize the rest of coordinates
             for (int m = 1; m < order; m++) {
                 bool already_present = false;
                 // If any coordinate is the same as a previous one, don't copy, but reference directly
                 for (int n = 0; n < m; n++) {
-                    if (my_block_coords[m] == my_block_coords[n]) {
+                    if (task_block_coords[m] == task_block_coords[n]) {
 //                             printf("taking %d -> %d\n", n, m);
                         block_genotypes[m] = block_genotypes[n];
                         already_present = true;
@@ -183,7 +246,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                 if (!already_present) {
                     // If not equals to a previous one, retrieve data
                     block_genotypes[m] = get_genotypes_for_block(num_variants, num_samples, info, stride,
-                            my_block_coords[m], block_starts[m], scratchpad[m]);
+                            task_block_coords[m], block_starts[m], scratchpad[m]);
                 }
             }
 
@@ -215,7 +278,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
             int cur_comb_idx = -1;
 
             // Test first combination in the block
-            get_first_combination_in_block(order, comb, my_block_coords, stride);
+            get_first_combination_in_block(order, comb, task_block_coords, stride);
 
             do {
 
@@ -310,7 +373,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
 
                 }
 
-            } while (get_next_combination_in_block(order, comb, my_block_coords, stride, num_variants));
+            } while (get_next_combination_in_block(order, comb, task_block_coords, stride, num_variants));
 
             // -------------------- Process combinations out of a full set --------------------
 
@@ -440,12 +503,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
             }
             _mm_free(counts_aff);
             _mm_free(counts_unaff);
-
-            }
-        } while (get_next_block(num_blocks_per_dim, order, block_coords));
-
-    }
-}
+        }
         
 /*
         for (int f = 0; f < num_folds; f++) {
@@ -530,22 +588,27 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
         _mm_free(fold_masks);
     }
     
+    // TODO Merge rankings from all nodes in root node
     
-    // Show the best model of each repetition
-    show_best_models_per_repetition(order, options_data->num_cv_repetitions, best_models);
     
-    // CVC (get the model that appears more times in the first ranking position)
-    int max_val_len = log10f(num_variants);
-    khash_t(cvc) *models_for_cvc = prepare_models_for_cvc(order, options_data->num_cv_repetitions, max_val_len, best_models);
-    
-    char *bestkey;
-    int bestvalue = choose_best_model(order, options_data->num_cv_repetitions, max_val_len, best_models, models_for_cvc, &bestkey);
-    
-    assert(bestkey);
-    LOG_INFO_F("Best model is %s with a CVC of %d/%d\n", bestkey, bestvalue, options_data->num_cv_repetitions);
-    
-    kh_destroy(cvc, models_for_cvc);
+    // Generate results in root node
+    if (mpi_rank == 0) {
+        // Show the best model of each repetition
+        show_best_models_per_repetition(order, options_data->num_cv_repetitions, best_models);
 
+        // CVC (get the model that appears more times in the first ranking position)
+        int max_val_len = log10f(num_variants);
+        khash_t(cvc) *models_for_cvc = prepare_models_for_cvc(order, options_data->num_cv_repetitions, max_val_len, best_models);
+
+        char *bestkey;
+        int bestvalue = choose_best_model(order, options_data->num_cv_repetitions, max_val_len, best_models, models_for_cvc, &bestkey);
+
+        assert(bestkey);
+        LOG_INFO_F("Best model is %s with a CVC of %d/%d\n", bestkey, bestvalue, options_data->num_cv_repetitions);
+
+        kh_destroy(cvc, models_for_cvc);
+    }
+    
     // Free data for the whole epistasis check
     for (int i = 0; i < num_genotype_permutations; i++) {
         free(genotype_permutations[i]);

@@ -40,7 +40,9 @@ int main(int argc, char *argv[]) {
         exit_code = association(argc - 1, argv + 1, config);
         
     } else if (strcmp(tool, "epi") == 0) {
+        MPI_Init(&argc, &argv);
         exit_code = epistasis(argc - 1, argv + 1, config);
+        MPI_Finalize();
         
     } else if (strcmp(tool, "tdt") == 0) {
         exit_code = tdt(argc - 1, argv + 1, config);
