@@ -310,7 +310,7 @@ START_TEST (test_get_genotypes_for_block) {
     int block_2d[] = { 0, 0 };
     uint8_t *block_genotypes[order];
     for (int s = 0; s < order; s++) {
-        block_genotypes[s] = _mm_malloc(stride * info.num_samples_per_mask * sizeof(uint8_t), 16);
+        block_genotypes[s] = _mm_malloc(stride * info.num_samples_with_padding * sizeof(uint8_t), 16);
     }
 
     char msg[64];
@@ -332,8 +332,8 @@ START_TEST (test_get_genotypes_for_block) {
 //        for (int i = 0; i < order; i++) {
 //         printf("* block_genotypes (%d) = {\n", i);
 //         for (int j = 0; j < stride; j++) {
-//             for (int k = 0; k < info.num_samples_per_mask; k++) {
-//                 printf("%u ", block_genotypes[i][j * info.num_samples_per_mask + k]);
+//             for (int k = 0; k < info.num_samples_with_padding; k++) {
+//                 printf("%u ", block_genotypes[i][j * info.num_samples_with_padding + k]);
 //             }
 //             printf("\n");
 //         }
@@ -347,32 +347,32 @@ START_TEST (test_get_genotypes_for_block) {
                 for (int k = 0; k < info.num_affected; k++) {
                     sprintf(msg, "Block %d, position %d,%d: expected %u but got %u\n", i, j, k,
                             block_starts[i][j * num_samples + k],
-                            block_genotypes[i][j * info.num_samples_per_mask + k]);
-                    fail_if(block_starts[i][j * num_samples + k] != block_genotypes[i][j * info.num_samples_per_mask + k], msg);
+                            block_genotypes[i][j * info.num_samples_with_padding + k]);
+                    fail_if(block_starts[i][j * num_samples + k] != block_genotypes[i][j * info.num_samples_with_padding + k], msg);
                 }
 
                 // Test padding 1
                 for (int k = info.num_affected; k < info.num_affected_with_padding; k++) {
                     sprintf(msg, "Block %d, position %d,%d (padding 1): expected %u but got %u\n", i, j, k,
                             0,
-                            block_genotypes[i][j * info.num_samples_per_mask + k]);
-                    fail_if(0 != block_genotypes[i][j * info.num_samples_per_mask + k], msg);
+                            block_genotypes[i][j * info.num_samples_with_padding + k]);
+                    fail_if(0 != block_genotypes[i][j * info.num_samples_with_padding + k], msg);
                 }
 
                 // Test unaffected
                 for (int k = 0; k < info.num_unaffected; k++) {
                     sprintf(msg, "Block %d, position %d,%d: expected %u but got %u\n", i, j, k,
                             block_starts[i][j * num_samples + k],
-                            block_genotypes[i][j * info.num_samples_per_mask + info.num_affected_with_padding + k]);
-                    fail_if(block_starts[i][j * num_samples + k] != block_genotypes[i][j * info.num_samples_per_mask + info.num_affected_with_padding + k], msg);
+                            block_genotypes[i][j * info.num_samples_with_padding + info.num_affected_with_padding + k]);
+                    fail_if(block_starts[i][j * num_samples + k] != block_genotypes[i][j * info.num_samples_with_padding + info.num_affected_with_padding + k], msg);
                 }
 
                 // Test padding 2
-                for (int k = info.num_affected_with_padding + info.num_unaffected; k < info.num_samples_per_mask; k++) {
+                for (int k = info.num_affected_with_padding + info.num_unaffected; k < info.num_samples_with_padding; k++) {
                     sprintf(msg, "Block %d, position %d,%d (padding 2): expected %u but got %u\n", i, j, k,
                             0,
-                            block_genotypes[i][j * info.num_samples_per_mask + k]);
-                    fail_if(0 != block_genotypes[i][j * info.num_samples_per_mask + k], msg);
+                            block_genotypes[i][j * info.num_samples_with_padding + k]);
+                    fail_if(0 != block_genotypes[i][j * info.num_samples_with_padding + k], msg);
                 }
             }
         }
@@ -434,8 +434,8 @@ END_TEST
 //// //                         printf("%u ", val[i][k * (num_samples - num_samples_in_fold) + j]);
 //// //                     }
 ////
-////                     for (int j = 0; j < info.num_samples_per_mask; j++) {
-////                         printf("%u ", val[i][k * info.num_samples_per_mask + j]);
+////                     for (int j = 0; j < info.num_samples_with_padding; j++) {
+////                         printf("%u ", val[i][k * info.num_samples_with_padding + j]);
 ////                     }
 ////                     printf("\t");
 ////                 }
