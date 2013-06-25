@@ -76,11 +76,15 @@ tdt = penv.Program('tdt.test',
 mpi_env = env.Clone()
 mpi_env.Append(CPPPATH = '/usr/lib/openmpi/include/')
 mpi_env.Append(LIBS = 'mpi')
-mpi = mpi_env.Program('mpi.test', 
+mpi_blocks = mpi_env.Program('mpi_blocks.test', 
              source = ['mpi_blocks_test.c', 
                        Glob('#src/*.o'), '#src/gwas/epistasis/cross_validation.o', '#src/gwas/epistasis/dataset.o', '#src/gwas/epistasis/mdr.o', '#src/gwas/epistasis/model.o', 
                        "%s/libcommon.a" % commons_path,
                        "%s/libbioinfo.a" % bioinfo_path,
                        "%s/libhpgmath.a" % math_path
                       ]
+           )
+
+mpi_datatypes = mpi_env.Program('mpi_datatypes.test', 
+             source = ['mpi_datatypes_test.c']
            )
