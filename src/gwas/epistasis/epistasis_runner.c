@@ -56,8 +56,6 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
     MPI_Comm_size(MPI_COMM_WORLD, &num_mpi_ranks);
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
     
-    printf("num mpi process %d of %d\n", mpi_rank, num_mpi_ranks);
-    
     LOG_INFO_F("Combinations of order %d, %d variants per block\n", order, stride);
     LOG_INFO_F("%d variants, %d blocks per dimension\n", num_variants, num_blocks_per_dim);
     
@@ -68,6 +66,10 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
     // Ranking of best models in each repetition
     struct heap *best_models[options_data->num_cv_repetitions];
     
+    // MPI datatype that stores "metadata" for risky combination transfers
+    risky_combination_mpi_t risky_mpi_type;
+    risky_combination_mpi_init(risky_mpi_type);
+
     /**************************** End of variables precalculus *****************************/
     
     
@@ -76,7 +78,9 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
     int curr_idx, next_idx;
     
     if (mpi_rank == 0) {
+/*
         printf("Blocks per dim = %zu\tMax block coords = %zu\n", num_blocks_per_dim, max_num_block_coords);
+*/
         block_coords = calloc(max_num_block_coords * order, sizeof(int));
         
         // Calculate all blocks coordinates
@@ -99,9 +103,11 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
     int block_counts[num_mpi_ranks];
     int block_offsets[num_mpi_ranks];
 
+/*
     if (mpi_rank == 0) {
         printf("nbc = %zu\tmod = %zu\n", num_block_coords, num_block_coords % num_mpi_ranks);
     }
+*/
     
     for (int p = 0; p < num_mpi_ranks; p++) {
         if (p < num_block_coords % num_mpi_ranks) {
@@ -174,6 +180,9 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
             heap_init(ranking_risky[i]);
         }
         
+        // Masks information (number (un)affected with padding, buffers, and so on)
+        masks_info info; masks_info_init(order, COMBINATIONS_ROW_SSE, num_affected, num_unaffected, &info);
+            
 #pragma omp parallel for num_threads(shared_options_data->num_threads)
         for (int i = 0; i < num_block_coords; i++) {
             // Coordinates of the block being tested
@@ -192,8 +201,8 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
 
             // ***************** Variables private to each task (block) *****************
 
-            // Masks information (number (un)affected with padding, buffers, and so on)
-            masks_info info; masks_info_init(order, COMBINATIONS_ROW_SSE, num_affected, num_unaffected, &info);
+            // Buffer for genotypes masks
+            uint8_t *masks = _mm_malloc(info.num_combinations_in_a_row * info.num_masks * sizeof(uint8_t), 16);
 
             // Scratchpad for block genotypes
             uint8_t *scratchpad[order];
@@ -301,10 +310,10 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                     }
                 }
 
-                uint8_t *masks = set_genotypes_masks(order, combination_genotypes, info.num_combinations_in_a_row, info); // Grouped by SNP
+                set_genotypes_masks(order, combination_genotypes, info.num_combinations_in_a_row, masks, info); // Grouped by SNP
 
                 // Get counts for the provided genotypes
-                combination_counts_all_folds(order, fold_masks, num_folds, genotype_permutations, info, counts_aff, counts_unaff);
+                combination_counts_all_folds(order, fold_masks, num_folds, genotype_permutations, masks, info, counts_aff, counts_unaff);
 
                 /* Right now the rest of the pipeline will be executed as it previously was, but for the sake of parallelization
                  * it could be better to make the choose_high_risk_combinations function work over
@@ -387,10 +396,10 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                 }
             }
 
-            uint8_t *masks = set_genotypes_masks(order, combination_genotypes, cur_comb_idx + 1, info); // Grouped by SNP
+            set_genotypes_masks(order, combination_genotypes, cur_comb_idx + 1, masks, info); // Grouped by SNP
 
             // Get counts for the provided genotypes
-            combination_counts_all_folds(order, fold_masks, num_folds, genotype_permutations, info, counts_aff, counts_unaff);
+            combination_counts_all_folds(order, fold_masks, num_folds, genotype_permutations, masks, info, counts_aff, counts_unaff);
 
             /* Right now the rest of the pipeline will be executed as it previously was, but for the sake of parallelization
              * it could be better to make the choose_high_risk_combinations function work over
@@ -497,7 +506,10 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
             }
             free(ranking_risky_local);
             
+/*
             _mm_free(info.masks);
+*/
+            _mm_free(masks);
             for (int s = 0; s < order; s++) {
                 _mm_free(scratchpad[s]);
             }
@@ -519,62 +531,106 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
         }
 */
         
-        // Merge all rankings in one
-        size_t repetition_ranking_size = 0;
-        for (int i = 0; i < num_folds; i++) {
-            repetition_ranking_size += ranking_risky[i]->size;
-        }
-        risky_combination *repetition_ranking[repetition_ranking_size];
-        size_t current_index = 0;
-        
-        for (int i = 0; i < num_folds; i++) {
-            struct heap_node *hn;
-            risky_combination *element = NULL;
+        // Merge rankings from all nodes in root node (TODO: optimize by reducing root load)
+        for (int f = 0; f < num_folds; f++) {
+            if (mpi_rank != 0) {
+                // Send size of this ranking
+                send_ranking_risky_size_mpi(ranking_risky[f], 0, MPI_COMM_WORLD);
+                
+                // Send best combinations to root node
+                struct heap_node *hn;
+                risky_combination *risky = NULL;
 
-//            printf("Ranking fold %d = {\n", i);
-            while (!heap_empty(ranking_risky[i])) {
-                hn = heap_take(compare_risky_heap_min, ranking_risky[i]);
-                element = (risky_combination*) hn->value;
-                repetition_ranking[current_index] = element;
-                current_index++;
-                free(hn);
-
-//                printf("(%d ", element->combination[0]);
-//                for (int s = 1; s < order; s++) {
-//                    printf("%d ", element->combination[s]);
-//                }
-//                printf("- %.3f) ", element->accuracy);
-            }
-//            printf("}\n\n");
-        }
-
-        assert(current_index == repetition_ranking_size);
-        
-        // qsort by coordinates
-        qsort(repetition_ranking, repetition_ranking_size, sizeof(risky_combination*), compare_risky);
-        
-        // Sum all values of each position and get the mean of accuracies
-        struct heap *sorted_repetition_ranking = malloc(sizeof(struct heap)); heap_init(sorted_repetition_ranking);
-        risky_combination *current = repetition_ranking[0];
-        
-        for (int i = 1; i < repetition_ranking_size; i++) {
-            risky_combination *element = repetition_ranking[i];
-            if (!compare_risky(&current, &element)) {
-                assert(current != element);
-                current->accuracy += element->accuracy;
-                risky_combination_free(element);
+                while (!heap_empty(ranking_risky[f])) {
+                    hn = heap_take(compare_risky_heap_min, ranking_risky[f]);
+                    risky = (risky_combination*) hn->value;
+                    send_risky_combination_mpi(risky, risky_mpi_type, 0, MPI_COMM_WORLD);
+                    risky_combination_free(risky);
+                    free(hn);
+                }
             } else {
-                current->accuracy /= num_folds;
-                add_to_model_ranking(current, repetition_ranking_size, sorted_repetition_ranking, compare_risky_heap_max);
-                current = element;
+                MPI_Status stat;
+                size_t ranking_sizes[num_mpi_ranks];
+                
+                // Receive size of ranking from each node
+                for (int src = 1; src < num_mpi_ranks; src++) {
+                    ranking_sizes[src] = receive_ranking_risky_size_mpi(src, MPI_COMM_WORLD, stat);
+/*
+                    printf("CV %d, proc %d, ranking %d has size %zu\n", r, src, f, ranking_sizes[src]);
+*/
+                }
+                
+                // Receive best combinations from each node
+                for (int src = 1; src < num_mpi_ranks; src++) {
+                    for (int c = 0; c < ranking_sizes[src]; c++) {
+                        risky_combination *risky_comb = receive_risky_combination_mpi(order, risky_mpi_type, info, src, MPI_COMM_WORLD, stat);
+                        int position = add_to_model_ranking(risky_comb, options_data->max_ranking_size, ranking_risky[f], compare_risky_heap_min);
+                        if (position < 0) {
+                            risky_combination_free(risky_comb);
+                        }
+                    }
+                }
             }
         }
-        // Don't leave last element out!
-        current->accuracy /= num_folds;
-        add_to_model_ranking(current, repetition_ranking_size, sorted_repetition_ranking, compare_risky_heap_max);
         
-        // Save the models ranking
-        best_models[r] = sorted_repetition_ranking;
+        // Root node merges all rankings in one
+        if (mpi_rank == 0) {
+            size_t repetition_ranking_size = 0;
+            for (int i = 0; i < num_folds; i++) {
+                repetition_ranking_size += ranking_risky[i]->size;
+            }
+            risky_combination *repetition_ranking[repetition_ranking_size];
+            size_t current_index = 0;
+
+            for (int i = 0; i < num_folds; i++) {
+                struct heap_node *hn;
+                risky_combination *element = NULL;
+
+    //            printf("Ranking fold %d = {\n", i);
+                while (!heap_empty(ranking_risky[i])) {
+                    hn = heap_take(compare_risky_heap_min, ranking_risky[i]);
+                    element = (risky_combination*) hn->value;
+                    repetition_ranking[current_index] = element;
+                    current_index++;
+                    free(hn);
+
+    //                printf("(%d ", element->combination[0]);
+    //                for (int s = 1; s < order; s++) {
+    //                    printf("%d ", element->combination[s]);
+    //                }
+    //                printf("- %.3f) ", element->accuracy);
+                }
+    //            printf("}\n\n");
+            }
+
+            assert(current_index == repetition_ranking_size);
+
+            // qsort by coordinates
+            qsort(repetition_ranking, repetition_ranking_size, sizeof(risky_combination*), compare_risky);
+
+            // Sum all values of each position and get the mean of accuracies
+            struct heap *sorted_repetition_ranking = malloc(sizeof(struct heap)); heap_init(sorted_repetition_ranking);
+            risky_combination *current = repetition_ranking[0];
+
+            for (int i = 1; i < repetition_ranking_size; i++) {
+                risky_combination *element = repetition_ranking[i];
+                if (!compare_risky(&current, &element)) {
+                    assert(current != element);
+                    current->accuracy += element->accuracy;
+                    risky_combination_free(element);
+                } else {
+                    current->accuracy /= num_folds;
+                    add_to_model_ranking(current, repetition_ranking_size, sorted_repetition_ranking, compare_risky_heap_max);
+                    current = element;
+                }
+            }
+            // Don't leave last element out!
+            current->accuracy /= num_folds;
+            add_to_model_ranking(current, repetition_ranking_size, sorted_repetition_ranking, compare_risky_heap_max);
+
+            // Save the models ranking
+            best_models[r] = sorted_repetition_ranking;
+        }
         
         // Free data por this repetition
         for (int i = 0; i < num_folds; i++) {
@@ -586,10 +642,8 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
         free(sizes);
         free(training_sizes);
         _mm_free(fold_masks);
+        
     }
-    
-    // TODO Merge rankings from all nodes in root node
-    
     
     // Generate results in root node
     if (mpi_rank == 0) {
@@ -614,16 +668,21 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
         free(genotype_permutations[i]);
     }
     free(genotype_permutations);
-    for (int r = 0; r < options_data->num_cv_repetitions; r++) {
-        struct heap_node *hn;
-        risky_combination *element = NULL;
-
-        while (!heap_empty(best_models[r])) {
-            hn = heap_take(compare_risky_heap_max, best_models[r]);
-            risky_combination_free((risky_combination*) hn->value);
-            free(hn);
+    
+    // Free best models rankings in root node
+    if (mpi_rank == 0) {
+        for (int r = 0; r < options_data->num_cv_repetitions; r++) {
+            struct heap_node *hn;
+            while (!heap_empty(best_models[r])) {
+                hn = heap_take(compare_risky_heap_max, best_models[r]);
+                risky_combination_free((risky_combination*) hn->value);
+                free(hn);
+            }
         }
     }
+    
+    // TODO MPI_ERR_Type? Invalid datatype argument. May be an uncommitted MPI_Datatype (see MPI_Type_commit).
+    //risky_combination_mpi_free(risky_mpi_type);
     epistasis_dataset_close(input_file, file_len);
     
     return ret_code;

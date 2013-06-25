@@ -5,7 +5,7 @@
  *          Counts          *
  * **************************/
 
-uint8_t* set_genotypes_masks(int order, uint8_t **genotypes, int num_combinations, masks_info info) {
+void set_genotypes_masks(int order, uint8_t **genotypes, int num_combinations, uint8_t *in_masks, masks_info info) {
     /*
      * Structure: Genotypes of a SNP in each 'row'
      *
@@ -27,10 +27,8 @@ uint8_t* set_genotypes_masks(int order, uint8_t **genotypes, int num_combination
     __m128i input_genotypes;    // Genotypes from the input dataset
     __m128i mask;               // Comparison between the reference genotype and input genotypes
     
-    uint8_t *masks = info.masks;
-    
     for (int c = 0; c < num_combinations; c++) {
-        masks = info.masks + c * info.num_masks;
+        uint8_t *masks = in_masks + c * info.num_masks;
         uint8_t **combination_genotypes = genotypes + c * order;
 
         for (int j = 0; j < order; j++) {
@@ -53,10 +51,6 @@ uint8_t* set_genotypes_masks(int order, uint8_t **genotypes, int num_combination
             }
         }
     }
-
-    masks = info.masks;
-
-    return masks;
 }
 
 void combination_counts(int order, uint8_t *masks, uint8_t **genotype_permutations, int num_genotype_permutations,
@@ -67,7 +61,7 @@ void combination_counts(int order, uint8_t *masks, uint8_t **genotype_permutatio
     __m128i snp_and, snp_cmp;
 
     for (int rc = 0; rc < info.num_combinations_in_a_row; rc++) {
-        uint8_t *rc_masks = info.masks + rc * order * NUM_GENOTYPES * info.num_samples_with_padding;
+        uint8_t *rc_masks = masks + rc * order * NUM_GENOTYPES * info.num_samples_with_padding;
         for (int c = 0; c < num_genotype_permutations; c++) {
             permutation = genotype_permutations[c];
             // print_gt_combination(permutation, c, order);
@@ -115,7 +109,7 @@ void combination_counts(int order, uint8_t *masks, uint8_t **genotype_permutatio
 }
 
 void combination_counts_all_folds(int order, uint8_t *fold_masks, int num_folds,
-                                  uint8_t **genotype_permutations, masks_info info, 
+                                  uint8_t **genotype_permutations, uint8_t *masks, masks_info info, 
                                   int *counts_aff, int *counts_unaff) {
     uint8_t *permutation;
     int count[num_folds];
@@ -123,7 +117,7 @@ void combination_counts_all_folds(int order, uint8_t *fold_masks, int num_folds,
     __m128i snp_and, snp_cmp, snp_result;
 
     for (int rc = 0; rc < info.num_combinations_in_a_row; rc++) {
-        uint8_t *rc_masks = info.masks + rc * order * NUM_GENOTYPES * info.num_samples_with_padding;
+        uint8_t *rc_masks = masks + rc * order * NUM_GENOTYPES * info.num_samples_with_padding;
         for (int c = 0; c < info.num_cell_counts_per_combination; c++) {
             permutation = genotype_permutations[c];
             // print_gt_combination(permutation, c, order);
@@ -200,9 +194,11 @@ void masks_info_init(int order, int num_combinations_in_a_row, int num_affected,
     info->num_cell_counts_per_combination = pow(NUM_GENOTYPES, order);
     info->num_samples_with_padding = info->num_affected_with_padding + info->num_unaffected_with_padding;
     info->num_masks = NUM_GENOTYPES * order * info->num_samples_with_padding;
+/*
     info->masks = _mm_malloc(info->num_combinations_in_a_row * info->num_masks * sizeof(uint8_t), 16);
 
     assert(info->masks);
+*/
     assert(info->num_affected_with_padding);
     assert(info->num_unaffected_with_padding);
 }

@@ -28,9 +28,9 @@
 typedef struct {
     double accuracy;
     int order;
-    int *combination;
-    uint8_t *genotypes;
     int num_risky_genotypes;
+    uint8_t *genotypes;
+    int *combination;
     void *auxiliary_info;
 } risky_combination;
 
@@ -65,7 +65,7 @@ enum eval_function { CA, BA, wBA, GAMMA, TAU_B };
  *          Counts          *
  * **************************/
 
-uint8_t* set_genotypes_masks(int order, uint8_t **genotypes, int num_combinations, masks_info info);
+void set_genotypes_masks(int order, uint8_t **genotypes, int num_combinations, uint8_t *masks, masks_info info);
 
 /**
  * @brief Gets the number of ocurrences of each genotype both in affected and unaffected groups.
@@ -83,7 +83,7 @@ void combination_counts(int order, uint8_t *masks, uint8_t **genotype_combinatio
                         int *counts_aff, int *counts_unaff, masks_info info);
 
 void combination_counts_all_folds(int order, uint8_t *fold_masks, int num_folds,
-                                  uint8_t **genotype_permutations, masks_info info, 
+                                  uint8_t **genotype_permutations, uint8_t *masks, masks_info info, 
                                   int *counts_aff, int *counts_unaff);
 
 void masks_info_init(int order, int num_combinations_in_a_row, int num_affected, int num_unaffected, masks_info *info);

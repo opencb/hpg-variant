@@ -18,44 +18,36 @@
  * along with hpg-variant. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef EPISTASIS_RUNNER_H
-#define EPISTASIS_RUNNER_H
+#ifndef MPI_EPISTASIS_HELPER_H
+#define	MPI_EPISTASIS_HELPER_H
 
-#include <assert.h>
-#include <math.h>
-#include <stdio.h>
-#include <stdbool.h>
 #include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
 
 #include <mpi.h>
-#include <omp.h>
 
-#include <commons/log.h>
-#include <containers/heap.h>
-#include <containers/khash.h>
-
-#include "shared_options.h"
-#include "hpg_variant_utils.h"
-
-#include "cross_validation.h"
-#include "dataset.h"
-#include "epistasis.h"
 #include "model.h"
-#include "mpi_epistasis_helper.h"
 
-KHASH_MAP_INIT_STR(cvc, int);
+#define TAG_RANKING_RISKY_SIZE  0
+#define TAG_RANKING_RISKY_ELEM  1
 
+typedef struct {
+    int lengths[2];
+    MPI_Datatype types[2];
+    MPI_Aint offsets[2];
+    MPI_Datatype datatype;
+} risky_combination_mpi_t;
 
-int run_epistasis(shared_options_data_t *global_options_data, epistasis_options_data_t* options_data);
+void risky_combination_mpi_init(risky_combination_mpi_t type);
 
+void risky_combination_mpi_free(risky_combination_mpi_t type);
 
-static void write_output_header(FILE *fd);
+void send_ranking_risky_size_mpi(struct heap *ranking, int dest, MPI_Comm comm);
 
-static void write_output_body(list_t* output_list, FILE *fd);
+size_t receive_ranking_risky_size_mpi(int src, MPI_Comm comm, MPI_Status stat);
 
+void send_risky_combination_mpi(risky_combination *risky, risky_combination_mpi_t type, int dest, MPI_Comm comm);
 
-int compare_risky(const void *risky_1, const void *risky_2);
+risky_combination* receive_risky_combination_mpi(int order, risky_combination_mpi_t type, masks_info info, int src, MPI_Comm comm, MPI_Status stat);
+
 
 #endif
