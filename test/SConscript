@@ -46,14 +46,14 @@ epi_data = penv.Program('epistasis_dataset.test',
                       #]
            #)
 
-epi_model = penv.Program('epistasis_model.test', 
-             source = ['test_epistasis_model.c', 
-                       Glob('#src/*.o'), '#src/gwas/epistasis/cross_validation.o', '#src/gwas/epistasis/dataset.o', '#src/gwas/epistasis/mdr.o', '#src/gwas/epistasis/model.o', 
-                       "%s/libcommon.a" % commons_path,
-                       "%s/libbioinfo.a" % bioinfo_path,
-                       "%s/libhpgmath.a" % math_path
-                      ]
-           )
+#epi_model = penv.Program('epistasis_model.test', 
+#             source = ['test_epistasis_model.c', 
+#                       Glob('#src/*.o'), '#src/gwas/epistasis/cross_validation.o', '#src/gwas/epistasis/dataset.o', '#src/gwas/epistasis/mdr.o', '#src/gwas/epistasis/model.o', 
+#                       "%s/libcommon.a" % commons_path,
+#                       "%s/libbioinfo.a" % bioinfo_path,
+#                       "%s/libhpgmath.a" % math_path
+#                      ]
+#           )
 
 #merge = penv.Program('merge.test', 
              #source = ['test_merge.c',
@@ -87,4 +87,8 @@ mpi_blocks = mpi_env.Program('mpi_blocks.test',
 
 mpi_datatypes = mpi_env.Program('mpi_datatypes.test', 
              source = ['mpi_datatypes_test.c']
+           )
+
+mpi_mmap = mpi_env.Program('mpi_mmap.test', 
+             source = ['mpi_mmap_test.c']
            )

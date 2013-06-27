@@ -29,13 +29,20 @@ static int choose_best_model(int order, int num_cv_repetitions, int max_val_len,
 int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_data_t* options_data) {
     int ret_code = 0;
     
+    int num_mpi_ranks = 1, mpi_rank;
+    MPI_Comm_size(MPI_COMM_WORLD, &num_mpi_ranks);
+    MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+    
     // Load binary input dataset
     int num_affected, num_unaffected;
-    size_t num_variants, file_len, genotypes_offset;
+    size_t num_variants, file_len;
+    size_t genotypes_offset = sizeof(size_t) + sizeof(uint32_t) + sizeof(uint32_t);
     
-    uint8_t *input_file = epistasis_dataset_load(&num_affected, &num_unaffected, &num_variants, &file_len, &genotypes_offset, options_data->dataset_filename);
+    MPI_File fd;
+    uint8_t *input_file = epistasis_dataset_load_mpi(options_data->dataset_filename, &num_affected, &num_unaffected, &num_variants, 
+                                                     &file_len, &genotypes_offset, &fd);
     uint8_t *genotypes = input_file + genotypes_offset;
-    
+
     // Try to create the directory where the output files will be stored
     ret_code = create_directory(shared_options_data->output_directory);
     if (ret_code != 0 && errno != EEXIST) {
@@ -44,6 +51,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
     
     /*************** Precalculate the rest of variables the algorithm needs  ***************/
     
+    
     int order = options_data->order;
     int stride = options_data->stride;
     int num_folds = options_data->num_folds;
@@ -51,10 +59,6 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
     size_t num_blocks_per_dim = ceil((double) num_variants / stride);
     size_t num_block_coords = 0;
     size_t max_num_block_coords = (size_t) pow(num_blocks_per_dim, order);
-    
-    int num_mpi_ranks = 1, mpi_rank;
-    MPI_Comm_size(MPI_COMM_WORLD, &num_mpi_ranks);
-    MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
     
     LOG_INFO_F("Combinations of order %d, %d variants per block\n", order, stride);
     LOG_INFO_F("%d variants, %d blocks per dimension\n", num_variants, num_blocks_per_dim);
@@ -96,8 +100,10 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
         } while (get_next_block(num_blocks_per_dim, order, block_coords + curr_idx));
     }
     
+    LOG_INFO_F("%d) Broadcasting number of block coordinates...\n", mpi_rank);
     // Send total number of blocks to all processes
     MPI_Bcast(&num_block_coords, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    LOG_INFO_F("%d) Number of block coordinates broadcasted!\n", mpi_rank);
     
     // Prepare arguments for scatterv
     int block_counts[num_mpi_ranks];
@@ -130,12 +136,20 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
         }
         printf("\n");
     }
-    
+   
+    LOG_INFO_F("%d) Scattering block coordinates...\n", mpi_rank);
     // MPI_Scatterv sends block coordinates to all processes
     MPI_Scatterv(block_coords, block_counts, block_offsets, MPI_INT, 
                  node_block_coords, block_counts[mpi_rank], MPI_INT,
                  0, MPI_COMM_WORLD);
-    
+    LOG_INFO_F("%d) Block coordinates scattered!\n", mpi_rank);
+
+    char processor_name[MPI_MAX_PROCESSOR_NAME];
+    int processor_len;
+    MPI_Get_processor_name(processor_name, &processor_len);
+
+    LOG_INFO_F("Process %d running in processor %.*s\n", mpi_rank, processor_len, processor_name);
+
     if (mpi_rank == 0) {
         free(block_coords);
     }
@@ -147,7 +161,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
     
     
     for (int r = 0; r < options_data->num_cv_repetitions; r++) {
-        LOG_INFO_F("Running cross-validation #%d...\n", r+1);
+        LOG_INFO_F("%d) Running cross-validation #%d...\n", mpi_rank, r+1);
         
         // Initialize folds, first block coordinates, genotype combinations and rankings for each repetition
         unsigned int *sizes, *training_sizes;
@@ -183,8 +197,14 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
         // Masks information (number (un)affected with padding, buffers, and so on)
         masks_info info; masks_info_init(order, COMBINATIONS_ROW_SSE, num_affected, num_unaffected, &info);
             
+/*#pragma omp parallel
+{
+#pragma omp single
+{*/
 #pragma omp parallel for num_threads(shared_options_data->num_threads)
         for (int i = 0; i < num_block_coords; i++) {
+/*#pragma omp task
+{*/
             // Coordinates of the block being tested
             int task_block_coords[order];
             
@@ -516,7 +536,9 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
             _mm_free(counts_aff);
             _mm_free(counts_unaff);
         }
-        
+/*}
+}       
+}*/
 /*
         for (int f = 0; f < num_folds; f++) {
             printf("Ranking fold %d = {\n", f);
@@ -530,7 +552,9 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
             printf("\n\n");
         }
 */
-        
+        if (mpi_rank == 0) {
+            LOG_INFO_F("Merging rankings in node for CV %d\n", r+1);
+        }        
         // Merge rankings from all nodes in root node (TODO: optimize by reducing root load)
         for (int f = 0; f < num_folds; f++) {
             if (mpi_rank != 0) {
@@ -572,6 +596,9 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                 }
             }
         }
+        if (mpi_rank == 0) {
+            LOG_INFO_F("Rankings in node for CV %d merged!\n", r+1);
+        }        
         
         // Root node merges all rankings in one
         if (mpi_rank == 0) {
@@ -683,8 +710,9 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
     
     // TODO MPI_ERR_Type? Invalid datatype argument. May be an uncommitted MPI_Datatype (see MPI_Type_commit).
     //risky_combination_mpi_free(risky_mpi_type);
-    epistasis_dataset_close(input_file, file_len);
+    epistasis_dataset_close_mpi(input_file, fd);
     
+    MPI_Barrier(MPI_COMM_WORLD);
     return ret_code;
 }
 

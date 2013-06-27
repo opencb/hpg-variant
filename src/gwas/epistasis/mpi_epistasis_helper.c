@@ -1,4 +1,74 @@
 #include "mpi_epistasis_helper.h"
+#include "epistasis.h"
+
+
+void bcast_shared_options_data_mpi(shared_options_data_t *options_data, int root, MPI_Comm comm) {
+    MPI_Datatype mpi_shared_options_type;
+    // Length of the struct members
+    int lengths[] = { 5 };
+    // Datatype of the struct members
+    MPI_Datatype types[] = { MPI_INT };
+    // Offset of the struct members
+    MPI_Aint offsets[1];
+    MPI_Aint addr_base, addr_max_batches;
+    MPI_Get_address(options_data, &addr_base);
+    MPI_Get_address(&options_data->max_batches, &addr_max_batches);
+    offsets[0] = addr_max_batches - addr_base;
+    
+    MPI_Type_struct(1, lengths, offsets, types, &mpi_shared_options_type);
+    MPI_Type_commit(&mpi_shared_options_type);
+    
+    int rank;
+    MPI_Comm_rank(comm, &rank);
+    
+    // Send members of built-in types
+    MPI_Bcast(options_data, 1, mpi_shared_options_type, root, comm);
+    
+    // Send length of output directory, and directory itself
+    int text_field_len;
+    if (rank == root) {
+       text_field_len = strlen(options_data->output_directory);
+    }
+    MPI_Bcast(&text_field_len, 1, MPI_INT, root, comm);
+    if (rank != root) {
+        options_data->output_directory = calloc(text_field_len + 1, sizeof(char));
+    }
+    MPI_Bcast(options_data->output_directory, text_field_len, MPI_CHAR, root, comm);
+}
+
+void bcast_epistasis_options_data_mpi(epistasis_options_data_t *options_data, int root, MPI_Comm comm) {
+    MPI_Datatype mpi_epistasis_options_type;
+    // Length of the struct members
+    int lengths[] = { 6 };
+    // Datatype of the struct members
+    MPI_Datatype types[] = { MPI_INT };
+    // Offset of the struct members
+    MPI_Aint offsets[1];
+    MPI_Aint addr_base, addr_order;
+    MPI_Get_address(options_data, &addr_base);
+    MPI_Get_address(&options_data->order, &addr_order);
+    offsets[0] = addr_order - addr_base;
+    
+    MPI_Type_struct(1, lengths, offsets, types, &mpi_epistasis_options_type);
+    MPI_Type_commit(&mpi_epistasis_options_type);
+    
+    int rank;
+    MPI_Comm_rank(comm, &rank);
+    
+    // Send members of built-in types
+    MPI_Bcast(options_data, 1, mpi_epistasis_options_type, root, comm);
+    
+    // Send length of the dataset filename, then the filename itself
+    int dataset_filename_len;
+    if (rank == root) {
+       dataset_filename_len = strlen(options_data->dataset_filename);
+    }
+    MPI_Bcast(&dataset_filename_len, 1, MPI_INT, root, comm);
+    if (rank != root) {
+        options_data->dataset_filename = calloc(dataset_filename_len + 1, sizeof(char));
+    }
+    MPI_Bcast(options_data->dataset_filename, dataset_filename_len, MPI_CHAR, root, comm);
+}
 
 
 void risky_combination_mpi_init(risky_combination_mpi_t type) {

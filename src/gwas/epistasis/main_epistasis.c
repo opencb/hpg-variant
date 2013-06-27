@@ -44,36 +44,57 @@ int epistasis(int argc, char *argv[], const char *configuration_file) {
      *       Execution steps        *
      * ******************************/
 
-    // Step 1: read options from configuration file
-    int config_errors = read_shared_configuration(configuration_file, shared_options);
-    config_errors &= read_epistasis_configuration(configuration_file, epistasis_options, shared_options);
+    int mpi_rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
     
-    if (config_errors) {
-        LOG_ERROR("Configuration file read with errors\n");
-        return CANT_READ_CONFIG_FILE;
-    }
+    // Only one rank reads the configuration file (libconfig is not compatible with MPI I/O)
+    if (mpi_rank == 0) {
+        // Step 1: read options from configuration file
+        int config_errors = read_shared_configuration(configuration_file, shared_options);
+        config_errors &= read_epistasis_configuration(configuration_file, epistasis_options, shared_options);
 
-    // Step 2: parse command-line options
-    argtable = parse_epistasis_options(argc, argv, epistasis_options, shared_options);
-    
-    // Step 3: check that all options are set with valid values
-    // Mandatory options that couldn't be read from the config file must be set via command-line
-    // If not, return error code!
-    int check_epistasis_opts = verify_epistasis_options(epistasis_options, shared_options);
-    if (check_epistasis_opts > 0) {
-        return check_epistasis_opts;
+        if (config_errors) {
+            LOG_ERROR("Configuration file read with errors\n");
+            return CANT_READ_CONFIG_FILE;
+        }
+
+        // Step 2: parse command-line options
+        argtable = parse_epistasis_options(argc, argv, epistasis_options, shared_options);
+
+        // Step 3: check that all options are set with valid values
+        // Mandatory options that couldn't be read from the config file must be set via command-line
+        // If not, return error code!
+        int check_epistasis_opts = verify_epistasis_options(epistasis_options, shared_options);
+        if (check_epistasis_opts > 0) {
+            return check_epistasis_opts;
+        }
     }
     
     // Step 4: Create XXX_options_data_t structures from valid XXX_options_t
-    shared_options_data_t *shared_options_data = new_shared_options_data(shared_options);
-    epistasis_options_data_t *epistasis_options_data = new_epistasis_options_data(epistasis_options);
+    // * rank 0 creates the structures and transmits info about them
+    // * rank != 0 receives data to be associated with empty structures
+    shared_options_data_t *shared_options_data;
+    epistasis_options_data_t *epistasis_options_data;
+    
+    if (mpi_rank == 0) {
+        shared_options_data = new_shared_options_data(shared_options);
+        epistasis_options_data = new_epistasis_options_data(epistasis_options);
+    } else {
+        shared_options_data = calloc (1, sizeof(shared_options_data_t));
+        epistasis_options_data = calloc (1, sizeof(epistasis_options_data_t));
+    }
+    
+    bcast_shared_options_data_mpi(shared_options_data, 0, MPI_COMM_WORLD);
+    bcast_epistasis_options_data_mpi(epistasis_options_data, 0, MPI_COMM_WORLD);
 
     // Step 5: Execute request and manage its response (as CURL request callback function)
     int result = run_epistasis(shared_options_data, epistasis_options_data);
     
     free_epistasis_options_data(epistasis_options_data);
     free_shared_options_data(shared_options_data);
-    arg_freetable(argtable, 10);
+    if (mpi_rank == 0) {
+        arg_freetable(argtable, 10);
+    }
 
     return 0;
 }

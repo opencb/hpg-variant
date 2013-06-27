@@ -8,6 +8,8 @@
 #include <stdlib.h>
 #include <math.h>
 
+#include <mpi.h>
+
 #include <bioformats/vcf/vcf_file_structure.h>
 #include <commons/file_utils.h>
 #include <containers/array_list.h>
@@ -22,6 +24,10 @@ uint8_t *epistasis_dataset_load(int *num_affected, int *num_unaffected, size_t *
 
 int epistasis_dataset_close(uint8_t *contents, size_t file_len);
 
+uint8_t *epistasis_dataset_load_mpi(char *filename, int *num_affected, int *num_unaffected, size_t *num_variants, 
+                                    size_t *file_len, size_t *genotypes_offset, MPI_File *fd);
+
+void epistasis_dataset_close_mpi(uint8_t *contents, MPI_File fd);
 
 /* *********************************************
  *  Combinations of blocks, SNPs and genotypes *

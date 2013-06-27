@@ -25,7 +25,9 @@
 
 #include <mpi.h>
 
+#include "epistasis.h"
 #include "model.h"
+#include "shared_options.h"
 
 #define TAG_RANKING_RISKY_SIZE  0
 #define TAG_RANKING_RISKY_ELEM  1
@@ -36,6 +38,10 @@ typedef struct {
     MPI_Aint offsets[2];
     MPI_Datatype datatype;
 } risky_combination_mpi_t;
+
+void bcast_shared_options_data_mpi(shared_options_data_t *options_data, int root, MPI_Comm comm);
+
+void bcast_epistasis_options_data_mpi(epistasis_options_data_t *options_data, int root, MPI_Comm comm);
 
 void risky_combination_mpi_init(risky_combination_mpi_t type);
 
