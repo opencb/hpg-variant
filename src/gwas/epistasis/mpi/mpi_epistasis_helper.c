@@ -1,5 +1,4 @@
 #include "mpi_epistasis_helper.h"
-#include "epistasis.h"
 
 
 void bcast_shared_options_data_mpi(shared_options_data_t *options_data, int root, MPI_Comm comm) {

@@ -31,6 +31,10 @@
 
 #include <stdlib.h>
 
+#ifdef _USE_MPI
+#include <mpi.h>
+#endif
+
 #include <commons/argtable/argtable2.h>
 #include <commons/config/libconfig.h>
 #include <commons/log.h>

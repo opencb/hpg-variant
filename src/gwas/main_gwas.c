@@ -28,18 +28,23 @@ int main(int argc, char *argv[]) {
     
     init_log_custom(2, 1, "hpg-var-gwas.log", "w");
 
-    int mpi_rank;
-    MPI_Init(&argc, &argv);
-    MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
-
     array_list_t *config_search_paths = NULL;
     const char *config = NULL;
     int config_len;
 
+#ifdef _USE_MPI
+    int mpi_rank;
+    MPI_Init(&argc, &argv);
+    MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+
     if (mpi_rank == 0) {
-        config_search_paths = get_configuration_search_paths(argc, argv);
-        config = retrieve_config_file("hpg-variant.conf", config_search_paths);
-        config_len = strlen(config);
+#endif
+        
+    config_search_paths = get_configuration_search_paths(argc, argv);
+    config = retrieve_config_file("hpg-variant.conf", config_search_paths);
+    config_len = strlen(config);
+        
+#ifdef _USE_MPI
     }
     MPI_Bcast(&config_len, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
@@ -49,6 +54,7 @@ int main(int argc, char *argv[]) {
 
     MPI_Bcast(config, config_len, MPI_CHAR, 0, MPI_COMM_WORLD);
     LOG_INFO_F("Rank %d got config file: %.*s\n", mpi_rank, config_len, config);
+#endif
 
     // Get sub-tool
     char *tool = argv[1];
@@ -73,12 +79,17 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "Tool %s terminated with failure (exit code = %d)\n", tool, exit_code);
     }
   
+#ifdef _USE_MPI
     if (mpi_rank == 0) { 
         if (config_search_paths) { array_list_free(config_search_paths, free); }
     }
     
-    stop_log();
-    
     MPI_Finalize();
+#else
+    array_list_free(config_search_paths, free);
+    
+#endif
+    
+    stop_log();
     return exit_code;
 }

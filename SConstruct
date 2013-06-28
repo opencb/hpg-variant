@@ -6,7 +6,7 @@ commons_path = '#libs/common-libs'
 math_path = '#libs/math'
 
 env = Environment(tools = ['default', 'packaging'],
-                  CFLAGS = '-std=c99 -D_XOPEN_SOURCE=600 -D_GNU_SOURCE -msse4.2 -fopenmp',
+                  CFLAGS = '-std=c99 -D_XOPEN_SOURCE=600 -D_GNU_SOURCE -D_USE_MPI -msse4.2 -fopenmp',
                   CPPPATH = ['#', '#src', '#include', bioinfo_path, commons_path, math_path, 
                              '/usr/include', '/usr/local/include', '/usr/include/libxml2', '/usr/lib/openmpi/include'],
                   LIBPATH = [commons_path, bioinfo_path, '/usr/lib', '/usr/local/lib'],

@@ -43,7 +43,7 @@
 #include "dataset.h"
 #include "epistasis.h"
 #include "model.h"
-#include "mpi_epistasis_helper.h"
+#include "mpi/mpi_epistasis_helper.h"
 
 KHASH_MAP_INIT_STR(cvc, int);
 

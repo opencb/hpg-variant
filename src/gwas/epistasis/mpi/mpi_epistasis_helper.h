@@ -25,8 +25,8 @@
 
 #include <mpi.h>
 
-#include "epistasis.h"
-#include "model.h"
+#include "../epistasis.h"
+#include "../model.h"
 #include "shared_options.h"
 
 #define TAG_RANKING_RISKY_SIZE  0

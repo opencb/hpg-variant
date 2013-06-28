@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
+ * Copyright (c) 2012-2013 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
  * Copyright (c) 2012 Ignacio Medina (ICM-CIPF)
  *
  * This file is part of hpg-variant.
@@ -30,7 +30,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef _USE_MPI
 #include <mpi.h>
+#endif
 
 #include <commons/log.h>
 

@@ -7,24 +7,7 @@
  *  Whole dataset management *
  * ***************************/
 
-uint8_t *epistasis_dataset_load(int *num_affected, int *num_unaffected, size_t *num_variants, size_t *file_len, size_t *genotypes_offset, char *filename) {
-    FILE *fp = fopen(filename, "rb");
-    fread(num_variants, 1, sizeof(size_t), fp);
-    fread(num_affected, 1, sizeof(uint32_t), fp);
-    fread(num_unaffected, 1, sizeof(uint32_t), fp);
-    fclose(fp);
-    
-    *genotypes_offset = sizeof(size_t) + sizeof(uint32_t) + sizeof(uint32_t);
-    
-    return mmap_file(file_len, filename);
-}
-
-int epistasis_dataset_close(uint8_t *contents, size_t file_len) {
-    assert(contents);
-    assert(file_len > 0);
-    return munmap((void*) contents, file_len);
-}
-
+#ifdef _USE_MPI
 
 uint8_t *epistasis_dataset_load_mpi(char *filename, int *num_affected, int *num_unaffected, size_t *num_variants, 
                                     size_t *file_len, size_t *genotypes_offset, MPI_File *fd) {
@@ -62,6 +45,27 @@ void epistasis_dataset_close_mpi(uint8_t *contents, MPI_File fd) {
     MPI_File_close(&fd);
 }
 
+#else
+
+uint8_t *epistasis_dataset_load(int *num_affected, int *num_unaffected, size_t *num_variants, size_t *file_len, size_t *genotypes_offset, char *filename) {
+    FILE *fp = fopen(filename, "rb");
+    fread(num_variants, 1, sizeof(size_t), fp);
+    fread(num_affected, 1, sizeof(uint32_t), fp);
+    fread(num_unaffected, 1, sizeof(uint32_t), fp);
+    fclose(fp);
+    
+    *genotypes_offset = sizeof(size_t) + sizeof(uint32_t) + sizeof(uint32_t);
+    
+    return mmap_file(file_len, filename);
+}
+
+int epistasis_dataset_close(uint8_t *contents, size_t file_len) {
+    assert(contents);
+    assert(file_len > 0);
+    return munmap((void*) contents, file_len);
+}
+
+#endif
 
 /* *********************************************
  *  Combinations of blocks, SNPs and genotypes *
