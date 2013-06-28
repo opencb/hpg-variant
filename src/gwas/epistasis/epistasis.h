@@ -29,6 +29,7 @@
  * functions to read their value from a configuration file or the command line.
  */ 
 
+#include <math.h>
 #include <stdlib.h>
 
 #ifdef _USE_MPI
@@ -49,6 +50,9 @@
  * Number of options applicable to the epistasis tool.
  */
 #define NUM_EPISTASIS_OPTIONS  7
+
+KHASH_MAP_INIT_STR(cvc, int);
+
 
 typedef struct epistasis_options {
     int num_options;
@@ -140,5 +144,11 @@ void **merge_epistasis_options(epistasis_options_t *epistasis_options, shared_op
  */
 int verify_epistasis_options(epistasis_options_t *epistasis_options, shared_options_t *shared_options);
 
+
+/* **********************************************
+ *                  Final report                *
+ * **********************************************/
+
+void epistasis_report(int order, size_t num_variants, int num_cv_repetitions, struct heap **best_models);
 
 #endif

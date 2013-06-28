@@ -22,7 +22,6 @@
 #define EPISTASIS_RUNNER_H
 
 #include <assert.h>
-#include <math.h>
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -44,9 +43,6 @@
 #include "epistasis.h"
 #include "model.h"
 #include "mpi/mpi_epistasis_helper.h"
-
-KHASH_MAP_INIT_STR(cvc, int);
-
 
 int run_epistasis(shared_options_data_t *global_options_data, epistasis_options_data_t* options_data);
 
