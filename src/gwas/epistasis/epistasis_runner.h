@@ -21,7 +21,6 @@
 #ifndef EPISTASIS_RUNNER_H
 #define EPISTASIS_RUNNER_H
 
-#include <assert.h>
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -45,13 +44,5 @@
 #include "mpi/mpi_epistasis_helper.h"
 
 int run_epistasis(shared_options_data_t *global_options_data, epistasis_options_data_t* options_data);
-
-
-static void write_output_header(FILE *fd);
-
-static void write_output_body(list_t* output_list, FILE *fd);
-
-
-int compare_risky(const void *risky_1, const void *risky_2);
 
 #endif

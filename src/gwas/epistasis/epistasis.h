@@ -29,6 +29,7 @@
  * functions to read their value from a configuration file or the command line.
  */ 
 
+#include <assert.h>
 #include <math.h>
 #include <stdlib.h>
 
@@ -144,6 +145,14 @@ void **merge_epistasis_options(epistasis_options_t *epistasis_options, shared_op
  */
 int verify_epistasis_options(epistasis_options_t *epistasis_options, shared_options_t *shared_options);
 
+
+/* **********************************************
+ *               Epistasis execution            *
+ * **********************************************/
+
+struct heap* merge_rankings(int num_folds, struct heap **ranking_risky);
+
+int compare_risky(const void *risky_1, const void *risky_2);
 
 /* **********************************************
  *                  Final report                *
