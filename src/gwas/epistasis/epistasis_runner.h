@@ -41,7 +41,10 @@
 #include "dataset.h"
 #include "epistasis.h"
 #include "model.h"
+
+#ifdef _USE_MPI
 #include "mpi/mpi_epistasis_helper.h"
+#endif
 
 int run_epistasis(shared_options_data_t *global_options_data, epistasis_options_data_t* options_data);
 

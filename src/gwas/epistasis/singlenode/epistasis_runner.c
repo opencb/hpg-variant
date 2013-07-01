@@ -18,46 +18,35 @@
  * along with hpg-variant. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "epistasis_runner.h"
+#include "../epistasis_runner.h"
 
 
 int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_data_t* options_data) {
     int ret_code = 0;
     
-    int num_mpi_ranks = 1, mpi_rank;
-    MPI_Comm_size(MPI_COMM_WORLD, &num_mpi_ranks);
-    MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
-    
     // Load binary input dataset
     int num_affected, num_unaffected;
-    size_t num_variants, file_len;
-    size_t genotypes_offset = sizeof(size_t) + sizeof(uint32_t) + sizeof(uint32_t);
+    size_t num_variants, file_len, genotypes_offset;
     
-    MPI_File fd;
-    uint8_t *input_file = epistasis_dataset_load_mpi(options_data->dataset_filename, &num_affected, &num_unaffected, &num_variants, 
-                                                     &file_len, &genotypes_offset, &fd);
+    uint8_t *input_file = epistasis_dataset_load(&num_affected, &num_unaffected, &num_variants, &file_len, &genotypes_offset, options_data->dataset_filename);
     uint8_t *genotypes = input_file + genotypes_offset;
-
+    
     // Try to create the directory where the output files will be stored
     ret_code = create_directory(shared_options_data->output_directory);
     if (ret_code != 0 && errno != EEXIST) {
         LOG_FATAL_F("Can't create output directory: %s\n", shared_options_data->output_directory);
     }
     
-    /************************** Variables global to the algorithm **************************/
+    /*************** Precalculate the rest of variables the algorithm needs  ***************/
     
     int order = options_data->order;
     int stride = options_data->stride;
     int num_folds = options_data->num_folds;
     int num_samples = num_affected + num_unaffected;
-    size_t num_blocks_per_dim = ceil((double) num_variants / stride);
-    size_t num_block_coords = 0;
-    size_t max_num_block_coords = (size_t) pow(num_blocks_per_dim, order);
+    int num_blocks_per_dim = ceil((double) num_variants / stride);
     
-    if (mpi_rank == 0) {
-        LOG_INFO_F("Combinations of order %d, %d variants per block\n", order, stride);
-        LOG_INFO_F("%d variants, %d blocks per dimension\n", num_variants, num_blocks_per_dim);
-    }
+    LOG_INFO_F("Combinations of order %d, %d variants per block\n", order, stride);
+    LOG_INFO_F("%d variants, %d blocks per dimension\n", num_variants, num_blocks_per_dim);
     
     // Precalculate which genotype combinations can be tested for a given order (order 2 -> {(0,0), (0,1), ... , (2,1), (2,2)})
     int num_genotype_permutations;
@@ -66,109 +55,11 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
     // Ranking of best models in each repetition
     struct heap *best_models[options_data->num_cv_repetitions];
     
-    // MPI datatype that stores "metadata" for risky combination transfers
-    risky_combination_mpi_t risky_mpi_type;
-    // Length of each block of struct members
-    risky_mpi_type.lengths[0] = 1;
-    risky_mpi_type.lengths[1] = 2;
-    
-    // Offset of each block of struct members
-    MPI_Aint d_extent;
-    MPI_Type_extent(MPI_DOUBLE, &d_extent);
-    risky_mpi_type.offsets[0] = 0;
-    risky_mpi_type.offsets[1] = d_extent;
-    
-    // Type of each block of struct members
-    risky_mpi_type.types[0] = MPI_DOUBLE;
-    risky_mpi_type.types[1] = MPI_INT;
-    
-    MPI_Type_struct(2, risky_mpi_type.lengths, risky_mpi_type.offsets, risky_mpi_type.types, &(risky_mpi_type.datatype));
-    MPI_Type_commit(&(risky_mpi_type.datatype));
-
-    // Masks information (number (un)affected with padding, buffers, and so on)
-    masks_info info; masks_info_init(order, COMBINATIONS_ROW_SSE, num_affected, num_unaffected, &info);
-            
-    /******************************* End of global variables *******************************/
-    
-    
-    /****************************** MPI workload distribution ******************************/
-    int *block_coords, *node_block_coords;
-    int curr_idx, next_idx;
-    
-    if (mpi_rank == 0) {
-        block_coords = calloc(max_num_block_coords * order, sizeof(int));
-        // printf("Blocks per dim = %zu\tMax block coords = %zu\n", num_blocks_per_dim, max_num_block_coords);
-        
-        // Calculate all blocks coordinates
-        do {
-            curr_idx = num_block_coords * order;
-            next_idx = curr_idx + order;
-            memcpy(block_coords + next_idx, block_coords + curr_idx, order * sizeof(int));
-            curr_idx = next_idx;
-            num_block_coords++;
-
-            // printf("(%d %d) ", block_coords[curr_idx], block_coords[curr_idx+1]);
-        } while (get_next_block(num_blocks_per_dim, order, block_coords + curr_idx));
-    }
-    
-    LOG_DEBUG_F("P%d) Broadcasting number of block coordinates...\n", mpi_rank);
-    // Send total number of blocks to all processes
-    MPI_Bcast(&num_block_coords, 1, MPI_INT, 0, MPI_COMM_WORLD);
-    LOG_DEBUG_F("P%d) Number of block coordinates broadcasted!\n", mpi_rank);
-    
-    // Prepare arguments for scatterv
-    int block_counts[num_mpi_ranks];
-    int block_offsets[num_mpi_ranks];
-
-    for (int p = 0; p < num_mpi_ranks; p++) {
-        if (p < num_block_coords % num_mpi_ranks) {
-            block_counts[p] = order * (num_block_coords / num_mpi_ranks + 1);
-        } else {
-            block_counts[p] = order * (num_block_coords / num_mpi_ranks);
-        }
-    }
-
-    block_offsets[0] = 0;
-    for (int p = 1; p < num_mpi_ranks; p++) {
-        block_offsets[p] = block_offsets[p-1] + block_counts[p-1];
-    }
-    
-    node_block_coords = calloc(block_counts[mpi_rank] * order, sizeof(int));
-    
-/*
-    if (mpi_rank == 0) {
-        for (int p = 0; p < num_mpi_ranks; p++) {
-            printf("(%d, off %d) ", block_counts[p], block_offsets[p]);
-        }
-        printf("\n");
-    }
-*/
-   
-    LOG_DEBUG_F("P%d) Scattering block coordinates...\n", mpi_rank);
-    // MPI_Scatterv sends block coordinates to all processes
-    MPI_Scatterv(block_coords, block_counts, block_offsets, MPI_INT, 
-                 node_block_coords, block_counts[mpi_rank], MPI_INT,
-                 0, MPI_COMM_WORLD);
-    LOG_DEBUG_F("P%d) Block coordinates scattered!\n", mpi_rank);
-
-    char processor_name[MPI_MAX_PROCESSOR_NAME];
-    int processor_len;
-    MPI_Get_processor_name(processor_name, &processor_len);
-
-    LOG_INFO_F("P%d) Assigned to node %.*s\n", mpi_rank, processor_len, processor_name);
-
-    if (mpi_rank == 0) {
-        free(block_coords);
-    }
-    
-    num_block_coords = block_counts[mpi_rank] / order;
-    
-    /************************** End of MPI workload distribution ***************************/
-    
+    /**************************** End of variables precalculus  ****************************/
     
     
     for (int r = 0; r < options_data->num_cv_repetitions; r++) {
-        LOG_INFO_F("P%d) Running cross-validation #%d...\n", mpi_rank, r+1);
+        LOG_INFO_F("Running cross-validation #%d...\n", r+1);
         
         // Initialize folds, first block coordinates, genotype combinations and rankings for each repetition
         unsigned int *sizes, *training_sizes;
@@ -201,21 +92,20 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
             heap_init(ranking_risky[i]);
         }
         
-        // Masks information (number (un)affected with padding, buffers, and so on)
-/*
-        masks_info info; masks_info_init(order, COMBINATIONS_ROW_SSE, num_affected, num_unaffected, &info);
-*/
-            
-/*#pragma omp parallel
+        // Coordinates of the block being tested
+        int block_coords[order]; memset(block_coords, 0, order * sizeof(int));
+
+#pragma omp parallel num_threads(shared_options_data->num_threads)
 {
 #pragma omp single
-{*/
-#pragma omp parallel for num_threads(shared_options_data->num_threads)
-        for (int i = 0; i < num_block_coords; i++) {
-/*#pragma omp task
-{*/
-            // Coordinates of the block being tested
-            int task_block_coords[order];
+    {
+        do {
+
+            // OpenMP parallelization: Each block will be run in a separate thread
+#pragma omp task
+            {
+
+            int my_block_coords[order];
             
             // Initialize rankings for each repetition
             struct heap **ranking_risky_local = malloc(num_folds * sizeof(struct heap*));
@@ -224,14 +114,16 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                 heap_init(ranking_risky_local[i]);
             }
         
-            memcpy(task_block_coords, node_block_coords + i * order, order * sizeof(int));
-                
+#pragma omp critical
+            {
+                memcpy(my_block_coords, block_coords, order * sizeof(int));
+            }
 //            printf("%d) cv %d, block %d %d\n", omp_get_thread_num(), r, my_block_coords[0], my_block_coords[1]);
 
-            // ******************* Variables private to each task (block) *******************
+            // ***************** Variables private to each task (block) *****************
 
-            // Buffer for genotypes masks
-            uint8_t *masks = _mm_malloc(info.num_combinations_in_a_row * info.num_masks * sizeof(uint8_t), 16);
+            // Masks information (number (un)affected with padding, buffers, and so on)
+            masks_info info; masks_info_init(order, COMBINATIONS_ROW_SSE, num_affected, num_unaffected, &info);
 
             // Scratchpad for block genotypes
             uint8_t *scratchpad[order];
@@ -250,7 +142,10 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
             // Confusion matrix
             unsigned int conf_matrix[4];
 
-            // **************** Variables private to each task (block) (end) ****************
+            // Buffer for genotypes masks
+            uint8_t *masks = _mm_malloc(info.num_combinations_in_a_row * info.num_masks * sizeof(uint8_t), 16);
+
+            // *************** Variables private to each task (block) (end) ***************
 
 
 
@@ -258,19 +153,19 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
 
             uint8_t *block_starts[order];
             for (int s = 0; s < order; s++) {
-                block_starts[s] = genotypes + task_block_coords[s] * stride * num_samples;
+                block_starts[s] = genotypes + my_block_coords[s] * stride * num_samples;
             }
 
             // Initialize first coordinate (only if it's different from the previous)
             block_genotypes[0] = get_genotypes_of_block_coord(num_variants, num_samples, info, stride,
-                                                              task_block_coords[0], block_starts[0], scratchpad[0]);
+                                                              my_block_coords[0], block_starts[0], scratchpad[0]);
 
             // Initialize the rest of coordinates
             for (int m = 1; m < order; m++) {
                 bool already_present = false;
                 // If any coordinate is the same as a previous one, don't copy, but reference directly
                 for (int n = 0; n < m; n++) {
-                    if (task_block_coords[m] == task_block_coords[n]) {
+                    if (my_block_coords[m] == my_block_coords[n]) {
 //                             printf("taking %d -> %d\n", n, m);
                         block_genotypes[m] = block_genotypes[n];
                         already_present = true;
@@ -281,7 +176,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                 if (!already_present) {
                     // If not equals to a previous one, retrieve data
                     block_genotypes[m] = get_genotypes_of_block_coord(num_variants, num_samples, info, stride,
-                                                                      task_block_coords[m], block_starts[m], scratchpad[m]);
+                                                                      my_block_coords[m], block_starts[m], scratchpad[m]);
                 }
             }
 
@@ -310,27 +205,26 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
             int comb[order];
             // Array of combinations to process in a row
             int combs[info.num_combinations_in_a_row * order];
-            int cur_comb_idx = 0;
+            int cur_comb_idx = -1;
 
             // Test first combination in the block
-            get_first_combination_in_block(order, comb, task_block_coords, stride);
+            get_first_combination_in_block(order, comb, my_block_coords, stride);
 
             do {
-                cur_comb_idx = (cur_comb_idx < info.num_combinations_in_a_row) ? cur_comb_idx+1 : 0;
-                memcpy(combs + (cur_comb_idx-1) * order, comb, order * sizeof(int));
+                cur_comb_idx = (cur_comb_idx < info.num_combinations_in_a_row - 1) ? cur_comb_idx+1 : 0;
+                memcpy(combs + cur_comb_idx * order, comb, order * sizeof(int));
 
-                if (cur_comb_idx < info.num_combinations_in_a_row) {
+                if (cur_comb_idx < info.num_combinations_in_a_row - 1) {
                     continue; // Nothing to do until we have an amount (COMBINATIONS_ROW_SSE) of combinations ready
                 }
-                
+
                 process_set_of_combinations(info.num_combinations_in_a_row, combs,
                                             order, stride, num_folds, fold_masks,
                                             block_genotypes, genotype_permutations,
                                             masks, info, 
                                             counts_aff, counts_unaff, conf_matrix, 
                                             options_data->max_ranking_size, ranking_risky_local);
-                
-            } while (get_next_combination_in_block(order, comb, task_block_coords, stride, num_variants));
+            } while (get_next_combination_in_block(order, comb, my_block_coords, stride, num_variants));
 
             
             // Process combinations out of a full set
@@ -341,8 +235,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                                         counts_aff, counts_unaff, conf_matrix, 
                                         options_data->max_ranking_size, ranking_risky_local);
 
-            
-            // Insert best models of this block in the global ranking (critical section)
+            // Insert best model of this block in the global ranking (critical section)
             for (int i = 0; i < num_folds; i++) {
                 while (!heap_empty(ranking_risky_local[i])) {
                     struct heap_node *hn = heap_take(compare_risky_heap_min, ranking_risky_local[i]);
@@ -354,7 +247,6 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                     {
                         position = add_to_model_ranking(risky_comb, options_data->max_ranking_size, ranking_risky[i], compare_risky_heap_min);
                     }
-                    
                     if (position < 0) {
                         risky_combination_free(risky_comb);
                     }
@@ -370,10 +262,13 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
             }
             _mm_free(counts_aff);
             _mm_free(counts_unaff);
-        }
-/*}
-}       
-}*/
+
+            }
+        } while (get_next_block(num_blocks_per_dim, order, block_coords));
+
+    }
+}
+        
 /*
         for (int f = 0; f < num_folds; f++) {
             printf("Ranking fold %d = {\n", f);
@@ -387,58 +282,9 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
             printf("\n\n");
         }
 */
-        if (mpi_rank == 0) {
-            LOG_DEBUG_F("Merging rankings in node for CV %d\n", r+1);
-        }        
-        // Merge rankings from all nodes in root node (TODO: optimize by reducing root load)
-        for (int f = 0; f < num_folds; f++) {
-            if (mpi_rank != 0) {
-                // Send size of this ranking
-                send_ranking_risky_size_mpi(ranking_risky[f], 0, MPI_COMM_WORLD);
-                
-                // Send best combinations to root node
-                struct heap_node *hn;
-                risky_combination *risky = NULL;
-
-                while (!heap_empty(ranking_risky[f])) {
-                    hn = heap_take(compare_risky_heap_min, ranking_risky[f]);
-                    risky = (risky_combination*) hn->value;
-                    send_risky_combination_mpi(risky, risky_mpi_type, 0, MPI_COMM_WORLD);
-                    risky_combination_free(risky);
-                    free(hn);
-                }
-            } else {
-                MPI_Status stat;
-                size_t ranking_sizes[num_mpi_ranks];
-                
-                // Receive size of ranking from each node
-                for (int src = 1; src < num_mpi_ranks; src++) {
-                    ranking_sizes[src] = receive_ranking_risky_size_mpi(src, MPI_COMM_WORLD, stat);
-/*
-                    printf("CV %d, proc %d, ranking %d has size %zu\n", r, src, f, ranking_sizes[src]);
-*/
-                }
-                
-                // Receive best combinations from each node
-                for (int src = 1; src < num_mpi_ranks; src++) {
-                    for (int c = 0; c < ranking_sizes[src]; c++) {
-                        risky_combination *risky_comb = receive_risky_combination_mpi(order, risky_mpi_type, info, src, MPI_COMM_WORLD, stat);
-                        int position = add_to_model_ranking(risky_comb, options_data->max_ranking_size, ranking_risky[f], compare_risky_heap_min);
-                        if (position < 0) {
-                            risky_combination_free(risky_comb);
-                        }
-                    }
-                }
-            }
-        }
-        if (mpi_rank == 0) {
-            LOG_DEBUG_F("Rankings in node for CV %d merged!\n", r+1);
-        }        
         
-        // Root node merges all rankings in one
-        if (mpi_rank == 0) {
-            best_models[r] = merge_rankings(num_folds, ranking_risky);
-        }
+        // Merge all rankings in one
+        best_models[r] = merge_rankings(num_folds, ranking_risky);
         
         // Free data por this repetition
         for (int i = 0; i < num_folds; i++) {
@@ -450,36 +296,27 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
         free(sizes);
         free(training_sizes);
         _mm_free(fold_masks);
-        
     }
     
-    // Generate results in root node
-    if (mpi_rank == 0) {
-        epistasis_report(order, num_variants, options_data->num_cv_repetitions, best_models);
-    }
-    
+    // Show the best model of each repetition
+    epistasis_report(order, num_variants, options_data->num_cv_repetitions, best_models);
+
     // Free data for the whole epistasis check
     for (int i = 0; i < num_genotype_permutations; i++) {
         free(genotype_permutations[i]);
     }
     free(genotype_permutations);
-    
-    // Free best models rankings in root node
-    if (mpi_rank == 0) {
-        for (int r = 0; r < options_data->num_cv_repetitions; r++) {
-            struct heap_node *hn;
-            while (!heap_empty(best_models[r])) {
-                hn = heap_take(compare_risky_heap_max, best_models[r]);
-                risky_combination_free((risky_combination*) hn->value);
-                free(hn);
-            }
+    for (int r = 0; r < options_data->num_cv_repetitions; r++) {
+        struct heap_node *hn;
+        risky_combination *element = NULL;
+
+        while (!heap_empty(best_models[r])) {
+            hn = heap_take(compare_risky_heap_max, best_models[r]);
+            risky_combination_free((risky_combination*) hn->value);
+            free(hn);
         }
     }
+    epistasis_dataset_close(input_file, file_len);
     
-    // TODO MPI_ERR_Type? Invalid datatype argument. May be an uncommitted MPI_Datatype (see MPI_Type_commit).
-    risky_combination_mpi_free(risky_mpi_type);
-    epistasis_dataset_close_mpi(input_file, fd);
-    
-    MPI_Barrier(MPI_COMM_WORLD);
     return ret_code;
 }
