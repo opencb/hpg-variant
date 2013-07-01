@@ -124,7 +124,7 @@ epistasis_options_t *new_epistasis_cli_options(void) {
     options->max_ranking_size = arg_int0(NULL, "rank-size", NULL, "Number of best models saved");
     options->num_cv_repetitions = arg_int0(NULL, "num-cv-runs", NULL, "Number of times the k-fold cross-validation process is run");
     options->num_folds = arg_int0(NULL, "num-folds", NULL, "Number of folds in a k-fold cross-validation");
-    options->operations_per_block = arg_int0(NULL, "num-block-ops", NULL, "Number of operations per block from the dataset");
+    options->stride = arg_int0(NULL, "stride", NULL, "Number of SNPs per block partition of the dataset");
     options->order = arg_int1(NULL, "order", NULL, "Number of SNPs to be combined at the same time");
     options->evaluation_mode = arg_str0(NULL, "eval-mode", NULL, "Whether to used training (default) or testing partitions when evaluating the best models");
     return options;
@@ -138,7 +138,7 @@ epistasis_options_data_t *new_epistasis_options_data(epistasis_options_t *option
     options_data->num_cv_repetitions = *(options->num_cv_repetitions->ival);
     options_data->num_folds = *(options->num_folds->ival);
     options_data->order = *(options->order->ival);
-    options_data->stride = (options_data->order > 0) ? log_base(*(options->operations_per_block->ival), options_data->order) : 0;
+    options_data->stride = *(options->stride->ival);
     return options_data;
 }
 

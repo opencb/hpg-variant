@@ -60,7 +60,7 @@ typedef struct epistasis_options {
     
     struct arg_file *dataset_filename;    /**< Binary file used as input. */
     struct arg_int *order;
-    struct arg_int *operations_per_block;
+    struct arg_int *stride;
     struct arg_int *num_folds;
     struct arg_int *num_cv_repetitions;
     struct arg_int *max_ranking_size;

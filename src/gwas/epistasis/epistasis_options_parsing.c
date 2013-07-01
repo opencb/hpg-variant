@@ -43,12 +43,12 @@ int read_epistasis_configuration(const char *filename, epistasis_options_t *epis
         LOG_DEBUG_F("num-threads = %ld\n", *(shared_options->num_threads->ival));
     }
 
-    // Read maximum number of operations per block
-    ret_code = config_lookup_int(config, "gwas.epistasis.operations-per-block", epistasis_options->operations_per_block->ival);
+    // Read maximum number of SNPs per block
+    ret_code = config_lookup_int(config, "gwas.epistasis.stride", epistasis_options->stride->ival);
     if (ret_code == CONFIG_FALSE) {
-        LOG_WARN("Maximum number of operations per block not found in configuration file, must be set via command-line");
+        LOG_WARN("Number of SNPs per block partition not found in configuration file, must be set via command-line");
     } else {
-        LOG_DEBUG_F("operations-per-block = %ld\n", *(epistasis_options->operations_per_block->ival));
+        LOG_DEBUG_F("stride = %ld\n", *(epistasis_options->stride->ival));
     }
     
     // Read number of folds per k-fold cross-validation
@@ -114,7 +114,7 @@ void **merge_epistasis_options(epistasis_options_t *epistasis_options, shared_op
     tool_options[3] = epistasis_options->num_cv_repetitions;
     tool_options[4] = epistasis_options->max_ranking_size;
     tool_options[5] = epistasis_options->evaluation_mode;
-    tool_options[6] = epistasis_options->operations_per_block;
+    tool_options[6] = epistasis_options->stride;
     
     // Configuration file
     tool_options[7] = shared_options->config_file;
@@ -160,9 +160,9 @@ int verify_epistasis_options(epistasis_options_t *epistasis_options, shared_opti
         return EPISTASIS_EVAL_MODE_NOT_SPECIFIED;
     }
     
-    // Checker whether the number of operations per block partition of the dataset
-    if (*(epistasis_options->operations_per_block->ival) == 0) {
-        LOG_ERROR("Please specify the number of operations per block partition of the dataset.\n");
+    // Checker whether the number of SNPs per block partition of the dataset
+    if (*(epistasis_options->stride->ival) == 0) {
+        LOG_ERROR("Please specify the number of SNPs per block partition of the dataset.\n");
         return EPISTASIS_OPS_PER_BLOCK_NOT_SPECIFIED;
     }
     
