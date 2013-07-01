@@ -68,22 +68,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
     
     // MPI datatype that stores "metadata" for risky combination transfers
     risky_combination_mpi_t risky_mpi_type;
-    // Length of each block of struct members
-    risky_mpi_type.lengths[0] = 1;
-    risky_mpi_type.lengths[1] = 2;
-    
-    // Offset of each block of struct members
-    MPI_Aint d_extent;
-    MPI_Type_extent(MPI_DOUBLE, &d_extent);
-    risky_mpi_type.offsets[0] = 0;
-    risky_mpi_type.offsets[1] = d_extent;
-    
-    // Type of each block of struct members
-    risky_mpi_type.types[0] = MPI_DOUBLE;
-    risky_mpi_type.types[1] = MPI_INT;
-    
-    MPI_Type_struct(2, risky_mpi_type.lengths, risky_mpi_type.offsets, risky_mpi_type.types, &(risky_mpi_type.datatype));
-    MPI_Type_commit(&(risky_mpi_type.datatype));
+    risky_combination_mpi_init(&risky_mpi_type);
 
     // Masks information (number (un)affected with padding, buffers, and so on)
     masks_info info; masks_info_init(order, COMBINATIONS_ROW_SSE, num_affected, num_unaffected, &info);
@@ -477,7 +462,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
     }
     
     // TODO MPI_ERR_Type? Invalid datatype argument. May be an uncommitted MPI_Datatype (see MPI_Type_commit).
-    risky_combination_mpi_free(risky_mpi_type);
+    risky_combination_mpi_free(&risky_mpi_type);
     epistasis_dataset_close_mpi(input_file, fd);
     
     MPI_Barrier(MPI_COMM_WORLD);

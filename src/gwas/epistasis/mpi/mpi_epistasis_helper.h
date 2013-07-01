@@ -43,9 +43,9 @@ void bcast_shared_options_data_mpi(shared_options_data_t *options_data, int root
 
 void bcast_epistasis_options_data_mpi(epistasis_options_data_t *options_data, int root, MPI_Comm comm);
 
-void risky_combination_mpi_init(risky_combination_mpi_t type);
+void risky_combination_mpi_init(risky_combination_mpi_t *type);
 
-void risky_combination_mpi_free(risky_combination_mpi_t type);
+void risky_combination_mpi_free(risky_combination_mpi_t *type);
 
 void send_ranking_risky_size_mpi(struct heap *ranking, int dest, MPI_Comm comm);
 

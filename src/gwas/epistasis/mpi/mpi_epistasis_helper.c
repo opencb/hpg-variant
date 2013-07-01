@@ -70,27 +70,27 @@ void bcast_epistasis_options_data_mpi(epistasis_options_data_t *options_data, in
 }
 
 
-void risky_combination_mpi_init(risky_combination_mpi_t type) {
+void risky_combination_mpi_init(risky_combination_mpi_t *type) {
     // Length of each block of struct members
-    type.lengths[0] = 1;
-    type.lengths[1] = 2;
+    type->lengths[0] = 1;
+    type->lengths[1] = 2;
     
     // Offset of each block of struct members
     MPI_Aint d_extent;
     MPI_Type_extent(MPI_DOUBLE, &d_extent);
-    type.offsets[0] = 0;
-    type.offsets[1] = d_extent;
+    type->offsets[0] = 0;
+    type->offsets[1] = d_extent;
     
     // Type of each block of struct members
-    type.types[0] = MPI_DOUBLE;
-    type.types[1] = MPI_INT;
+    type->types[0] = MPI_DOUBLE;
+    type->types[1] = MPI_INT;
     
-    MPI_Type_struct(2, type.lengths, type.offsets, type.types, &(type.datatype));
-    MPI_Type_commit(&(type.datatype));
+    MPI_Type_struct(2, type->lengths, type->offsets, type->types, &(type->datatype));
+    MPI_Type_commit(&(type->datatype));
 }
 
-void risky_combination_mpi_free(risky_combination_mpi_t type) {
-    MPI_Type_free(&(type.datatype));
+void risky_combination_mpi_free(risky_combination_mpi_t *type) {
+    MPI_Type_free(&(type->datatype));
 }
 
 void send_ranking_risky_size_mpi(struct heap *ranking, int dest, MPI_Comm comm) {
