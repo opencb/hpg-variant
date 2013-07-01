@@ -6,13 +6,19 @@ commons_path = '#libs/common-libs'
 math_path = '#libs/math'
 
 env = Environment(tools = ['default', 'packaging'],
-                  CFLAGS = '-std=c99 -D_XOPEN_SOURCE=600 -D_GNU_SOURCE -D_USE_MPI -msse4.2 -fopenmp',
+                  CFLAGS = '-std=c99 -D_XOPEN_SOURCE=600 -D_GNU_SOURCE -msse4.2 -fopenmp',
                   CPPPATH = ['#', '#src', '#include', bioinfo_path, commons_path, math_path, 
                              '/usr/include', '/usr/local/include', '/usr/include/libxml2', '/usr/lib/openmpi/include'],
                   LIBPATH = [commons_path, bioinfo_path, '/usr/lib', '/usr/local/lib'],
                   LIBS = ['common', 'bioinfo', 'curl', 'dl', 'gsl', 'gslcblas', 'm', 'mpi', 'xml2', 'z'],
                   LINKFLAGS = ['-fopenmp'])
-                  
+
+mode = 'single'
+if ARGUMENTS.get('mode', '') == 'mpi':
+    env['CFLAGS'] += ' -D_USE_MPI'
+    mode = 'mpi'
+
+
 if int(ARGUMENTS.get('debug', '0')) == 1:
     debug = 1
     env['CFLAGS'] += ' -O0 -g'
@@ -39,7 +45,7 @@ SConscript(['%s/SConscript' % bioinfo_path,
 progs = SConscript(['src/effect/SConscript',
             'src/gwas/SConscript',
             'src/vcf-tools/SConscript'
-            ], exports = ['env', 'debug', 'commons_path', 'bioinfo_path', 'math_path'])
+            ], exports = ['env', 'debug', 'mode', 'commons_path', 'bioinfo_path', 'math_path'])
 
 inst = env.Install('#bin', ['hpg-variant.conf', 'vcf-info-fields.conf'] + list(progs))
 
