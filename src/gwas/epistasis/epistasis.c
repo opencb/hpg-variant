@@ -1,6 +1,113 @@
 #include "epistasis.h"
 
 
+void process_set_of_combinations(int num_combinations, int *combs,
+                                 int order, int stride, int num_folds, uint8_t *fold_masks,
+                                 uint8_t **block_genotypes, uint8_t **genotype_permutations,
+                                 uint8_t *masks, masks_info info, 
+                                 int *counts_aff, int *counts_unaff, unsigned int conf_matrix[4], 
+                                 int max_ranking_size, struct heap **ranking_risky_local) {
+    // Get genotypes of a row of combinations
+    uint8_t *combination_genotypes[info.num_combinations_in_a_row * order];
+    for (int c = 0; c < num_combinations; c++) {
+        for (int s = 0; s < order; s++) {
+            // Derive combination address from block
+            combination_genotypes[c * order + s] = block_genotypes[s] +
+                                                    (combs[c * order + s] % stride) * info.num_samples_with_padding;
+        }
+    }
+
+    set_genotypes_masks(order, combination_genotypes, num_combinations, masks, info); // Grouped by SNP
+
+    // Get counts for the provided genotypes
+    combination_counts_all_folds(order, fold_masks, num_folds, genotype_permutations, masks, info, counts_aff, counts_unaff);
+
+    // TODO Right now the rest of the pipeline is executed as it previously was, but for the sake of parallelization
+    // it could be better to make the choose_high_risk_combinations function work over several combinations
+    for (int f = 0; f < num_folds; f++) {
+        // Get high risk pairs for those counts
+        void *aux_info;
+        unsigned int num_risky[info.num_combinations_in_a_row];
+        memset(num_risky, 0, info.num_combinations_in_a_row * sizeof(int));
+
+        int *risky_idx = choose_high_risk_combinations2(counts_aff + f * info.num_combinations_in_a_row * info.num_cell_counts_per_combination,
+                                                        counts_unaff + f * info.num_combinations_in_a_row * info.num_cell_counts_per_combination,
+                                                        info.num_combinations_in_a_row, info.num_cell_counts_per_combination,
+                                                        info.num_affected, info.num_unaffected,
+                                                        num_risky, &aux_info, mdr_high_risk_combinations2);
+
+/*
+        printf("num risky = { ");
+        for (int rc = 0; rc < info.num_combinations_in_a_row; rc++) {
+            printf("%d ", num_risky[rc]);
+        }
+        printf("}\n");
+
+        printf("risky gts = { ");
+        for (int rc = 0; rc < info.num_combinations_in_a_row * info.num_counts_per_combination; rc++) {
+            printf("%d ", risky_idx[rc]);
+        }
+        printf("}\n");
+*/
+
+        int risky_begin_idx = 0;
+        for (int rc = 0; rc < num_combinations; rc++) {
+            int *comb = combs + rc * order;
+            uint8_t **my_genotypes = combination_genotypes + rc * order;
+
+            // ------------------- BEGIN get_model_from_combination_in_fold -----------------------
+
+            risky_combination *risky_comb = NULL;
+
+            // Filter non-risky SNP combinations
+            if (num_risky > 0) {
+                // Put together the info about the SNP combination and its genotype combinations
+                risky_comb = risky_combination_new(order, comb, genotype_permutations,
+                                                    num_risky[rc], risky_idx + risky_begin_idx,
+                                                    aux_info, info);
+            }
+
+            risky_begin_idx += num_risky[rc];
+
+            // ------------------- END get_model_from_combination_in_fold -----------------------
+
+            if (risky_comb) {
+                // Check the model against the testing dataset
+                double accuracy = 0.0f;
+
+//                        if (options_data->evaluation_mode == TESTING) {
+//                             uint8_t *testing_genotypes = get_genotypes_for_combination_and_fold(order, risky_comb->combination,
+//                                                                                                 num_samples, sizes[3 * i + 1] + sizes[3 * i + 2],
+//                                                                                                 folds[i], stride, block_starts);
+//                             accuracy = test_model(order, risky_comb, testing_genotypes, sizes[3 * i + 1], sizes[3 * i + 2], &confusion_time);
+//                             free(testing_genotypes);
+//                        } else {
+                    accuracy = test_model(order, risky_comb, my_genotypes, info, conf_matrix);
+//                        }
+//                         printf("*  Balanced accuracy: %.3f\n", accuracy);
+
+                int position = add_to_model_ranking(risky_comb, max_ranking_size, ranking_risky_local[f], compare_risky_heap_min);
+
+                // If not inserted it means it is not among the most risky combinations, so free it
+                if (position < 0) {
+                    risky_combination_free(risky_comb);
+                }
+            }
+
+        }
+
+        free(risky_idx);
+
+/*
+        for (int c = 0; c < num_samples; c++) {
+            free(genotypes_for_testing[c]);
+        }
+        free(genotypes_for_testing);
+*/
+    }
+}
+
+
 struct heap* merge_rankings(int num_folds, struct heap **ranking_risky) {
     size_t repetition_ranking_size = 0;
     for (int i = 0; i < num_folds; i++) {
