@@ -105,21 +105,8 @@ size_t receive_ranking_risky_size_mpi(int src, MPI_Comm comm, MPI_Status stat) {
 }
 
 void send_risky_combination_mpi(risky_combination *risky, risky_combination_mpi_t type, int dest, MPI_Comm comm) {
-    MPI_Datatype mpi_risky_combination_type;
-    // Length of the struct members
-    int lengths[] = { 1, 2 };
-    // Datatype of the struct members
-    MPI_Datatype types[] = { MPI_DOUBLE, MPI_INT };
-    // Offset of the struct members
-    MPI_Aint d_extent;
-    MPI_Type_extent(MPI_DOUBLE, &d_extent);
-    MPI_Aint offsets[] = { 0, d_extent };
-    
-    MPI_Type_struct(2, lengths, offsets, types, &mpi_risky_combination_type);
-    MPI_Type_commit(&mpi_risky_combination_type);
-    
     // Send members of built-in types
-    MPI_Send(risky, 1, mpi_risky_combination_type, dest, TAG_RANKING_RISKY_ELEM, comm);
+    MPI_Send(risky, 1, type.datatype, dest, TAG_RANKING_RISKY_ELEM, comm);
     // Send combination (int pointer)
     MPI_Send(risky->combination, risky->order, MPI_INT, dest, TAG_RANKING_RISKY_ELEM, comm);
     // Send genotypes (uint8_t pointer)
@@ -130,21 +117,8 @@ risky_combination* receive_risky_combination_mpi(int order, risky_combination_mp
     int comb[order]; memset(comb, 0, order * sizeof(int));
     risky_combination *received = risky_combination_new(order, comb, NULL, 0, NULL, NULL, info);
     
-    MPI_Datatype mpi_risky_combination_type;
-    // Length of the struct members
-    int lengths[] = { 1, 2 };
-    // Datatype of the struct members
-    MPI_Datatype types[] = { MPI_DOUBLE, MPI_INT };
-    // Offset of the struct members
-    MPI_Aint d_extent;
-    MPI_Type_extent(MPI_DOUBLE, &d_extent);
-    MPI_Aint offsets[] = { 0, d_extent };
-    
-    MPI_Type_struct(2, lengths, offsets, types, &mpi_risky_combination_type);
-    MPI_Type_commit(&mpi_risky_combination_type);
-    
     // Receive members of built-in types
-    MPI_Recv(received, 1, mpi_risky_combination_type, src, TAG_RANKING_RISKY_ELEM, comm, &stat);
+    MPI_Recv(received, 1, type.datatype, src, TAG_RANKING_RISKY_ELEM, comm, &stat);
     // Receive combination (int pointer)
     MPI_Recv(received->combination, received->order, MPI_INT, src, TAG_RANKING_RISKY_ELEM, comm, &stat);
     // Receive genotypes (uint8_t pointer)

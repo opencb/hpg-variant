@@ -321,11 +321,11 @@ START_TEST (test_get_genotypes_for_block) {
         block_starts[0] = genotypes + block_2d[0] * stride * num_samples;
         block_starts[1] = genotypes + block_2d[1] * stride * num_samples;
 
-        block_genotypes[0] = get_genotypes_for_block(num_variants, num_samples, info,
+        block_genotypes[0] = get_genotypes_of_block_coord(num_variants, num_samples, info,
                                                      stride, block_2d[0], block_starts[0],
                                                      block_genotypes[0]);
 
-        block_genotypes[1] = get_genotypes_for_block(num_variants, num_samples, info,
+        block_genotypes[1] = get_genotypes_of_block_coord(num_variants, num_samples, info,
                                                      stride, block_2d[1], block_starts[1],
                                                      block_genotypes[1]);
 

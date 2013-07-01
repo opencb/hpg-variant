@@ -194,11 +194,6 @@ void masks_info_init(int order, int num_combinations_in_a_row, int num_affected,
     info->num_cell_counts_per_combination = pow(NUM_GENOTYPES, order);
     info->num_samples_with_padding = info->num_affected_with_padding + info->num_unaffected_with_padding;
     info->num_masks = NUM_GENOTYPES * order * info->num_samples_with_padding;
-/*
-    info->masks = _mm_malloc(info->num_combinations_in_a_row * info->num_masks * sizeof(uint8_t), 16);
-
-    assert(info->masks);
-*/
     assert(info->num_affected_with_padding);
     assert(info->num_unaffected_with_padding);
 }
