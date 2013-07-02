@@ -104,7 +104,8 @@ uint8_t *get_k_folds_masks(unsigned int num_samples_affected, unsigned int num_s
     unsigned int num_affected_with_padding = 16 * (int) ceil(((double) num_samples_affected) / 16);
     unsigned int num_unaffected_with_padding = 16 * (int) ceil(((double) num_samples_unaffected) / 16);
     unsigned int num_samples_with_padding = num_affected_with_padding + num_unaffected_with_padding;
-    unsigned int padding_size = num_affected_with_padding - num_samples_affected;
+    unsigned int padding_size_affected = num_affected_with_padding - num_samples_affected;
+    unsigned int padding_size_unaffected = num_unaffected_with_padding - num_samples_unaffected;
 
     uint8_t *fold_masks = _mm_malloc (num_samples_with_padding * k * sizeof(uint8_t), 16);
     memset(fold_masks, 1, num_samples_with_padding * k * sizeof(uint8_t));
@@ -118,11 +119,14 @@ uint8_t *get_k_folds_masks(unsigned int num_samples_affected, unsigned int num_s
 
         // Set masks of unaffected samples
         for (int j = sizes[3 * i + 1]; j < sizes[3 * i]; j++) {
-            LOG_DEBUG_F("U) position = %d\n", i * num_samples_with_padding + folds[i][j] + padding_size);
-            fold_masks[i * num_samples_with_padding + folds[i][j] + padding_size] = 0;
+            LOG_DEBUG_F("U) position = %d\n", i * num_samples_with_padding + folds[i][j] + padding_size_affected);
+            fold_masks[i * num_samples_with_padding + folds[i][j] + padding_size_affected] = 0;
         }
         
-        // TODO could be necessary to set the padding to zero?
+        memset(fold_masks + i * num_samples_with_padding + num_samples_affected, 
+                0, padding_size_affected * sizeof(uint8_t));
+        memset(fold_masks + i * num_samples_with_padding + num_samples_with_padding - padding_size_unaffected, 
+                0, padding_size_unaffected * sizeof(uint8_t));
     }
     return fold_masks;
 }

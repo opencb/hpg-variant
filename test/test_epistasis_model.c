@@ -4,6 +4,8 @@
 #include <unistd.h>
 
 #include <check.h>
+#include <xmmintrin.h>
+#include <smmintrin.h>
 
 #include <containers/array_list.h>
 
@@ -45,7 +47,8 @@ START_TEST(test_get_masks) {
     
     masks_info info; masks_info_init(order, 1, num_affected, num_unaffected, &info);
     
-    uint8_t *masks = set_genotypes_masks(order, masks_genotypes, 1, info);
+    uint8_t *masks = _mm_malloc(info.num_combinations_in_a_row * info.num_masks * sizeof(uint8_t), 16);
+    set_genotypes_masks(order, masks_genotypes, 1, masks, info);
     
     fail_unless(info.num_masks == 3 * order * num_samples_with_padding, "There should be 3 GTs * 4 SNPs * 4+4 samples (padded) = 384 elements in the masks array");
     
@@ -106,7 +109,8 @@ START_TEST(test_get_counts) {
     
     masks_info info; masks_info_init(order, 1, num_affected, num_unaffected, &info);
     
-    uint8_t *masks = set_genotypes_masks(order, masks_genotypes, 1, info);
+    uint8_t *masks = _mm_malloc(info.num_combinations_in_a_row * info.num_masks * sizeof(uint8_t), 16);
+    set_genotypes_masks(order, masks_genotypes, 1, masks, info);
     
     int num_combinations;
     uint8_t **combinations = get_genotype_combinations(order, &num_combinations);
@@ -132,7 +136,9 @@ START_TEST(test_get_counts) {
     // Order 3
     order = 3;
     combinations = get_genotype_combinations(order, &num_combinations);
-    masks = set_genotypes_masks(order, masks_genotypes, 1, info);
+    masks_info_init(order, 1, num_affected, num_unaffected, &info);
+    masks = _mm_malloc(info.num_combinations_in_a_row * info.num_masks * sizeof(uint8_t), 16);
+    set_genotypes_masks(order, masks_genotypes, 1, masks, info);
     num_counts = pow(NUM_GENOTYPES, order);
     int counts_o3_aff[num_counts], counts_o3_unaff[num_counts];
     combination_counts(order, masks, combinations, num_combinations, counts_o3_aff, counts_o3_unaff, info);
@@ -182,6 +188,7 @@ START_TEST(test_get_counts) {
     fail_if(counts_o3_aff[idx + 8] != 0 || counts_o3_unaff[idx + 8] != 0, "A(2,2,2) -> 0,0");
     
     free(combinations);
+    _mm_free(masks);
 }
 END_TEST
 
@@ -204,7 +211,8 @@ START_TEST(test_get_counts_all_folds_order_2) {
     
     masks_info info; masks_info_init(order, 1, num_affected, num_unaffected, &info);
     
-    uint8_t *masks = set_genotypes_masks(order, masks_genotypes, 1, info);
+    uint8_t *masks = _mm_malloc(info.num_combinations_in_a_row * info.num_masks * sizeof(uint8_t), 16);
+    set_genotypes_masks(order, masks_genotypes, 1, masks, info);
     
     int num_combinations;
     uint8_t **combinations = get_genotype_combinations(order, &num_combinations);
@@ -213,7 +221,7 @@ START_TEST(test_get_counts_all_folds_order_2) {
     int num_counts = pow(NUM_GENOTYPES, order) * num_folds;
     int counts_o2_aff[num_counts], counts_o2_unaff[num_counts];
     combination_counts_all_folds(order, masks_folds, num_folds,
-                                 combinations, info, 
+                                 combinations, masks, info, 
                                  counts_o2_aff, counts_o2_unaff);
     
     int base_idx;
@@ -301,7 +309,8 @@ START_TEST(test_get_counts_all_folds_order_3) {
     
     masks_info info; masks_info_init(order, 1, num_affected, num_unaffected, &info);
     
-    uint8_t *masks = set_genotypes_masks(order, masks_genotypes, 1, info);
+    uint8_t *masks = _mm_malloc(info.num_combinations_in_a_row * info.num_masks * sizeof(uint8_t), 16);
+    set_genotypes_masks(order, masks_genotypes, 1, masks, info);
     
     int num_combinations;
     uint8_t **combinations = get_genotype_combinations(order, &num_combinations);
@@ -309,7 +318,7 @@ START_TEST(test_get_counts_all_folds_order_3) {
     int num_counts = pow(NUM_GENOTYPES, order) * num_folds;
     int counts_o3_aff[num_counts], counts_o3_unaff[num_counts];
     combination_counts_all_folds(order, masks_folds, num_folds,
-                                 combinations, info, 
+                                 combinations, masks, info, 
                                  counts_o3_aff, counts_o3_unaff);
     
     // Some elements from fold 0
@@ -371,10 +380,11 @@ START_TEST(test_get_confusion_matrix) {
     uint8_t gt2_0a[] = { 1, 1, 0, 2, 2, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
     uint8_t gt2_1a[] = { 0, 0, 1, 1, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
     uint8_t *genotypes_2da[2] = { gt2_0a, gt2_1a };
+    uint8_t fold_masks_2da[] = { 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
     
-    confusion_matrix(order, combination_2d, info, genotypes_2da, matrix);
+    confusion_matrix(order, combination_2d, genotypes_2da, fold_masks_2da, TRAINING, (int[2]) { 7, 5 }, (int[2]) { 0, 0 }, info, matrix);
     
-    //printf("matrix = { %d, %d, %d, %d }\n", confusion_matrix[0], confusion_matrix[1], confusion_matrix[2], confusion_matrix[3]);
+    // printf("matrix = { %d, %d, %d, %d }\n", matrix[0], matrix[1], matrix[2], matrix[3]);
     fail_if(matrix[0] != 6, "(7 aff,5 unaff) TP = 6");
     fail_if(matrix[1] != 1, "(7 aff,5 unaff) FN = 1");
     fail_if(matrix[2] != 1, "(7 aff,5 unaff) FP = 1");
@@ -385,10 +395,11 @@ START_TEST(test_get_confusion_matrix) {
     uint8_t gt2_0b[] = { 1, 1, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 1, 0, 0, 0, 1, 2, 0, 0, 0, 0, 0, 0, 0, 0 };
     uint8_t gt2_1b[] = { 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 0, 0, 1, 1, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0 };
     uint8_t *genotypes_2db[2] = { gt2_0b, gt2_1b };
+    uint8_t fold_masks_2db[] = { 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0 };
     
-    confusion_matrix(order, combination_2d, info, genotypes_2db, matrix);
+    confusion_matrix(order, combination_2d, genotypes_2db, fold_masks_2db, TRAINING, (int[2]) { 4, 8 }, (int[2]) { 0, 0 }, info, matrix);
     
-    //printf("matrix = { %d, %d, %d, %d }\n", confusion_matrix[0], confusion_matrix[1], confusion_matrix[2], confusion_matrix[3]);
+    // printf("matrix = { %d, %d, %d, %d }\n", matrix[0], matrix[1], matrix[2], matrix[3]);
     fail_if(matrix[0] != 3, "(4 aff,8 unaff) TP = 3");
     fail_if(matrix[1] != 1, "(4 aff,8 unaff) FN = 1");
     fail_if(matrix[2] != 4, "(4 aff,8 unaff) FP = 4");
@@ -402,6 +413,7 @@ START_TEST(test_get_confusion_matrix) {
     uint8_t gt3_1[] = { 0, 0, 1, 1, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
     uint8_t gt3_2[] = { 1, 1, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
     uint8_t *genotypes_3d[3] = { gt3_0, gt3_1, gt3_2 };
+    uint8_t fold_masks_3d[] = { 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
     
     uint8_t **possible_3d = get_genotype_combinations(order, &num_combinations);
     // Risky combinations: (1,0,1), (2,1,0), (2,2,1)
@@ -409,16 +421,91 @@ START_TEST(test_get_confusion_matrix) {
     risky_combination *combination_3d = risky_combination_new(order, (int[3]){ 0, 1, 2 }, possible_3d, 4, (int[4]){ 4, 10, 21, 25 }, NULL, info);
     
     // 6 affected, 6 unaffected
-    confusion_matrix(order, combination_3d, info, genotypes_3d, matrix);
+    confusion_matrix(order, combination_3d, genotypes_3d, fold_masks_3d, TRAINING, (int[2]) { 6, 6 }, (int[2]) { 0, 0 }, info, matrix);
     
-    //printf("matrix = { %d, %d, %d, %d }\n", confusion_matrix[0], confusion_matrix[1], confusion_matrix[2], confusion_matrix[3]);
+    // printf("matrix = { %d, %d, %d, %d }\n", matrix[0], matrix[1], matrix[2], matrix[3]);
     fail_if(matrix[0] != 6, "(6 aff,6 unaff) TP = 6");
     fail_if(matrix[1] != 0, "(6 aff,6 unaff) FN = 0");
     fail_if(matrix[2] != 3, "(6 aff,6 unaff) FP = 3");
     fail_if(matrix[3] != 3, "(6 aff,6 unaff) TN = 3");
     
     risky_combination_free(combination_3d);
-                               
+}
+END_TEST
+
+
+START_TEST(test_get_confusion_matrix_excluding_samples) {
+    int order = 2;
+    int num_combinations;
+    masks_info info;
+    int matrix[4];
+    
+    // ---------- order 2 ------------
+    
+    uint8_t **possible_2d = get_genotype_combinations(order, &num_combinations);
+    // Risky combinations: (1,0), (2,1), (2,2)
+    masks_info_init(order, 1, 7, 5, &info);
+    risky_combination *combination_2d = risky_combination_new(order, (int[2]){ 0, 1 }, possible_2d, 3, (int[3]){ 3, 7, 8 }, NULL, info);
+    
+    // 7 affected, 5 unaffected
+    uint8_t gt2_0a[] = { 1, 1, 0, 2, 2, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+    uint8_t gt2_1a[] = { 0, 0, 1, 1, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+    uint8_t *genotypes_2d[2] = { gt2_0a, gt2_1a };
+    uint8_t fold_masks_2da[] = { 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+    
+    confusion_matrix(order, combination_2d, genotypes_2d, fold_masks_2da, TRAINING, (int[2]) { 4, 3 }, (int[2]) { 3, 2 }, info, matrix);
+    
+    printf("matrix = { %d, %d, %d, %d }\n", matrix[0], matrix[1], matrix[2], matrix[3]);
+    fail_if(matrix[0] != 3, "(7 aff,5 unaff) TP = 3");
+    fail_if(matrix[1] != 1, "(7 aff,5 unaff) FN = 1");
+    fail_if(matrix[2] != 0, "(7 aff,5 unaff) FP = 0");
+    fail_if(matrix[3] != 3, "(7 aff,5 unaff) TN = 3");
+    
+    confusion_matrix(order, combination_2d, genotypes_2d, fold_masks_2da, TESTING, (int[2]) { 4, 3 }, (int[2]) { 3, 2 }, info, matrix);
+    
+    printf("matrix = { %d, %d, %d, %d }\n", matrix[0], matrix[1], matrix[2], matrix[3]);
+    fail_if(matrix[0] != 3, "(7 aff,5 unaff) TP = 3");
+    fail_if(matrix[1] != 0, "(7 aff,5 unaff) FN = 0");
+    fail_if(matrix[2] != 1, "(7 aff,5 unaff) FP = 1");
+    fail_if(matrix[3] != 1, "(7 aff,5 unaff) TN = 1");
+    
+    uint8_t fold_masks_2db[] = { 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+    
+    confusion_matrix(order, combination_2d, genotypes_2d, fold_masks_2db, TRAINING, (int[2]) { 4, 2 }, (int[2]) { 3, 3 }, info, matrix);
+    
+    printf("matrix = { %d, %d, %d, %d }\n", matrix[0], matrix[1], matrix[2], matrix[3]);
+    fail_if(matrix[0] != 3, "(7 aff,5 unaff) TP = 3");
+    fail_if(matrix[1] != 1, "(7 aff,5 unaff) FN = 1");
+    fail_if(matrix[2] != 0, "(7 aff,5 unaff) FP = 0");
+    fail_if(matrix[3] != 2, "(7 aff,5 unaff) TN = 2");
+    
+    confusion_matrix(order, combination_2d, genotypes_2d, fold_masks_2db, TESTING, (int[2]) { 4, 2 }, (int[2]) { 3, 3 }, info, matrix);
+    
+    printf("matrix = { %d, %d, %d, %d }\n", matrix[0], matrix[1], matrix[2], matrix[3]);
+    fail_if(matrix[0] != 3, "(7 aff,5 unaff) TP = 3");
+    fail_if(matrix[1] != 0, "(7 aff,5 unaff) FN = 0");
+    fail_if(matrix[2] != 1, "(7 aff,5 unaff) FP = 1");
+    fail_if(matrix[3] != 2, "(7 aff,5 unaff) TN = 2");
+    
+    uint8_t fold_masks_2dc[] = { 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+    
+    confusion_matrix(order, combination_2d, genotypes_2d, fold_masks_2dc, TRAINING, (int[2]) { 6, 4 }, (int[2]) { 1, 1 }, info, matrix);
+    
+    printf("matrix = { %d, %d, %d, %d }\n", matrix[0], matrix[1], matrix[2], matrix[3]);
+    fail_if(matrix[0] != 6, "(7 aff,5 unaff) TP = 6");
+    fail_if(matrix[1] != 0, "(7 aff,5 unaff) FN = 0");
+    fail_if(matrix[2] != 0, "(7 aff,5 unaff) FP = 0");
+    fail_if(matrix[3] != 4, "(7 aff,5 unaff) TN = 4");
+    
+    confusion_matrix(order, combination_2d, genotypes_2d, fold_masks_2dc, TESTING, (int[2]) { 6, 4 }, (int[2]) { 1, 1 }, info, matrix);
+    
+    printf("matrix = { %d, %d, %d, %d }\n", matrix[0], matrix[1], matrix[2], matrix[3]);
+    fail_if(matrix[0] != 0, "(7 aff,5 unaff) TP = 0");
+    fail_if(matrix[1] != 1, "(7 aff,5 unaff) FN = 1");
+    fail_if(matrix[2] != 1, "(7 aff,5 unaff) FP = 1");
+    fail_if(matrix[3] != 0, "(7 aff,5 unaff) TN = 0");
+    
+    risky_combination_free(combination_2d);
 }
 END_TEST
 
@@ -471,6 +558,7 @@ Suite *create_test_suite(void) {
     
     TCase *tc_ranking = tcase_create("Evaluation and ranking");
     tcase_add_test(tc_ranking, test_get_confusion_matrix);
+    tcase_add_test(tc_ranking, test_get_confusion_matrix_excluding_samples);
     tcase_add_test(tc_ranking, test_model_evaluation_formulas);
     
     // Add test cases to a test suite

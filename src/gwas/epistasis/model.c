@@ -299,9 +299,11 @@ void risky_combination_free(risky_combination* combination) {
  *  Evaluation and ranking  *
  * **************************/
 
-double test_model(int order, risky_combination *risky_comb, uint8_t **genotypes, masks_info info, unsigned int *conf_matrix) {
+double test_model(int order, risky_combination *risky_comb, uint8_t **genotypes, 
+                  uint8_t *fold_masks, enum eval_mode mode, int training_size[2], int testing_size[2], 
+                  masks_info info, unsigned int *conf_matrix) {
     // Get the matrix containing {FP,FN,TP,TN}
-    confusion_matrix(order, risky_comb, info, genotypes, conf_matrix);
+    confusion_matrix(order, risky_comb, genotypes, fold_masks, mode, training_size, testing_size, info, conf_matrix);
 
     // Evaluate the model, basing on the confusion matrix
     double eval = evaluate_model(conf_matrix, BA);
@@ -310,7 +312,9 @@ double test_model(int order, risky_combination *risky_comb, uint8_t **genotypes,
     return eval;
 }
 
-void confusion_matrix(int order, risky_combination *combination, masks_info info, uint8_t **genotypes, unsigned int *matrix) {
+void confusion_matrix(int order, risky_combination *combination, uint8_t **genotypes, 
+                      uint8_t *fold_masks, enum eval_mode mode, int training_size[2], int testing_size[2], 
+                      masks_info info, unsigned int *matrix) {
     int num_samples = info.num_samples_with_padding;
     uint8_t confusion_masks[combination->num_risky_genotypes * num_samples];
     memset(confusion_masks, 0, combination->num_risky_genotypes * num_samples * sizeof(uint8_t));
@@ -319,6 +323,9 @@ void confusion_matrix(int order, risky_combination *combination, masks_info info
     __m128i input_genotypes;    // Genotypes from the input dataset
     __m128i mask;               // Comparison between the reference genotype and input genotypes
     
+/*
+    printf("pad_aff = %d\tpad_unaff = %d\n", info.num_affected_with_padding - info.num_affected, info.num_unaffected_with_padding - info.num_unaffected);
+*/
     
     // Check whether the input genotypes can be combined in any of the risky combinations
     for (int i = 0; i < combination->num_risky_genotypes; i++) {
@@ -342,6 +349,12 @@ void confusion_matrix(int order, risky_combination *combination, masks_info info
                 _mm_store_si128(confusion_masks + i * num_samples + k, mask);
             }
         }
+        
+        // Set to zero the positions in padding
+        memset(confusion_masks + i * num_samples + info.num_affected, 
+                0, info.num_affected_with_padding - info.num_affected);
+        memset(confusion_masks + i * num_samples + info.num_affected_with_padding + info.num_unaffected, 
+                0, info.num_unaffected_with_padding - info.num_unaffected);
     }
     
 /*
@@ -357,7 +370,8 @@ void confusion_matrix(int order, risky_combination *combination, masks_info info
 */
    
     uint8_t final_masks[num_samples];
-    __m128i final_or, other_mask;
+    __m128i final_or, other_mask, xor_mask;
+    xor_mask = _mm_set1_epi8(1);
     
     for (int k = 0; k < num_samples; k += 16) {
         final_or = _mm_load_si128(confusion_masks + k); // First mask
@@ -368,10 +382,29 @@ void confusion_matrix(int order, risky_combination *combination, masks_info info
             final_or = _mm_or_si128(final_or, other_mask);
         }
         
+        // Filter samples only in training/testing folds
+        other_mask = _mm_load_si128(fold_masks + k);
+/*
+        for (int m = 0; m < 16; m++) {
+            printf("%d ", fold_masks[k + m]);
+        }
+        printf("| ");
+*/
+        
+        if (mode == TRAINING) {
+            final_or = _mm_and_si128(other_mask, final_or);
+        } else {
+            // (not in fold mask) & final_or
+            other_mask = _mm_xor_si128(other_mask, xor_mask);
+            final_or = _mm_and_si128(other_mask, final_or);
+            //final_or = _mm_andnot_si128(other_mask, final_or);
+        }
+        
         _mm_store_si128(final_masks + k, final_or);
     }
-    
 /*
+    printf("\n-------------------\n");
+    
     printf("final masks sse = {\n");
     for (int k = 0; k < num_samples; k++) {
         printf("%d ", final_masks[k]);
@@ -379,6 +412,9 @@ void confusion_matrix(int order, risky_combination *combination, masks_info info
     printf("}\n");
 */
    
+/*
+    exit(0);
+*/
     // Get the counts (popcount is the number of 1s -> popcount / 8 is the number of positives)
     int popcount0 = 0, popcount1 = 0;
     __m128i snp_and;
@@ -398,14 +434,21 @@ void confusion_matrix(int order, risky_combination *combination, masks_info info
                      _mm_popcnt_u64(_mm_extract_epi64(snp_and, 1));
     }
     
-    matrix[0] = popcount0 / 8;
-    matrix[1] = info.num_affected - popcount0 / 8;
-    matrix[2] = popcount1 / 8;
-    matrix[3] = info.num_unaffected - popcount1 / 8;
+    matrix[0] = popcount0; // TP
+    matrix[2] = popcount1; // FP
+   if (mode == TRAINING) {
+        matrix[1] = training_size[0] - popcount0; // Total affected - predicted
+        matrix[3] = training_size[1] - popcount1; // Total unaffected - predicted
+    } else if (mode == TESTING) {
+        matrix[1] = testing_size[0] - popcount0;
+        matrix[3] = testing_size[1] - popcount1;
+    }
     
-/*
-    assert(matrix[0] + matrix[1] + matrix[2] + matrix[3] == info.num_affected + info.num_unaffected);
-*/
+    if (mode == TRAINING) {
+        assert(matrix[0] + matrix[1] + matrix[2] + matrix[3] == training_size[0] + training_size[1]);
+    } else {
+        assert(matrix[0] + matrix[1] + matrix[2] + matrix[3] == testing_size[0] + testing_size[1]);
+    }
 }
 
 double evaluate_model(unsigned int *confusion_matrix, enum eval_function function) {

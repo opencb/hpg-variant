@@ -1,10 +1,10 @@
 #include "epistasis.h"
 
 
-void process_set_of_combinations(int num_combinations, int *combs,
-                                 int order, int stride, int num_folds, uint8_t *fold_masks,
+void process_set_of_combinations(int num_combinations, int *combs, int order, int stride, 
+                                 int num_folds, uint8_t *fold_masks, int *training_sizes, int *testing_sizes,
                                  uint8_t **block_genotypes, uint8_t **genotype_permutations,
-                                 uint8_t *masks, masks_info info, 
+                                 uint8_t *masks, enum eval_mode mode, masks_info info, 
                                  int *counts_aff, int *counts_unaff, unsigned int conf_matrix[4], 
                                  int max_ranking_size, struct heap **ranking_risky_local) {
     // Get genotypes of a row of combinations
@@ -73,18 +73,9 @@ void process_set_of_combinations(int num_combinations, int *combs,
 
             if (risky_comb) {
                 // Check the model against the testing dataset
-                double accuracy = 0.0f;
-
-//                        if (options_data->evaluation_mode == TESTING) {
-//                             uint8_t *testing_genotypes = get_genotypes_for_combination_and_fold(order, risky_comb->combination,
-//                                                                                                 num_samples, sizes[3 * i + 1] + sizes[3 * i + 2],
-//                                                                                                 folds[i], stride, block_starts);
-//                             accuracy = test_model(order, risky_comb, testing_genotypes, sizes[3 * i + 1], sizes[3 * i + 2], &confusion_time);
-//                             free(testing_genotypes);
-//                        } else {
-                    accuracy = test_model(order, risky_comb, my_genotypes, info, conf_matrix);
-//                        }
-//                         printf("*  Balanced accuracy: %.3f\n", accuracy);
+                double accuracy = test_model(order, risky_comb, my_genotypes, fold_masks + f * info.num_samples_with_padding, mode, 
+                                             training_sizes + 3 * f + 1, testing_sizes + 3 * f + 1, info, conf_matrix);
+//               printf("*  Balanced accuracy: %.3f\n", accuracy);
 
                 int position = add_to_model_ranking(risky_comb, max_ranking_size, ranking_risky_local[f], compare_risky_heap_min);
 
@@ -97,13 +88,6 @@ void process_set_of_combinations(int num_combinations, int *combs,
         }
 
         free(risky_idx);
-
-/*
-        for (int c = 0; c < num_samples; c++) {
-            free(genotypes_for_testing[c]);
-        }
-        free(genotypes_for_testing);
-*/
     }
 }
 

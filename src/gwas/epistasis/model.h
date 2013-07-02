@@ -118,9 +118,13 @@ void risky_combination_free(risky_combination *combination);
  *  Evaluation and ranking  *
  * **************************/
 
-double test_model(int order, risky_combination *risky_comb, uint8_t **genotypes, masks_info info, unsigned int *conf_matrix);
+double test_model(int order, risky_combination *risky_comb, uint8_t **genotypes, 
+                  uint8_t *fold_masks, enum eval_mode mode, int training_size[2], int testing_size[2], 
+                  masks_info info, unsigned int *conf_matrix);
 
-void confusion_matrix(int order, risky_combination *combination, masks_info info, uint8_t **genotypes, unsigned int *matrix);
+void confusion_matrix(int order, risky_combination *combination, uint8_t **genotypes, 
+                      uint8_t *fold_masks, enum eval_mode mode, int training_size[2], int testing_size[2], 
+                      masks_info info, unsigned int *matrix);
 
 double evaluate_model(unsigned int *confusion_matrix, enum eval_function function);
 
