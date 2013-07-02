@@ -323,10 +323,6 @@ void confusion_matrix(int order, risky_combination *combination, uint8_t **genot
     __m128i input_genotypes;    // Genotypes from the input dataset
     __m128i mask;               // Comparison between the reference genotype and input genotypes
     
-/*
-    printf("pad_aff = %d\tpad_unaff = %d\n", info.num_affected_with_padding - info.num_affected, info.num_unaffected_with_padding - info.num_unaffected);
-*/
-    
     // Check whether the input genotypes can be combined in any of the risky combinations
     for (int i = 0; i < combination->num_risky_genotypes; i++) {
         // First SNP in the combination
@@ -384,13 +380,6 @@ void confusion_matrix(int order, risky_combination *combination, uint8_t **genot
         
         // Filter samples only in training/testing folds
         other_mask = _mm_load_si128(fold_masks + k);
-/*
-        for (int m = 0; m < 16; m++) {
-            printf("%d ", fold_masks[k + m]);
-        }
-        printf("| ");
-*/
-        
         if (mode == TRAINING) {
             final_or = _mm_and_si128(other_mask, final_or);
         } else {
@@ -411,10 +400,7 @@ void confusion_matrix(int order, risky_combination *combination, uint8_t **genot
     }
     printf("}\n");
 */
-   
-/*
-    exit(0);
-*/
+
     // Get the counts (popcount is the number of 1s -> popcount / 8 is the number of positives)
     int popcount0 = 0, popcount1 = 0;
     __m128i snp_and;
