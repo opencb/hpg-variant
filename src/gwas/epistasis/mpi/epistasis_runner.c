@@ -187,18 +187,8 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
         }
         
         // Masks information (number (un)affected with padding, buffers, and so on)
-/*
-        masks_info info; masks_info_init(order, COMBINATIONS_ROW_SSE, num_affected, num_unaffected, &info);
-*/
-            
-/*#pragma omp parallel
-{
-#pragma omp single
-{*/
 #pragma omp parallel for num_threads(shared_options_data->num_threads)
         for (int i = 0; i < num_block_coords; i++) {
-/*#pragma omp task
-{*/
             // Coordinates of the block being tested
             int task_block_coords[order];
             
@@ -358,9 +348,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
             _mm_free(counts_aff);
             _mm_free(counts_unaff);
         }
-/*}
-}       
-}*/
+
 /*
         for (int f = 0; f < num_folds; f++) {
             printf("Ranking fold %d = {\n", f);
