@@ -72,7 +72,21 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
 
     // Masks information (number (un)affected with padding, buffers, and so on)
     masks_info info; masks_info_init(order, COMBINATIONS_ROW_SSE, num_affected, num_unaffected, &info);
-            
+           
+    // TODO
+    options_data->eval_mode = CV_A;
+     
+    compare_risky_heap_func heap_max_func = NULL;
+    compare_risky_heap_func heap_min_func = NULL;
+    if (options_data->eval_mode == CV_A) {
+        if (mpi_rank == 0) { LOG_INFO("Using CV-a as ranking criteria"); }
+        heap_max_func = compare_risky_heap_max;
+        heap_min_func = compare_risky_heap_min;
+    } else {
+        // TODO by CVC
+        if (mpi_rank == 0) { LOG_INFO("Using CV-c as ranking criteria"); }
+    }
+    
     /******************************* End of global variables *******************************/
     
     
@@ -225,6 +239,16 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
             // Confusion matrix
             unsigned int conf_matrix[4];
 
+            // Functions for ranking combinations
+            compare_risky_heap_func heap_max_func_local = NULL;
+            compare_risky_heap_func heap_min_func_local = NULL;
+            if (options_data->eval_mode == CV_A) {
+                heap_max_func_local = compare_risky_heap_max;
+                heap_min_func_local = compare_risky_heap_min;
+            } else {
+                // TODO by CVC
+            }
+    
             // **************** Variables private to each task (block) (end) ****************
 
 
@@ -298,39 +322,35 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                     continue; // Nothing to do until we have an amount (COMBINATIONS_ROW_SSE) of combinations ready
                 }
                 
-                process_set_of_combinations(info.num_combinations_in_a_row, combs,
-                                            order, stride, num_folds, fold_masks,
-                                            training_sizes, testing_sizes, 
-                                            block_genotypes, genotype_permutations,
-                                            masks, options_data->evaluation_mode, info, 
-                                            counts_aff, counts_unaff, conf_matrix, 
+                process_set_of_combinations(info.num_combinations_in_a_row, combs, order, stride, num_folds, fold_masks,
+                                            training_sizes, testing_sizes,  block_genotypes, genotype_permutations,
+                                            masks, options_data->eval_subset, info, 
+                                            heap_min_func_local, counts_aff, counts_unaff, conf_matrix, 
                                             options_data->max_ranking_size, ranking_risky_local);
                 
-                cur_cobm_idx = 0;
+                cur_comb_idx = 0;
             } while (get_next_combination_in_block(order, comb, task_block_coords, stride, num_variants));
 
             
             // Process combinations out of a full set
-            process_set_of_combinations(cur_comb_idx, combs,
-                                        order, stride, num_folds, fold_masks,
-                                        training_sizes, testing_sizes, 
-                                        block_genotypes, genotype_permutations,
-                                        masks, options_data->evaluation_mode, info, 
-                                        counts_aff, counts_unaff, conf_matrix, 
+            process_set_of_combinations(cur_comb_idx, combs, order, stride, num_folds, fold_masks,
+                                        training_sizes, testing_sizes, block_genotypes, genotype_permutations,
+                                        masks, options_data->eval_subset, info, 
+                                        heap_min_func_local, counts_aff, counts_unaff, conf_matrix, 
                                         options_data->max_ranking_size, ranking_risky_local);
 
             
             // Insert best models of this block in the global ranking (critical section)
             for (int i = 0; i < num_folds; i++) {
                 while (!heap_empty(ranking_risky_local[i])) {
-                    struct heap_node *hn = heap_take(compare_risky_heap_min, ranking_risky_local[i]);
+                    struct heap_node *hn = heap_take(heap_min_func_local, ranking_risky_local[i]);
                     risky_combination *risky_comb = (risky_combination*) hn->value;
                     
                     int position = -1;
                     
 #pragma omp critical
                     {
-                        position = add_to_model_ranking(risky_comb, options_data->max_ranking_size, ranking_risky[i], compare_risky_heap_min);
+                        position = add_to_model_ranking(risky_comb, options_data->max_ranking_size, ranking_risky[i], heap_min_func_local);
                     }
                     
                     if (position < 0) {
@@ -377,7 +397,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                 risky_combination *risky = NULL;
 
                 while (!heap_empty(ranking_risky[f])) {
-                    hn = heap_take(compare_risky_heap_min, ranking_risky[f]);
+                    hn = heap_take(heap_min_func, ranking_risky[f]);
                     risky = (risky_combination*) hn->value;
                     send_risky_combination_mpi(risky, risky_mpi_type, 0, MPI_COMM_WORLD);
                     risky_combination_free(risky);
@@ -399,7 +419,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                 for (int src = 1; src < num_mpi_ranks; src++) {
                     for (int c = 0; c < ranking_sizes[src]; c++) {
                         risky_combination *risky_comb = receive_risky_combination_mpi(order, risky_mpi_type, info, src, MPI_COMM_WORLD, stat);
-                        int position = add_to_model_ranking(risky_comb, options_data->max_ranking_size, ranking_risky[f], compare_risky_heap_min);
+                        int position = add_to_model_ranking(risky_comb, options_data->max_ranking_size, ranking_risky[f], heap_min_func);
                         if (position < 0) {
                             risky_combination_free(risky_comb);
                         }
@@ -413,7 +433,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
         
         // Root node merges all rankings in one
         if (mpi_rank == 0) {
-            best_models[r] = merge_rankings(num_folds, ranking_risky);
+            best_models[r] = merge_rankings(num_folds, ranking_risky, heap_min_func, heap_max_func);
         }
         
         // Free data por this repetition
@@ -431,7 +451,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
     
     // Generate results in root node
     if (mpi_rank == 0) {
-        epistasis_report(order, num_variants, options_data->num_cv_repetitions, best_models);
+        epistasis_report(order, num_variants, options_data->num_cv_repetitions, best_models, heap_max_func);
     }
     
     // Free data for the whole epistasis check
@@ -445,7 +465,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
         for (int r = 0; r < options_data->num_cv_repetitions; r++) {
             struct heap_node *hn;
             while (!heap_empty(best_models[r])) {
-                hn = heap_take(compare_risky_heap_max, best_models[r]);
+                hn = heap_take(heap_max_func, best_models[r]);
                 risky_combination_free((risky_combination*) hn->value);
                 free(hn);
             }

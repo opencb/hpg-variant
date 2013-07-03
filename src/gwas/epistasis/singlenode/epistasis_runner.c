@@ -66,6 +66,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
         heap_min_func = compare_risky_heap_min;
     } else {
         // TODO by CVC
+        LOG_INFO("Using CV-c as ranking criteria");
     }
     
     /**************************** End of variables precalculus  ****************************/
@@ -158,6 +159,16 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
             // Buffer for genotypes masks
             uint8_t *masks = _mm_malloc(info.num_combinations_in_a_row * info.num_masks * sizeof(uint8_t), 16);
 
+            // Functions for ranking combinations
+            compare_risky_heap_func heap_max_func_local = NULL;
+            compare_risky_heap_func heap_min_func_local = NULL;
+            if (options_data->eval_mode == CV_A) {
+                heap_max_func_local = compare_risky_heap_max;
+                heap_min_func_local = compare_risky_heap_min;
+            } else {
+                // TODO by CVC
+            }
+    
             // *************** Variables private to each task (block) (end) ***************
 
 
@@ -234,7 +245,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                 process_set_of_combinations(info.num_combinations_in_a_row, combs, order, stride, num_folds, fold_masks,
                                             training_sizes, testing_sizes,  block_genotypes, genotype_permutations,
                                             masks, options_data->eval_subset, info, 
-                                            compare_risky_heap_min, counts_aff, counts_unaff, conf_matrix, 
+                                            heap_min_func_local, counts_aff, counts_unaff, conf_matrix, 
                                             options_data->max_ranking_size, ranking_risky_local);
                 
                 cur_comb_idx = 0;
@@ -245,20 +256,20 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
             process_set_of_combinations(cur_comb_idx, combs, order, stride, num_folds, fold_masks,
                                         training_sizes, testing_sizes, block_genotypes, genotype_permutations,
                                         masks, options_data->eval_subset, info, 
-                                        compare_risky_heap_min, counts_aff, counts_unaff, conf_matrix, 
+                                        heap_min_func_local, counts_aff, counts_unaff, conf_matrix, 
                                         options_data->max_ranking_size, ranking_risky_local);
 
             // Insert best model of this block in the global ranking (critical section)
             for (int i = 0; i < num_folds; i++) {
                 while (!heap_empty(ranking_risky_local[i])) {
-                    struct heap_node *hn = heap_take(compare_risky_heap_min, ranking_risky_local[i]);
+                    struct heap_node *hn = heap_take(heap_min_func_local, ranking_risky_local[i]);
                     risky_combination *risky_comb = (risky_combination*) hn->value;
                     
                     int position = -1;
                     
 #pragma omp critical
                     {
-                        position = add_to_model_ranking(risky_comb, options_data->max_ranking_size, ranking_risky[i], compare_risky_heap_min);
+                        position = add_to_model_ranking(risky_comb, options_data->max_ranking_size, ranking_risky[i], heap_min_func_local);
                     }
                     if (position < 0) {
                         risky_combination_free(risky_comb);
