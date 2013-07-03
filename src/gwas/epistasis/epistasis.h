@@ -158,7 +158,7 @@ void process_set_of_combinations(int num_combinations, int *combs, int order, in
                                  int *counts_aff, int *counts_unaff, unsigned int conf_matrix[4], 
                                  int max_ranking_size, struct heap **ranking_risky_local);
 
-struct heap* merge_rankings(int num_folds, struct heap **ranking_risky);
+struct heap* merge_rankings(int num_folds, struct heap **ranking_risky, compare_risky_heap_func heap_min_func, compare_risky_heap_func heap_max_func);
 
 int compare_risky(const void *risky_1, const void *risky_2);
 

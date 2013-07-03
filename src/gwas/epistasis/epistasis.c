@@ -92,7 +92,7 @@ void process_set_of_combinations(int num_combinations, int *combs, int order, in
 }
 
 
-struct heap* merge_rankings(int num_folds, struct heap **ranking_risky) {
+struct heap* merge_rankings(int num_folds, struct heap **ranking_risky, compare_risky_heap_func heap_min_func, compare_risky_heap_func heap_max_func) {
     size_t repetition_ranking_size = 0;
     for (int i = 0; i < num_folds; i++) {
         repetition_ranking_size += ranking_risky[i]->size;
@@ -106,7 +106,7 @@ struct heap* merge_rankings(int num_folds, struct heap **ranking_risky) {
 
 //            printf("Ranking fold %d = {\n", i);
         while (!heap_empty(ranking_risky[i])) {
-            hn = heap_take(compare_risky_heap_min, ranking_risky[i]);
+            hn = heap_take(heap_min_func, ranking_risky[i]);
             element = (risky_combination*) hn->value;
             repetition_ranking[current_index] = element;
             current_index++;
@@ -138,13 +138,13 @@ struct heap* merge_rankings(int num_folds, struct heap **ranking_risky) {
             risky_combination_free(element);
         } else {
             current->accuracy /= num_folds;
-            add_to_model_ranking(current, repetition_ranking_size, sorted_repetition_ranking, compare_risky_heap_max);
+            add_to_model_ranking(current, repetition_ranking_size, sorted_repetition_ranking, heap_max_func);
             current = element;
         }
     }
     // Don't leave last element out!
     current->accuracy /= num_folds;
-    add_to_model_ranking(current, repetition_ranking_size, sorted_repetition_ranking, compare_risky_heap_max);
+    add_to_model_ranking(current, repetition_ranking_size, sorted_repetition_ranking, heap_max_func);
 
     // Save the models ranking
     return sorted_repetition_ranking;

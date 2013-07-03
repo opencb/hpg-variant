@@ -300,7 +300,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
 */
         
         // Merge all rankings in one
-        best_models[r] = merge_rankings(num_folds, ranking_risky);
+        best_models[r] = merge_rankings(num_folds, ranking_risky, heap_min_func, heap_max_func);
         
         // Free data por this repetition
         for (int i = 0; i < num_folds; i++) {
