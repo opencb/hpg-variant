@@ -291,8 +291,8 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
             get_first_combination_in_block(order, comb, task_block_coords, stride);
 
             do {
-                cur_comb_idx = (cur_comb_idx < info.num_combinations_in_a_row) ? cur_comb_idx+1 : 0;
-                memcpy(combs + (cur_comb_idx-1) * order, comb, order * sizeof(int));
+                memcpy(combs + cur_comb_idx * order, comb, order * sizeof(int));
+                cur_comb_idx++;
 
                 if (cur_comb_idx < info.num_combinations_in_a_row) {
                     continue; // Nothing to do until we have an amount (COMBINATIONS_ROW_SSE) of combinations ready
@@ -306,6 +306,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                                             counts_aff, counts_unaff, conf_matrix, 
                                             options_data->max_ranking_size, ranking_risky_local);
                 
+                cur_cobm_idx = 0;
             } while (get_next_combination_in_block(order, comb, task_block_coords, stride, num_variants));
 
             
