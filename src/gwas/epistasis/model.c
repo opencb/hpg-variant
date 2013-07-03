@@ -457,7 +457,7 @@ double evaluate_model(unsigned int *confusion_matrix, enum eval_function functio
 }
 
 int add_to_model_ranking(risky_combination *risky_comb, int max_ranking_size, struct heap *ranking_risky,
-                         int (*priority_func) (struct heap_node* a, struct heap_node* b)) {
+                         compare_risky_heap_func priority_func) {
     // Step 6 -> Construct ranking of the best N combinations
     size_t current_ranking_size = ranking_risky->size;
 

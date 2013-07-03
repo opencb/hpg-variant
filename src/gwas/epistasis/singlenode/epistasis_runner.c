@@ -61,6 +61,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
     compare_risky_heap_func heap_max_func = NULL;
     compare_risky_heap_func heap_min_func = NULL;
     if (options_data->eval_mode == CV_A) {
+        LOG_INFO("Using CV-a as ranking criteria");
         heap_max_func = compare_risky_heap_max;
         heap_min_func = compare_risky_heap_min;
     } else {
@@ -230,12 +231,10 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                     continue; // Nothing to do until we have an amount (COMBINATIONS_ROW_SSE) of combinations ready
                 }
 
-                process_set_of_combinations(info.num_combinations_in_a_row, combs,
-                                            order, stride, num_folds, fold_masks,
-                                            training_sizes, testing_sizes, 
-                                            block_genotypes, genotype_permutations,
-                                            masks, options_data->eval_subset, 
-                                            info, counts_aff, counts_unaff, conf_matrix, 
+                process_set_of_combinations(info.num_combinations_in_a_row, combs, order, stride, num_folds, fold_masks,
+                                            training_sizes, testing_sizes,  block_genotypes, genotype_permutations,
+                                            masks, options_data->eval_subset, info, 
+                                            compare_risky_heap_min, counts_aff, counts_unaff, conf_matrix, 
                                             options_data->max_ranking_size, ranking_risky_local);
                 
                 cur_comb_idx = 0;
@@ -243,12 +242,10 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
 
             
             // Process combinations out of a full set
-            process_set_of_combinations(cur_comb_idx, combs,
-                                        order, stride, num_folds, fold_masks,
-                                        training_sizes, testing_sizes, 
-                                        block_genotypes, genotype_permutations,
+            process_set_of_combinations(cur_comb_idx, combs, order, stride, num_folds, fold_masks,
+                                        training_sizes, testing_sizes, block_genotypes, genotype_permutations,
                                         masks, options_data->eval_subset, info, 
-                                        counts_aff, counts_unaff, conf_matrix, 
+                                        compare_risky_heap_min, counts_aff, counts_unaff, conf_matrix, 
                                         options_data->max_ranking_size, ranking_risky_local);
 
             // Insert best model of this block in the global ranking (critical section)
@@ -327,7 +324,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
         risky_combination *element = NULL;
 
         while (!heap_empty(best_models[r])) {
-            hn = heap_take(compare_risky_heap_max, best_models[r]);
+            hn = heap_take(heap_max_func, best_models[r]);
             risky_combination_free((risky_combination*) hn->value);
             free(hn);
         }

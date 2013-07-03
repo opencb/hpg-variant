@@ -132,7 +132,7 @@ void confusion_matrix(int order, risky_combination *combination, uint8_t **genot
 double evaluate_model(unsigned int *confusion_matrix, enum eval_function function);
 
 int add_to_model_ranking(risky_combination *risky_comb, int max_ranking_size, struct heap *ranking_risky,
-                         int (*priority_func) (struct heap_node* a, struct heap_node* b));
+                         compare_risky_heap_func priority_func);
 
 int compare_risky_heap_max(struct heap_node* a, struct heap_node* b);
 
