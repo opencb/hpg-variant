@@ -81,6 +81,7 @@ typedef struct epistasis_options_data {
     int num_cv_repetitions;
     int max_ranking_size;
     enum evaluation_subset eval_subset;
+    enum evaluation_mode eval_mode;
 } epistasis_options_data_t;
 
 
@@ -161,10 +162,11 @@ struct heap* merge_rankings(int num_folds, struct heap **ranking_risky);
 
 int compare_risky(const void *risky_1, const void *risky_2);
 
+
 /* **********************************************
  *                  Final report                *
  * **********************************************/
 
-void epistasis_report(int order, size_t num_variants, int num_cv_repetitions, struct heap **best_models);
+void epistasis_report(int order, size_t num_variants, int num_cv_repetitions, struct heap **best_models, compare_risky_heap_func cmp_heap_max);
 
 #endif

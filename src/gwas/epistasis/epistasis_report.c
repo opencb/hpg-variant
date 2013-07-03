@@ -21,21 +21,21 @@
 #include "epistasis.h"
 
 
-static void show_best_models_per_repetition(int order, int num_cv_repetitions, struct heap *best_models[]);
-static khash_t(cvc) *prepare_models_for_cvc(int order, int num_cv_repetitions, int max_val_len, struct heap *best_models[]);
-static int choose_best_model(int order, int num_cv_repetitions, int max_val_len, struct heap *best_models[], khash_t(cvc) *models_for_cvc, char **bestkey);
+static void show_best_models_per_repetition(int order, int num_cv_repetitions, struct heap *best_models[], compare_risky_heap_func cmp_heap_max);
+static khash_t(cvc) *prepare_models_for_cvc(int order, int num_cv_repetitions, int max_val_len, struct heap *best_models[], compare_risky_heap_func cmp_heap_max);
+static int choose_best_model(int order, int num_cv_repetitions, int max_val_len, struct heap *best_models[], compare_risky_heap_func cmp_heap_max, khash_t(cvc) *models_for_cvc, char **bestkey);
 
 
-void epistasis_report(int order, size_t num_variants, int num_cv_repetitions, struct heap **best_models) {
+void epistasis_report(int order, size_t num_variants, int num_cv_repetitions, struct heap **best_models, compare_risky_heap_func cmp_heap_max) {
     // Show the best model of each repetition
-    show_best_models_per_repetition(order, num_cv_repetitions, best_models);
+    show_best_models_per_repetition(order, num_cv_repetitions, best_models, cmp_heap_max);
 
     // CVC (get the model that appears more times in the first ranking position)
     int max_val_len = log10f(num_variants);
-    khash_t(cvc) *models_for_cvc = prepare_models_for_cvc(order, num_cv_repetitions, max_val_len, best_models);
+    khash_t(cvc) *models_for_cvc = prepare_models_for_cvc(order, num_cv_repetitions, max_val_len, best_models, cmp_heap_max);
 
     char *bestkey;
-    int bestvalue = choose_best_model(order, num_cv_repetitions, max_val_len, best_models, models_for_cvc, &bestkey);
+    int bestvalue = choose_best_model(order, num_cv_repetitions, max_val_len, best_models, cmp_heap_max, models_for_cvc, &bestkey);
 
     assert(bestkey);
     LOG_INFO_F("Best model is %s with a CVC of %d/%d\n", bestkey, bestvalue, num_cv_repetitions);
@@ -44,9 +44,9 @@ void epistasis_report(int order, size_t num_variants, int num_cv_repetitions, st
 }
 
 
-static void show_best_models_per_repetition(int order, int num_cv_repetitions, struct heap *best_models[]) {
+static void show_best_models_per_repetition(int order, int num_cv_repetitions, struct heap *best_models[], compare_risky_heap_func cmp_heap_max) {
     for (int r = 0; r < num_cv_repetitions; r++) {
-        struct heap_node *hn = heap_peek(compare_risky_heap_max, best_models[r]);
+        struct heap_node *hn = heap_peek(cmp_heap_max, best_models[r]);
         risky_combination *element = (risky_combination*) hn->value;
         assert(element);
         assert(element->combination);
@@ -58,10 +58,10 @@ static void show_best_models_per_repetition(int order, int num_cv_repetitions, s
     }
 }
 
-static khash_t(cvc) *prepare_models_for_cvc(int order, int num_cv_repetitions, int max_val_len, struct heap *best_models[]) {
+static khash_t(cvc) *prepare_models_for_cvc(int order, int num_cv_repetitions, int max_val_len, struct heap *best_models[], compare_risky_heap_func cmp_heap_max) {
     khash_t(cvc) *models_for_cvc = kh_init(cvc);
     for (int r = 0; r < num_cv_repetitions; r++) {
-        struct heap_node *hn = heap_peek(compare_risky_heap_max, best_models[r]);
+        struct heap_node *hn = heap_peek(cmp_heap_max, best_models[r]);
         risky_combination *risky = (risky_combination*) hn->value;
         
         // key = snp1_snp2_..._snpN
@@ -87,7 +87,7 @@ static khash_t(cvc) *prepare_models_for_cvc(int order, int num_cv_repetitions, i
     return models_for_cvc;
 }
 
-static int choose_best_model(int order, int num_cv_repetitions, int max_val_len, struct heap *best_models[], khash_t(cvc) *models_for_cvc, char **bestkey) {
+static int choose_best_model(int order, int num_cv_repetitions, int max_val_len, struct heap *best_models[], compare_risky_heap_func cmp_heap_max, khash_t(cvc) *models_for_cvc, char **bestkey) {
     int bestvalue = 0;
     for (int k = kh_begin(models_for_cvc); k < kh_end(models_for_cvc); k++) {
         if (kh_exist(models_for_cvc, k)) {
@@ -104,7 +104,7 @@ static int choose_best_model(int order, int num_cv_repetitions, int max_val_len,
                 
                 // Sum all accuracies for the best and the candidate
                 for (int r = 0; r < num_cv_repetitions; r++) {
-                    struct heap_node *hn = heap_peek(compare_risky_heap_max, best_models[r]);
+                    struct heap_node *hn = heap_peek(cmp_heap_max, best_models[r]);
                     risky_combination *element = (risky_combination*) hn->value;
                     
                     // maybe_key = snp1_snp2_..._snpN

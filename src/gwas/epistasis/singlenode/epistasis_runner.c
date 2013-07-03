@@ -55,6 +55,18 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
     // Ranking of best models in each repetition
     struct heap *best_models[options_data->num_cv_repetitions];
     
+    // TODO
+    options_data->eval_mode = CV_A;
+    
+    compare_risky_heap_func heap_max_func = NULL;
+    compare_risky_heap_func heap_min_func = NULL;
+    if (options_data->eval_mode == CV_A) {
+        heap_max_func = compare_risky_heap_max;
+        heap_min_func = compare_risky_heap_min;
+    } else {
+        // TODO by CVC
+    }
+    
     /**************************** End of variables precalculus  ****************************/
     
     
@@ -303,7 +315,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
     }
     
     // Show the best model of each repetition
-    epistasis_report(order, num_variants, options_data->num_cv_repetitions, best_models);
+    epistasis_report(order, num_variants, options_data->num_cv_repetitions, best_models, heap_max_func);
 
     // Free data for the whole epistasis check
     for (int i = 0; i < num_genotype_permutations; i++) {

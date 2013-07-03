@@ -25,6 +25,8 @@
 #define COMBINATIONS_ROW_SSE    16
 #define COMBINATIONS_ROW_GPU    128
 
+typedef int (*compare_risky_heap_func) (struct heap_node*, struct heap_node*);
+
 typedef struct {
     double accuracy;
     int order;
@@ -48,6 +50,7 @@ typedef struct {
 } masks_info;
 
 enum evaluation_subset { TESTING, TRAINING };
+enum evaluation_mode { CV_C, CV_A };
 
 /**
  * @brief Functions available for evaluating the results of a MDR model
