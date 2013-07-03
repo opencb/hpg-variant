@@ -132,15 +132,16 @@ struct heap* merge_rankings(int num_folds, struct heap **ranking_risky, compare_
     risky_combination *current = repetition_ranking[0];
 
     for (int i = 1; i < repetition_ranking_size; i++) {
-        risky_combination *element = repetition_ranking[i];
-        if (!compare_risky(&current, &element)) {
-            assert(current != element);
-            current->accuracy += element->accuracy;
-            risky_combination_free(element);
+        risky_combination *other = repetition_ranking[i];
+        if (!compare_risky(&current, &other)) {
+            assert(current != other);
+            current->accuracy += other->accuracy;
+            current->cross_validation_count += other->cross_validation_count;
+            risky_combination_free(other);
         } else {
             current->accuracy /= num_folds;
             add_to_model_ranking(current, repetition_ranking_size, sorted_repetition_ranking, heap_max_func);
-            current = element;
+            current = other;
         }
     }
     // Don't leave last element out!

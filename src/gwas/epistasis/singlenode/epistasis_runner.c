@@ -56,17 +56,18 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
     struct heap *best_models[options_data->num_cv_repetitions];
     
     // TODO
-    options_data->eval_mode = CV_A;
+    options_data->eval_mode = CV_C;
     
     compare_risky_heap_func heap_max_func = NULL;
     compare_risky_heap_func heap_min_func = NULL;
     if (options_data->eval_mode == CV_A) {
         LOG_INFO("Using CV-a as ranking criteria");
-        heap_max_func = compare_risky_heap_max;
-        heap_min_func = compare_risky_heap_min;
+        heap_max_func = compare_risky_heap_accuracy_max;
+        heap_min_func = compare_risky_heap_accuracy_min;
     } else {
-        // TODO by CVC
         LOG_INFO("Using CV-c as ranking criteria");
+        heap_max_func = compare_risky_heap_count_max;
+        heap_min_func = compare_risky_heap_count_min;
     }
     
     /**************************** End of variables precalculus  ****************************/
@@ -163,10 +164,11 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
             compare_risky_heap_func heap_max_func_local = NULL;
             compare_risky_heap_func heap_min_func_local = NULL;
             if (options_data->eval_mode == CV_A) {
-                heap_max_func_local = compare_risky_heap_max;
-                heap_min_func_local = compare_risky_heap_min;
+                heap_max_func_local = compare_risky_heap_accuracy_max;
+                heap_min_func_local = compare_risky_heap_accuracy_min;
             } else {
-                // TODO by CVC
+                heap_max_func_local = compare_risky_heap_count_max;
+                heap_min_func_local = compare_risky_heap_count_min;
             }
     
             // *************** Variables private to each task (block) (end) ***************

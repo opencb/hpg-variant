@@ -50,11 +50,11 @@ static void show_best_models_per_repetition(int order, int num_cv_repetitions, s
         risky_combination *element = (risky_combination*) hn->value;
         assert(element);
         assert(element->combination);
-        printf("CV %d\t(", r);
+        printf("CV %d\t(", r+1);
         for (int i = 0; i < order; i++) {
             printf(" %d ", element->combination[i]);
         }
-        printf(") - %.3f)\n", element->accuracy);
+        printf(") - acc %.3f, cvc %d)\n", element->accuracy, element->cross_validation_count);
     }
 }
 

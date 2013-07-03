@@ -31,6 +31,7 @@ typedef struct {
     double accuracy;
     int order;
     int num_risky_genotypes;
+    int cross_validation_count;
     uint8_t *genotypes;
     int *combination;
     void *auxiliary_info;
@@ -134,8 +135,13 @@ double evaluate_model(unsigned int *confusion_matrix, enum eval_function functio
 int add_to_model_ranking(risky_combination *risky_comb, int max_ranking_size, struct heap *ranking_risky,
                          compare_risky_heap_func priority_func);
 
-int compare_risky_heap_max(struct heap_node* a, struct heap_node* b);
 
-int compare_risky_heap_min(struct heap_node* a, struct heap_node* b);
+int compare_risky_heap_count_max(struct heap_node* a, struct heap_node* b);
+
+int compare_risky_heap_count_min(struct heap_node* a, struct heap_node* b);
+
+int compare_risky_heap_accuracy_max(struct heap_node* a, struct heap_node* b);
+
+int compare_risky_heap_accuracy_min(struct heap_node* a, struct heap_node* b);
 
 #endif

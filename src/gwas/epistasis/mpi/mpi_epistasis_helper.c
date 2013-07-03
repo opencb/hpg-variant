@@ -73,7 +73,7 @@ void bcast_epistasis_options_data_mpi(epistasis_options_data_t *options_data, in
 void risky_combination_mpi_init(risky_combination_mpi_t *type) {
     // Length of each block of struct members
     type->lengths[0] = 1;
-    type->lengths[1] = 2;
+    type->lengths[1] = 3;
     
     // Offset of each block of struct members
     MPI_Aint d_extent;

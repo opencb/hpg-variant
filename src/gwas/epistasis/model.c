@@ -259,6 +259,7 @@ risky_combination* risky_combination_new(int order, int comb[order], uint8_t** p
     risky_combination *risky = malloc(sizeof(risky_combination));
     risky->order = order;
     risky->combination = malloc(order * sizeof(int));
+    risky->cross_validation_count = 1;
     risky->accuracy = 0.0f;
     risky->genotypes = malloc(info.num_cell_counts_per_combination * order * sizeof(uint8_t)); // Maximum possible
     risky->num_risky_genotypes = num_risky;
@@ -499,13 +500,33 @@ int add_to_model_ranking(risky_combination *risky_comb, int max_ranking_size, st
 }
 
 
-int compare_risky_heap_max(struct heap_node* a, struct heap_node* b) {
+int compare_risky_heap_count_max(struct heap_node* a, struct heap_node* b) {
+    risky_combination *r1 = (risky_combination*) a->value;
+    risky_combination *r2 = (risky_combination*) b->value;
+    
+    if (r1->cross_validation_count > r2->cross_validation_count) {
+        return 1;
+    }
+    return r1->accuracy > r2->accuracy;
+}
+
+int compare_risky_heap_count_min(struct heap_node* a, struct heap_node* b) {
+    risky_combination *r1 = (risky_combination*) a->value;
+    risky_combination *r2 = (risky_combination*) b->value;
+    
+    if (r1->cross_validation_count > r2->cross_validation_count) {
+        return 1;
+    }
+    return r1->accuracy < r2->accuracy;
+}
+
+int compare_risky_heap_accuracy_max(struct heap_node* a, struct heap_node* b) {
     risky_combination *r1 = (risky_combination*) a->value;
     risky_combination *r2 = (risky_combination*) b->value;
     return r1->accuracy > r2->accuracy;
 }
 
-int compare_risky_heap_min(struct heap_node* a, struct heap_node* b) {
+int compare_risky_heap_accuracy_min(struct heap_node* a, struct heap_node* b) {
     risky_combination *r1 = (risky_combination*) a->value;
     risky_combination *r2 = (risky_combination*) b->value;
     return r1->accuracy < r2->accuracy;
