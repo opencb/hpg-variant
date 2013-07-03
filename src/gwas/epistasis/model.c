@@ -300,10 +300,10 @@ void risky_combination_free(risky_combination* combination) {
  * **************************/
 
 double test_model(int order, risky_combination *risky_comb, uint8_t **genotypes, 
-                  uint8_t *fold_masks, enum eval_mode mode, int training_size[2], int testing_size[2], 
+                  uint8_t *fold_masks, enum evaluation_subset subset, int training_size[2], int testing_size[2], 
                   masks_info info, unsigned int *conf_matrix) {
     // Get the matrix containing {FP,FN,TP,TN}
-    confusion_matrix(order, risky_comb, genotypes, fold_masks, mode, training_size, testing_size, info, conf_matrix);
+    confusion_matrix(order, risky_comb, genotypes, fold_masks, subset, training_size, testing_size, info, conf_matrix);
 
     // Evaluate the model, basing on the confusion matrix
     double eval = evaluate_model(conf_matrix, BA);
@@ -313,7 +313,7 @@ double test_model(int order, risky_combination *risky_comb, uint8_t **genotypes,
 }
 
 void confusion_matrix(int order, risky_combination *combination, uint8_t **genotypes, 
-                      uint8_t *fold_masks, enum eval_mode mode, int training_size[2], int testing_size[2], 
+                      uint8_t *fold_masks, enum evaluation_subset subset, int training_size[2], int testing_size[2], 
                       masks_info info, unsigned int *matrix) {
     int num_samples = info.num_samples_with_padding;
     uint8_t confusion_masks[combination->num_risky_genotypes * num_samples];
@@ -380,7 +380,7 @@ void confusion_matrix(int order, risky_combination *combination, uint8_t **genot
         
         // Filter samples only in training/testing folds
         other_mask = _mm_load_si128(fold_masks + k);
-        if (mode == TRAINING) {
+        if (subset == TRAINING) {
             final_or = _mm_and_si128(other_mask, final_or);
         } else {
             // (not in fold mask) & final_or
@@ -422,15 +422,15 @@ void confusion_matrix(int order, risky_combination *combination, uint8_t **genot
     
     matrix[0] = popcount0; // TP
     matrix[2] = popcount1; // FP
-   if (mode == TRAINING) {
+   if (subset == TRAINING) {
         matrix[1] = training_size[0] - popcount0; // Total affected - predicted
         matrix[3] = training_size[1] - popcount1; // Total unaffected - predicted
-    } else if (mode == TESTING) {
+    } else if (subset == TESTING) {
         matrix[1] = testing_size[0] - popcount0;
         matrix[3] = testing_size[1] - popcount1;
     }
     
-    if (mode == TRAINING) {
+    if (subset == TRAINING) {
         assert(matrix[0] + matrix[1] + matrix[2] + matrix[3] == training_size[0] + training_size[1]);
     } else {
         assert(matrix[0] + matrix[1] + matrix[2] + matrix[3] == testing_size[0] + testing_size[1]);

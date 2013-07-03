@@ -64,7 +64,7 @@ typedef struct epistasis_options {
     struct arg_int *num_folds;
     struct arg_int *num_cv_repetitions;
     struct arg_int *max_ranking_size;
-    struct arg_str *evaluation_mode;
+    struct arg_str *evaluation_subset;
 } epistasis_options_t;
 
 /**
@@ -80,7 +80,7 @@ typedef struct epistasis_options_data {
     int num_folds;
     int num_cv_repetitions;
     int max_ranking_size;
-    enum eval_mode evaluation_mode;
+    enum evaluation_subset eval_subset;
 } epistasis_options_data_t;
 
 
@@ -153,7 +153,7 @@ int verify_epistasis_options(epistasis_options_t *epistasis_options, shared_opti
 void process_set_of_combinations(int num_combinations, int *combs, int order, int stride, 
                                  int num_folds, uint8_t *fold_masks, int *training_sizes, int *testing_sizes,
                                  uint8_t **block_genotypes, uint8_t **genotype_permutations,
-                                 uint8_t *masks, enum eval_mode mode, masks_info info, 
+                                 uint8_t *masks, enum evaluation_subset subset, masks_info info, 
                                  int *counts_aff, int *counts_unaff, unsigned int conf_matrix[4], 
                                  int max_ranking_size, struct heap **ranking_risky_local);
 

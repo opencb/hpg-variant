@@ -80,9 +80,9 @@ int read_epistasis_configuration(const char *filename, epistasis_options_t *epis
     if (ret_code == CONFIG_FALSE) {
         LOG_WARN("Evaluation mode not found in configuration file, must be set via command-line");
     } else {
-        *(epistasis_options->evaluation_mode->sval) = strdup(tmp_string);
+        *(epistasis_options->evaluation_subset->sval) = strdup(tmp_string);
         LOG_DEBUG_F("evaluation mode = %s (%zu chars)\n",
-                   *(epistasis_options->evaluation_mode->sval), strlen(*(epistasis_options->evaluation_mode->sval)));
+                   *(epistasis_options->evaluation_subset->sval), strlen(*(epistasis_options->evaluation_subset->sval)));
     }
 
     config_destroy(config);
@@ -113,7 +113,7 @@ void **merge_epistasis_options(epistasis_options_t *epistasis_options, shared_op
     tool_options[2] = epistasis_options->num_folds;
     tool_options[3] = epistasis_options->num_cv_repetitions;
     tool_options[4] = epistasis_options->max_ranking_size;
-    tool_options[5] = epistasis_options->evaluation_mode;
+    tool_options[5] = epistasis_options->evaluation_subset;
     tool_options[6] = epistasis_options->stride;
     
     // Configuration file
@@ -154,8 +154,8 @@ int verify_epistasis_options(epistasis_options_t *epistasis_options, shared_opti
     }
     
     // Checker whether to use the training or testing partition for evaluating the best models
-    if (*(epistasis_options->evaluation_mode->sval) == NULL || 
-        (strcmp(*(epistasis_options->evaluation_mode->sval), "training") && strcmp(*(epistasis_options->evaluation_mode->sval), "testing")) ) {
+    if (*(epistasis_options->evaluation_subset->sval) == NULL || 
+        (strcmp(*(epistasis_options->evaluation_subset->sval), "training") && strcmp(*(epistasis_options->evaluation_subset->sval), "testing")) ) {
         LOG_ERROR("Please specify the dataset partition for evaluating the best models (training/testing).\n");
         return EPISTASIS_EVAL_MODE_NOT_SPECIFIED;
     }

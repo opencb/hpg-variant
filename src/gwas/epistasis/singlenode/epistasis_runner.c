@@ -222,7 +222,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                                             order, stride, num_folds, fold_masks,
                                             training_sizes, testing_sizes, 
                                             block_genotypes, genotype_permutations,
-                                            masks, options_data->evaluation_mode, 
+                                            masks, options_data->eval_subset, 
                                             info, counts_aff, counts_unaff, conf_matrix, 
                                             options_data->max_ranking_size, ranking_risky_local);
                 
@@ -235,7 +235,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                                         order, stride, num_folds, fold_masks,
                                         training_sizes, testing_sizes, 
                                         block_genotypes, genotype_permutations,
-                                        masks, options_data->evaluation_mode, info, 
+                                        masks, options_data->eval_subset, info, 
                                         counts_aff, counts_unaff, conf_matrix, 
                                         options_data->max_ranking_size, ranking_risky_local);
 

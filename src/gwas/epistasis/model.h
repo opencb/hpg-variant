@@ -47,7 +47,7 @@ typedef struct {
     uint8_t *masks;
 } masks_info;
 
-enum eval_mode { TESTING, TRAINING };
+enum evaluation_subset { TESTING, TRAINING };
 
 /**
  * @brief Functions available for evaluating the results of a MDR model
@@ -119,11 +119,11 @@ void risky_combination_free(risky_combination *combination);
  * **************************/
 
 double test_model(int order, risky_combination *risky_comb, uint8_t **genotypes, 
-                  uint8_t *fold_masks, enum eval_mode mode, int training_size[2], int testing_size[2], 
+                  uint8_t *fold_masks, enum evaluation_subset mode, int training_size[2], int testing_size[2], 
                   masks_info info, unsigned int *conf_matrix);
 
 void confusion_matrix(int order, risky_combination *combination, uint8_t **genotypes, 
-                      uint8_t *fold_masks, enum eval_mode mode, int training_size[2], int testing_size[2], 
+                      uint8_t *fold_masks, enum evaluation_subset mode, int training_size[2], int testing_size[2], 
                       masks_info info, unsigned int *matrix);
 
 double evaluate_model(unsigned int *confusion_matrix, enum eval_function function);
