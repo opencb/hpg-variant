@@ -65,6 +65,7 @@ typedef struct epistasis_options {
     struct arg_int *num_cv_repetitions;
     struct arg_int *max_ranking_size;
     struct arg_str *evaluation_subset;
+    struct arg_str *evaluation_mode;
 } epistasis_options_t;
 
 /**

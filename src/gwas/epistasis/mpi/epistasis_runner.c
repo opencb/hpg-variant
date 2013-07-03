@@ -72,20 +72,20 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
 
     // Masks information (number (un)affected with padding, buffers, and so on)
     masks_info info; masks_info_init(order, COMBINATIONS_ROW_SSE, num_affected, num_unaffected, &info);
-           
-    // TODO
-    options_data->eval_mode = CV_A;
-     
+    
     compare_risky_heap_func heap_max_func = NULL;
     compare_risky_heap_func heap_min_func = NULL;
+    
     if (options_data->eval_mode == CV_A) {
         if (mpi_rank == 0) { LOG_INFO("Using CV-a as ranking criteria"); }
         heap_max_func = compare_risky_heap_accuracy_max;
         heap_min_func = compare_risky_heap_accuracy_min;
-    } else {
+    } else if (options_data->eval_mode == CV_C) {
         if (mpi_rank == 0) { LOG_INFO("Using CV-c as ranking criteria"); }
         heap_max_func = compare_risky_heap_count_max;
         heap_min_func = compare_risky_heap_count_min;
+    } else {
+        LOG_FATAL("Rank criteria not specified! Must be 'count' or 'accu'");
     }
     
     /******************************* End of global variables *******************************/

@@ -38,7 +38,7 @@ void bcast_shared_options_data_mpi(shared_options_data_t *options_data, int root
 void bcast_epistasis_options_data_mpi(epistasis_options_data_t *options_data, int root, MPI_Comm comm) {
     MPI_Datatype mpi_epistasis_options_type;
     // Length of the struct members
-    int lengths[] = { 6 };
+    int lengths[] = { 7 };
     // Datatype of the struct members
     MPI_Datatype types[] = { MPI_INT };
     // Offset of the struct members

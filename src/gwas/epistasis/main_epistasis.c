@@ -35,7 +35,7 @@ int epistasis(int argc, char *argv[], const char *configuration_file) {
     if (argc == 1 || !strcmp(argv[1], "-h") || !strcmp(argv[1], "--help")) {
         argtable = merge_epistasis_options(epistasis_options, shared_options, arg_end(epistasis_options->num_options + shared_options->num_options));
         show_usage("hpg-var-gwas epi", argtable, epistasis_options->num_options + shared_options->num_options);
-        arg_freetable(argtable, 10);
+        arg_freetable(argtable, 11);
         return 0;
     }
 
@@ -108,7 +108,7 @@ int epistasis(int argc, char *argv[], const char *configuration_file) {
     if (mpi_rank == 0) {
 #endif
 
-    arg_freetable(argtable, 10);
+    arg_freetable(argtable, 11);
     
 #ifdef _USE_MPI
     }
@@ -127,6 +127,7 @@ epistasis_options_t *new_epistasis_cli_options(void) {
     options->stride = arg_int0(NULL, "stride", NULL, "Number of SNPs per block partition of the dataset");
     options->order = arg_int1(NULL, "order", NULL, "Number of SNPs to be combined at the same time");
     options->evaluation_subset = arg_str0(NULL, "eval-subset", NULL, "Whether to used training (default) or testing partitions when evaluating the best models");
+    options->evaluation_mode = arg_str0(NULL, "eval-mode", NULL, "Whether to rank risky combinations by their CV-C or CV-A (values can be 'count' or 'accu')");
     return options;
 }
 
@@ -134,6 +135,7 @@ epistasis_options_data_t *new_epistasis_options_data(epistasis_options_t *option
     epistasis_options_data_t *options_data = (epistasis_options_data_t*) malloc (sizeof(epistasis_options_data_t));
     options_data->dataset_filename = strdup(*(options->dataset_filename->filename));
     options_data->eval_subset = strcmp(*(options->evaluation_subset->sval), "testing") ? TRAINING : TESTING ;
+    options_data->eval_mode = strcmp(*(options->evaluation_mode->sval), "count") ? CV_A : CV_C ;
     options_data->max_ranking_size = *(options->max_ranking_size->ival);
     options_data->num_cv_repetitions = *(options->num_cv_repetitions->ival);
     options_data->num_folds = *(options->num_folds->ival);

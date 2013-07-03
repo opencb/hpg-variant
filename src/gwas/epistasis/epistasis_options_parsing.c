@@ -76,13 +76,23 @@ int read_epistasis_configuration(const char *filename, epistasis_options_t *epis
     }
     
     // Read whether the training of testing partitions will be used for evaluating best models
+    ret_code = config_lookup_string(config, "gwas.epistasis.evaluation-subset", &tmp_string);
+    if (ret_code == CONFIG_FALSE) {
+        LOG_WARN("Evaluation subset not found in configuration file, must be set via command-line");
+    } else {
+        *(epistasis_options->evaluation_subset->sval) = strdup(tmp_string);
+        LOG_DEBUG_F("evaluation subset = %s (%zu chars)\n",
+                   *(epistasis_options->evaluation_subset->sval), strlen(*(epistasis_options->evaluation_subset->sval)));
+    }
+
+    // Read whether the CV-c or CV-a will be used to rank risky combinations
     ret_code = config_lookup_string(config, "gwas.epistasis.evaluation-mode", &tmp_string);
     if (ret_code == CONFIG_FALSE) {
         LOG_WARN("Evaluation mode not found in configuration file, must be set via command-line");
     } else {
-        *(epistasis_options->evaluation_subset->sval) = strdup(tmp_string);
+        *(epistasis_options->evaluation_mode->sval) = strdup(tmp_string);
         LOG_DEBUG_F("evaluation mode = %s (%zu chars)\n",
-                   *(epistasis_options->evaluation_subset->sval), strlen(*(epistasis_options->evaluation_subset->sval)));
+                   *(epistasis_options->evaluation_mode->sval), strlen(*(epistasis_options->evaluation_mode->sval)));
     }
 
     config_destroy(config);
@@ -104,7 +114,7 @@ void **parse_epistasis_options(int argc, char *argv[], epistasis_options_t *epis
 }
 
 void **merge_epistasis_options(epistasis_options_t *epistasis_options, shared_options_t *shared_options, struct arg_end *arg_end) {
-    void **tool_options = malloc (10 * sizeof(void*));
+    void **tool_options = malloc (11 * sizeof(void*));
     // Input/output files
     tool_options[0] = epistasis_options->dataset_filename;
     
@@ -114,15 +124,16 @@ void **merge_epistasis_options(epistasis_options_t *epistasis_options, shared_op
     tool_options[3] = epistasis_options->num_cv_repetitions;
     tool_options[4] = epistasis_options->max_ranking_size;
     tool_options[5] = epistasis_options->evaluation_subset;
-    tool_options[6] = epistasis_options->stride;
+    tool_options[6] = epistasis_options->evaluation_mode;
+    tool_options[7] = epistasis_options->stride;
     
     // Configuration file
-    tool_options[7] = shared_options->config_file;
+    tool_options[8] = shared_options->config_file;
     
     // Advanced configuration
-    tool_options[8] = shared_options->num_threads;
+    tool_options[9] = shared_options->num_threads;
     
-    tool_options[9] = arg_end;
+    tool_options[10] = arg_end;
     
     return tool_options;
 }
@@ -157,13 +168,13 @@ int verify_epistasis_options(epistasis_options_t *epistasis_options, shared_opti
     if (*(epistasis_options->evaluation_subset->sval) == NULL || 
         (strcmp(*(epistasis_options->evaluation_subset->sval), "training") && strcmp(*(epistasis_options->evaluation_subset->sval), "testing")) ) {
         LOG_ERROR("Please specify the dataset partition for evaluating the best models (training/testing).\n");
-        return EPISTASIS_EVAL_MODE_NOT_SPECIFIED;
+        return EPISTASIS_EVAL_SUBSET_NOT_SPECIFIED;
     }
     
     // Checker whether the number of SNPs per block partition of the dataset
     if (*(epistasis_options->stride->ival) == 0) {
         LOG_ERROR("Please specify the number of SNPs per block partition of the dataset.\n");
-        return EPISTASIS_OPS_PER_BLOCK_NOT_SPECIFIED;
+        return EPISTASIS_STRIDE_NOT_SPECIFIED;
     }
     
     return 0;
