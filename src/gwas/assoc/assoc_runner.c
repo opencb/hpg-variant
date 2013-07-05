@@ -261,7 +261,7 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
    
     free(output_list);
     vcf_close(vcf_file);
-    ped_close(ped_file, 1);
+    ped_close(ped_file, 1,1);
         
     return ret_code;
 }
