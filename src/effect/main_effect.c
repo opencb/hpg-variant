@@ -37,6 +37,9 @@ int main(int argc, char *argv[]) {
         show_usage(argv[0], argtable, effect_options->num_options + shared_options->num_options);
         arg_freetable(argtable, 29);
         return 0;
+    } else if (!strcmp(argv[1], "--version")) {
+        show_version("Effect");
+        return 0;
     }
 
     /* ******************************
