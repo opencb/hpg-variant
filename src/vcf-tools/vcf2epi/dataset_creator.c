@@ -7,8 +7,8 @@ int create_dataset_from_vcf(shared_options_data_t* shared_options_data) {
 
     int ret_code = 0;
     double start, stop, total;
-    vcf_file_t *file = vcf_open(shared_options_data->vcf_filename, shared_options_data->max_batches);
-    if (!file) {
+    vcf_file_t *vcf_file = vcf_open(shared_options_data->vcf_filename, shared_options_data->max_batches);
+    if (!vcf_file) {
         LOG_FATAL("VCF file does not exist!\n");
     }
     
@@ -45,20 +45,20 @@ int create_dataset_from_vcf(shared_options_data_t* shared_options_data) {
             
             double start = omp_get_wtime();
 
-            ret_code = vcf_read(file, 1,
+            ret_code = vcf_read(vcf_file, 1,
                                 (shared_options_data->batch_bytes > 0) ? shared_options_data->batch_bytes : shared_options_data->batch_lines,
                                 shared_options_data->batch_bytes <= 0);
 
             double stop = omp_get_wtime();
 
             if (ret_code) {
-                LOG_FATAL_F("Error %d while reading the file %s\n", ret_code, file->filename);
+                LOG_FATAL_F("Error %d while reading the file %s\n", ret_code, vcf_file->filename);
             }
 
             LOG_INFO_F("[%dR] Time elapsed = %f s\n", omp_get_thread_num(), stop - start);
             LOG_INFO_F("[%dR] Time elapsed = %e ms\n", omp_get_thread_num(), (stop - start) * 1000);
 
-            notify_end_parsing(file);
+            notify_end_parsing(vcf_file);
         }
 
 #pragma omp section
@@ -68,6 +68,7 @@ int create_dataset_from_vcf(shared_options_data_t* shared_options_data) {
             
             LOG_DEBUG_F("Thread %d processes data\n", omp_get_thread_num());
             
+            // Filters and files for filtering output
             filter_t **filters = NULL;
             int num_filters = 0;
             if (shared_options_data->chain != NULL) {
@@ -76,15 +77,24 @@ int create_dataset_from_vcf(shared_options_data_t* shared_options_data) {
             FILE *passed_file = NULL, *failed_file = NULL;
             get_filtering_output_files(shared_options_data, &passed_file, &failed_file);
     
+            // Pedigree information (used in some filters)
+            individual_t **individuals = NULL;
+            khash_t(ids) *sample_ids = NULL;
+            
             int i = 0;
             vcf_batch_t *batch = NULL;
             
             start = omp_get_wtime();
 
-            while (batch = fetch_vcf_batch(file)) {
+            while (batch = fetch_vcf_batch(vcf_file)) {
                 if (i == 0) {
+                    // Create map to associate the position of individuals in the list of samples defined in the VCF file
+                    sample_ids = associate_samples_and_positions(vcf_file);
+                    // Sort individuals in PED as defined in the VCF file
+                    individuals = sort_individuals(vcf_file, ped_file);
+                    
                     // Get individual phenotypes
-                    phenotypes = get_individual_phenotypes(file, ped_file, &num_affected, &num_unaffected);
+                    phenotypes = get_individual_phenotypes(vcf_file, ped_file, &num_affected, &num_unaffected);
                     destination = group_individuals_by_phenotype(phenotypes, num_affected, num_unaffected);
                     
 //                     assert(destination);
@@ -98,12 +108,12 @@ int create_dataset_from_vcf(shared_options_data_t* shared_options_data) {
                     // Add headers associated to the defined filters
                     vcf_header_entry_t **filter_headers = get_filters_as_vcf_headers(filters, num_filters);
                     for (int j = 0; j < num_filters; j++) {
-                        add_vcf_header_entry(filter_headers[j], file);
+                        add_vcf_header_entry(filter_headers[j], vcf_file);
                     }
                     
                     // Write file format, header entries and delimiter
-                    if (passed_file != NULL) { write_vcf_header(file, passed_file); }
-                    if (failed_file != NULL) { write_vcf_header(file, failed_file); }
+                    if (passed_file != NULL) { write_vcf_header(vcf_file, passed_file); }
+                    if (failed_file != NULL) { write_vcf_header(vcf_file, failed_file); }
                 }
                 
                 if (i % 10 == 0) {
@@ -114,22 +124,11 @@ int create_dataset_from_vcf(shared_options_data_t* shared_options_data) {
 
                 // Write records that passed to a separate file, and query the WS with them as args
                 array_list_t *failed_records = NULL;
-                array_list_t *passed_records = filter_records(filters, num_filters, NULL, NULL, batch->records, &failed_records);
+                array_list_t *passed_records = filter_records(filters, num_filters, individuals, sample_ids, batch->records, &failed_records);
                 if (passed_records->size > 0) {
-                    // Divide the list of passed records in ranges of size defined in config file
-//                     int num_chunks;
-//                     int *chunk_sizes;
-//                     int *chunk_starts = create_chunks(passed_records->size, shared_options_data->entries_per_thread, &num_chunks, &chunk_sizes);
-//                     
-//                     // OpenMP: Launch a thread for each range
-//                     #pragma omp parallel for num_threads(shared_options_data->num_threads)
-//                     for (int j = 0; j < num_chunks; j++) {
-//                         // TODO task
-//                     }
-
                     num_variants += passed_records->size;
                     uint8_t *genotypes = epistasis_dataset_process_records((vcf_record_t**) passed_records->items, passed_records->size, 
-                                                                           destination, get_num_vcf_samples(file),
+                                                                           destination, get_num_vcf_samples(vcf_file),
                                                                            shared_options_data->num_threads);
                     list_item_t *gt_item = list_item_new(1, passed_records->size, genotypes);
                     list_insert_item(gt_item, output_list);
@@ -189,7 +188,7 @@ int create_dataset_from_vcf(shared_options_data_t* shared_options_data) {
                 
                 // First make room for the number of variants, then write the number of samples and phenotypes
                 if (!header_written) {
-                    num_samples = get_num_vcf_samples(file);
+                    num_samples = get_num_vcf_samples(vcf_file);
                     if (!fwrite(&num_variants, sizeof(size_t), 1, fp) ||
                         !fwrite(&num_affected, sizeof(uint32_t), 1, fp) ||
                         !fwrite(&num_unaffected, sizeof(uint32_t), 1, fp)) {
@@ -225,7 +224,7 @@ int create_dataset_from_vcf(shared_options_data_t* shared_options_data) {
     
     free(phenotypes);
     free(output_list);
-    vcf_close(file);
+    vcf_close(vcf_file);
     // TODO delete conflicts among frees
 //     ped_close(ped_file, 0);
     
