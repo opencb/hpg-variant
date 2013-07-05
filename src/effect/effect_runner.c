@@ -166,6 +166,15 @@ int run_effect(char **urls, shared_options_data_t *shared_options_data, effect_o
             sprintf(non_processed_filename, "%s/%s.errors", shared_options_data->output_directory, prefix_filename);
             non_processed_file = fopen(non_processed_filename, "w");
             free(non_processed_filename);
+            
+            // Maximum size processed by each thread (never allow more than 1000 variants per query)
+            if (shared_options_data->batch_lines > 0) {
+                shared_options_data->entries_per_thread = MIN(MAX_VARIANTS_PER_QUERY, 
+                            ceil((float) shared_options_data->batch_lines / shared_options_data->num_threads));
+            } else {
+                shared_options_data->entries_per_thread = MAX_VARIANTS_PER_QUERY;
+            }
+            printf("entries-per-thread = %d\n", shared_options_data->entries_per_thread);
     
             int i = 0;
             vcf_batch_t *batch = NULL;

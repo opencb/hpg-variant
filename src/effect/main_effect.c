@@ -35,7 +35,7 @@ int main(int argc, char *argv[]) {
     if (argc == 1 || !strcmp(argv[1], "-h") || !strcmp(argv[1], "--help")) {
         argtable = merge_effect_options(effect_options, shared_options, arg_end(effect_options->num_options + shared_options->num_options));
         show_usage(argv[0], argtable, effect_options->num_options + shared_options->num_options);
-        arg_freetable(argtable, 30);
+        arg_freetable(argtable, 29);
         return 0;
     }
 
@@ -92,7 +92,7 @@ int main(int argc, char *argv[]) {
     
     free_effect_options_data(effect_options_data);
     free_shared_options_data(shared_options_data);
-    arg_freetable(argtable, 30);
+    arg_freetable(argtable, 29);
     array_list_free(config_search_paths, free);
     free(configuration_file);
 
