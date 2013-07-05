@@ -24,6 +24,9 @@ int main(int argc, char *argv[]) {
     if (argc == 1 || !strcmp(argv[1], "-h") || !strcmp(argv[1], "--help")) {
         printf("Usage: %s < assoc | tdt > < tool-options >\nFor more information about a certain tool, type %s tool-name --help\n", argv[0], argv[0]);
         return 0;
+    } else if (!strcmp(argv[1], "--version")) {
+        show_version("GWAS");
+        return 0;
     }
     
     init_log_custom(2, 1, "hpg-var-gwas.log", "w");
