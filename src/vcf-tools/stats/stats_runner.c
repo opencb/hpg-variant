@@ -44,6 +44,9 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
         if (!ped_file) {
             LOG_FATAL("PED file does not exist!\n");
         }
+        if(options_data->custom_field)
+            set_custom_field(options_data->custom_field,ped_file);
+        
         LOG_INFO("About to read PED file...\n");
         // Read PED file before doing any processing
         ret_code = ped_read(ped_file);
