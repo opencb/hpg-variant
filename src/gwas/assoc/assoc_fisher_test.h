@@ -28,6 +28,7 @@
 
 typedef struct {
     char *chromosome;
+    char *id;
     char *reference;
     char *alternate;
     
@@ -44,7 +45,7 @@ typedef struct {
 
 double assoc_fisher_test(int a, int b, int c, int d, double *factorial_logarithms);
 
-assoc_fisher_result_t *assoc_fisher_result_new(char *chromosome, int chromosome_len, unsigned long int position, 
+assoc_fisher_result_t *assoc_fisher_result_new(char *chromosome, int chromosome_len, unsigned long int position,  char *id, int id_len,
                                                char *reference, int reference_len, char *alternate, int alternate_len, 
                                                int affected1, int affected2, int unaffected1, int unaffected2, double p_value);
 
