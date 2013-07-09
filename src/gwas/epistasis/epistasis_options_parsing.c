@@ -114,26 +114,27 @@ void **parse_epistasis_options(int argc, char *argv[], epistasis_options_t *epis
 }
 
 void **merge_epistasis_options(epistasis_options_t *epistasis_options, shared_options_t *shared_options, struct arg_end *arg_end) {
-    void **tool_options = malloc (11 * sizeof(void*));
+    void **tool_options = malloc (12 * sizeof(void*));
     // Input/output files
     tool_options[0] = epistasis_options->dataset_filename;
+    tool_options[1] = shared_options->output_directory;
     
     // Epistasis arguments
-    tool_options[1] = epistasis_options->order;
-    tool_options[2] = epistasis_options->num_folds;
-    tool_options[3] = epistasis_options->num_cv_repetitions;
-    tool_options[4] = epistasis_options->max_ranking_size;
-    tool_options[5] = epistasis_options->evaluation_subset;
-    tool_options[6] = epistasis_options->evaluation_mode;
-    tool_options[7] = epistasis_options->stride;
+    tool_options[2] = epistasis_options->order;
+    tool_options[3] = epistasis_options->num_folds;
+    tool_options[4] = epistasis_options->num_cv_repetitions;
+    tool_options[5] = epistasis_options->max_ranking_size;
+    tool_options[6] = epistasis_options->evaluation_subset;
+    tool_options[7] = epistasis_options->evaluation_mode;
+    tool_options[8] = epistasis_options->stride;
     
     // Configuration file
-    tool_options[8] = shared_options->config_file;
+    tool_options[9] = shared_options->config_file;
     
     // Advanced configuration
-    tool_options[9] = shared_options->num_threads;
+    tool_options[10] = shared_options->num_threads;
     
-    tool_options[10] = arg_end;
+    tool_options[11] = arg_end;
     
     return tool_options;
 }

@@ -35,7 +35,7 @@ int epistasis(int argc, char *argv[], const char *configuration_file) {
     if (argc == 1 || !strcmp(argv[1], "-h") || !strcmp(argv[1], "--help")) {
         argtable = merge_epistasis_options(epistasis_options, shared_options, arg_end(epistasis_options->num_options + shared_options->num_options));
         show_usage("hpg-var-gwas epi", argtable, epistasis_options->num_options + shared_options->num_options);
-        arg_freetable(argtable, 11);
+        arg_freetable(argtable, 12);
         return 0;
     }
 
@@ -108,7 +108,7 @@ int epistasis(int argc, char *argv[], const char *configuration_file) {
     if (mpi_rank == 0) {
 #endif
 
-    arg_freetable(argtable, 11);
+    arg_freetable(argtable, 12);
     
 #ifdef _USE_MPI
     }
