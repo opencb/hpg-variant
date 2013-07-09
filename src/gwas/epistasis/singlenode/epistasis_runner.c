@@ -311,6 +311,13 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
         // Merge all rankings in one
         best_models[r] = merge_rankings(num_folds, ranking_risky, heap_min_func, heap_max_func);
         
+        // Show the best model of this repetition
+        char *path, default_path[20];
+        sprintf(default_path, "hpg-variant.cv%d.epi", r+1);
+        FILE *fd = get_output_file(shared_options_data, default_path, &path);
+        epistasis_report(order, r, best_models[r], options_data->max_ranking_size, heap_max_func, fd);
+        fclose(fd);
+        
         // Free data por this repetition
         for (int i = 0; i < num_folds; i++) {
             free(folds[i]);
@@ -323,9 +330,6 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
         _mm_free(fold_masks);
     }
     
-    // Show the best model of each repetition
-    epistasis_report(order, num_variants, options_data->num_cv_repetitions, best_models, heap_max_func);
-
     // Free data for the whole epistasis check
     for (int i = 0; i < num_genotype_permutations; i++) {
         free(genotype_permutations[i]);

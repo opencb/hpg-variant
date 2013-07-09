@@ -19,117 +19,51 @@
  */
 
 #include "epistasis.h"
+#include "model.h"
+
+static void show_cross_validation_arguments(int cv_repetition, int order, enum evaluation_mode mode, enum evaluation_subset subset, FILE *fd);
+static void show_cross_validation_best_models(int order, struct heap *best_models, int max_ranking_size, compare_risky_heap_func cmp_heap_max, FILE *fd);
 
 
-static void show_best_models_per_repetition(int order, int num_cv_repetitions, struct heap *best_models[], compare_risky_heap_func cmp_heap_max);
-static khash_t(cvc) *prepare_models_for_cvc(int order, int num_cv_repetitions, int max_val_len, struct heap *best_models[], compare_risky_heap_func cmp_heap_max);
-static int choose_best_model(int order, int num_cv_repetitions, int max_val_len, struct heap *best_models[], compare_risky_heap_func cmp_heap_max, khash_t(cvc) *models_for_cvc, char **bestkey);
-
-
-void epistasis_report(int order, size_t num_variants, int num_cv_repetitions, struct heap **best_models, compare_risky_heap_func cmp_heap_max) {
-    // Show the best model of each repetition
-    show_best_models_per_repetition(order, num_cv_repetitions, best_models, cmp_heap_max);
-
-    // CVC (get the model that appears more times in the first ranking position)
-    int max_val_len = log10f(num_variants);
-    khash_t(cvc) *models_for_cvc = prepare_models_for_cvc(order, num_cv_repetitions, max_val_len, best_models, cmp_heap_max);
-
-    char *bestkey;
-    int bestvalue = choose_best_model(order, num_cv_repetitions, max_val_len, best_models, cmp_heap_max, models_for_cvc, &bestkey);
-
-    assert(bestkey);
-    LOG_INFO_F("Best model is %s with a CVC of %d/%d\n", bestkey, bestvalue, num_cv_repetitions);
-
-    kh_destroy(cvc, models_for_cvc);
+void epistasis_report(int order, int cv_repetition, struct heap *best_models, int max_ranking_size, compare_risky_heap_func cmp_heap_max, FILE *fd) {
+    show_cross_validation_arguments(cv_repetition, order, CV_A, TESTING, fd);
+    show_cross_validation_best_models(order, best_models, max_ranking_size, cmp_heap_max, fd);
 }
 
-
-static void show_best_models_per_repetition(int order, int num_cv_repetitions, struct heap *best_models[], compare_risky_heap_func cmp_heap_max) {
-    for (int r = 0; r < num_cv_repetitions; r++) {
-        struct heap_node *hn = heap_peek(cmp_heap_max, best_models[r]);
-        risky_combination *element = (risky_combination*) hn->value;
-        assert(element);
-        assert(element->combination);
-        printf("CV %d\t(", r+1);
-        for (int i = 0; i < order; i++) {
-            printf(" %d ", element->combination[i]);
-        }
-        printf(") - acc %.3f, cvc %d)\n", element->accuracy, element->cross_validation_count);
-    }
-}
-
-static khash_t(cvc) *prepare_models_for_cvc(int order, int num_cv_repetitions, int max_val_len, struct heap *best_models[], compare_risky_heap_func cmp_heap_max) {
-    khash_t(cvc) *models_for_cvc = kh_init(cvc);
-    for (int r = 0; r < num_cv_repetitions; r++) {
-        struct heap_node *hn = heap_peek(cmp_heap_max, best_models[r]);
-        risky_combination *risky = (risky_combination*) hn->value;
-        
-        // key = snp1_snp2_..._snpN
-        char *key = calloc(order * (max_val_len + 1), sizeof(char));
-
-        for (int i = 0; i < order-1; i++) {
-            sprintf(key + strlen(key), "%d_", risky->combination[i]);
-        }
-        sprintf(key + strlen(key), "%d", risky->combination[order-1]);
-
-        int ret;
-        khiter_t iter = kh_get(cvc, models_for_cvc, key);
-        if (iter != kh_end(models_for_cvc)) {
-            (kh_value(models_for_cvc, iter))++; // Increment number of occurrences
-        } else {
-            iter = kh_put(cvc, models_for_cvc, key, &ret);
-            if (ret) {
-                kh_value(models_for_cvc, iter) = 1;
-            }
-        }
+static void show_cross_validation_arguments(int cv_repetition, int order, enum evaluation_mode mode, enum evaluation_subset subset, FILE *fd) {
+    fprintf(fd, "#CROSS VALIDATION %d\n", cv_repetition+1);
+    fprintf(fd, "#COMBINATIONS OF: %d SNPs\n", order);
+    
+    if (mode == CV_C) {
+        fprintf(fd, "#EVALUATION MODE: Cross-validation consistency\n");
+    } else if (mode == CV_A) {
+        fprintf(fd, "#EVALUATION MODE: Cross-validation accuracy\n");
     }
     
-    return models_for_cvc;
+    if (subset == TRAINING) {
+        fprintf(fd, "#EVALUATION PARTITION: Training\n");
+    } else if (subset == TESTING) {
+        fprintf(fd, "#EVALUATION PARTITION: Testing\n");
+    }
 }
 
-static int choose_best_model(int order, int num_cv_repetitions, int max_val_len, struct heap *best_models[], compare_risky_heap_func cmp_heap_max, khash_t(cvc) *models_for_cvc, char **bestkey) {
-    int bestvalue = 0;
-    for (int k = kh_begin(models_for_cvc); k < kh_end(models_for_cvc); k++) {
-        if (kh_exist(models_for_cvc, k)) {
-            char *key = kh_key(models_for_cvc, k);
-            int value = kh_value(models_for_cvc, k);
-//             printf("%s -> %d\n", key, value);
-            if (value > bestvalue) {
-                *bestkey = key;
-                bestvalue = value;
-            } else if (value == bestvalue) {
-                // If CVC(best) == CVC(candidate) ---> use CV-a
-                double acc_best = 0.0f;
-                double acc_candidate = 0.0f;
-                
-                // Sum all accuracies for the best and the candidate
-                for (int r = 0; r < num_cv_repetitions; r++) {
-                    struct heap_node *hn = heap_peek(cmp_heap_max, best_models[r]);
-                    risky_combination *element = (risky_combination*) hn->value;
-                    
-                    // maybe_key = snp1_snp2_..._snpN
-                    char *maybe_key = calloc(order * (max_val_len + 1), sizeof(char));
-                    
-                    for (int i = 0; i < order-1; i++) {
-                        sprintf(maybe_key + strlen(maybe_key), "%d_", element->combination[i]);
-                    }
-                    sprintf(maybe_key + strlen(maybe_key), "%d", element->combination[order-1]);
-                    
-                    if (!strcmp(maybe_key, key)) {
-                        acc_candidate += element->accuracy;
-                    } else if (!strcmp(maybe_key, *bestkey)) {
-                        acc_best += element->accuracy;
-                    }
-                }
-                
-                // Check which one is greater
-                if (acc_candidate > acc_best) {
-                    *bestkey = key;
-                    bestvalue = value;
-                }
-            }
+static void show_cross_validation_best_models(int order, struct heap *best_models, int max_ranking_size, compare_risky_heap_func cmp_heap_max, FILE *fd) {
+    struct heap_node *hn;
+    risky_combination *element = NULL;
+
+    int position = 0;
+    fprintf(fd, "#POSITION\tSNPs\tCV-C\tCV-A\n");
+    while (!heap_empty(best_models) && position < max_ranking_size) {
+        hn = heap_take(cmp_heap_max, best_models);
+        element = (risky_combination*) hn->value;
+        fprintf(fd, "%d\t(", position+1);
+        for (int i = 0; i < order - 1; i++) {
+            fprintf(fd, " %d,", element->combination[i]);
         }
+        fprintf(fd, " %d )\t", element->combination[order - 1]);
+        fprintf(fd, "%d\t%.3f\n", element->cross_validation_count, element->accuracy);
+        risky_combination_free(element);
+        free(hn);
+        position++;
     }
-    
-    return bestvalue;
 }

@@ -31,6 +31,7 @@
 
 #include <assert.h>
 #include <math.h>
+#include <stdio.h>
 #include <stdlib.h>
 
 #ifdef _USE_MPI
@@ -169,6 +170,6 @@ int compare_risky(const void *risky_1, const void *risky_2);
  *                  Final report                *
  * **********************************************/
 
-void epistasis_report(int order, size_t num_variants, int num_cv_repetitions, struct heap **best_models, compare_risky_heap_func cmp_heap_max);
+void epistasis_report(int order, int cv_repetition, struct heap *best_models, int max_ranking_size, compare_risky_heap_func cmp_heap_max, FILE *fd);
 
 #endif
