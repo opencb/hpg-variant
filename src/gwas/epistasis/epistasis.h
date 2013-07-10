@@ -170,6 +170,7 @@ int compare_risky(const void *risky_1, const void *risky_2);
  *                  Final report                *
  * **********************************************/
 
-void epistasis_report(int order, int cv_repetition, struct heap *best_models, int max_ranking_size, compare_risky_heap_func cmp_heap_max, FILE *fd);
+void epistasis_report(int order, int cv_repetition, enum evaluation_mode mode, enum evaluation_subset subset, 
+                      struct heap *best_models, int max_ranking_size, compare_risky_heap_func cmp_heap_max, FILE *fd);
 
 #endif

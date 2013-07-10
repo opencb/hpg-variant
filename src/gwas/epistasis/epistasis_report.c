@@ -25,8 +25,9 @@ static void show_cross_validation_arguments(int cv_repetition, int order, enum e
 static void show_cross_validation_best_models(int order, struct heap *best_models, int max_ranking_size, compare_risky_heap_func cmp_heap_max, FILE *fd);
 
 
-void epistasis_report(int order, int cv_repetition, struct heap *best_models, int max_ranking_size, compare_risky_heap_func cmp_heap_max, FILE *fd) {
-    show_cross_validation_arguments(cv_repetition, order, CV_A, TESTING, fd);
+void epistasis_report(int order, int cv_repetition, enum evaluation_mode mode, enum evaluation_subset subset, 
+                      struct heap *best_models, int max_ranking_size, compare_risky_heap_func cmp_heap_max, FILE *fd) {
+    show_cross_validation_arguments(cv_repetition, order, mode, subset, fd);
     show_cross_validation_best_models(order, best_models, max_ranking_size, cmp_heap_max, fd);
 }
 
