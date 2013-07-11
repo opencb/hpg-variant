@@ -39,6 +39,7 @@
 #include <curl/curl.h>
 #include <omp.h>
 
+#include <bioformats/db/cellbase_connector.h>
 #include <bioformats/vcf/vcf_file_structure.h>
 #include <bioformats/vcf/vcf_file.h>
 #include <bioformats/vcf/vcf_filters.h>
@@ -84,15 +85,6 @@ int run_effect(char **urls, shared_options_data_t *global_options_data, effect_o
  * **********************************************/
 
 /**
- * @brief Given a list of arguments, compounds a URL to invoke a web service.
- * @param options_data options that define some request arguments
- * @return URL composed from the given arguments, or NULL if any of the mandatory arguments is NULL
- * 
- * Given a list of arguments, compounds a URL to invoke a web service.
- */
-char *compose_effect_ws_request(const char *category, const char *method, shared_options_data_t *options_data);
-
-/**
  * @brief Invokes the effect web service for a list of regions.
  * 
  * @param url URL to invoke the web service through
@@ -125,7 +117,9 @@ int invoke_mutation_phenotype_ws(const char *url, vcf_record_t **records, int nu
  * 
  * Reads the contents of the response from the effect web service
  */
-static size_t write_effect_ws_results(char *contents, size_t size, size_t nmemb, void *userdata);
+static size_t save_effect_response(char *contents, size_t size, size_t nmemb, void *userdata);
+
+static void parse_effect_response(int tid);
 
 static size_t write_snp_phenotype_ws_results(char *contents, size_t size, size_t nmemb, void *userdata);
 
