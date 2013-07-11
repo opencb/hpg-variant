@@ -35,16 +35,8 @@ static cp_hashtable *summary_count = NULL;
 static cp_hashtable *gene_list = NULL;
 
 // Line buffers and their maximum size (one per thread)
-static char **line;
-static int *max_line_size;
-
-static char **snp_line;
-static char **snp_output_line;
-static int *snp_max_line_size;
-
-static char **mutation_line;
-static char **mutation_output_line;
-static int *mutation_max_line_size;
+static char **line, **snp_line, **mutation_line;
+static int *max_line_size, *snp_max_line_size, *mutation_max_line_size;
 
 // Output directory (non-accessible directly from CURL callback function)
 static char *output_directory;
@@ -244,11 +236,17 @@ int run_effect(char **urls, shared_options_data_t *shared_options_data, effect_o
                                 if (!reconnections || ret_ws_1) {
                                     LOG_DEBUG_F("[%d] -- snp WS\n", omp_get_thread_num());
                                     ret_ws_1 = invoke_snp_phenotype_ws(urls[1], (vcf_record_t**) (passed_records->items + chunk_starts[j]), chunk_sizes[j]);
+                                    parse_snp_phenotype_response(tid);
+                                    free(snp_line[tid]);
+                                    snp_line[tid] = (char*) calloc (snp_max_line_size[tid], sizeof(char));
                                 }
                                  
                                 if (!reconnections || ret_ws_2) {
                                     LOG_DEBUG_F("[%d] -- mutation WS\n", omp_get_thread_num());
                                     ret_ws_2 = invoke_mutation_phenotype_ws(urls[2], (vcf_record_t**) (passed_records->items + chunk_starts[j]), chunk_sizes[j]);
+                                    parse_mutation_phenotype_response(tid);
+                                    free(mutation_line[tid]);
+                                    mutation_line[tid] = (char*) calloc (mutation_max_line_size[tid], sizeof(char));
                                 }
                             }
                         }
@@ -442,15 +440,122 @@ int invoke_effect_ws(const char *url, vcf_record_t **records, int num_records, c
     LOG_DEBUG_F("variants = %.*s\n", 100, variants);
 //     LOG_DEBUG_F("excludes = %s\n", excludes);
     
-    char *params[CONSEQUENCE_TYPE_WS_NUM_PARAMS] = { "of", "variants", "exclude" };
-    char *params_values[CONSEQUENCE_TYPE_WS_NUM_PARAMS] = { output_format, variants, excludes };
+    char *params[3] = { "of", "variants", "exclude" };
+    char *params_values[3] = { output_format, variants, excludes };
     
-    CURLcode ret_code = http_post(url, params, params_values, CONSEQUENCE_TYPE_WS_NUM_PARAMS, save_effect_response, NULL);
+    CURLcode ret_code = http_post(url, params, params_values, 3, save_effect_response, NULL);
     
     free(variants);
     
     return ret_code;
 }
+
+int invoke_snp_phenotype_ws(const char *url, vcf_record_t **records, int num_records) {
+    CURLcode ret_code = CURLE_OK;
+
+    const char *output_format = "txt";
+    int variants_len = 512, current_index = 0;
+    char *variants = (char*) calloc (variants_len, sizeof(char));
+    
+    int id_len, new_len_range;
+
+//     LOG_DEBUG_F("[%d] WS for batch #%d\n", omp_get_thread_num(), batch_num);
+    batch_num++;
+    
+    for (int i = 0; i < num_records; i++) {
+        vcf_record_t *record = records[i];
+        if (!strcmp(".", record->id)) {
+            continue;
+        }
+        
+        id_len = record->id_len;
+        new_len_range = current_index + id_len + 32;
+        
+//         LOG_DEBUG_F("%s:%lu:%s:%s\n", record->chromosome, record->position, record->reference, record->alternate);
+        
+        // Reallocate memory if next record won't fit
+        if (variants_len < (current_index + new_len_range + 1)) {
+            char *aux = (char*) realloc(variants, (variants_len + new_len_range + 1) * sizeof(char));
+            if (aux) { 
+                variants = aux; 
+                variants_len += new_len_range;
+            }
+        }
+        
+        // Append region info to buffer
+        strncat(variants, record->id, id_len);
+        strncat(variants, ",", 1);
+        current_index += id_len + 2;
+    }
+    
+    LOG_DEBUG_F("snps = %s\n", variants);
+    
+    if (current_index > 0) {
+        char *params[2] = { "of", "snps" };
+        char *params_values[2] = { output_format, variants };
+        ret_code = http_post(url, params, params_values, 2, save_snp_phenotype_response, NULL);
+    }
+    
+    free(variants);
+    
+    return ret_code;
+}
+
+int invoke_mutation_phenotype_ws(const char *url, vcf_record_t **records, int num_records) {
+    CURLcode ret_code = CURLE_OK;
+
+    const char *output_format = "txt";
+    int variants_len = 512, current_index = 0;
+    char *variants = (char*) calloc (variants_len, sizeof(char));
+    
+    int chr_len, reference_len, alternate_len;
+    int new_len_range;
+
+    LOG_DEBUG_F("[%d] WS for batch #%d\n", omp_get_thread_num(), batch_num);
+    batch_num++;
+    
+    for (int i = 0; i < num_records; i++) {
+        vcf_record_t *record = records[i];
+        if (strcmp(".", record->id)) {
+            continue;
+        }
+        
+        chr_len = record->chromosome_len;
+        reference_len = record->reference_len;
+        alternate_len = record->alternate_len;
+        new_len_range = current_index + chr_len + reference_len + alternate_len + 32;
+        
+//         LOG_DEBUG_F("mutation phenotype of %s:%lu:%s:%s\n", record->chromosome, record->position, record->reference, record->alternate);
+        
+        // Reallocate memory if next record won't fit
+        if (variants_len < (current_index + new_len_range + 1)) {
+            char *aux = (char*) realloc(variants, (variants_len + new_len_range + 1) * sizeof(char));
+            if (aux) { 
+                variants = aux; 
+                variants_len += new_len_range;
+            }
+        }
+        
+        // Append region info to buffer
+        sprintf(variants + current_index, "%.*s:%lu:%.*s:%.*s,", chr_len, record->chromosome, record->position, 
+                reference_len, record->reference, alternate_len, record->alternate);
+        current_index = strlen(variants);
+    }
+    
+    LOG_DEBUG_F("mutations = %s\n", variants);
+    
+    if (current_index > 0) {
+        char *params[2] = { "of", "variants" };
+        char *params_values[2] = { output_format, variants };
+        ret_code = http_post(url, params, params_values, 2, save_mutation_phenotype_response, NULL);
+    }
+    
+    free(variants);
+    
+    return ret_code;
+}
+
+
 
 static size_t save_effect_response(char *contents, size_t size, size_t nmemb, void *userdata) {
     int tid = omp_get_thread_num();
@@ -462,11 +567,45 @@ static size_t save_effect_response(char *contents, size_t size, size_t nmemb, vo
         line[tid] = buffer;
         max_line_size[tid] += size * nmemb;
     } else {
-        LOG_FATAL("Error while allocating memory for web service response");
+        LOG_FATAL("Error while allocating memory for effect web service response");
     }
     
     return size * nmemb;
 }
+
+static size_t save_snp_phenotype_response(char *contents, size_t size, size_t nmemb, void *userdata) {
+    int tid = omp_get_thread_num();
+    
+    strncat(snp_line[tid], contents, size * nmemb);
+    
+    char *buffer = realloc (snp_line[tid], snp_max_line_size[tid] + size * nmemb);
+    if (buffer) {
+        snp_line[tid] = buffer;
+        snp_max_line_size[tid] += size * nmemb;
+    } else {
+        LOG_FATAL("Error while allocating memory for SNP phenotype web service response");
+    }
+    
+    return size * nmemb;
+}
+
+static size_t save_mutation_phenotype_response(char *contents, size_t size, size_t nmemb, void *userdata) {
+    int tid = omp_get_thread_num();
+    
+    strncat(mutation_line[tid], contents, size * nmemb);
+    
+    char *buffer = realloc (mutation_line[tid], mutation_max_line_size[tid] + size * nmemb);
+    if (buffer) {
+        mutation_line[tid] = buffer;
+        mutation_max_line_size[tid] += size * nmemb;
+    } else {
+        LOG_FATAL("Error while allocating memory for mutation phenotype web service response");
+    }
+    
+    return size * nmemb;
+}
+
+
 
 static void parse_effect_response(int tid) {
     int *SO_found = (int*) malloc (sizeof(int)); // Whether the SO code field has been found
@@ -540,7 +679,7 @@ static void parse_effect_response(int tid) {
                     *SO_stored = *SO_found;
                     cp_hashtable_put(output_files, SO_stored, aux_file);
 
-                    LOG_INFO_F("[%d] new CT = %s\n", tid, tmp_consequence_type);
+                    LOG_INFO_F("[%d] New consequence type found = %s\n", tid, tmp_consequence_type);
                 }
             }
         }
@@ -577,290 +716,17 @@ static void parse_effect_response(int tid) {
     free(split_batch);
 }
 
-int invoke_snp_phenotype_ws(const char *url, vcf_record_t **records, int num_records) {
-    CURLcode ret_code = CURLE_OK;
-
-    const char *output_format = "txt";
-    int variants_len = 512, current_index = 0;
-    char *variants = (char*) calloc (variants_len, sizeof(char));
-    
-    int id_len, new_len_range;
-
-//     LOG_DEBUG_F("[%d] WS for batch #%d\n", omp_get_thread_num(), batch_num);
-    batch_num++;
-    
-    for (int i = 0; i < num_records; i++) {
-        vcf_record_t *record = records[i];
-        if (!strcmp(".", record->id)) {
-            continue;
-        }
-        
-        id_len = record->id_len;
-        new_len_range = current_index + id_len + 32;
-        
-//         LOG_DEBUG_F("%s:%lu:%s:%s\n", record->chromosome, record->position, record->reference, record->alternate);
-        
-        // Reallocate memory if next record won't fit
-        if (variants_len < (current_index + new_len_range + 1)) {
-            char *aux = (char*) realloc(variants, (variants_len + new_len_range + 1) * sizeof(char));
-            if (aux) { 
-                variants = aux; 
-                variants_len += new_len_range;
-            }
-        }
-        
-        // Append region info to buffer
-        strncat(variants, record->id, id_len);
-        strncat(variants, ",", 1);
-        current_index += id_len + 2;
-    }
-    
-    LOG_DEBUG_F("snps = %s\n", variants);
-    
-    if (current_index > 0) {
-        char *params[CONSEQUENCE_TYPE_WS_NUM_PARAMS-1] = { "of", "snps" };
-        char *params_values[CONSEQUENCE_TYPE_WS_NUM_PARAMS-1] = { output_format, variants };
-        ret_code = http_post(url, params, params_values, CONSEQUENCE_TYPE_WS_NUM_PARAMS-1, write_snp_phenotype_ws_results, NULL);
-    }
-    
-    free(variants);
-    
-    return ret_code;
+static void parse_snp_phenotype_response(int tid) {
+    list_item_t *output_item = list_item_new(tid, SNP_PHENOTYPE, trim(strdup(snp_line[tid])));
+    list_insert_item(output_item, output_list);
 }
 
-int invoke_mutation_phenotype_ws(const char *url, vcf_record_t **records, int num_records) {
-    CURLcode ret_code = CURLE_OK;
-
-    const char *output_format = "txt";
-    int variants_len = 512, current_index = 0;
-    char *variants = (char*) calloc (variants_len, sizeof(char));
-    
-    int chr_len, reference_len, alternate_len;
-    int new_len_range;
-
-    LOG_DEBUG_F("[%d] WS for batch #%d\n", omp_get_thread_num(), batch_num);
-    batch_num++;
-    
-    for (int i = 0; i < num_records; i++) {
-        vcf_record_t *record = records[i];
-        if (strcmp(".", record->id)) {
-            continue;
-        }
-        
-        chr_len = record->chromosome_len;
-        reference_len = record->reference_len;
-        alternate_len = record->alternate_len;
-        new_len_range = current_index + chr_len + reference_len + alternate_len + 32;
-        
-//         LOG_DEBUG_F("mutation phenotype of %s:%lu:%s:%s\n", record->chromosome, record->position, record->reference, record->alternate);
-        
-        // Reallocate memory if next record won't fit
-        if (variants_len < (current_index + new_len_range + 1)) {
-            char *aux = (char*) realloc(variants, (variants_len + new_len_range + 1) * sizeof(char));
-            if (aux) { 
-                variants = aux; 
-                variants_len += new_len_range;
-            }
-        }
-        
-        // Append region info to buffer
-        sprintf(variants + current_index, "%.*s:%lu:%.*s:%.*s,", chr_len, record->chromosome, record->position, 
-                reference_len, record->reference, alternate_len, record->alternate);
-        current_index = strlen(variants);
-    }
-    
-    LOG_DEBUG_F("mutations = %s\n", variants);
-    
-    if (current_index > 0) {
-        char *params[CONSEQUENCE_TYPE_WS_NUM_PARAMS-1] = { "of", "variants" };
-        char *params_values[CONSEQUENCE_TYPE_WS_NUM_PARAMS-1] = { output_format, variants };
-        ret_code = http_post(url, params, params_values, CONSEQUENCE_TYPE_WS_NUM_PARAMS-1, write_mutation_phenotype_ws_results, NULL);
-    }
-    
-    free(variants);
-    
-    return ret_code;
+static void parse_mutation_phenotype_response(int tid) {
+    list_item_t *output_item = list_item_new(tid, MUTATION_PHENOTYPE, trim(strdup(mutation_line[tid])));
+    list_insert_item(output_item, output_list);
 }
 
-static size_t write_snp_phenotype_ws_results(char *contents, size_t size, size_t nmemb, void *userdata) {
-    int tid = omp_get_thread_num();
-    
-    int i = 0;
-    int data_read_len = 0, next_line_len = 0;
-    // Whether the buffer was consumed with a line read just partially
-    int premature_end = 0;
-    
-    size_t realsize = size * nmemb;
-    
-    char *data = contents;
-    char *output_text;
-    
-    
-//     LOG_DEBUG_F("SNP phenotype WS invoked, response size = %zu bytes\n", realsize);
-    
-    while (data_read_len < realsize) {
-        assert((snp_line + tid) != NULL);
-        assert((snp_max_line_size + tid) != NULL);
-        
-//         LOG_DEBUG_F("[%d] loop iteration #%d\n", tid, i);
-        // Get length of data to copy
-        next_line_len = strcspn(data, "\n");
-        
-        // If the snp_line[tid] is too long for the current buffers, reallocate a little more than the needed memory
-        if (strlen(snp_line[tid]) + next_line_len + 1 > snp_max_line_size[tid]) {
-//             LOG_DEBUG_F("Line too long (%d elements, but %zu needed) in batch #%d\n", 
-//                         snp_max_line_size[tid], strlen(snp_line[tid]) + next_line_len, batch_num);
-//             char *out_buf = (char*) calloc (next_line_len+1, sizeof(char));
-//             snprintf(out_buf, next_line_len, "%s", data);
-//             LOG_INFO_F("[%d] too big data is: '%s'\n", tid, out_buf);
-            char *aux_1 = (char*) realloc (snp_line[tid], (snp_max_line_size[tid] + next_line_len + 1) * sizeof(char));
-            char *aux_2 = (char*) realloc (snp_output_line[tid], (snp_max_line_size[tid] + next_line_len + 1) * sizeof(char));
-            
-            if (!aux_1 || !aux_2) {
-                LOG_ERROR("Can't resize buffers\n");
-                // Can't resize buffers -> can't keep reading the file
-                if (!aux_1) { free(snp_line[tid]); }
-                if (!aux_2) { free(snp_output_line[tid]); }
-                return data_read_len;
-            }
-            
-            snp_line[tid] = aux_1;
-            snp_output_line[tid] = aux_2;
-            snp_max_line_size[tid] += next_line_len + 1;
-//             LOG_DEBUG_F("[%d] buffers realloc'd (%d)\n", tid, snp_max_line_size[tid]);
-        }
-        
-//         LOG_DEBUG_F("[%d] position = %d, read = %d, max_size = %zu\n", i, next_line_len, data_read_len, realsize);
-        
-        if (data_read_len + next_line_len >= realsize) {
-            // Save current state (snp_line[tid] partially read)
-            strncat(snp_line[tid], data, next_line_len);
-            chomp(snp_line[tid]);
-            snp_line[tid][strlen(snp_line[tid])] = '\0';
-            premature_end = 1;
-//             LOG_DEBUG_F("widow snp_line[tid] = '%s'\n", snp_line[tid]);
-            data_read_len = realsize;
-            break;
-        }
-        
-        strncat(snp_line[tid], data, next_line_len);
-        strncat(snp_output_line[tid], snp_line[tid], strlen(snp_line[tid]));
-     
-//         LOG_DEBUG_F("[%d] copy to buffer (%zu)\n", tid, strlen(snp_line[tid]));
-    
-//         LOG_DEBUG_F("[%d] before writing snp phenotype\n", tid);
-        output_text = strdup(snp_output_line[tid]);
-        list_item_t *output_item = list_item_new(tid, SNP_PHENOTYPE, output_text);
-        list_insert_item(output_item, output_list);
-//         LOG_DEBUG_F("[%d] after writing snp phenotype\n", tid);
-            
-        data += next_line_len+1;
-        data_read_len += next_line_len+1;
-        
-        memset(snp_line[tid], 0, strlen(snp_line[tid]));
-        memset(snp_output_line[tid], 0, strlen(snp_output_line[tid]));
-        
-        i++;
-    }
- 
-    // Empty buffer for next callback invocation
-    if (!premature_end) {
-        memset(snp_line[tid], 0, strlen(snp_line[tid]));
-        memset(snp_output_line[tid], 0, strlen(snp_line[tid]));
-    }
 
-    return data_read_len;
-}
-
-static size_t write_mutation_phenotype_ws_results(char *contents, size_t size, size_t nmemb, void *userdata) {
-    int tid = omp_get_thread_num();
-    
-    int i = 0;
-    int data_read_len = 0, next_line_len = 0;
-    // Whether the buffer was consumed with a line read just partially
-    int premature_end = 0;
-    
-    size_t realsize = size * nmemb;
-    
-    char *data = contents;
-    char *output_text;
-    
-    
-//     LOG_DEBUG_F("Mutation phenotype WS invoked, response size = %zu bytes -> %s\n", realsize, data);
-    
-    while (data_read_len < realsize) {
-        assert((mutation_line + tid) != NULL);
-        assert((mutation_max_line_size + tid) != NULL);
-        
-//         LOG_DEBUG_F("[%d] loop iteration #%d\n", tid, i);
-        // Get length of data to copy
-        next_line_len = strcspn(data, "\n");
-        
-        // If the mutation_line[tid] is too long for the current buffers, reallocate a little more than the needed memory
-        if (strlen(mutation_line[tid]) + next_line_len + 1 > mutation_max_line_size[tid]) {
-//             LOG_DEBUG_F("Line too long (%d elements, but %zu needed) in batch #%d\n", 
-//                         mutation_max_line_size[tid], strlen(mutation_line[tid]) + next_line_len, batch_num);
-//             char *out_buf = (char*) calloc (next_line_len+1, sizeof(char));
-//             snprintf(out_buf, next_line_len, "%s", data);
-//             LOG_INFO_F("[%d] too big data is: '%s'\n", tid, out_buf);
-            char *aux_1 = (char*) realloc (mutation_line[tid], (mutation_max_line_size[tid] + next_line_len + 1) * sizeof(char));
-            char *aux_2 = (char*) realloc (mutation_output_line[tid], (mutation_max_line_size[tid] + next_line_len + 1) * sizeof(char));
-            
-            if (!aux_1 || !aux_2) {
-                LOG_ERROR("Can't resize buffers\n");
-                // Can't resize buffers -> can't keep reading the file
-                if (!aux_1) { free(mutation_line[tid]); }
-                if (!aux_2) { free(mutation_output_line[tid]); }
-                return data_read_len;
-            }
-            
-            mutation_line[tid] = aux_1;
-            mutation_output_line[tid] = aux_2;
-            mutation_max_line_size[tid] += next_line_len + 1;
-//             LOG_DEBUG_F("[%d] buffers realloc'd (%d)\n", tid, mutation_max_line_size[tid]);
-        }
-        
-//         LOG_DEBUG_F("[%d] position = %d, read = %d, max_size = %zu\n", i, next_line_len, data_read_len, realsize);
-        
-        if (data_read_len + next_line_len >= realsize) {
-            // Save current state (mutation_line[tid] partially read)
-            strncat(mutation_line[tid], data, next_line_len);
-            chomp(mutation_line[tid]);
-            mutation_line[tid][strlen(mutation_line[tid])] = '\0';
-            premature_end = 1;
-//             LOG_DEBUG_F("widow mutation_line[tid] = '%s'\n", mutation_line[tid]);
-            data_read_len = realsize;
-            break;
-        }
-        
-        strncat(mutation_line[tid], data, next_line_len);
-        strncat(mutation_output_line[tid], mutation_line[tid], strlen(mutation_line[tid]));
-     
-//         LOG_DEBUG_F("[%d] copy to buffer (%zu)\n", tid, strlen(mutation_line[tid]));
-    
-//         LOG_DEBUG_F("[%d] before writing mutation phenotype\n", tid);
-        output_text = strdup(mutation_output_line[tid]);
-        list_item_t *output_item = list_item_new(tid, MUTATION_PHENOTYPE, output_text);
-        list_insert_item(output_item, output_list);
-//         LOG_DEBUG_F("[%d] after writing mutation phenotype\n", tid);
-            
-        data += next_line_len+1;
-        data_read_len += next_line_len+1;
-        
-        memset(mutation_line[tid], 0, strlen(mutation_line[tid]));
-        memset(mutation_output_line[tid], 0, strlen(mutation_output_line[tid]));
-        
-        i++;
-    }
- 
-    // Empty buffer for next callback invocation
-    if (!premature_end) {
-        memset(mutation_line[tid], 0, strlen(mutation_line[tid]));
-        memset(mutation_output_line[tid], 0, strlen(mutation_line[tid]));
-    }
-
-    return data_read_len;
-}
 
 int initialize_ws_output(shared_options_data_t *shared_options, effect_options_data_t *options_data){
     int num_threads = shared_options->num_threads;
@@ -948,22 +814,17 @@ int initialize_ws_output(shared_options_data_t *shared_options, effect_options_d
     max_line_size = (int*) calloc (num_threads, sizeof(int));
     
     snp_line = (char**) calloc (num_threads, sizeof(char*));
-    snp_output_line = (char**) calloc (num_threads, sizeof(char*));
     snp_max_line_size = (int*) calloc (num_threads, sizeof(int));
     
     mutation_line = (char**) calloc (num_threads, sizeof(char*));
-    mutation_output_line = (char**) calloc (num_threads, sizeof(char*));
     mutation_max_line_size = (int*) calloc (num_threads, sizeof(int));
     
     for (int i = 0; i < num_threads; i++) {
-        max_line_size[i] = CURL_MAX_WRITE_SIZE;
-        snp_max_line_size[i] = mutation_max_line_size[i] = 512;
+        max_line_size[i] = snp_max_line_size[i] = mutation_max_line_size[i] = CURL_MAX_WRITE_SIZE;
         
         line[i] = (char*) calloc (max_line_size[i], sizeof(char));
         snp_line[i] = (char*) calloc (snp_max_line_size[i], sizeof(char));
-        snp_output_line[i] = (char*) calloc (snp_max_line_size[i], sizeof(char));
         mutation_line[i] = (char*) calloc (mutation_max_line_size[i], sizeof(char));
-        mutation_output_line[i] = (char*) calloc (mutation_max_line_size[i], sizeof(char));
     }
          
     return 0;
@@ -979,9 +840,7 @@ int free_ws_output(int num_threads) {
     for (int i = 0; i < num_threads; i++) {
         free(line[i]);
         free(snp_line[i]);
-        free(snp_output_line[i]);
         free(mutation_line[i]);
-        free(mutation_output_line[i]);
     }
     
     free(max_line_size);
@@ -989,11 +848,9 @@ int free_ws_output(int num_threads) {
         
     free(snp_max_line_size);
     free(snp_line);
-    free(snp_output_line);
         
     free(mutation_max_line_size);
     free(mutation_line);
-    free(mutation_output_line);
     
     return 0;
 }

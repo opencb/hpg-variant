@@ -57,8 +57,7 @@
 #include "error.h"
 #include "hpg_variant_utils.h"
 
-#define CONSEQUENCE_TYPE_WS_NUM_PARAMS  3
-#define MAX_VARIANTS_PER_QUERY          1000
+#define MAX_VARIANTS_PER_QUERY  1000
 #define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
 
 enum phenotype_source { SNP_PHENOTYPE = -1, MUTATION_PHENOTYPE = -2};
@@ -107,6 +106,13 @@ int invoke_mutation_phenotype_ws(const char *url, vcf_record_t **records, int nu
  *              Response management             *
  * **********************************************/
 
+static size_t save_effect_response(char *contents, size_t size, size_t nmemb, void *userdata);
+
+static size_t save_snp_phenotype_response(char *contents, size_t size, size_t nmemb, void *userdata);
+
+static size_t save_mutation_phenotype_response(char *contents, size_t size, size_t nmemb, void *userdata);
+
+
 /**
  * @brief Parses the response from the effect web service.
  * @param contents buffer with the response text
@@ -117,13 +123,11 @@ int invoke_mutation_phenotype_ws(const char *url, vcf_record_t **records, int nu
  * 
  * Reads the contents of the response from the effect web service
  */
-static size_t save_effect_response(char *contents, size_t size, size_t nmemb, void *userdata);
-
 static void parse_effect_response(int tid);
 
-static size_t write_snp_phenotype_ws_results(char *contents, size_t size, size_t nmemb, void *userdata);
+static void parse_snp_phenotype_response(int tid);
 
-static size_t write_mutation_phenotype_ws_results(char *contents, size_t size, size_t nmemb, void *userdata);
+static void parse_mutation_phenotype_response(int tid);
 
 /**
  * Writes a summary file containing the number of entries for each of the consequence types processed.
