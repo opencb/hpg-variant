@@ -78,9 +78,12 @@ int main(int argc, char *argv[]) {
     // Step 5: Create the web service request with all the parameters
     const int num_urls = 3;
     char **urls = malloc (num_urls * sizeof(char*));
-    urls[0] = compose_effect_ws_request("genomic/variant", "consequence_type", shared_options_data);
-    urls[1] = compose_effect_ws_request("feature/snp", "phenotype", shared_options_data);
-    urls[2] = compose_effect_ws_request("genomic/variant", "mutation_phenotype", shared_options_data);
+    urls[0] = compose_cellbase_ws_request(shared_options_data->host_url, shared_options_data->version, shared_options_data->species, 
+                                          "genomic/variant", "consequence_type");
+    urls[1] = compose_cellbase_ws_request(shared_options_data->host_url, shared_options_data->version, shared_options_data->species, 
+                                          "feature/snp", "phenotype");
+    urls[2] = compose_cellbase_ws_request(shared_options_data->host_url, shared_options_data->version, shared_options_data->species, 
+                                          "genomic/variant", "mutation_phenotype");
 
     LOG_DEBUG_F("URL #1 = '%s'\nURL #2 = '%s'\nURL #3 = '%s'\n", urls[0], urls[1], urls[2]);
     
