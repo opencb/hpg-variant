@@ -36,7 +36,6 @@ static cp_hashtable *gene_list = NULL;
 
 // Line buffers and their maximum size (one per thread)
 static char **line;
-static char **output_line;
 static int *max_line_size;
 
 static char **snp_line;
@@ -174,7 +173,7 @@ int run_effect(char **urls, shared_options_data_t *shared_options_data, effect_o
             } else {
                 shared_options_data->entries_per_thread = MAX_VARIANTS_PER_QUERY;
             }
-            printf("entries-per-thread = %d\n", shared_options_data->entries_per_thread);
+            LOG_DEBUG_F("entries-per-thread = %d\n", shared_options_data->entries_per_thread);
     
             int i = 0;
             vcf_batch_t *batch = NULL;
@@ -230,10 +229,15 @@ int run_effect(char **urls, shared_options_data_t *shared_options_data, effect_o
                         // OpenMP: Launch a thread for each range
                         #pragma omp parallel for num_threads(shared_options_data->num_threads)
                         for (int j = 0; j < num_chunks; j++) {
-                            LOG_DEBUG_F("[%d] WS invocation\n", omp_get_thread_num());
-                            LOG_DEBUG_F("[%d] -- effect WS\n", omp_get_thread_num());
+                            int tid = omp_get_thread_num();
+                            LOG_DEBUG_F("[%d] WS invocation\n", tid);
+                            LOG_DEBUG_F("[%d] -- effect WS\n", tid);
                             if (!reconnections || ret_ws_0) {
-                                ret_ws_0 = invoke_effect_ws(urls[0], (vcf_record_t**) (passed_records->items + chunk_starts[j]), chunk_sizes[j], options_data->excludes);
+                                ret_ws_0 = invoke_effect_ws(urls[0], (vcf_record_t**) (passed_records->items + chunk_starts[j]), 
+                                                            chunk_sizes[j], options_data->excludes);
+                                parse_effect_response(tid);
+                                free(line[tid]);
+                                line[tid] = (char*) calloc (max_line_size[tid], sizeof(char));
                             }
                             
                             if (!options_data->no_phenotypes) {
@@ -379,73 +383,12 @@ int run_effect(char **urls, shared_options_data_t *shared_options_data, effect_o
 }
 
 
-char *compose_effect_ws_request(const char *category, const char *method, shared_options_data_t *options_data) {
-    if (options_data->host_url == NULL || options_data->version == NULL || options_data->species == NULL) {
-        return NULL;
-    }
-    
-    // URL Constants
-    const char *ws_root_url = "cellbase/rest/";
-//     const char *ws_name_url = "genomic/variant/";//consequence_type";
-    const char *ws_extra_params = "?header=false";
-    
-    // Length of URL parts
-    const int host_url_len = strlen(options_data->host_url);
-    const int ws_root_len = strlen(ws_root_url);
-    const int version_len = strlen(options_data->version);
-    const int species_len = strlen(options_data->species);
-    const int ws_name_len = strlen(category);
-    const int method_len = strlen(method);
-    const int ws_extra_len = strlen(ws_extra_params);
-    const int result_len = host_url_len + ws_root_len + version_len + species_len + ws_name_len + method_len + ws_extra_len + 5;
-    
-    char *result_url = (char*) calloc (result_len, sizeof(char));
-    
-    // Host URL
-    strncat(result_url, options_data->host_url, host_url_len);
-    if (result_url[host_url_len - 1] != '/') {
-        strncat(result_url, "/", 1);
-    }
-    
-    // Root of the web service
-    strncat(result_url, ws_root_url, ws_root_len);
-    
-    // Version
-    strncat(result_url, options_data->version, version_len);
-    if (result_url[strlen(result_url) - 1] != '/') {
-        strncat(result_url, "/", 1);
-    }
-    
-    // Species
-    strncat(result_url, options_data->species, species_len);
-    if (result_url[strlen(result_url) - 1] != '/') {
-        strncat(result_url, "/", 1);
-    }
-    
-    // Name of the web service
-    strncat(result_url, category, ws_name_len);
-    strncat(result_url, "/", 1);
-    strncat(result_url, method, method_len);
-    
-    // Extra arguments of the web service
-    strncat(result_url, ws_extra_params, ws_extra_len);
-    
-    return result_url;
-}
-
 int invoke_effect_ws(const char *url, vcf_record_t **records, int num_records, char *excludes) {
-    CURL *curl;
-    CURLcode ret_code = CURLE_OK;
-
-    struct curl_httppost *formpost = NULL;
-    struct curl_httppost *lastptr = NULL;
-    
-    const char *output_format = "txt";
-    
     int variants_len = 512, current_index = 0;
     char *variants = (char*) calloc (variants_len, sizeof(char));
+    const char *output_format = "txt";
     
-    int chr_len, position_len, reference_len, alternate_len;
+    int chr_len, reference_len, alternate_len;
     int new_len_range;
 
     LOG_DEBUG_F("[%d] WS for batch #%d\n", omp_get_thread_num(), batch_num);
@@ -496,100 +439,52 @@ int invoke_effect_ws(const char *url, vcf_record_t **records, int num_records, c
         free(alternates_aux);
     }
     
-     LOG_DEBUG_F("variants = %.*s\n", 100, variants);
+    LOG_DEBUG_F("variants = %.*s\n", 100, variants);
 //     LOG_DEBUG_F("excludes = %s\n", excludes);
     
     char *params[CONSEQUENCE_TYPE_WS_NUM_PARAMS] = { "of", "variants", "exclude" };
     char *params_values[CONSEQUENCE_TYPE_WS_NUM_PARAMS] = { output_format, variants, excludes };
     
-    ret_code = http_post(url, params, params_values, CONSEQUENCE_TYPE_WS_NUM_PARAMS, write_effect_ws_results);
+    CURLcode ret_code = http_post(url, params, params_values, CONSEQUENCE_TYPE_WS_NUM_PARAMS, save_effect_response, NULL);
     
     free(variants);
     
     return ret_code;
 }
 
-static size_t write_effect_ws_results(char *contents, size_t size, size_t nmemb, void *userdata) {
+static size_t save_effect_response(char *contents, size_t size, size_t nmemb, void *userdata) {
     int tid = omp_get_thread_num();
     
-    int i = 0;
-    int data_read_len = 0, next_line_len = 0;
-    // Whether the SO code field (previous to the consequence type name) has been found
-    int *SO_found = (int*) malloc (sizeof(int));
-    // Whether the buffer was consumed with a line read just partially
-    int premature_end = 0;
+    strncat(line[tid], contents, size * nmemb);
     
-    size_t realsize = size * nmemb;
+    char *buffer = realloc (line[tid], max_line_size[tid] + size * nmemb);
+    if (buffer) {
+        line[tid] = buffer;
+        max_line_size[tid] += size * nmemb;
+    } else {
+        LOG_FATAL("Error while allocating memory for web service response");
+    }
     
+    return size * nmemb;
+}
+
+static void parse_effect_response(int tid) {
+    int *SO_found = (int*) malloc (sizeof(int)); // Whether the SO code field has been found
     int *count;
-    
-    char *data = contents;
     char tmp_consequence_type[128];
-    char *aux_buffer;
-    char *output_text;
     
+    int num_lines;
+    char **split_batch = split(line[tid], "\n", &num_lines);
     
-    LOG_DEBUG_F("Effect WS invoked, response size = %zu bytes\n", realsize);
-    
-    while (data_read_len < realsize) {
-        assert((line + tid) != NULL);
-        assert((max_line_size + tid) != NULL);
-        
-        LOG_DEBUG_F("[%d] loop iteration #%d\n", tid, i);
-        // Get length of data to copy
-        next_line_len = strcspn(data, "\n");
-        
-        // If the line[tid] is too long for the current buffers, reallocate a little more than the needed memory
-        if (strlen(line[tid]) + next_line_len + 1 > max_line_size[tid]) {
-//             LOG_DEBUG_F("Line too long (%d elements, but %zu needed) in batch #%d\n", 
-//                         max_line_size[tid], strlen(line[tid]) + next_line_len, batch_num);
-//             char *out_buf = (char*) calloc (next_line_len+1, sizeof(char));
-//             snprintf(out_buf, next_line_len, "%s", data);
-//             LOG_INFO_F("[%d] too big data is: '%s'\n", tid, out_buf);
-            char *aux_1 = (char*) realloc (line[tid], (max_line_size[tid] + next_line_len + 1) * sizeof(char));
-            char *aux_2 = (char*) realloc (output_line[tid], (max_line_size[tid] + next_line_len + 1) * sizeof(char));
-            
-            if (!aux_1 || !aux_2) {
-                LOG_ERROR("Can't resize buffers\n");
-                // Can't resize buffers -> can't keep reading the file
-                if (!aux_1) { free(line[tid]); }
-                if (!aux_2) { free(output_line[tid]); }
-                return data_read_len;
-            }
-            
-            line[tid] = aux_1;
-            output_line[tid] = aux_2;
-            max_line_size[tid] += next_line_len + 1;
-//             LOG_DEBUG_F("[%d] buffers realloc'd (%d)\n", tid, max_line_size[tid]);
-        }
-        
-//         LOG_DEBUG_F("[%d] position = %d, read = %d, max_size = %zu\n", i, next_line_len, data_read_len, realsize);
-        
-        if (data_read_len + next_line_len >= realsize) {
-            // Save current state (line[tid] partially read)
-            strncat(line[tid], data, next_line_len);
-            chomp(line[tid]);
-            line[tid][strlen(line[tid])] = '\0';
-            premature_end = 1;
-//             LOG_DEBUG_F("widow line[tid] = '%s'\n", line[tid]);
-            data_read_len = realsize;
-            break;
-        }
-        
-        strncat(line[tid], data, next_line_len);
-        strncat(output_line[tid], line[tid], strlen(line[tid]));
-     
-//         LOG_DEBUG_F("[%d] copy to buffer (%zu)\n", tid, strlen(line[tid]));
-    
-        int num_substrings;
-        char *copy_buf = strdup(line[tid]);
-//         char *copy_buf = strdup(trim(line[tid]));
-        char **split_result = split(copy_buf, "\t", &num_substrings);
+    for (int i = 0; i < num_lines; i++) {
+        int num_columns;
+        char *copy_buf = strdup(split_batch[i]);
+        char **split_result = split(copy_buf, "\t", &num_columns);
         free(copy_buf);
         
         // Find consequence type name (always after SO field)
         *SO_found = 0;
-        if (num_substrings == 25) {
+        if (num_columns == 25) {
 //             LOG_DEBUG_F("gene = %s\tSO = %d\tCT = %s\n", split_result[17], atoi(split_result[18] + 3), split_result[19]);
             if (!cp_hashtable_contains(gene_list, split_result[17])) {
                 cp_hashtable_put(gene_list, strdup(split_result[17]), NULL);
@@ -598,33 +493,26 @@ static size_t write_effect_ws_results(char *contents, size_t size, size_t nmemb,
            memset(tmp_consequence_type, 0, 128 * sizeof(char));
            strncat(tmp_consequence_type, split_result[19], strlen(split_result[19]));
         } else {
-            LOG_INFO_F("[%d] Non-valid line found (%d fields): '%s'\n", tid, num_substrings, line[tid]);
-            memset(line[tid], 0, strlen(line[tid]));
-            memset(output_line[tid], 0, strlen(output_line[tid]));
+            if (strlen(split_batch[i]) == 0) { // Last line in batch could be only a newline
+                continue;
+            }
             
-// #pragma omp critical
-//             {
-//             printf("********\n");
-//             LOG_INFO_F("[%d] Non-valid line found (%d fields): '%s'\n", tid, num_substrings, line[tid]);
-            for (int s = 0; s < num_substrings; s++) {
-//                 printf("%s^", split_result[s]);
+            LOG_INFO_F("[%d] Non-valid line found (%d fields): '%s'\n", tid, num_columns, split_batch[i]);
+            
+            for (int s = 0; s < num_columns; s++) {
                 free(split_result[s]);
             }
-//             printf("********\n\n");
             free(split_result);
-//             }
             continue;
         }
         
-        for (int s = 0; s < num_substrings; s++) {
+        for (int s = 0; s < num_columns; s++) {
             free(split_result[s]);
         }
         free(split_result);
         
         if (!*SO_found) { // SO:000000 is not valid
             LOG_INFO_F("[%d] Non-valid SO found (0)\n", tid);
-            memset(line[tid], 0, strlen(line[tid]));
-            memset(output_line[tid], 0, strlen(output_line[tid]));
             continue;
         }
 
@@ -677,40 +565,22 @@ static size_t write_effect_ws_results(char *contents, size_t size, size_t nmemb,
             }
             
 //             LOG_DEBUG_F("[%d] before writing %s\n", tid, tmp_consequence_type);
-            output_text = strdup(output_line[tid]);
-            list_item_t *output_item = list_item_new(tid, *SO_found, output_text);
+            list_item_t *output_item = list_item_new(tid, *SO_found, strdup(split_batch[i]));
             list_insert_item(output_item, output_list);
 //             LOG_DEBUG_F("[%d] after writing %s\n", tid, tmp_consequence_type);
         }
-        
-        data += next_line_len+1;
-        data_read_len += next_line_len+1;
-        
-        memset(line[tid], 0, strlen(line[tid]));
-        memset(output_line[tid], 0, strlen(output_line[tid]));
-        
-        i++;
     }
- 
-    // Empty buffer for next callback invocation
-    if (!premature_end) {
-        memset(line[tid], 0, strlen(line[tid]));
-        memset(output_line[tid], 0, strlen(line[tid]));
+    
+    for (int i = 0; i < num_lines; i++) {
+        free(split_batch[i]);
     }
-    free(SO_found);
-
-    return data_read_len;
+    free(split_batch);
 }
 
 int invoke_snp_phenotype_ws(const char *url, vcf_record_t **records, int num_records) {
-    CURL *curl;
     CURLcode ret_code = CURLE_OK;
 
-    struct curl_httppost *formpost = NULL;
-    struct curl_httppost *lastptr = NULL;
-    
     const char *output_format = "txt";
-    
     int variants_len = 512, current_index = 0;
     char *variants = (char*) calloc (variants_len, sizeof(char));
     
@@ -725,7 +595,7 @@ int invoke_snp_phenotype_ws(const char *url, vcf_record_t **records, int num_rec
             continue;
         }
         
-        id_len = record->id_len;//strlen(record->id);
+        id_len = record->id_len;
         new_len_range = current_index + id_len + 32;
         
 //         LOG_DEBUG_F("%s:%lu:%s:%s\n", record->chromosome, record->position, record->reference, record->alternate);
@@ -750,7 +620,7 @@ int invoke_snp_phenotype_ws(const char *url, vcf_record_t **records, int num_rec
     if (current_index > 0) {
         char *params[CONSEQUENCE_TYPE_WS_NUM_PARAMS-1] = { "of", "snps" };
         char *params_values[CONSEQUENCE_TYPE_WS_NUM_PARAMS-1] = { output_format, variants };
-        ret_code = http_post(url, params, params_values, CONSEQUENCE_TYPE_WS_NUM_PARAMS-1, write_snp_phenotype_ws_results);
+        ret_code = http_post(url, params, params_values, CONSEQUENCE_TYPE_WS_NUM_PARAMS-1, write_snp_phenotype_ws_results, NULL);
     }
     
     free(variants);
@@ -759,18 +629,13 @@ int invoke_snp_phenotype_ws(const char *url, vcf_record_t **records, int num_rec
 }
 
 int invoke_mutation_phenotype_ws(const char *url, vcf_record_t **records, int num_records) {
-    CURL *curl;
     CURLcode ret_code = CURLE_OK;
 
-    struct curl_httppost *formpost = NULL;
-    struct curl_httppost *lastptr = NULL;
-    
     const char *output_format = "txt";
-    
     int variants_len = 512, current_index = 0;
     char *variants = (char*) calloc (variants_len, sizeof(char));
     
-    int chr_len, position_len, reference_len, alternate_len;
+    int chr_len, reference_len, alternate_len;
     int new_len_range;
 
     LOG_DEBUG_F("[%d] WS for batch #%d\n", omp_get_thread_num(), batch_num);
@@ -782,9 +647,9 @@ int invoke_mutation_phenotype_ws(const char *url, vcf_record_t **records, int nu
             continue;
         }
         
-        chr_len = record->chromosome_len;//strlen(record->chromosome);
-        reference_len = record->reference_len;//strlen(record->reference);
-        alternate_len = record->alternate_len;//strlen(record->alternate);
+        chr_len = record->chromosome_len;
+        reference_len = record->reference_len;
+        alternate_len = record->alternate_len;
         new_len_range = current_index + chr_len + reference_len + alternate_len + 32;
         
 //         LOG_DEBUG_F("mutation phenotype of %s:%lu:%s:%s\n", record->chromosome, record->position, record->reference, record->alternate);
@@ -799,14 +664,8 @@ int invoke_mutation_phenotype_ws(const char *url, vcf_record_t **records, int nu
         }
         
         // Append region info to buffer
-        strncat(variants, record->chromosome, chr_len);
-        strncat(variants, ":", 1);
-        current_index += chr_len + 1;
-        sprintf(variants + current_index, "%lu:", record->position);
-        strncat(variants, record->reference, reference_len);
-        strncat(variants, ":", 1);
-        strncat(variants, record->alternate, alternate_len);
-        strncat(variants, ",", 1);
+        sprintf(variants + current_index, "%.*s:%lu:%.*s:%.*s,", chr_len, record->chromosome, record->position, 
+                reference_len, record->reference, alternate_len, record->alternate);
         current_index = strlen(variants);
     }
     
@@ -815,7 +674,7 @@ int invoke_mutation_phenotype_ws(const char *url, vcf_record_t **records, int nu
     if (current_index > 0) {
         char *params[CONSEQUENCE_TYPE_WS_NUM_PARAMS-1] = { "of", "variants" };
         char *params_values[CONSEQUENCE_TYPE_WS_NUM_PARAMS-1] = { output_format, variants };
-        ret_code = http_post(url, params, params_values, CONSEQUENCE_TYPE_WS_NUM_PARAMS-1, write_mutation_phenotype_ws_results);
+        ret_code = http_post(url, params, params_values, CONSEQUENCE_TYPE_WS_NUM_PARAMS-1, write_mutation_phenotype_ws_results, NULL);
     }
     
     free(variants);
@@ -1086,7 +945,6 @@ int initialize_ws_output(shared_options_data_t *shared_options, effect_options_d
     
     // Create a buffer for each thread
     line = (char**) calloc (num_threads, sizeof(char*));
-    output_line = (char**) calloc (num_threads, sizeof(char*));
     max_line_size = (int*) calloc (num_threads, sizeof(int));
     
     snp_line = (char**) calloc (num_threads, sizeof(char*));
@@ -1098,10 +956,10 @@ int initialize_ws_output(shared_options_data_t *shared_options, effect_options_d
     mutation_max_line_size = (int*) calloc (num_threads, sizeof(int));
     
     for (int i = 0; i < num_threads; i++) {
-        max_line_size[i] = snp_max_line_size[i] = mutation_max_line_size[i] = 512;
+        max_line_size[i] = CURL_MAX_WRITE_SIZE;
+        snp_max_line_size[i] = mutation_max_line_size[i] = 512;
         
         line[i] = (char*) calloc (max_line_size[i], sizeof(char));
-        output_line[i] = (char*) calloc (max_line_size[i], sizeof(char));
         snp_line[i] = (char*) calloc (snp_max_line_size[i], sizeof(char));
         snp_output_line[i] = (char*) calloc (snp_max_line_size[i], sizeof(char));
         mutation_line[i] = (char*) calloc (mutation_max_line_size[i], sizeof(char));
@@ -1120,7 +978,6 @@ int free_ws_output(int num_threads) {
     // Free line buffers
     for (int i = 0; i < num_threads; i++) {
         free(line[i]);
-        free(output_line[i]);
         free(snp_line[i]);
         free(snp_output_line[i]);
         free(mutation_line[i]);
@@ -1129,7 +986,6 @@ int free_ws_output(int num_threads) {
     
     free(max_line_size);
     free(line);
-    free(output_line);
         
     free(snp_max_line_size);
     free(snp_line);
