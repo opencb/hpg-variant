@@ -36,10 +36,10 @@
 #include <stdlib.h>
 #include <time.h>
 
-#include <curl/curl.h>
 #include <omp.h>
 
 #include <bioformats/db/cellbase_connector.h>
+#include <bioformats/features/variant/variant_effect.h>
 #include <bioformats/vcf/vcf_file_structure.h>
 #include <bioformats/vcf/vcf_file.h>
 #include <bioformats/vcf/vcf_filters.h>
@@ -48,7 +48,6 @@
 #include <commons/http_utils.h>
 #include <commons/log.h>
 #include <commons/result.h>
-#include <commons/string_utils.h>
 #include <containers/array_list.h>
 #include <containers/list.h>
 #include <containers/cprops/hashtable.h>
@@ -61,6 +60,11 @@
 #define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
 
 enum phenotype_source { SNP_PHENOTYPE = -1, MUTATION_PHENOTYPE = -2};
+
+// Line buffers and their maximum size (one per thread)
+extern char **effect_line, **snp_line, **mutation_line;
+extern int *max_line_size, *snp_max_line_size, *mutation_max_line_size;
+
 
 /**
  * @brief Performs the whole process of invocation of the effect web service and parsing of its output.
@@ -80,38 +84,8 @@ int run_effect(char **urls, shared_options_data_t *global_options_data, effect_o
 
 
 /* **********************************************
- *              Web service request             *
- * **********************************************/
-
-/**
- * @brief Invokes the effect web service for a list of regions.
- * 
- * @param url URL to invoke the web service through
- * @param records VCF records whose variant effect will be predicted
- * @param num_regions number of regions
- * @param excludes consequence types to exclude from the response
- * @return Whether the request could be successfully serviced
- * 
- * Given a list of genome positions, invokes the web service that returns a list of effect or consequences 
- * of the mutations in them. A callback function in order to parse the response.
- */
-int invoke_effect_ws(const char *url, vcf_record_t **records, int num_records, char *excludes);
-
-int invoke_snp_phenotype_ws(const char *url, vcf_record_t **records, int num_records);
-
-int invoke_mutation_phenotype_ws(const char *url, vcf_record_t **records, int num_records);
-
-
-/* **********************************************
  *              Response management             *
  * **********************************************/
-
-static size_t save_effect_response(char *contents, size_t size, size_t nmemb, void *userdata);
-
-static size_t save_snp_phenotype_response(char *contents, size_t size, size_t nmemb, void *userdata);
-
-static size_t save_mutation_phenotype_response(char *contents, size_t size, size_t nmemb, void *userdata);
-
 
 /**
  * @brief Parses the response from the effect web service.
@@ -160,7 +134,7 @@ int initialize_ws_output(shared_options_data_t *global_options_data, effect_opti
  * 
  * Free the structures for storing the web service response.
  */
-int free_ws_output(int num_threads);
+int free_ws_output();
 
 /**
  * @param key the unique identifier in a pair (id, file descriptor)
@@ -168,7 +142,6 @@ int free_ws_output(int num_threads);
  * Frees the unique identifier for storing a file descriptor in a map.
  */
 static void free_file_key1(int *key);
-// static void free_file_key1(char *key);
 
 /**
  * @param fd the file descriptor in a pair (id, file descriptor)

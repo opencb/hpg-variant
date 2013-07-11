@@ -34,15 +34,9 @@ static cp_hashtable *summary_count = NULL;
 // Gene list (for genes-with-variants, must be kept between web service calls)
 static cp_hashtable *gene_list = NULL;
 
-// Line buffers and their maximum size (one per thread)
-static char **line, **snp_line, **mutation_line;
-static int *max_line_size, *snp_max_line_size, *mutation_max_line_size;
-
 // Output directory (non-accessible directly from CURL callback function)
 static char *output_directory;
 static size_t output_directory_len;
-
-static int batch_num;
 
 
 int run_effect(char **urls, shared_options_data_t *shared_options_data, effect_options_data_t *options_data) {
@@ -90,6 +84,7 @@ int run_effect(char **urls, shared_options_data_t *shared_options_data, effect_o
     
     // Initialize collections of file descriptors and summary counters
     ret_code = initialize_ws_output(shared_options_data, options_data);
+    ret_code &= initialize_ws_buffers(shared_options_data->num_threads);
     if (ret_code != 0) {
         return ret_code;
     }
@@ -228,8 +223,8 @@ int run_effect(char **urls, shared_options_data_t *shared_options_data, effect_o
                                 ret_ws_0 = invoke_effect_ws(urls[0], (vcf_record_t**) (passed_records->items + chunk_starts[j]), 
                                                             chunk_sizes[j], options_data->excludes);
                                 parse_effect_response(tid);
-                                free(line[tid]);
-                                line[tid] = (char*) calloc (max_line_size[tid], sizeof(char));
+                                free(effect_line[tid]);
+                                effect_line[tid] = (char*) calloc (max_line_size[tid], sizeof(char));
                             }
                             
                             if (!options_data->no_phenotypes) {
@@ -370,7 +365,8 @@ int run_effect(char **urls, shared_options_data_t *shared_options_data, effect_o
     write_genes_with_variants_file(gene_list, output_directory);
     write_result_file(shared_options_data, options_data, summary_count, output_directory);
 
-    ret_code = free_ws_output(shared_options_data->num_threads);
+    ret_code = free_ws_output();
+    ret_code &= free_ws_buffers(shared_options_data->num_threads);
     free(output_list);
     vcf_close(vcf_file);
     
@@ -381,231 +377,6 @@ int run_effect(char **urls, shared_options_data_t *shared_options_data, effect_o
 }
 
 
-int invoke_effect_ws(const char *url, vcf_record_t **records, int num_records, char *excludes) {
-    int variants_len = 512, current_index = 0;
-    char *variants = (char*) calloc (variants_len, sizeof(char));
-    const char *output_format = "txt";
-    
-    int chr_len, reference_len, alternate_len;
-    int new_len_range;
-
-    LOG_DEBUG_F("[%d] WS for batch #%d\n", omp_get_thread_num(), batch_num);
-    batch_num++;
-    
-    for (int i = 0; i < num_records; i++) {
-        vcf_record_t *record = records[i];
-        chr_len = record->chromosome_len;
-        reference_len = record->reference_len;
-        alternate_len = record->alternate_len;
-        
-        int num_alternates;
-        char *alternates_aux = strndup(record->alternate, alternate_len);
-        char **alternates = split(alternates_aux, ",", &num_alternates);
-
-        // If a position has many alternates, each pair reference-alternate will be concatenated
-        new_len_range = (current_index + chr_len + reference_len + alternate_len + 32) * num_alternates;
-
-        // Reallocate memory if next record won't fit
-        if (variants_len < (current_index + new_len_range + 1)) {
-            char *aux = (char*) realloc(variants, (variants_len + new_len_range + 1) * sizeof(char));
-            if (aux) { 
-                variants = aux; 
-                variants_len += new_len_range;
-            } else {
-                LOG_FATAL("Not enough memory for composing URL request\n");
-            }
-        }
-
-        for (int j = 0; j < num_alternates; j++) {
-            // Append region info to buffer
-    //         printf("record chromosome = %.*s\n", record->chromosome_len, record->chromosome);
-            strncat(variants, record->chromosome, chr_len);
-            strncat(variants, ":", 1);
-            current_index += chr_len + 1;
-            sprintf(variants + current_index, "%lu:", record->position);
-            strncat(variants, record->reference, reference_len);
-            strncat(variants, ":", 1);
-            strcat(variants, alternates[j]);
-            strncat(variants, ",", 1);
-            current_index = strlen(variants);
-        }
-
-        for (int j = 0; j < num_alternates; j++) {
-            free(alternates[j]);
-        }
-        free(alternates);
-        free(alternates_aux);
-    }
-    
-    LOG_DEBUG_F("variants = %.*s\n", 100, variants);
-//     LOG_DEBUG_F("excludes = %s\n", excludes);
-    
-    char *params[3] = { "of", "variants", "exclude" };
-    char *params_values[3] = { output_format, variants, excludes };
-    
-    CURLcode ret_code = http_post(url, params, params_values, 3, save_effect_response, NULL);
-    
-    free(variants);
-    
-    return ret_code;
-}
-
-int invoke_snp_phenotype_ws(const char *url, vcf_record_t **records, int num_records) {
-    CURLcode ret_code = CURLE_OK;
-
-    const char *output_format = "txt";
-    int variants_len = 512, current_index = 0;
-    char *variants = (char*) calloc (variants_len, sizeof(char));
-    
-    int id_len, new_len_range;
-
-//     LOG_DEBUG_F("[%d] WS for batch #%d\n", omp_get_thread_num(), batch_num);
-    batch_num++;
-    
-    for (int i = 0; i < num_records; i++) {
-        vcf_record_t *record = records[i];
-        if (!strcmp(".", record->id)) {
-            continue;
-        }
-        
-        id_len = record->id_len;
-        new_len_range = current_index + id_len + 32;
-        
-//         LOG_DEBUG_F("%s:%lu:%s:%s\n", record->chromosome, record->position, record->reference, record->alternate);
-        
-        // Reallocate memory if next record won't fit
-        if (variants_len < (current_index + new_len_range + 1)) {
-            char *aux = (char*) realloc(variants, (variants_len + new_len_range + 1) * sizeof(char));
-            if (aux) { 
-                variants = aux; 
-                variants_len += new_len_range;
-            }
-        }
-        
-        // Append region info to buffer
-        strncat(variants, record->id, id_len);
-        strncat(variants, ",", 1);
-        current_index += id_len + 2;
-    }
-    
-    LOG_DEBUG_F("snps = %s\n", variants);
-    
-    if (current_index > 0) {
-        char *params[2] = { "of", "snps" };
-        char *params_values[2] = { output_format, variants };
-        ret_code = http_post(url, params, params_values, 2, save_snp_phenotype_response, NULL);
-    }
-    
-    free(variants);
-    
-    return ret_code;
-}
-
-int invoke_mutation_phenotype_ws(const char *url, vcf_record_t **records, int num_records) {
-    CURLcode ret_code = CURLE_OK;
-
-    const char *output_format = "txt";
-    int variants_len = 512, current_index = 0;
-    char *variants = (char*) calloc (variants_len, sizeof(char));
-    
-    int chr_len, reference_len, alternate_len;
-    int new_len_range;
-
-    LOG_DEBUG_F("[%d] WS for batch #%d\n", omp_get_thread_num(), batch_num);
-    batch_num++;
-    
-    for (int i = 0; i < num_records; i++) {
-        vcf_record_t *record = records[i];
-        if (strcmp(".", record->id)) {
-            continue;
-        }
-        
-        chr_len = record->chromosome_len;
-        reference_len = record->reference_len;
-        alternate_len = record->alternate_len;
-        new_len_range = current_index + chr_len + reference_len + alternate_len + 32;
-        
-//         LOG_DEBUG_F("mutation phenotype of %s:%lu:%s:%s\n", record->chromosome, record->position, record->reference, record->alternate);
-        
-        // Reallocate memory if next record won't fit
-        if (variants_len < (current_index + new_len_range + 1)) {
-            char *aux = (char*) realloc(variants, (variants_len + new_len_range + 1) * sizeof(char));
-            if (aux) { 
-                variants = aux; 
-                variants_len += new_len_range;
-            }
-        }
-        
-        // Append region info to buffer
-        sprintf(variants + current_index, "%.*s:%lu:%.*s:%.*s,", chr_len, record->chromosome, record->position, 
-                reference_len, record->reference, alternate_len, record->alternate);
-        current_index = strlen(variants);
-    }
-    
-    LOG_DEBUG_F("mutations = %s\n", variants);
-    
-    if (current_index > 0) {
-        char *params[2] = { "of", "variants" };
-        char *params_values[2] = { output_format, variants };
-        ret_code = http_post(url, params, params_values, 2, save_mutation_phenotype_response, NULL);
-    }
-    
-    free(variants);
-    
-    return ret_code;
-}
-
-
-
-static size_t save_effect_response(char *contents, size_t size, size_t nmemb, void *userdata) {
-    int tid = omp_get_thread_num();
-    
-    strncat(line[tid], contents, size * nmemb);
-    
-    char *buffer = realloc (line[tid], max_line_size[tid] + size * nmemb);
-    if (buffer) {
-        line[tid] = buffer;
-        max_line_size[tid] += size * nmemb;
-    } else {
-        LOG_FATAL("Error while allocating memory for effect web service response");
-    }
-    
-    return size * nmemb;
-}
-
-static size_t save_snp_phenotype_response(char *contents, size_t size, size_t nmemb, void *userdata) {
-    int tid = omp_get_thread_num();
-    
-    strncat(snp_line[tid], contents, size * nmemb);
-    
-    char *buffer = realloc (snp_line[tid], snp_max_line_size[tid] + size * nmemb);
-    if (buffer) {
-        snp_line[tid] = buffer;
-        snp_max_line_size[tid] += size * nmemb;
-    } else {
-        LOG_FATAL("Error while allocating memory for SNP phenotype web service response");
-    }
-    
-    return size * nmemb;
-}
-
-static size_t save_mutation_phenotype_response(char *contents, size_t size, size_t nmemb, void *userdata) {
-    int tid = omp_get_thread_num();
-    
-    strncat(mutation_line[tid], contents, size * nmemb);
-    
-    char *buffer = realloc (mutation_line[tid], mutation_max_line_size[tid] + size * nmemb);
-    if (buffer) {
-        mutation_line[tid] = buffer;
-        mutation_max_line_size[tid] += size * nmemb;
-    } else {
-        LOG_FATAL("Error while allocating memory for mutation phenotype web service response");
-    }
-    
-    return size * nmemb;
-}
-
-
 
 static void parse_effect_response(int tid) {
     int *SO_found = (int*) malloc (sizeof(int)); // Whether the SO code field has been found
@@ -613,7 +384,7 @@ static void parse_effect_response(int tid) {
     char tmp_consequence_type[128];
     
     int num_lines;
-    char **split_batch = split(line[tid], "\n", &num_lines);
+    char **split_batch = split(effect_line[tid], "\n", &num_lines);
     
     for (int i = 0; i < num_lines; i++) {
         int num_columns;
@@ -728,7 +499,7 @@ static void parse_mutation_phenotype_response(int tid) {
 
 
 
-int initialize_ws_output(shared_options_data_t *shared_options, effect_options_data_t *options_data){
+int initialize_ws_output(shared_options_data_t *shared_options, effect_options_data_t *options_data) {
     int num_threads = shared_options->num_threads;
     char *outdir = shared_options->output_directory;
     
@@ -809,48 +580,14 @@ int initialize_ws_output(shared_options_data_t *shared_options, effect_options_d
                                               NULL
                                              );
     
-    // Create a buffer for each thread
-    line = (char**) calloc (num_threads, sizeof(char*));
-    max_line_size = (int*) calloc (num_threads, sizeof(int));
-    
-    snp_line = (char**) calloc (num_threads, sizeof(char*));
-    snp_max_line_size = (int*) calloc (num_threads, sizeof(int));
-    
-    mutation_line = (char**) calloc (num_threads, sizeof(char*));
-    mutation_max_line_size = (int*) calloc (num_threads, sizeof(int));
-    
-    for (int i = 0; i < num_threads; i++) {
-        max_line_size[i] = snp_max_line_size[i] = mutation_max_line_size[i] = CURL_MAX_WRITE_SIZE;
-        
-        line[i] = (char*) calloc (max_line_size[i], sizeof(char));
-        snp_line[i] = (char*) calloc (snp_max_line_size[i], sizeof(char));
-        mutation_line[i] = (char*) calloc (mutation_max_line_size[i], sizeof(char));
-    }
-         
     return 0;
 }
 
-int free_ws_output(int num_threads) {
+int free_ws_output() {
     // Free file descriptors, summary counters and gene list
     cp_hashtable_destroy(output_files);
     cp_hashtable_destroy(summary_count);
     cp_hashtable_destroy(gene_list);
-    
-    // Free line buffers
-    for (int i = 0; i < num_threads; i++) {
-        free(line[i]);
-        free(snp_line[i]);
-        free(mutation_line[i]);
-    }
-    
-    free(max_line_size);
-    free(line);
-        
-    free(snp_max_line_size);
-    free(snp_line);
-        
-    free(mutation_max_line_size);
-    free(mutation_line);
     
     return 0;
 }
