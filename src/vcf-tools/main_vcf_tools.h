@@ -39,6 +39,7 @@
 #include "merge/merge.h"
 #include "split/split.h"
 #include "stats/stats.h"
+#include "annot/annot.h"
 
 int vcf_tool_filter(int argc, char *argv[], const char *configuration_file);
 
@@ -48,5 +49,6 @@ int vcf_tool_split(int argc, char *argv[], const char *configuration_file);
 
 int vcf_tool_stats(int argc, char *argv[], const char *configuration_file);
 
+int vcf_tool_annot(int argc, char *argv[], const char *configuration_file);
 
 #endif
