@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
+ * Copyright (c) 2012-2013 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
  * Copyright (c) 2012 Ignacio Medina (ICM-CIPF)
  *
  * This file is part of hpg-variant.
@@ -89,19 +89,15 @@ int run_effect(char **urls, shared_options_data_t *global_options_data, effect_o
 
 /**
  * @brief Parses the response from the effect web service.
- * @param contents buffer with the response text
- * @param size size of an element in the buffer
- * @param nmemb number of elements in the buffer
- * @param userdata[out] where to write the response to (non-used)
- * @return The number of bytes processed
  * 
  * Reads the contents of the response from the effect web service
  */
-static void parse_effect_response(int tid);
+static void parse_effect_response(int tid, char *output_directory, size_t output_directory_len, cp_hashtable *output_files, 
+                                  list_t *output_list, cp_hashtable *summary_count, cp_hashtable *gene_list);
 
-static void parse_snp_phenotype_response(int tid);
+static void parse_snp_phenotype_response(int tid, list_t *output_list);
 
-static void parse_mutation_phenotype_response(int tid);
+static void parse_mutation_phenotype_response(int tid, list_t *output_list);
 
 /**
  * Writes a summary file containing the number of entries for each of the consequence types processed.
@@ -120,21 +116,27 @@ void write_genes_with_variants_file(cp_hashtable *gene_list, char *output_direct
 void write_result_file(shared_options_data_t *global_options_data, effect_options_data_t *options_data, cp_hashtable *summary_count, char *output_directory);
 
 /**
+ * @param output_directory directory Where the files will be stored
+ * @param output_directory_len length of the path to the output directory
+ * @return Whether the output files descriptor where correctly initialized
+ * 
+ * Initialize the output files where the web service response will be written to.
+ */
+static int initialize_output_files(char *output_directory, size_t output_directory_len, cp_hashtable **output_files);
+
+/**
  * @param num_threads the number of threads that parse the response
  * @param output_directory the directory where the output files will be written
- * @return Whether all the structures were successfully initialized
  * 
  * Initialize the structures for storing the web service response and writing it to the output files.
  */
-int initialize_ws_output(shared_options_data_t *global_options_data, effect_options_data_t *options_data);
+static void initialize_output_data_structures(shared_options_data_t *shared_options, list_t **output_list, cp_hashtable **summary_count, cp_hashtable **gene_list);
 
 /**
- * @param num_threads the number of threads that parsed the response
- * @return Whether all the structures were successfully freed
  * 
  * Free the structures for storing the web service response.
  */
-int free_ws_output();
+void free_output_data_structures(cp_hashtable *output_files, cp_hashtable *summary_count, cp_hashtable *gene_list);
 
 /**
  * @param key the unique identifier in a pair (id, file descriptor)

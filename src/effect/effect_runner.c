@@ -20,24 +20,6 @@
 
 #include "effect_runner.h"
 
-// Output file descriptors (must be kept between function calls)
-static cp_hashtable *output_files = NULL;
-static FILE *all_variants_file = NULL;
-static FILE *summary_file = NULL;
-static FILE *snp_phenotype_file = NULL;
-static FILE *mutation_phenotype_file = NULL;
-
-// Lines of the output data in the main .txt files
-static list_t *output_list;
-// Consequence type counters (for summary, must be kept between web service calls)
-static cp_hashtable *summary_count = NULL;
-// Gene list (for genes-with-variants, must be kept between web service calls)
-static cp_hashtable *gene_list = NULL;
-
-// Output directory (non-accessible directly from CURL callback function)
-static char *output_directory;
-static size_t output_directory_len;
-
 
 int run_effect(char **urls, shared_options_data_t *shared_options_data, effect_options_data_t *options_data) {
     int ret_code = 0;
@@ -62,8 +44,8 @@ int run_effect(char **urls, shared_options_data_t *shared_options_data, effect_o
         }
     }
     
-    output_directory = shared_options_data->output_directory;
-    output_directory_len = strlen(output_directory);
+    char *output_directory = shared_options_data->output_directory;
+    size_t output_directory_len = strlen(output_directory);
     
     ret_code = create_directory(output_directory);
     if (ret_code != 0 && errno != EEXIST) {
@@ -82,12 +64,22 @@ int run_effect(char **urls, shared_options_data_t *shared_options_data, effect_o
         return ret_code;
     }
     
+    // Output file descriptors
+    static cp_hashtable *output_files = NULL;
+    // Lines of the output data in the main .txt files
+    static list_t *output_list = NULL;
+    // Consequence type counters (for summary, must be kept between web service calls)
+    static cp_hashtable *summary_count = NULL;
+    // Gene list (for genes-with-variants, must be kept between web service calls)
+    static cp_hashtable *gene_list = NULL;
+
     // Initialize collections of file descriptors and summary counters
-    ret_code = initialize_ws_output(shared_options_data, options_data);
-    ret_code &= initialize_ws_buffers(shared_options_data->num_threads);
+    ret_code = initialize_output_files(output_directory, output_directory_len, &output_files);
     if (ret_code != 0) {
         return ret_code;
     }
+    initialize_output_data_structures(shared_options_data, &output_list, &summary_count, &gene_list);
+    initialize_ws_buffers(shared_options_data->num_threads);
     
     // Create job.status file
     char job_status_filename[output_directory_len + 10];
@@ -222,7 +214,7 @@ int run_effect(char **urls, shared_options_data_t *shared_options_data, effect_o
                             if (!reconnections || ret_ws_0) {
                                 ret_ws_0 = invoke_effect_ws(urls[0], (vcf_record_t**) (passed_records->items + chunk_starts[j]), 
                                                             chunk_sizes[j], options_data->excludes);
-                                parse_effect_response(tid);
+                                parse_effect_response(tid, output_directory, output_directory_len, output_files, output_list, summary_count, gene_list);
                                 free(effect_line[tid]);
                                 effect_line[tid] = (char*) calloc (max_line_size[tid], sizeof(char));
                             }
@@ -231,7 +223,7 @@ int run_effect(char **urls, shared_options_data_t *shared_options_data, effect_o
                                 if (!reconnections || ret_ws_1) {
                                     LOG_DEBUG_F("[%d] -- snp WS\n", omp_get_thread_num());
                                     ret_ws_1 = invoke_snp_phenotype_ws(urls[1], (vcf_record_t**) (passed_records->items + chunk_starts[j]), chunk_sizes[j]);
-                                    parse_snp_phenotype_response(tid);
+                                    parse_snp_phenotype_response(tid, output_list);
                                     free(snp_line[tid]);
                                     snp_line[tid] = (char*) calloc (snp_max_line_size[tid], sizeof(char));
                                 }
@@ -239,7 +231,7 @@ int run_effect(char **urls, shared_options_data_t *shared_options_data, effect_o
                                 if (!reconnections || ret_ws_2) {
                                     LOG_DEBUG_F("[%d] -- mutation WS\n", omp_get_thread_num());
                                     ret_ws_2 = invoke_mutation_phenotype_ws(urls[2], (vcf_record_t**) (passed_records->items + chunk_starts[j]), chunk_sizes[j]);
-                                    parse_mutation_phenotype_response(tid);
+                                    parse_mutation_phenotype_response(tid, output_list);
                                     free(mutation_line[tid]);
                                     mutation_line[tid] = (char*) calloc (mutation_max_line_size[tid], sizeof(char));
                                 }
@@ -321,6 +313,11 @@ int run_effect(char **urls, shared_options_data_t *shared_options_data, effect_o
             char *line;
             list_item_t* item = NULL;
             FILE *fd = NULL;
+            
+            FILE *all_variants_file = cp_hashtable_get(output_files, "all_variants");
+            FILE *snp_phenotype_file = cp_hashtable_get(output_files, "snp_phenotypes");
+            FILE *mutation_phenotype_file = cp_hashtable_get(output_files, "mutation_phenotypes");
+            
             while ((item = list_remove_item(output_list)) != NULL) {
                 line = item->data_p;
                 
@@ -361,12 +358,12 @@ int run_effect(char **urls, shared_options_data_t *shared_options_data, effect_o
         }
     }
 
-    write_summary_file(summary_count, summary_file);
+    write_summary_file(summary_count, cp_hashtable_get(output_files, "summary"));
     write_genes_with_variants_file(gene_list, output_directory);
     write_result_file(shared_options_data, options_data, summary_count, output_directory);
 
-    ret_code = free_ws_output();
-    ret_code &= free_ws_buffers(shared_options_data->num_threads);
+    free_output_data_structures(output_files, summary_count, gene_list);
+    free_ws_buffers(shared_options_data->num_threads);
     free(output_list);
     vcf_close(vcf_file);
     
@@ -378,7 +375,8 @@ int run_effect(char **urls, shared_options_data_t *shared_options_data, effect_o
 
 
 
-static void parse_effect_response(int tid) {
+static void parse_effect_response(int tid, char *output_directory, size_t output_directory_len, cp_hashtable *output_files, 
+                                  list_t *output_list, cp_hashtable *summary_count, cp_hashtable *gene_list) {
     int *SO_found = (int*) malloc (sizeof(int)); // Whether the SO code field has been found
     int *count;
     char tmp_consequence_type[128];
@@ -487,80 +485,80 @@ static void parse_effect_response(int tid) {
     free(split_batch);
 }
 
-static void parse_snp_phenotype_response(int tid) {
+static void parse_snp_phenotype_response(int tid, list_t *output_list) {
     list_item_t *output_item = list_item_new(tid, SNP_PHENOTYPE, trim(strdup(snp_line[tid])));
     list_insert_item(output_item, output_list);
 }
 
-static void parse_mutation_phenotype_response(int tid) {
+static void parse_mutation_phenotype_response(int tid, list_t *output_list) {
     list_item_t *output_item = list_item_new(tid, MUTATION_PHENOTYPE, trim(strdup(mutation_line[tid])));
     list_insert_item(output_item, output_list);
 }
 
 
 
-int initialize_ws_output(shared_options_data_t *shared_options, effect_options_data_t *options_data) {
-    int num_threads = shared_options->num_threads;
-    char *outdir = shared_options->output_directory;
-    
-    // Initialize output text list
-    output_list = (list_t*) malloc (sizeof(list_t));
-    list_init("output", num_threads, shared_options->max_batches * shared_options->batch_lines, output_list);
-    
+static int initialize_output_files(char *output_directory, size_t output_directory_len, cp_hashtable **output_files) {
     // Initialize collections of file descriptors
-    output_files = cp_hashtable_create_by_option(COLLECTION_MODE_DEEP,
-                                                 50,
-                                                 cp_hash_int,
-                                                 (cp_compare_fn) int_cmp,
-                                                 NULL,
-                                                 (cp_destructor_fn) free_file_key1,
-                                                 NULL,
-                                                 (cp_destructor_fn) free_file_descriptor
-                                                );
+    *output_files = cp_hashtable_create_by_option(COLLECTION_MODE_DEEP,
+                                                  50,
+                                                  cp_hash_int,
+                                                  (cp_compare_fn) int_cmp,
+                                                  NULL,
+                                                  (cp_destructor_fn) free_file_key1,
+                                                  NULL,
+                                                  (cp_destructor_fn) free_file_descriptor
+                                                 );
     
-    char all_variants_filename[strlen(outdir) + 18];
-    sprintf(all_variants_filename, "%s/all_variants.txt", outdir);
-    all_variants_file = fopen(all_variants_filename, "a");
+    char all_variants_filename[output_directory_len + 18];
+    sprintf(all_variants_filename, "%s/all_variants.txt", output_directory);
+    FILE *all_variants_file = fopen(all_variants_filename, "a");
     if (!all_variants_file) {   // Can't store results
         return 1;
     }
     char *key = (char*) calloc (13, sizeof(char));
     strncat(key, "all_variants", 12);
-    cp_hashtable_put(output_files, key, all_variants_file);
+    cp_hashtable_put(*output_files, key, all_variants_file);
     
-    char summary_filename[strlen(outdir) + 13];
-    sprintf(summary_filename, "%s/summary.txt", outdir);
-    summary_file = fopen(summary_filename, "a");
+    char summary_filename[output_directory_len + 13];
+    sprintf(summary_filename, "%s/summary.txt", output_directory);
+    FILE *summary_file = fopen(summary_filename, "a");
     if (!summary_file) {   // Can't store results
         return 2;
     }
     key = (char*) calloc (8, sizeof(char));
     strncat(key, "summary", 7);
-    cp_hashtable_put(output_files, key, summary_file);
+    cp_hashtable_put(*output_files, key, summary_file);
     
-    char snp_phenotype_filename[strlen(outdir) + 20];
-    sprintf(snp_phenotype_filename, "%s/snp_phenotypes.txt", outdir);
-    snp_phenotype_file = fopen(snp_phenotype_filename, "a");
+    char snp_phenotype_filename[output_directory_len + 20];
+    sprintf(snp_phenotype_filename, "%s/snp_phenotypes.txt", output_directory);
+    FILE *snp_phenotype_file = fopen(snp_phenotype_filename, "a");
     if (!snp_phenotype_filename) {
         return 3;
     }
     key = (char*) calloc (15, sizeof(char));
     strncat(key, "snp_phenotypes", 14);
-    cp_hashtable_put(output_files, key, snp_phenotype_file);
+    cp_hashtable_put(*output_files, key, snp_phenotype_file);
     
-    char mutation_phenotype_filename[strlen(outdir) + 25];
-    sprintf(mutation_phenotype_filename, "%s/mutation_phenotypes.txt", outdir);
-    mutation_phenotype_file = fopen(mutation_phenotype_filename, "a");
+    char mutation_phenotype_filename[output_directory_len + 25];
+    sprintf(mutation_phenotype_filename, "%s/mutation_phenotypes.txt", output_directory);
+    FILE *mutation_phenotype_file = fopen(mutation_phenotype_filename, "a");
     if (!mutation_phenotype_filename) {
         return 3;
     }
     key = (char*) calloc (20, sizeof(char));
     strncat(key, "mutation_phenotypes", 19);
-    cp_hashtable_put(output_files, key, mutation_phenotype_file);
+    cp_hashtable_put(*output_files, key, mutation_phenotype_file);
     
+    return 0;
+}
+
+static void initialize_output_data_structures(shared_options_data_t *shared_options, list_t **output_list, cp_hashtable **summary_count, cp_hashtable **gene_list) {
+    // Initialize output text list
+    *output_list = (list_t*) malloc (sizeof(list_t));
+    list_init("output", shared_options->num_threads, shared_options->max_batches * shared_options->batch_lines, *output_list);
     
     // Initialize summary counters and genes list
-    summary_count = cp_hashtable_create_by_option(COLLECTION_MODE_DEEP,
+    *summary_count = cp_hashtable_create_by_option(COLLECTION_MODE_DEEP,
                                                  64,
                                                  cp_hash_istring,
                                                  (cp_compare_fn) strcasecmp,
@@ -570,7 +568,7 @@ int initialize_ws_output(shared_options_data_t *shared_options, effect_options_d
                                                  (cp_destructor_fn) free_summary_counter
                                                  );
 
-    gene_list = cp_hashtable_create_by_option(COLLECTION_MODE_DEEP,
+    *gene_list = cp_hashtable_create_by_option(COLLECTION_MODE_DEEP,
                                               64,
                                               cp_hash_istring,
                                               (cp_compare_fn) strcasecmp,
@@ -579,17 +577,13 @@ int initialize_ws_output(shared_options_data_t *shared_options, effect_options_d
                                               NULL,
                                               NULL
                                              );
-    
-    return 0;
 }
 
-int free_ws_output() {
+void free_output_data_structures(cp_hashtable *output_files, cp_hashtable *summary_count, cp_hashtable *gene_list) {
     // Free file descriptors, summary counters and gene list
     cp_hashtable_destroy(output_files);
     cp_hashtable_destroy(summary_count);
     cp_hashtable_destroy(gene_list);
-    
-    return 0;
 }
 
 static void free_file_key1(int *key) {
