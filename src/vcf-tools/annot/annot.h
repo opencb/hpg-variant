@@ -136,5 +136,6 @@ void **merge_annot_options(annot_options_t *annot_options, shared_options_t *sha
 int verify_annot_options(annot_options_t *annot_options, shared_options_t *shared_options);
 
 
+KHASH_MAP_INIT_STR(bams, char*);
 
 #endif
