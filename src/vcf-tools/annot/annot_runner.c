@@ -24,7 +24,7 @@ int vcf_annot_chr_cmp(const vcf_annot_chr_t *v1, const vcf_annot_chr_t *v2);
 void vcf_annot_sample_free(vcf_annot_sample_t *sample);
 void vcf_annot_chr_free(vcf_annot_chr_t *chr);
 void vcf_annot_pos_free(vcf_annot_pos_t *pos);
-int vcf_annot_process_chunk(vcf_record_t **variants, int num_variants, array_list_t *sample_list, vcf_file_t *vcf_file);
+int vcf_annot_process_chunk(vcf_record_t **variants, int num_variants, array_list_t *sample_list, khash_t(bams)* sample_bams, vcf_file_t *vcf_file);
 
 int run_annot(shared_options_data_t *shared_options_data, annot_options_data_t *options_data) {
     //    file_stats_t *file_stats = file_stats_new();
@@ -51,10 +51,10 @@ int run_annot(shared_options_data_t *shared_options_data, annot_options_data_t *
     }
     list_init("next_token", shared_options_data->num_threads, INT_MAX, next_token_list);
 
-
-
-
     LOG_INFO("Annotating VCF file...");
+
+    khash_t(bams) *sample_bams = kh_init(bams);
+
 
 #pragma omp parallel sections private(start, stop, total)
     {
@@ -93,6 +93,7 @@ int run_annot(shared_options_data_t *shared_options_data, annot_options_data_t *
             start = omp_get_wtime();
 
             int i = 0;
+
             vcf_batch_t *batch = NULL;
             while ((batch = fetch_vcf_batch(vcf_file)) != NULL) {
                 if (i % 50 == 0) {
@@ -107,9 +108,9 @@ int run_annot(shared_options_data_t *shared_options_data, annot_options_data_t *
                 int *chunk_sizes = NULL;
                 array_list_t *input_records = batch->records;
                 int *chunk_starts = create_chunks(input_records->size, shared_options_data->entries_per_thread, &num_chunks, &chunk_sizes);
-                #pragma omp parallel for num_threads(shared_options_data->num_threads)
+#pragma omp parallel for num_threads(shared_options_data->num_threads) 
                 for (int j = 0; j < num_chunks; j++) {
-                    vcf_annot_process_chunk((vcf_record_t**)(input_records->items + chunk_starts[j]),chunk_sizes[j], sample_list, vcf_file);
+                    vcf_annot_process_chunk((vcf_record_t**)(input_records->items + chunk_starts[j]), chunk_sizes[j], sample_list, sample_bams, vcf_file);
                 }
 
                 free(chunk_starts);
@@ -133,25 +134,40 @@ int run_annot(shared_options_data_t *shared_options_data, annot_options_data_t *
             if (sample_ids) { kh_destroy(ids, sample_ids); }
             if (individuals) { free(individuals); }
         }
-
     }
+
+
+    printf ( "Tam: %d\n", kh_size(sample_bams) );
+    khiter_t iter;
+    char* aux;
+	for (iter = kh_begin(sample_bams); iter != kh_end(sample_bams); ++iter){
+		if (kh_exist(sample_bams, iter)){
+            aux = kh_value(sample_bams, iter);
+            printf ( "%s - %s\n",kh_key(sample_bams, iter),  aux );
+        }
+    }
+
+    
 
     vcf_annot_sample_t *annot_sample;
     vcf_annot_chr_t *annot_chr;
     vcf_annot_pos_t *annot_pos;
+    int total_missings = 0;
 
     for (int i = 0; i < array_list_size(sample_list); i++) {
         annot_sample = (vcf_annot_sample_t*) sample_list->items[i];
         printf( "%s (%d)\n", annot_sample->name, array_list_size(annot_sample->chromosomes) );
+        total_missings = 0;
         for(int j = 0; j < array_list_size(annot_sample->chromosomes); j++){
             annot_chr = (vcf_annot_chr_t*) array_list_get(j, annot_sample->chromosomes);
             printf ( "\t%s (%d)\n", annot_chr->name, array_list_size(annot_chr->positions));
-            for (int k = 0; k < array_list_size(annot_chr->positions); k++) {
-                annot_pos = (vcf_annot_pos_t*) array_list_get(k, annot_chr->positions);
-                //                printf ("\t\t %d \n", annot_pos->pos);
-            }
+            total_missings += array_list_size(annot_chr->positions);
         }
+        printf ( "\tTotal: %d\n", total_missings );
     }
+
+
+    /// FREE
 
     free(next_token_list);
     array_list_free(sample_list, vcf_annot_sample_free);
@@ -180,7 +196,7 @@ void vcf_annot_chr_free(vcf_annot_chr_t *chr){
     if(chr != NULL)
     {
         array_list_free(chr->positions, vcf_annot_pos_free);
-        //        free(chr->name);
+        free(chr->name);
         free(chr);
     }
 }
@@ -192,7 +208,7 @@ void vcf_annot_pos_free(vcf_annot_pos_t *pos){
     }
 }
 
-int vcf_annot_process_chunk(vcf_record_t **variants, int num_variants, array_list_t *sample_list, vcf_file_t *vcf_file){
+int vcf_annot_process_chunk(vcf_record_t **variants, int num_variants, array_list_t *sample_list, khash_t(bams)* sample_bams, vcf_file_t *vcf_file){
 
     int gt_pos, i;
     int allele1, allele2, alleles_code;
@@ -205,6 +221,8 @@ int vcf_annot_process_chunk(vcf_record_t **variants, int num_variants, array_lis
     char * copy_buf;
     unsigned int pos;
     size_t array_pos;
+    khiter_t iter;
+    int ret;
 
     for(int j = 0; j < num_variants; j++){
         record = variants[j]; 
@@ -220,6 +238,20 @@ int vcf_annot_process_chunk(vcf_record_t **variants, int num_variants, array_lis
                     annot_sample->name = strndup(sample_name, strlen(sample_name));
                     annot_sample->chromosomes = array_list_new(24, 1.25f, COLLECTION_MODE_SYNCHRONIZED);
                     annot_sample->chromosomes->compare_fn = &vcf_annot_chr_cmp;
+                    iter = kh_get(ids, sample_bams, annot_sample->name);
+                    if (iter != kh_end(sample_bams)) {
+                        LOG_FATAL_F("Sample %s appears more than once. File can not be analyzed.\n", annot_sample->name);
+                    } else {
+                        iter = kh_put(bams, sample_bams, annot_sample->name, &ret);
+                        if (ret) {
+                            copy_buf = (char*) calloc(strlen(annot_sample->name) + 8 + 1, sizeof(char));
+                            strcpy(copy_buf, annot_sample->name);
+                            strcat(copy_buf, ".bam.bai");
+                            kh_value(sample_bams, iter) = copy_buf; 
+                        }
+                    }
+
+
                     array_list_insert(annot_sample, sample_list);
                 }
             }
