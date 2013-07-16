@@ -35,13 +35,6 @@ static int count_func(const bam1_t *b, void *data)
 
 
 int run_annot(shared_options_data_t *shared_options_data, annot_options_data_t *options_data) {
-    //    file_stats_t *file_stats = file_stats_new();
-    //    sample_stats_t **sample_stats;
-    //    
-    // List that stores the batches of records filtered by each thread
-    list_t *output_list[shared_options_data->num_threads];
-    // List that stores which thread filtered the next batch to save
-    list_t *next_token_list = malloc(sizeof(list_t));
 
     array_list_t *sample_list = array_list_new(100, 1.25f, COLLECTION_MODE_SYNCHRONIZED);
 
@@ -59,12 +52,6 @@ int run_annot(shared_options_data_t *shared_options_data, annot_options_data_t *
     if (!vcf_file) {
         LOG_FATAL("VCF file does not exist!\n");
     }
-
-    for (int i = 0; i < shared_options_data->num_threads; i++) {
-        output_list[i] = (list_t*) malloc(sizeof(list_t));
-        list_init("input", 1, shared_options_data->num_threads * shared_options_data->batch_lines, output_list[i]);
-    }
-    list_init("next_token", shared_options_data->num_threads, INT_MAX, next_token_list);
 
     LOG_INFO("Annotating VCF file...");
 
@@ -102,7 +89,6 @@ int run_annot(shared_options_data_t *shared_options_data, annot_options_data_t *
             omp_set_nested(1);
             LOG_INFO_F("Thread %d processes data\n", omp_get_thread_num());
 
-            individual_t **individuals = NULL;
             khash_t(ids) *sample_ids = NULL;
 
             start = omp_get_wtime();
@@ -163,14 +149,7 @@ int run_annot(shared_options_data_t *shared_options_data, annot_options_data_t *
             LOG_INFO_F("[%d] Time elapsed = %f s\n", omp_get_thread_num(), total);
             LOG_INFO_F("[%d] Time elapsed = %e ms\n", omp_get_thread_num(), total*1000);
 
-            // Decrease list writers count
-            for (i = 0; i < shared_options_data->num_threads; i++) {
-                list_decr_writers(next_token_list);
-                list_decr_writers(output_list[i]);
-            }
-
             if (sample_ids) { kh_destroy(ids, sample_ids); }
-            if (individuals) { free(individuals); }
         }
     }
     
@@ -184,6 +163,7 @@ int run_annot(shared_options_data_t *shared_options_data, annot_options_data_t *
             printf ( "\t%s(%d)\n", annot_chr->name, array_list_size(annot_chr->positions ));
         }
     }
+    return 0;
 
 #pragma omp parallel num_threads(shared_options_data->num_threads) 
     {
@@ -240,11 +220,7 @@ int run_annot(shared_options_data_t *shared_options_data, annot_options_data_t *
 
     /// FREE
 
-    free(next_token_list);
     array_list_free(sample_list, vcf_annot_sample_free);
-    for (int i = 0; i < shared_options_data->num_threads; i++) {
-        free(output_list[i]);
-    }
 
     vcf_close(vcf_file);
     return 0;
