@@ -47,6 +47,13 @@ int run_annot(shared_options_data_t *shared_options_data, annot_options_data_t *
 
     int ret_code;
     double start, stop, total;
+    vcf_annot_sample_t *annot_sample;
+    vcf_annot_chr_t *annot_chr;
+    vcf_annot_pos_t *annot_pos;
+    char *sample_name;
+    char * copy_buf;
+    khiter_t iter;
+    int ret;
 
     vcf_file_t *vcf_file = vcf_open(shared_options_data->vcf_filename, shared_options_data->max_batches);
     if (!vcf_file) {
@@ -104,6 +111,29 @@ int run_annot(shared_options_data_t *shared_options_data, annot_options_data_t *
 
             vcf_batch_t *batch = NULL;
             while ((batch = fetch_vcf_batch(vcf_file)) != NULL) {
+                if(i == 0){
+
+                    for (int n = 0; n < array_list_size(vcf_file->samples_names); n++) {
+                        annot_sample = (vcf_annot_sample_t*) malloc(sizeof(vcf_annot_sample_t));
+                        sample_name = (char*) array_list_get(n, vcf_file->samples_names);
+                        annot_sample->name = strndup(sample_name, strlen(sample_name));
+                        annot_sample->chromosomes = array_list_new(24, 1.25f, COLLECTION_MODE_SYNCHRONIZED);
+                        annot_sample->chromosomes->compare_fn = &vcf_annot_chr_cmp;
+                        iter = kh_get(ids, sample_bams, annot_sample->name);
+                        if (iter != kh_end(sample_bams)) {
+                            LOG_FATAL_F("Sample %s appears more than once. File can not be analyzed.\n", annot_sample->name);
+                        } else {
+                            iter = kh_put(bams, sample_bams, annot_sample->name, &ret);
+                            if (ret) {
+                                copy_buf = (char*) calloc(strlen(annot_sample->name) + 8 + 1, sizeof(char));
+                                strcpy(copy_buf, annot_sample->name);
+                                strcat(copy_buf, ".bam.bai");
+                                kh_value(sample_bams, iter) = copy_buf; 
+                            }
+                        }
+                        array_list_insert(annot_sample, sample_list);
+                    }
+                }
                 if (i % 50 == 0) {
                     LOG_INFO_F("Batch %d reached by thread %d - %zu/%zu records \n", 
                             i, omp_get_thread_num(),
@@ -145,9 +175,6 @@ int run_annot(shared_options_data_t *shared_options_data, annot_options_data_t *
     }
     
     // Print
-    vcf_annot_sample_t *annot_sample;
-    vcf_annot_chr_t *annot_chr;
-    vcf_annot_pos_t *annot_pos;
     for (int i = 0; i < array_list_size(sample_list); i++){
         annot_sample = (vcf_annot_sample_t*) sample_list->items[i];
         printf ( "%s\n", annot_sample->name );
@@ -267,34 +294,6 @@ int vcf_annot_process_chunk(vcf_record_t **variants, int num_variants, array_lis
 
     for(int j = 0; j < num_variants; j++){
         record = variants[j]; 
-
-        if(array_list_size(sample_list) == 0){
-            #pragma omp critical
-            {
-                if(array_list_size(sample_list) == 0){
-                    for (int n = 0; n < array_list_size(vcf_file->samples_names); n++) {
-                        annot_sample = (vcf_annot_sample_t*) malloc(sizeof(vcf_annot_sample_t));
-                        sample_name = (char*) array_list_get(n, vcf_file->samples_names);
-                        annot_sample->name = strndup(sample_name, strlen(sample_name));
-                        annot_sample->chromosomes = array_list_new(24, 1.25f, COLLECTION_MODE_SYNCHRONIZED);
-                        annot_sample->chromosomes->compare_fn = &vcf_annot_chr_cmp;
-                        iter = kh_get(ids, sample_bams, annot_sample->name);
-                        if (iter != kh_end(sample_bams)) {
-                            LOG_FATAL_F("Sample %s appears more than once. File can not be analyzed.\n", annot_sample->name);
-                        } else {
-                            iter = kh_put(bams, sample_bams, annot_sample->name, &ret);
-                            if (ret) {
-                                copy_buf = (char*) calloc(strlen(annot_sample->name) + 8 + 1, sizeof(char));
-                                strcpy(copy_buf, annot_sample->name);
-                                strcat(copy_buf, ".bam.bai");
-                                kh_value(sample_bams, iter) = copy_buf; 
-                            }
-                        }
-                        array_list_insert(annot_sample, sample_list);
-                    }
-                }
-            }
-        }
 
         copy_buf = strndup(record->format, record->format_len);
         gt_pos = get_field_position_in_format("GT", copy_buf); 
