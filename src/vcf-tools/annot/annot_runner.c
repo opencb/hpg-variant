@@ -143,50 +143,72 @@ int run_annot(shared_options_data_t *shared_options_data, annot_options_data_t *
             if (individuals) { free(individuals); }
         }
     }
-
-    khiter_t iter;
-    char* aux;
-    char *bam_filename;
+    
+    // Print
     vcf_annot_sample_t *annot_sample;
     vcf_annot_chr_t *annot_chr;
     vcf_annot_pos_t *annot_pos;
-    int count = 0, result, tid, beg, end;
-    bam_file_t* bam_file;
-    bam_header_t *bam_header;
-    bam_index_t *idx = 0;
-    char *query = (char*) calloc(1024, sizeof(char));
-
     for (int i = 0; i < array_list_size(sample_list); i++){
         annot_sample = (vcf_annot_sample_t*) sample_list->items[i];
-        iter = kh_get(ids, sample_bams, annot_sample->name);
-        aux = kh_value(sample_bams, iter);
-        bam_filename = (char*) calloc(strlen(annot_sample->name) +28 +1, sizeof(char));
-        strcpy(bam_filename, "/home/aaleman/tmp/vcf/");
-        strcat(bam_filename, annot_sample->name);
-        strcat(bam_filename, ".bam");
-        printf( "Procesando %s\n",bam_filename );
-        bam_file = bam_fopen(bam_filename);
-        idx = bam_index_load(bam_filename);
-		
-        count_func_data_t count_data = { bam_file->bam_header_p, &count };
-        
+        printf ( "%s\n", annot_sample->name );
+
         for(int j = 0; j < array_list_size(annot_sample->chromosomes); j++){
             annot_chr = (vcf_annot_chr_t*) array_list_get(j, annot_sample->chromosomes);
-            for(int k = 0; k < array_list_size(annot_chr->positions); k++){
-                annot_pos = (vcf_annot_pos_t*) array_list_get(k, annot_chr->positions);
-                sprintf(query, "%s:%d-%d", annot_chr->name, annot_pos->pos, annot_pos->pos); 
-//                printf ( "%s\t%s\t%d", annot_sample->name, annot_chr->name, annot_pos->pos);
-                bam_parse_region(bam_file->bam_header_p, query, &tid, &beg, &end);
-                result = bam_fetch(bam_file->bam_fd, idx, tid, beg, end, &count_data, count_func);
-                annot_pos->dp = *(count_data.count);
-//                printf ( "\t%d\n", annot_pos->dp );
-                *(count_data.count) = 0;
-            }
+            printf ( "\t%s(%d)\n", annot_chr->name, array_list_size(annot_chr->positions ));
         }
-        free(bam_filename);
-        bam_index_destroy(idx);
-        bam_fclose(bam_file);
     }
+
+#pragma omp parallel num_threads(shared_options_data->num_threads) 
+    {
+        khiter_t iter;
+        char* aux;
+        char *bam_filename;
+        vcf_annot_sample_t *annot_sample;
+        vcf_annot_chr_t *annot_chr;
+        vcf_annot_pos_t *annot_pos;
+        int count = 0, result, tid, beg, end;
+        bam_file_t* bam_file;
+        bam_header_t *bam_header;
+        bam_index_t *idx = 0;
+        char *query = (char*) calloc(1024, sizeof(char));
+
+#pragma omp for
+        for (int i = 0; i < array_list_size(sample_list); i++){
+            annot_sample = (vcf_annot_sample_t*) sample_list->items[i];
+            iter = kh_get(ids, sample_bams, annot_sample->name);
+            aux = kh_value(sample_bams, iter);
+            bam_filename = (char*) calloc(strlen(annot_sample->name) +28 +1, sizeof(char));
+            strcpy(bam_filename, "/home/aaleman/tmp/vcf/");
+            strcat(bam_filename, annot_sample->name);
+            strcat(bam_filename, ".bam");
+            printf( "Procesando %s\n",bam_filename );
+            bam_file = bam_fopen(bam_filename);
+            idx = bam_index_load(bam_filename);
+
+            count_func_data_t count_data = { bam_file->bam_header_p, &count };
+
+            for(int j = 0; j < array_list_size(annot_sample->chromosomes); j++){
+                annot_chr = (vcf_annot_chr_t*) array_list_get(j, annot_sample->chromosomes);
+                //            printf ( "%s (%d)\n", annot_chr->name, array_list_size(annot_chr->positions) );
+                for(int k = 0; k < array_list_size(annot_chr->positions); k++){
+                    annot_pos = (vcf_annot_pos_t*) array_list_get(k, annot_chr->positions);
+                    sprintf(query, "%s:%d-%d", annot_chr->name, annot_pos->pos, annot_pos->pos); 
+                    //                printf ( "%s\t%s\t%d", annot_sample->name, annot_chr->name, annot_pos->pos);
+                    bam_parse_region(bam_file->bam_header_p, query, &tid, &beg, &end);
+                    result = bam_fetch(bam_file->bam_fd, idx, tid, beg, end, &count_data, count_func);
+                    annot_pos->dp = *(count_data.count);
+                    //                printf ( "\t%d\n", annot_pos->dp );
+                    *(count_data.count) = 0;
+                }
+            }
+            free(bam_filename);
+            bam_index_destroy(idx);
+            bam_fclose(bam_file);
+        }
+    }
+
+
+
 
 
     /// FREE
@@ -246,43 +268,45 @@ int vcf_annot_process_chunk(vcf_record_t **variants, int num_variants, array_lis
     for(int j = 0; j < num_variants; j++){
         record = variants[j]; 
 
-#pragma omp critical
-        {
-            if(array_list_size(sample_list) == 0){
-                for (int n = 0; n < array_list_size(vcf_file->samples_names); n++) {
-                    annot_sample = (vcf_annot_sample_t*) malloc(sizeof(vcf_annot_sample_t));
-                    sample_name = (char*) array_list_get(n, vcf_file->samples_names);
-                    annot_sample->name = strndup(sample_name, strlen(sample_name));
-                    annot_sample->chromosomes = array_list_new(24, 1.25f, COLLECTION_MODE_SYNCHRONIZED);
-                    annot_sample->chromosomes->compare_fn = &vcf_annot_chr_cmp;
-                    iter = kh_get(ids, sample_bams, annot_sample->name);
-                    if (iter != kh_end(sample_bams)) {
-                        LOG_FATAL_F("Sample %s appears more than once. File can not be analyzed.\n", annot_sample->name);
-                    } else {
-                        iter = kh_put(bams, sample_bams, annot_sample->name, &ret);
-                        if (ret) {
-                            copy_buf = (char*) calloc(strlen(annot_sample->name) + 8 + 1, sizeof(char));
-                            strcpy(copy_buf, annot_sample->name);
-                            strcat(copy_buf, ".bam.bai");
-                            kh_value(sample_bams, iter) = copy_buf; 
+        if(array_list_size(sample_list) == 0){
+            #pragma omp critical
+            {
+                if(array_list_size(sample_list) == 0){
+                    for (int n = 0; n < array_list_size(vcf_file->samples_names); n++) {
+                        annot_sample = (vcf_annot_sample_t*) malloc(sizeof(vcf_annot_sample_t));
+                        sample_name = (char*) array_list_get(n, vcf_file->samples_names);
+                        annot_sample->name = strndup(sample_name, strlen(sample_name));
+                        annot_sample->chromosomes = array_list_new(24, 1.25f, COLLECTION_MODE_SYNCHRONIZED);
+                        annot_sample->chromosomes->compare_fn = &vcf_annot_chr_cmp;
+                        iter = kh_get(ids, sample_bams, annot_sample->name);
+                        if (iter != kh_end(sample_bams)) {
+                            LOG_FATAL_F("Sample %s appears more than once. File can not be analyzed.\n", annot_sample->name);
+                        } else {
+                            iter = kh_put(bams, sample_bams, annot_sample->name, &ret);
+                            if (ret) {
+                                copy_buf = (char*) calloc(strlen(annot_sample->name) + 8 + 1, sizeof(char));
+                                strcpy(copy_buf, annot_sample->name);
+                                strcat(copy_buf, ".bam.bai");
+                                kh_value(sample_bams, iter) = copy_buf; 
+                            }
                         }
+                        array_list_insert(annot_sample, sample_list);
                     }
-                    array_list_insert(annot_sample, sample_list);
                 }
             }
         }
 
-        for (int n = 0; n < array_list_size(sample_list); n++){
-            copy_buf = strndup(record->format, record->format_len);
-            gt_pos = get_field_position_in_format("GT", copy_buf); 
-            if (copy_buf) {
-                free(copy_buf);
-                copy_buf = NULL;
-            }
-            if (gt_pos < 0) { 
-                continue; 
-            }   // This variant has no GT field
+        copy_buf = strndup(record->format, record->format_len);
+        gt_pos = get_field_position_in_format("GT", copy_buf); 
+        if (copy_buf) {
+            free(copy_buf);
+            copy_buf = NULL;
+        }
+        if (gt_pos < 0) { 
+            continue; 
+        }   // This variant has no GT field
 
+        for (int n = 0; n < array_list_size(sample_list); n++){
             copy_buf = strdup((char*) array_list_get(n, record->samples)); 
             alleles_code = get_alleles(copy_buf, gt_pos, &allele1, &allele2);
             if (copy_buf) {
@@ -292,13 +316,14 @@ int vcf_annot_process_chunk(vcf_record_t **variants, int num_variants, array_lis
 
             if (alleles_code == 3) {
                 annot_sample = array_list_get(n, sample_list);
+                pos = record->position;
+                chr = strndup(record->chromosome, record->chromosome_len);
+
+
+                annot_chr = (vcf_annot_chr_t*) malloc(sizeof(vcf_annot_chr_t));
+                annot_chr->name = chr;
 #pragma omp critical
                 {
-                    pos = record->position;
-                    chr = strndup(record->chromosome, record->chromosome_len);
-                    
-                    annot_chr = (vcf_annot_chr_t*) malloc(sizeof(vcf_annot_chr_t));
-                    annot_chr->name = chr;
                     array_pos = array_list_index_of(annot_chr, annot_sample->chromosomes);
                     if(array_pos != ULONG_MAX){
                         free(annot_chr);
@@ -309,10 +334,10 @@ int vcf_annot_process_chunk(vcf_record_t **variants, int num_variants, array_lis
                         annot_chr->positions = array_list_new(100000, 1.25f, COLLECTION_MODE_SYNCHRONIZED);
                         array_list_insert(annot_chr, annot_sample->chromosomes);
                     }
+                    annot_pos = (vcf_annot_pos_t*) malloc(sizeof(vcf_annot_pos_t));
+                    annot_pos->pos = pos;
+                    array_list_insert(annot_pos, annot_chr->positions);
                 }
-                annot_pos = (vcf_annot_pos_t*) malloc(sizeof(vcf_annot_pos_t));
-                annot_pos->pos = pos;
-                array_list_insert(annot_pos, annot_chr->positions);
             }
         }
     }
