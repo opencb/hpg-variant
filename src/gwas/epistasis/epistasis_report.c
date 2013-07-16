@@ -53,15 +53,27 @@ static void show_cross_validation_best_models(int order, struct heap *best_model
     risky_combination *element = NULL;
 
     int position = 0;
-    fprintf(fd, "#POSITION\tSNPs\tCV-C\tCV-A\n");
+    fprintf(fd, "#POSITION\tSNPs\tGENOTYPES\tCV-C\tCV-A\n");
     while (!heap_empty(best_models) && position < max_ranking_size) {
         hn = heap_take(cmp_heap_max, best_models);
         element = (risky_combination*) hn->value;
+        // SNPs
         fprintf(fd, "%d\t(", position+1);
         for (int i = 0; i < order - 1; i++) {
             fprintf(fd, " %d,", element->combination[i]);
         }
         fprintf(fd, " %d )\t", element->combination[order - 1]);
+        
+        // Genotypes
+        for (int i = 0; i < element->num_risky_genotypes; i++) {
+            fprintf(fd, "(%d-", element->genotypes[i * order]);
+            for (int j = 1; j < order-1; j++) {
+                fprintf(fd, "%d, ", element->genotypes[i * order + j]);
+            }
+            fprintf(fd, "%d), ", element->genotypes[i * order + order - 1]);
+        }
+        
+        // Counts
         fprintf(fd, "%d\t%.3f\n", element->cross_validation_count, element->accuracy);
         risky_combination_free(element);
         free(hn);
