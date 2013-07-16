@@ -24,7 +24,7 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
-
+#include <sqlite3.h>
 #include <omp.h>
 
 #include <bioformats/db/db_utils.h>
