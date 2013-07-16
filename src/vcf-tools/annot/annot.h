@@ -29,6 +29,7 @@
 
 #include <bioformats/db/db_utils.h>
 #include <bioformats/ped/ped_file.h>
+#include <bioformats/bam/bam_file.h>
 #include <bioformats/vcf/vcf_db.h>
 #include <bioformats/vcf/vcf_file_structure.h>
 #include <bioformats/vcf/vcf_file.h>
@@ -81,6 +82,15 @@ typedef struct vcf_annot_pos{
     unsigned int pos;
     short int dp;
 } vcf_annot_pos_t;
+
+
+
+// When counting records instead of printing them,
+// data passed to the bam_fetch callback is encapsulated in this struct.
+typedef struct {
+	bam_header_t *header;
+	int *count;
+} count_func_data_t;
 
 static annot_options_t *new_annot_cli_options(void);
 
