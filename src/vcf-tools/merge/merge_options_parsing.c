@@ -61,14 +61,6 @@ int read_merge_configuration(const char *filename, merge_options_t *options, sha
         LOG_DEBUG_F("batch-lines = %ld\n", *(shared_options->batch_size->ival));
     }*/
     
-    // Read number of variants per request to the web service
-    ret_code = config_lookup_int(config, "vcf-tools.merge.entries-per-thread", shared_options->entries_per_thread->ival);
-    if (ret_code == CONFIG_FALSE) {
-        LOG_WARN("Entries per thread not found in configuration file, must be set via command-line");
-    } else {
-        LOG_DEBUG_F("entries-per-thread = %ld\n", *(shared_options->entries_per_thread->ival));
-    }
-    
     // Read missing mode
     ret_code = config_lookup_string(config, "vcf-tools.merge.missing-mode", &tmp_string);
     if (ret_code == CONFIG_FALSE) {
@@ -126,10 +118,9 @@ void **merge_merge_options(merge_options_t *merge_options, shared_options_t *sha
     tool_options[13] = shared_options->batch_lines;
     tool_options[14] = shared_options->batch_bytes;
     tool_options[15] = shared_options->num_threads;
-    tool_options[16] = shared_options->entries_per_thread;
-    tool_options[17] = shared_options->mmap_vcf_files;
+    tool_options[16] = shared_options->mmap_vcf_files;
     
-    tool_options[18] = arg_end;
+    tool_options[17] = arg_end;
     
     return tool_options;
 }

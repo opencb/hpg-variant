@@ -75,7 +75,7 @@ void **parse_assoc_options(int argc, char *argv[], assoc_options_t *assoc_option
 }
 
 void **merge_assoc_options(assoc_options_t *assoc_options, shared_options_t *shared_options, struct arg_end *arg_end) {
-    void **tool_options = malloc (30 * sizeof(void*));
+    void **tool_options = malloc (29 * sizeof(void*));
     
     // Input/output files
     tool_options[0] = shared_options->vcf_filename;
@@ -115,10 +115,9 @@ void **merge_assoc_options(assoc_options_t *assoc_options, shared_options_t *sha
     tool_options[24] = shared_options->batch_lines;
     tool_options[25] = shared_options->batch_bytes;
     tool_options[26] = shared_options->num_threads;
-    tool_options[27] = shared_options->entries_per_thread;
-    tool_options[28] = shared_options->mmap_vcf_files;
+    tool_options[27] = shared_options->mmap_vcf_files;
     
-    tool_options[29] = arg_end;
+    tool_options[28] = arg_end;
     
     return tool_options;
 }
