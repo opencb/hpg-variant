@@ -19,9 +19,8 @@
  */
 
 #include "merge_runner.h"
-#include "bioformats/bam/samtools/khash.h"
 
-#define TREE_LIMIT  (shared_options_data->batch_lines)
+#define TREE_LIMIT         (shared_options_data->batch_lines)
 
 static int num_chromosomes;
 static char **chromosome_order;
@@ -105,14 +104,25 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
             char *texts[options_data->num_files];
             memset(texts, 0, options_data->num_files * sizeof(char*));
             
+            // Positions read and to merge
             khash_t(pos) *positions_read = kh_init(pos);
-            
-            long max_position_merged = LONG_MAX;
+            // Last chromosome and positions read from each file (to block file reading when necessary)
+            char *last_chromosome_read[options_data->num_files];
+            long last_position_read[options_data->num_files];
+            memset(last_chromosome_read, 0, options_data->num_files * sizeof(char*));
+            memset(last_position_read, 0, options_data->num_files * sizeof(long));
+            // Last chromosome and position merged
             char *max_chromosome_merged = NULL;
+            long max_position_merged = LONG_MAX;
+            // Whether each file was ahead the last merged position
+            int file_ahead_last_merged[options_data->num_files];
+            memset(file_ahead_last_merged, 0, options_data->num_files * sizeof(int));
+            // Whether the headers of all files have been merged
             int header_merged = 0;
+            // Token returned from the merging process: notifies that the output 
+            // can be written to file and the number of records to write
             int token = 0;
             
-            double start_parsing, start_insertion, total_parsing = 0, total_insertion = 0;
             
             start = omp_get_wtime();
 
@@ -126,15 +136,19 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
                 
                 // Getting text elements in a critical region guarantees that each thread gets variants in positions in the same range
                 for (int i = 0; i < options_data->num_files; i++) {
-                    if (eof_found[i]) {
+                    if (eof_found[i] || file_ahead_last_merged[i] > 0) {
                         continue;
                     }
                     
                     items[i] = list_remove_item(read_list[i]);
                     if (items[i] == NULL || !strcmp(items[i]->data_p, "")) {
                         LOG_INFO_F("[%d] EOF found in file %s\n", omp_get_thread_num(), options_data->input_files[i]);
+                        // Mark as finished
                         eof_found[i] = 1;
                         num_eof_found++;
+                        // Set last chromosome and position to the maximum possible so they do not disturb pending files
+                        last_chromosome_read[i] = chromosome_order[num_chromosomes-1];
+                        last_position_read[i] = LONG_MAX;
                         
                         if(items[i] != NULL && !strcmp(items[i]->data_p, "")) {
                             free(items[i]->data_p);
@@ -154,11 +168,9 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
                 }
                 
                 for (int i = 0; i < options_data->num_files; i++) {
-                    if (eof_found[i]) {
+                    if (eof_found[i] || file_ahead_last_merged[i] > 0) {
                         continue;
                     }
-                    
-                    start_parsing = omp_get_wtime();
                     
                     char *text_begin = texts[i];
                     char *text_end = text_begin + strlen(text_begin);
@@ -182,9 +194,6 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
                         continue;
                     }
                     
-                    total_parsing += omp_get_wtime() - start_parsing;
-                    start_insertion = omp_get_wtime();
-                    
                     // Insert records into hashtable
                     for (int j = 0; j < batch->records->size; j++) {
                         vcf_record_t *record = vcf_record_copy(array_list_get(j, batch->records));
@@ -195,11 +204,10 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
                         assert(ret);
                     }
                     
-                    total_insertion += omp_get_wtime() - start_insertion;
-                    
-                    // Update minimum position being a maximum of these batches
                     vcf_record_t *current_record = (vcf_record_t*) array_list_get(batch->records->size - 1, batch->records);
-                    calculate_merge_interval(current_record, &max_chromosome_merged, &max_position_merged, chromosome_order, num_chromosomes);
+                    //int updated = calculate_merge_interval(current_record, &max_chromosome_merged, &max_position_merged, chromosome_order, num_chromosomes);
+                    last_chromosome_read[i] = strndup(current_record->chromosome, current_record->chromosome_len);
+                    last_position_read[i] = current_record->position;
                     
                     // Free batch and its contents
                     vcf_reader_status_free(status);
@@ -207,10 +215,54 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
                     list_item_free(items[i]);
                 }
                 
+                // Calculate least common position to merge
+                for (int i = 0; i < options_data->num_files; i++) {
+                    char *file_chromosome = last_chromosome_read[i];
+                    long file_position = last_position_read[i];
+                    if (max_chromosome_merged == NULL) {
+                        // Max merged chrom:position not set, assign without any other consideration
+                        max_chromosome_merged = strdup(file_chromosome);
+                        max_position_merged = file_position;
+                        //return 1;
+                    } else {
+                        char *current_chromosome = file_chromosome;
+                        long unsigned int current_position = file_position;
+
+                //         printf("current = %s:%ld\tmax = %s:%ld\n", current_chromosome, current_position, *max_chromosome_merged, *max_position_merged);
+                        int chrom_comparison = compare_chromosomes(current_chromosome, max_chromosome_merged, chromosome_order, num_chromosomes);
+                        int position_comparison = compare_positions(current_position, max_position_merged);
+
+                        // Max merged chrom:position is greater than the last one in this batch
+                        if (chrom_comparison < 0 || (chrom_comparison == 0 && position_comparison < 0)) {
+                            max_chromosome_merged = strdup(current_chromosome);
+                            max_position_merged = current_position;
+                            //return 1;
+                        }
+                    }
+                }
+                
                 if (num_eof_found == options_data->num_files) {
                     max_chromosome_merged = chromosome_order[num_chromosomes-1];
                     max_position_merged = LONG_MAX;
                 }
+                
+                LOG_DEBUG_F("Last position is (%s, %ld). Files ahead: ", max_chromosome_merged, max_position_merged);
+                // Check which files are ahead the last position merged and will not be read in the next iteration
+                for (int i = 0; i < options_data->num_files; i++) {
+                    char *file_chromosome = last_chromosome_read[i];
+                    long file_position = last_position_read[i];
+                    
+                    int chrom_comparison = compare_chromosomes(file_chromosome, max_chromosome_merged, chromosome_order, num_chromosomes);
+                    int position_comparison = compare_positions(file_position, max_position_merged);
+                    
+                    if (chrom_comparison < 0 || (chrom_comparison == 0 && position_comparison <= 0)) {
+                        file_ahead_last_merged[i] = 0;
+                    } else {
+                        file_ahead_last_merged[i] = 1;
+                        LOG_DEBUG_F("%d (%s, %ld), ", i, file_chromosome, file_position);
+                    }
+                }
+                LOG_DEBUG("\n");
                 
                 // Merge headers, if not previously done
                 if (!header_merged) {
@@ -251,7 +303,7 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
                 }
                 
                 if (token) {
-                	int *token_ptr = malloc (sizeof(int)); *token_ptr = token;
+                    int *token_ptr = malloc (sizeof(int)); *token_ptr = token;
                     list_item_t *item = list_item_new(1, 0, token_ptr);
                     list_insert_item(item, merge_tokens_list);
                 }
@@ -274,13 +326,6 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
             LOG_INFO_F("[%d] Time elapsed = %f s\n", omp_get_thread_num(), total);
             LOG_INFO_F("[%d] Time elapsed = %e ms\n", omp_get_thread_num(), total*1000);
 
-            LOG_DEBUG_F("** Time in parsing = %f s\n", total_parsing);
-            LOG_DEBUG_F("** Time in insertion = %f s\n", total_insertion);
-//             for (int i = 0; i < shared_options_data->num_threads; i++) {
-//                 printf("[%d] Time in searching = %f s\n", i, total_search[i]);
-//                 printf("[%d] Time in merging = %f s\n", i, total_merge[i]);
-//             }
-            
             // Decrease list writers count
             for (int i = 0; i < shared_options_data->num_threads; i++) {
                 list_decr_writers(output_list);
@@ -396,12 +441,13 @@ int insert_position_read(char key[64], vcf_record_file_link* link, kh_pos_t* pos
 }
 
 
-void calculate_merge_interval(vcf_record_t* current_record, char** max_chromosome_merged, long unsigned int* max_position_merged,
+int calculate_merge_interval(vcf_record_t* current_record, char** max_chromosome_merged, long unsigned int* max_position_merged,
                               char **chromosome_order, int num_chromosomes) {
     if (*max_chromosome_merged == NULL) {
         // Max merged chrom:position not set, assign without any other consideration
         *max_chromosome_merged = strndup(current_record->chromosome, current_record->chromosome_len);
         *max_position_merged = current_record->position;
+        return 1;
     } else {
         char *current_chromosome = strndup(current_record->chromosome, current_record->chromosome_len);
         long unsigned int current_position = current_record->position;
@@ -410,13 +456,15 @@ void calculate_merge_interval(vcf_record_t* current_record, char** max_chromosom
         int chrom_comparison = compare_chromosomes(current_chromosome, *max_chromosome_merged, chromosome_order, num_chromosomes);
         int position_comparison = compare_positions(current_position, *max_position_merged);
         
-        // Max merged chrom:position is posterior to the last one in this batch
+        // Max merged chrom:position is greater than the last one in this batch
         if (chrom_comparison < 0 || (chrom_comparison == 0 && position_comparison < 0)) {
             *max_chromosome_merged = current_chromosome;
             *max_position_merged = current_position;
+            return 1;
         } else {
-        	assert(current_chromosome);
+            assert(current_chromosome);
             free(current_chromosome);
+            return 0;
         }
     }
 }
