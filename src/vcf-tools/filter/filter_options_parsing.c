@@ -61,14 +61,6 @@ int read_filter_configuration(const char *filename, filter_options_t *options, s
         LOG_DEBUG_F("batch-lines = %ld\n", *(shared_options->batch_size->ival));
     }*/
     
-    // Read number of variants per request to the web service
-    ret_code = config_lookup_int(config, "vcf-tools.filter.entries-per-thread", shared_options->entries_per_thread->ival);
-    if (ret_code == CONFIG_FALSE) {
-        LOG_WARN("Variants per request not found in configuration file, must be set via command-line");
-    } else {
-        LOG_DEBUG_F("entries-per-thread = %ld\n", *(shared_options->entries_per_thread->ival));
-    }
-
     config_destroy(config);
     free(config);
 
@@ -89,7 +81,7 @@ void **parse_filter_options(int argc, char *argv[], filter_options_t *filter_opt
 }
 
 void **merge_filter_options(filter_options_t *filter_options, shared_options_t *shared_options, struct arg_end *arg_end) {
-    void **tool_options = malloc (28 * sizeof(void*));
+    void **tool_options = malloc (27 * sizeof(void*));
     // Input/output files
     tool_options[0] = shared_options->vcf_filename;
     tool_options[1] = shared_options->ped_filename;
@@ -124,10 +116,9 @@ void **merge_filter_options(filter_options_t *filter_options, shared_options_t *
     tool_options[22] = shared_options->batch_lines;
     tool_options[23] = shared_options->batch_bytes;
     tool_options[24] = shared_options->num_threads;
-    tool_options[25] = shared_options->entries_per_thread;
-    tool_options[26] = shared_options->mmap_vcf_files;
+    tool_options[25] = shared_options->mmap_vcf_files;
     
-    tool_options[27] = arg_end;
+    tool_options[26] = arg_end;
     
     return tool_options;
 }

@@ -129,7 +129,9 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
                 int num_chunks;
                 int *chunk_sizes = NULL;
                 array_list_t *input_records = batch->records;
-                int *chunk_starts = create_chunks(input_records->size, shared_options_data->entries_per_thread, &num_chunks, &chunk_sizes);
+                int *chunk_starts = create_chunks(input_records->size, 
+                                                  ceil((float) shared_options_data->batch_lines / shared_options_data->num_threads), 
+                                                  &num_chunks, &chunk_sizes);
                 
                 // OpenMP: Launch a thread for each range
                 #pragma omp parallel for num_threads(shared_options_data->num_threads)
