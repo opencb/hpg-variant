@@ -77,7 +77,7 @@ void **parse_tdt_options(int argc, char *argv[], tdt_options_t *tdt_options, sha
 }
 
 void **merge_tdt_options(tdt_options_t *tdt_options, shared_options_t *shared_options, struct arg_end *arg_end) {
-    void **tool_options = malloc (28 * sizeof(void*));
+    void **tool_options = malloc (27 * sizeof(void*));
     
     // Input/output files
     tool_options[0] = shared_options->vcf_filename;
@@ -113,10 +113,9 @@ void **merge_tdt_options(tdt_options_t *tdt_options, shared_options_t *shared_op
     tool_options[22] = shared_options->batch_lines;
     tool_options[23] = shared_options->batch_bytes;
     tool_options[24] = shared_options->num_threads;
-    tool_options[25] = shared_options->entries_per_thread;
-    tool_options[26] = shared_options->mmap_vcf_files;
+    tool_options[25] = shared_options->mmap_vcf_files;
     
-    tool_options[27] = arg_end;
+    tool_options[26] = arg_end;
     
     return tool_options;
 }
