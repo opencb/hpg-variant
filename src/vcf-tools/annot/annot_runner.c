@@ -28,7 +28,9 @@ int vcf_annot_process_chunk(vcf_record_t **variants, int num_variants, array_lis
 
 
 vcf_annot_pos_t * vcf_annot_get_pos(char *sample_name, char *chr, size_t pos, array_list_t *sample_list);
-void set_field_value_in_sample(char *sample, int position, char* value);
+
+int vcf_annot_pos_cmp (const void * a, const void * b);
+void set_field_value_in_sample(char **sample, int position, char* value);
 
 static int count_func(const bam1_t *b, void *data)
 {
@@ -163,12 +165,17 @@ int run_annot(shared_options_data_t *shared_options_data, annot_options_data_t *
                 }
 
 #pragma omp parallel for num_threads(shared_options_data->num_threads) 
+                for (int j = 0; j < array_list_size(sample_list); j++) {
+                    annot_sample = (vcf_annot_sample_t*) sample_list->items[j];
+                    vcf_annot_sort_samples(annot_sample);
+                }
+//
+#pragma omp parallel for num_threads(shared_options_data->num_threads) 
                 for (int j = 0; j < array_list_size(sample_list); j++){
                     annot_sample = (vcf_annot_sample_t*) sample_list->items[j];
                     vcf_annot_check_bams(annot_sample, sample_bams);
-
                 }
-
+//
 #pragma omp parallel for num_threads(shared_options_data->num_threads) 
                 for (int j = 0; j < num_chunks; j++) {
                     vcf_annot_edit_chunk((vcf_record_t**)(input_records->items + chunk_starts[j]), chunk_sizes[j], sample_list, sample_bams, vcf_file);
@@ -181,6 +188,11 @@ int run_annot(shared_options_data_t *shared_options_data, annot_options_data_t *
 //                                    for(int j = 0; j < array_list_size(annot_sample->chromosomes); j++){
 //                                        annot_chr = (vcf_annot_chr_t*) array_list_get(j, annot_sample->chromosomes);
 //                                        printf ( "\t%s(%d)\n", annot_chr->name, array_list_size(annot_chr->positions ));
+//                                        for (int k = 0; k < array_list_size(annot_chr->positions); k++) {
+//                                            annot_pos = (vcf_annot_pos_t*) array_list_get(k, annot_chr->positions);
+//                                            printf ( "%d\n", annot_pos->pos );
+//                                            /* code */
+//                                        }
 //                                    }
 //                                }
                 array_list_clear(sample_list, vcf_annot_sample_free);
@@ -373,18 +385,16 @@ int vcf_annot_check_bams(vcf_annot_sample_t* annot_sample, khash_t(bams)* sample
         for(int k = 0; k < array_list_size(annot_chr->positions); k++){
             annot_pos = (vcf_annot_pos_t*) array_list_get(k, annot_chr->positions);
             sprintf(query, "%s:%d-%d", annot_chr->name, annot_pos->pos, annot_pos->pos); 
-            //                printf ( "%s\t%s\t%d", annot_sample->name, annot_chr->name, annot_pos->pos);
             bam_parse_region(bam_file->bam_header_p, query, &tid, &beg, &end);
             result = bam_fetch(bam_file->bam_fd, idx, tid, beg, end, &count_data, count_func);
             annot_pos->dp = *(count_data.count);
-            //                printf ( "\t%d\n", annot_pos->dp );
             *(count_data.count) = 0;
         }
     }
-    free(bam_filename);
     bam_index_destroy(idx);
     bam_fclose(bam_file);
 
+    free(bam_filename);
     free(query);
     return 0;
 }
@@ -421,21 +431,21 @@ int vcf_annot_edit_chunk(vcf_record_t **variants, int num_variants, array_list_t
 
         for (int n = 0; n < array_list_size(sample_list); n++){
             annot_sample = (vcf_annot_sample_t*) array_list_get(n, sample_list); 
-//            printf ( "%d - %s - %s - %d\n",n,  annot_sample->name, chr, pos );
             annot_pos = vcf_annot_get_pos(annot_sample->name, chr, pos, sample_list);
-            if(annot_pos){
+            if(annot_pos && annot_pos->dp > 0){
                 copy_buf = (char*) array_list_get(n, record->samples); 
                 sprintf(value, "%d", annot_pos->dp);
-                set_field_value_in_sample(copy_buf, dp_pos, value);
-                set_field_value_in_sample(copy_buf, gt_pos, "0/0");
-
+                set_field_value_in_sample(&copy_buf, dp_pos, value);
+                set_field_value_in_sample(&copy_buf, gt_pos, "0/0");
             }
         }
-        free(chr);
+        if(chr)
+            free(chr);
     }
     return 0;
 }
-void set_field_value_in_sample(char *sample, int position, char* value){
+
+void set_field_value_in_sample(char **sample, int position, char* value){
     assert(sample);
     assert(value);
     assert(position >= 0);
@@ -443,27 +453,29 @@ void set_field_value_in_sample(char *sample, int position, char* value){
     int field_pos = 0;
     int num_splits;
 
-    char **splits = split(sample, ":", &num_splits);
-    sample = (char*) realloc(sample, strlen(sample) + strlen(value) + 1);
-    strcpy(sample, "");
+    char **splits = split(*sample, ":", &num_splits);
+    *sample = realloc(*sample, strlen(*sample) + strlen(value) + 1);
+    strcpy(*sample, "");
     for(int i = 0; i < num_splits; i++)
     {
         if(i == position){
-            strcat(sample, value);
+            strcat(*sample, value);
         }else{
-            strcat(sample, splits[i]);
+            strcat(*sample, splits[i]);
         }
         if(i < (num_splits - 1))
-            strcat(sample, ":");
+            strcat(*sample, ":");
+        free(splits[i]);
     }
+    free(splits);
 }
-
 
 vcf_annot_pos_t * vcf_annot_get_pos(char *sample_name, char *chr, size_t pos, array_list_t *sample_list){
     int i,j,k;
     vcf_annot_sample_t *annot_sample;
     vcf_annot_pos_t *annot_pos = NULL;
     vcf_annot_chr_t *annot_chr = NULL;
+    int res_pos = -1;
     for (i = 0; i < array_list_size(sample_list); i++) {
         annot_sample = (vcf_annot_sample_t*) array_list_get(i, sample_list);
         if(strcmp(annot_sample->name, sample_name) == 0)
@@ -472,18 +484,57 @@ vcf_annot_pos_t * vcf_annot_get_pos(char *sample_name, char *chr, size_t pos, ar
                 annot_chr = (vcf_annot_chr_t*) array_list_get(j, annot_sample->chromosomes);
                 if(strcmp(annot_chr->name, chr) == 0)
                 {
-                    for (k = 0; k < array_list_size(annot_chr->positions); k++) {
-                        annot_pos = (vcf_annot_pos_t*) array_list_get(k, annot_chr->positions);
-                        if(annot_pos->pos == pos)
-                        {
-//                            printf ( "Encontrado %s - %s - %d\n", annot_sample->name, annot_chr->name, annot_pos->pos );
-                            return annot_pos;
-                        }
+                    res_pos = binary_search_pos(annot_chr->positions, 0 , array_list_size(annot_chr->positions) - 1, pos);
+                    if(res_pos >= 0)
+                    {
+                        annot_pos = array_list_get(res_pos, annot_chr->positions);
+                        return annot_pos;
                     }
                 }
-                /* code */
             }
         }
     }
     return NULL;
+}
+
+int binary_search_pos(array_list_t* array_list , unsigned int f,unsigned int l, unsigned int target) {
+
+    long middle, first, last;
+    first = f;
+    last = l;
+    vcf_annot_pos_t **array = (vcf_annot_pos_t*) array_list->items;
+    while (first <= last) {
+        if ( array[middle]->pos < target )
+            first = middle + 1;    
+        else if ( array[middle]->pos == target) 
+        {
+            return middle;
+        }
+        else
+            last = middle - 1;
+
+        middle = (first + last)/2;
+    }
+    return -1;
+}
+
+void vcf_annot_sort_samples(vcf_annot_sample_t* annot_sample){
+    int j;
+    vcf_annot_pos_t ** annot_pos_array;
+    vcf_annot_chr_t *annot_chr = NULL;
+
+    int res_pos = -1;
+    for (j = 0; j < array_list_size(annot_sample->chromosomes); j++) {
+        annot_chr = (vcf_annot_chr_t*) array_list_get(j, annot_sample->chromosomes);
+        annot_pos_array = (vcf_annot_pos_t*) annot_chr->positions->items;
+        qsort(annot_pos_array, array_list_size(annot_chr->positions), sizeof(vcf_annot_pos_t), vcf_annot_pos_cmp);
+
+    }
+}
+
+int vcf_annot_pos_cmp (const void * a, const void * b){
+    long pos_a_val = (*(vcf_annot_pos_t **)a)->pos;  
+    long pos_b_val = (*(vcf_annot_pos_t **)b)->pos; 
+
+    return (pos_a_val - pos_b_val );
 }
