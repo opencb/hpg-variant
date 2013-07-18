@@ -78,7 +78,7 @@ void **parse_stats_options(int argc, char *argv[], stats_options_t *stats_option
 }
 
 void **merge_stats_options(stats_options_t *stats_options, shared_options_t *shared_options, struct arg_end *arg_end) {
-    void **tool_options = malloc (14 * sizeof(void*));
+    void **tool_options = malloc (15 * sizeof(void*));
     // Input/output files
     tool_options[0] = shared_options->vcf_filename;
     tool_options[1] = shared_options->ped_filename;
@@ -91,16 +91,17 @@ void **merge_stats_options(stats_options_t *stats_options, shared_options_t *sha
     tool_options[6] = stats_options->save_db;
     
     // Configuration file
-    tool_options[7] = shared_options->config_file;
+    tool_options[7] = shared_options->log_level;
+    tool_options[8] = shared_options->config_file;
     
     // Advanced configuration
-    tool_options[8] = shared_options->max_batches;
-    tool_options[9] = shared_options->batch_lines;
-    tool_options[10] = shared_options->batch_bytes;
-    tool_options[11] = shared_options->num_threads;
-    tool_options[12] = shared_options->mmap_vcf_files;
+    tool_options[9] = shared_options->max_batches;
+    tool_options[10] = shared_options->batch_lines;
+    tool_options[11] = shared_options->batch_bytes;
+    tool_options[12] = shared_options->num_threads;
+    tool_options[13] = shared_options->mmap_vcf_files;
     
-    tool_options[13] = arg_end;
+    tool_options[14] = arg_end;
     
     return tool_options;
 }

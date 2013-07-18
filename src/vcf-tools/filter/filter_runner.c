@@ -103,7 +103,7 @@ int run_filter(shared_options_data_t *shared_options_data, filter_options_data_t
             }
             
             volatile int initialization_done = 0;
-            individual_t **individuals;
+            individual_t **individuals = NULL;
             khash_t(ids) *sample_ids = NULL;
             
             start = omp_get_wtime();

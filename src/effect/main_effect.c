@@ -35,7 +35,7 @@ int main(int argc, char *argv[]) {
     if (argc == 1 || !strcmp(argv[1], "-h") || !strcmp(argv[1], "--help")) {
         argtable = merge_effect_options(effect_options, shared_options, arg_end(effect_options->num_options + shared_options->num_options));
         show_usage(argv[0], argtable, effect_options->num_options + shared_options->num_options);
-        arg_freetable(argtable, 29);
+        arg_freetable(argtable, 30);
         return 0;
     } else if (!strcmp(argv[1], "--version")) {
         show_version("Effect");
@@ -43,10 +43,10 @@ int main(int argc, char *argv[]) {
     }
 
     /* ******************************
-     * 	    Execution steps	        *
+     * 	    Execution steps	    *
      * ******************************/
 
-    init_log_custom(2, 1, "hpg-var-effect.log", "w");
+    init_log_custom(LOG_DEFAULT_LEVEL, 1, "hpg-var-effect.log", "w");
     
     array_list_t *config_search_paths = get_configuration_search_paths(argc, argv);
     const char *configuration_file = retrieve_config_file("hpg-variant.conf", config_search_paths);
@@ -75,6 +75,8 @@ int main(int argc, char *argv[]) {
     shared_options_data_t *shared_options_data = new_shared_options_data(shared_options);
     effect_options_data_t *effect_options_data = new_effect_options_data(effect_options);
 
+    init_log_custom(shared_options_data->log_level, 1, "hpg-var-effect.log", "w");
+    
     // Step 5: Create the web service request with all the parameters
     const int num_urls = 3;
     char **urls = malloc (num_urls * sizeof(char*));
@@ -98,7 +100,7 @@ int main(int argc, char *argv[]) {
     
     free_effect_options_data(effect_options_data);
     free_shared_options_data(shared_options_data);
-    arg_freetable(argtable, 29);
+    arg_freetable(argtable, 30);
     array_list_free(config_search_paths, free);
     free(configuration_file);
 

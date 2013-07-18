@@ -29,7 +29,7 @@ int main(int argc, char *argv[]) {
         return 0;
     }
     
-    init_log_custom(2, 1, "hpg-var-vcf.log", "w");
+    init_log_custom(LOG_DEFAULT_LEVEL, 1, "hpg-var-vcf.log", "w");
 
     array_list_t *config_search_paths = get_configuration_search_paths(argc, argv);
     const char *config = retrieve_config_file("hpg-variant.conf", config_search_paths);
