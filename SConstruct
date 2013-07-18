@@ -17,7 +17,7 @@ if int(ARGUMENTS.get('debug', '0')) == 1:
     env['CFLAGS'] += ' -O0 -g'
 else:
     debug = 0
-    env['CFLAGS'] += ' -O3'
+    env['CFLAGS'] += ' -O3 -g'
 
 env['objects'] = []
 
