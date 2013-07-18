@@ -21,15 +21,25 @@
 #include "annot.h"
 
 int vcf_annot_chr_cmp(const vcf_annot_chr_t *v1, const vcf_annot_chr_t *v2);
+
 void vcf_annot_sample_free(vcf_annot_sample_t *sample);
+
 void vcf_annot_chr_free(vcf_annot_chr_t *chr);
+
 void vcf_annot_pos_free(vcf_annot_pos_t *pos);
+
 int vcf_annot_process_chunk(vcf_record_t **variants, int num_variants, array_list_t *sample_list, khash_t(bams)* sample_bams, vcf_file_t *vcf_file);
 
+void vcf_annot_sort_sample(vcf_annot_sample_t* annot_sample);
+
+int vcf_annot_check_bams(vcf_annot_sample_t* annot_sample, khash_t(bams)* sample_bams);
+
+int vcf_annot_edit_chunk(vcf_record_t **variants, int num_variants, array_list_t *sample_list, khash_t(bams)* sample_bams, vcf_file_t *vcf_file);
 
 vcf_annot_pos_t * vcf_annot_get_pos(char *sample_name, char *chr, size_t pos, array_list_t *sample_list);
 
 int vcf_annot_pos_cmp (const void * a, const void * b);
+
 void set_field_value_in_sample(char **sample, int position, char* value);
 
 static int count_func(const bam1_t *b, void *data)
@@ -100,8 +110,6 @@ int run_annot(shared_options_data_t *shared_options_data, annot_options_data_t *
             omp_set_nested(1);
             LOG_INFO_F("Thread %d processes data\n", omp_get_thread_num());
 
-            khash_t(ids) *sample_ids = NULL;
-
             start = omp_get_wtime();
 
             int i = 0;
@@ -132,6 +140,7 @@ int run_annot(shared_options_data_t *shared_options_data, annot_options_data_t *
                             i, omp_get_thread_num(),
                             batch->records->size, batch->records->capacity);
                 }
+                
                 for (int n = 0; n < array_list_size(vcf_file->samples_names); n++) {
                     annot_sample = (vcf_annot_sample_t*) malloc(sizeof(vcf_annot_sample_t));
                     sample_name = (char*) array_list_get(n, vcf_file->samples_names);
@@ -167,34 +176,20 @@ int run_annot(shared_options_data_t *shared_options_data, annot_options_data_t *
 #pragma omp parallel for num_threads(shared_options_data->num_threads) 
                 for (int j = 0; j < array_list_size(sample_list); j++) {
                     annot_sample = (vcf_annot_sample_t*) sample_list->items[j];
-                    vcf_annot_sort_samples(annot_sample);
+                    vcf_annot_sort_sample(annot_sample);
                 }
-//
+
 #pragma omp parallel for num_threads(shared_options_data->num_threads) 
                 for (int j = 0; j < array_list_size(sample_list); j++){
                     annot_sample = (vcf_annot_sample_t*) sample_list->items[j];
                     vcf_annot_check_bams(annot_sample, sample_bams);
                 }
-//
+
 #pragma omp parallel for num_threads(shared_options_data->num_threads) 
                 for (int j = 0; j < num_chunks; j++) {
                     vcf_annot_edit_chunk((vcf_record_t**)(input_records->items + chunk_starts[j]), chunk_sizes[j], sample_list, sample_bams, vcf_file);
                 }
 
-//                                for (int i = 0; i < array_list_size(sample_list); i++){
-//                                    annot_sample = (vcf_annot_sample_t*) sample_list->items[i];
-//                                    printf ( "%s\n", annot_sample->name );
-//                
-//                                    for(int j = 0; j < array_list_size(annot_sample->chromosomes); j++){
-//                                        annot_chr = (vcf_annot_chr_t*) array_list_get(j, annot_sample->chromosomes);
-//                                        printf ( "\t%s(%d)\n", annot_chr->name, array_list_size(annot_chr->positions ));
-//                                        for (int k = 0; k < array_list_size(annot_chr->positions); k++) {
-//                                            annot_pos = (vcf_annot_pos_t*) array_list_get(k, annot_chr->positions);
-//                                            printf ( "%d\n", annot_pos->pos );
-//                                            /* code */
-//                                        }
-//                                    }
-//                                }
                 array_list_clear(sample_list, vcf_annot_sample_free);
 
                 output_item = list_item_new(i, 0, batch);
@@ -203,7 +198,7 @@ int run_annot(shared_options_data_t *shared_options_data, annot_options_data_t *
                 free(chunk_starts);
                 free(chunk_sizes);
                 i++;
-            }
+            } // End While
 
 
             stop = omp_get_wtime();
@@ -212,13 +207,13 @@ int run_annot(shared_options_data_t *shared_options_data, annot_options_data_t *
             LOG_INFO_F("[%d] Time elapsed = %f s\n", omp_get_thread_num(), total);
             LOG_INFO_F("[%d] Time elapsed = %e ms\n", omp_get_thread_num(), total*1000);
 
-            if (sample_ids) { kh_destroy(ids, sample_ids); }
             if (sample_bams) { kh_destroy(ids, sample_bams); }
 
             // Decrease list writers count
             for (int i = 0; i < shared_options_data->num_threads; i++) {
                 list_decr_writers(output_list);
             }
+        array_list_free(sample_list, vcf_annot_sample_free);
         } // end section
 
 #pragma omp section
@@ -240,6 +235,9 @@ int run_annot(shared_options_data_t *shared_options_data, annot_options_data_t *
             int *num_records;
             vcf_batch_t *batch;
 
+            // Write the header
+            write_vcf_header(vcf_file, output_fd);
+
             while( list_item = list_remove_item(output_list)){
                     batch = (vcf_batch_t*) list_item->data_p;
                     for (int i = 0; i < batch->records->size; i++) {
@@ -254,7 +252,6 @@ int run_annot(shared_options_data_t *shared_options_data, annot_options_data_t *
         }
     } // END Parallel sections
 
-    array_list_free(sample_list, vcf_annot_sample_free);
     list_free_deep(output_list, vcf_batch_free);
 
     vcf_close(vcf_file);
@@ -324,7 +321,7 @@ int vcf_annot_process_chunk(vcf_record_t **variants, int num_variants, array_lis
                 copy_buf = NULL;
             }
 
-            if (alleles_code == 3) {
+            if (alleles_code == 3) { //   ./.
                 annot_sample = array_list_get(n, sample_list);
                 pos = record->position;
                 chr = strndup(record->chromosome, record->chromosome_len);
@@ -425,9 +422,9 @@ int vcf_annot_edit_chunk(vcf_record_t **variants, int num_variants, array_list_t
             free(copy_buf);
             copy_buf = NULL;
         }
-        if (dp_pos < 0) { 
+        if (dp_pos < 0 || gt_pos < 0) { 
             continue; 
-        }   // This variant has no GT field
+        }   // This variant has no GT/DP field
 
         for (int n = 0; n < array_list_size(sample_list); n++){
             annot_sample = (vcf_annot_sample_t*) array_list_get(n, sample_list); 
@@ -518,7 +515,7 @@ int binary_search_pos(array_list_t* array_list , unsigned int f,unsigned int l, 
     return -1;
 }
 
-void vcf_annot_sort_samples(vcf_annot_sample_t* annot_sample){
+void vcf_annot_sort_sample(vcf_annot_sample_t* annot_sample){
     int j;
     vcf_annot_pos_t ** annot_pos_array;
     vcf_annot_chr_t *annot_chr = NULL;
@@ -528,7 +525,6 @@ void vcf_annot_sort_samples(vcf_annot_sample_t* annot_sample){
         annot_chr = (vcf_annot_chr_t*) array_list_get(j, annot_sample->chromosomes);
         annot_pos_array = (vcf_annot_pos_t*) annot_chr->positions->items;
         qsort(annot_pos_array, array_list_size(annot_chr->positions), sizeof(vcf_annot_pos_t), vcf_annot_pos_cmp);
-
     }
 }
 
