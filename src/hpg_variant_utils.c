@@ -52,12 +52,12 @@ char *get_config_path_from_args(int argc, char *argv[]) {
     }
 
     if (config_dirpath && stat(config_dirpath, &sb) == -1 && errno == ENOENT) {
-        LOG_WARN("The folder specified to store configuration files does not exist.");
+        LOG_WARN("The folder specified to store configuration files does not exist.\n");
         return NULL;
     }
 
     if (config_dirpath && !S_ISDIR(sb.st_mode)) {
-        LOG_WARN("The path specified to store configuration files is not a folder.");
+        LOG_WARN("The path specified to store configuration files is not a folder.\n");
         return NULL;
 
     }

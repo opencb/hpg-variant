@@ -36,7 +36,7 @@ int read_stats_configuration(const char *filename, stats_options_t *options, sha
     // Read number of threads that will make request to the web service
     ret_code = config_lookup_int(config, "vcf-tools.stats.num-threads", shared_options->num_threads->ival);
     if (ret_code == CONFIG_FALSE) {
-        LOG_WARN("Number of threads not found in config file, must be set via command-line");
+        LOG_WARN("Number of threads not found in config file, must be set via command-line\n");
     } else {
         LOG_DEBUG_F("num-threads = %ld\n", *(shared_options->num_threads->ival));
     }
@@ -44,7 +44,7 @@ int read_stats_configuration(const char *filename, stats_options_t *options, sha
     // Read maximum number of batches that can be stored at certain moment
     ret_code = config_lookup_int(config, "vcf-tools.stats.max-batches", shared_options->max_batches->ival);
     if (ret_code == CONFIG_FALSE) {
-        LOG_WARN("Maximum number of batches not found in configuration file, must be set via command-line");
+        LOG_WARN("Maximum number of batches not found in configuration file, must be set via command-line\n");
     } else {
         LOG_DEBUG_F("max-batches = %ld\n", *(shared_options->max_batches->ival));
     }
@@ -53,7 +53,7 @@ int read_stats_configuration(const char *filename, stats_options_t *options, sha
     ret_code = config_lookup_int(config, "vcf-tools.stats.batch-lines", shared_options->batch_lines->ival);
     ret_code |= config_lookup_int(config, "vcf-tools.stats.batch-bytes", shared_options->batch_bytes->ival);
     if (ret_code == CONFIG_FALSE) {
-        LOG_WARN("Neither batch lines nor bytes found in configuration file, must be set via command-line");
+        LOG_WARN("Neither batch lines nor bytes found in configuration file, must be set via command-line\n");
     } 
     /*else {
         LOG_DEBUG_F("batch-lines = %ld\n", *(shared_options->batch_size->ival));
@@ -110,38 +110,38 @@ void **merge_stats_options(stats_options_t *stats_options, shared_options_t *sha
 int verify_stats_options(stats_options_t *stats_options, shared_options_t *shared_options) {
     // Check whether the input VCF file is defined
     if (shared_options->vcf_filename->count == 0) {
-        LOG_ERROR("Please specify the input VCF file.");
+        LOG_ERROR("Please specify the input VCF file.\n");
         return VCF_FILE_NOT_SPECIFIED;
     }
     
     // Check whether batch lines or bytes are defined
     if (*(shared_options->batch_lines->ival) == 0 && *(shared_options->batch_bytes->ival) == 0) {
-        LOG_ERROR("Please specify the size of the reading batches (in lines or bytes).");
+        LOG_ERROR("Please specify the size of the reading batches (in lines or bytes).\n");
         return BATCH_SIZE_NOT_SPECIFIED;
     }
     
     // Check if both batch lines or bytes are defined
     if (*(shared_options->batch_lines->ival) > 0 && *(shared_options->batch_bytes->ival) > 0) {
-        LOG_WARN("The size of reading batches has been specified both in lines and bytes. The size in bytes will be used.");
+        LOG_WARN("The size of reading batches has been specified both in lines and bytes. The size in bytes will be used.\n");
         return 0;
     }
     
     // Check whether variant or sample stats are requested
     // If none of them is, set variant stats as default
     if (stats_options->variant_stats->count + stats_options->sample_stats->count == 0) {
-        LOG_INFO("Statistics requested neither for variants nor samples. Only-variants taken as default.");
+        LOG_INFO("Statistics requested neither for variants nor samples. Only-variants taken as default.\n");
         stats_options->variant_stats->count = 1;
     }
     
     // Check whether the input PED file is defined when sample stats are requested
     if (stats_options->sample_stats->count > 0 && shared_options->ped_filename->count == 0) {
-        LOG_ERROR("Please specify the input PED file.");
+        LOG_ERROR("Please specify the input PED file.\n");
         return PED_FILE_NOT_SPECIFIED;
     }
     
     // If no PED file is specified, not all statistics can be calculated
     if (shared_options->ped_filename->count == 0) {
-        LOG_WARN("Input PED file not specified: not all statistics can be calculated.");
+        LOG_WARN("Input PED file not specified: not all statistics can be calculated.\n");
     }
     
     return 0;
