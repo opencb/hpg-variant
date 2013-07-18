@@ -38,7 +38,7 @@ int read_filter_configuration(const char *filename, filter_options_t *options, s
     // Read number of threads that will make request to the web service
     ret_code = config_lookup_int(config, "vcf-tools.filter.num-threads", shared_options->num_threads->ival);
     if (ret_code == CONFIG_FALSE) {
-        LOG_WARN("Number of threads not found in config file, must be set via command-line");
+        LOG_WARN("Number of threads not found in config file, must be set via command-line\n");
     } else {
         LOG_DEBUG_F("num-threads = %ld\n", *(shared_options->num_threads->ival));
     }
@@ -46,7 +46,7 @@ int read_filter_configuration(const char *filename, filter_options_t *options, s
     // Read maximum number of batches that can be stored at certain moment
     ret_code = config_lookup_int(config, "vcf-tools.filter.max-batches", shared_options->max_batches->ival);
     if (ret_code == CONFIG_FALSE) {
-        LOG_WARN("Maximum number of batches not found in configuration file, must be set via command-line");
+        LOG_WARN("Maximum number of batches not found in configuration file, must be set via command-line\n");
     } else {
         LOG_DEBUG_F("max-batches = %ld\n", *(shared_options->max_batches->ival));
     }
@@ -55,7 +55,7 @@ int read_filter_configuration(const char *filename, filter_options_t *options, s
     ret_code = config_lookup_int(config, "vcf-tools.filter.batch-lines", shared_options->batch_lines->ival);
     ret_code |= config_lookup_int(config, "vcf-tools.filter.batch-bytes", shared_options->batch_bytes->ival);
     if (ret_code == CONFIG_FALSE) {
-        LOG_WARN("Neither batch lines nor bytes found in configuration file, must be set via command-line");
+        LOG_WARN("Neither batch lines nor bytes found in configuration file, must be set via command-line\n");
     } 
     /*else {
         LOG_DEBUG_F("batch-lines = %ld\n", *(shared_options->batch_size->ival));

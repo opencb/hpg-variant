@@ -38,7 +38,7 @@ int read_merge_configuration(const char *filename, merge_options_t *options, sha
     // Read number of threads to perform the operations
     ret_code = config_lookup_int(config, "vcf-tools.merge.num-threads", shared_options->num_threads->ival);
     if (ret_code == CONFIG_FALSE) {
-        LOG_WARN("Number of threads not found in config file, must be set via command-line");
+        LOG_WARN("Number of threads not found in config file, must be set via command-line\n");
     } else {
         LOG_DEBUG_F("num-threads = %ld\n", *(shared_options->num_threads->ival));
     }
@@ -46,7 +46,7 @@ int read_merge_configuration(const char *filename, merge_options_t *options, sha
     // Read maximum number of batches that can be stored at certain moment
     ret_code = config_lookup_int(config, "vcf-tools.merge.max-batches", shared_options->max_batches->ival);
     if (ret_code == CONFIG_FALSE) {
-        LOG_WARN("Maximum number of batches not found in configuration file, must be set via command-line");
+        LOG_WARN("Maximum number of batches not found in configuration file, must be set via command-line\n");
     } else {
         LOG_DEBUG_F("max-batches = %ld\n", *(shared_options->max_batches->ival));
     }
@@ -55,7 +55,7 @@ int read_merge_configuration(const char *filename, merge_options_t *options, sha
     ret_code = config_lookup_int(config, "vcf-tools.merge.batch-lines", shared_options->batch_lines->ival);
     ret_code |= config_lookup_int(config, "vcf-tools.merge.batch-bytes", shared_options->batch_bytes->ival);
     if (ret_code == CONFIG_FALSE) {
-        LOG_WARN("Neither batch lines nor bytes found in configuration file, must be set via command-line");
+        LOG_WARN("Neither batch lines nor bytes found in configuration file, must be set via command-line\n");
     } 
     /*else {
         LOG_DEBUG_F("batch-lines = %ld\n", *(shared_options->batch_size->ival));
@@ -64,7 +64,7 @@ int read_merge_configuration(const char *filename, merge_options_t *options, sha
     // Read missing mode
     ret_code = config_lookup_string(config, "vcf-tools.merge.missing-mode", &tmp_string);
     if (ret_code == CONFIG_FALSE) {
-        LOG_WARN("Missing mode not found in configuration file, must be set via command-line");
+        LOG_WARN("Missing mode not found in configuration file, must be set via command-line\n");
     } else {
         *(options->missing_mode->sval) = strdup(tmp_string);
         LOG_DEBUG_F("missing mode = %s (%zu chars)\n",

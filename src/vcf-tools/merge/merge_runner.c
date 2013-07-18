@@ -30,7 +30,7 @@ static void free_merge_tree(kh_pos_t* positions_read);
 
 int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *options_data) {
     if (options_data->num_files == 1) {
-        LOG_INFO("Just one VCF file specified, no need to merge");
+        LOG_INFO("Just one VCF file specified, no need to merge\n");
         return 0;
     }
     
@@ -274,7 +274,7 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
                         free_merge_tree(positions_read);
                         free(max_chromosome_merged);
                         
-                        LOG_FATAL("Files can not be merged!");
+                        LOG_FATAL("Files can not be merged!\n");
                     } else {
                         array_list_free(sample_names, NULL);
                     }
