@@ -35,7 +35,7 @@ int tdt(int argc, char *argv[], const char *configuration_file) {
     if (argc == 1 || !strcmp(argv[1], "--help")) {
         argtable = merge_tdt_options(tdt_options, shared_options, arg_end(tdt_options->num_options + shared_options->num_options));
         show_usage("hpg-var-gwas tdt", argtable, tdt_options->num_options + shared_options->num_options);
-        arg_freetable(argtable, 27);
+        arg_freetable(argtable, 28);
         return 0;
     }
 
@@ -68,13 +68,15 @@ int tdt(int argc, char *argv[], const char *configuration_file) {
     shared_options_data_t *shared_options_data = new_shared_options_data(shared_options);
 //     tdt_options_data_t *options_data = new_tdt_options_data(tdt_options);
 
+    init_log_custom(shared_options_data->log_level, 1, "hpg-var-gwas.log", "w");
+    
     // Step 5: Perform the operations related to the selected GWAS sub-tool
 //     run_tdt_test(shared_options_data, options_data);
     run_tdt_test(shared_options_data);
     
 //     free_tdt_options_data(options_data);
     free_shared_options_data(shared_options_data);
-    arg_freetable(argtable, 27);
+    arg_freetable(argtable, 28);
     free(configuration_file);
 
     return 0;
