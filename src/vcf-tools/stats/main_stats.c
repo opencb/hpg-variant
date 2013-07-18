@@ -35,7 +35,7 @@ int vcf_tool_stats(int argc, char *argv[], const char *configuration_file) {
     if (argc == 1 || !strcmp(argv[1], "-h") || !strcmp(argv[1], "--help")) {
         argtable = merge_stats_options(stats_options, shared_options, arg_end(stats_options->num_options + shared_options->num_options));
         show_usage("hpg-var-vcf stats", argtable, stats_options->num_options + shared_options->num_options);
-        arg_freetable(argtable, 14);
+        arg_freetable(argtable, 15);
         return 0;
     }
 
@@ -68,12 +68,14 @@ int vcf_tool_stats(int argc, char *argv[], const char *configuration_file) {
     shared_options_data_t *shared_options_data = new_shared_options_data(shared_options);
     stats_options_data_t *options_data = new_stats_options_data(stats_options);
 
+    init_log_custom(shared_options_data->log_level, 1, "hpg-var-vcf.log", "w");
+
     // Step 5: Perform the requested task
     int result = run_stats(shared_options_data, options_data);
 
     free_stats_options_data(options_data);
     free_shared_options_data(shared_options_data);
-    arg_freetable(argtable, 14);
+    arg_freetable(argtable, 15);
 
     return 0;
 }
