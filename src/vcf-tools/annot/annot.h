@@ -24,7 +24,6 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sqlite3.h>
 #include <omp.h>
 
 #include <bioformats/db/db_utils.h>
@@ -80,7 +79,7 @@ typedef struct vcf_annot_chr{
 
 typedef struct vcf_annot_pos{
     unsigned int pos;
-    short int dp;
+    uint8_t dp;
 } vcf_annot_pos_t;
 
 

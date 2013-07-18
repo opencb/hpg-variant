@@ -27,6 +27,9 @@ void vcf_annot_pos_free(vcf_annot_pos_t *pos);
 int vcf_annot_process_chunk(vcf_record_t **variants, int num_variants, array_list_t *sample_list, khash_t(bams)* sample_bams, vcf_file_t *vcf_file);
 
 
+vcf_annot_pos_t * vcf_annot_get_pos(char *sample_name, char *chr, size_t pos, array_list_t *sample_list);
+void set_field_value_in_sample(char *sample, int position, char* value);
+
 static int count_func(const bam1_t *b, void *data)
 {
 		(*((count_func_data_t*)data)->count)++;
@@ -35,8 +38,6 @@ static int count_func(const bam1_t *b, void *data)
 
 
 int run_annot(shared_options_data_t *shared_options_data, annot_options_data_t *options_data) {
-
-    array_list_t *sample_list = array_list_new(100, 1.25f, COLLECTION_MODE_SYNCHRONIZED);
 
     int ret_code;
     double start, stop, total;
@@ -47,16 +48,24 @@ int run_annot(shared_options_data_t *shared_options_data, annot_options_data_t *
     char * copy_buf;
     khiter_t iter;
     int ret;
+    list_item_t *output_item;
 
     vcf_file_t *vcf_file = vcf_open(shared_options_data->vcf_filename, shared_options_data->max_batches);
     if (!vcf_file) {
         LOG_FATAL("VCF file does not exist!\n");
     }
+    
+    ret_code = create_directory(shared_options_data->output_directory);
+    if (ret_code != 0 && errno != EEXIST) {
+        LOG_FATAL_F("Can't create output directory: %s\n", shared_options_data->output_directory);
+    }
 
     LOG_INFO("Annotating VCF file...");
-
-    khash_t(bams) *sample_bams = kh_init(bams);
-
+    
+    array_list_t *sample_list = array_list_new(100, 1.25f, COLLECTION_MODE_SYNCHRONIZED);
+    
+    list_t *output_list = malloc(sizeof(list_t));
+    list_init("output_list", shared_options_data->num_threads, INT_MAX, output_list);
 
 #pragma omp parallel sections private(start, stop, total)
     {
@@ -96,52 +105,94 @@ int run_annot(shared_options_data_t *shared_options_data, annot_options_data_t *
             int i = 0;
 
             vcf_batch_t *batch = NULL;
+            khash_t(bams) *sample_bams = kh_init(bams);
             while ((batch = fetch_vcf_batch(vcf_file)) != NULL) {
-                if(i == 0){
-
+                if(i == 0) {
                     for (int n = 0; n < array_list_size(vcf_file->samples_names); n++) {
-                        annot_sample = (vcf_annot_sample_t*) malloc(sizeof(vcf_annot_sample_t));
                         sample_name = (char*) array_list_get(n, vcf_file->samples_names);
-                        annot_sample->name = strndup(sample_name, strlen(sample_name));
-                        annot_sample->chromosomes = array_list_new(24, 1.25f, COLLECTION_MODE_SYNCHRONIZED);
-                        annot_sample->chromosomes->compare_fn = &vcf_annot_chr_cmp;
-                        iter = kh_get(ids, sample_bams, annot_sample->name);
+                        iter = kh_get(ids, sample_bams, sample_name);
                         if (iter != kh_end(sample_bams)) {
                             LOG_FATAL_F("Sample %s appears more than once. File can not be analyzed.\n", annot_sample->name);
                         } else {
-                            iter = kh_put(bams, sample_bams, annot_sample->name, &ret);
+                            iter = kh_put(bams, sample_bams, sample_name, &ret);
                             if (ret) {
-                                copy_buf = (char*) calloc(strlen(annot_sample->name) + 8 + 1, sizeof(char));
-                                strcpy(copy_buf, annot_sample->name);
+                                copy_buf = (char*) calloc(strlen(sample_name) + 8 + 1, sizeof(char));
+                                strcpy(copy_buf, sample_name);
                                 strcat(copy_buf, ".bam.bai");
                                 kh_value(sample_bams, iter) = copy_buf; 
                             }
                         }
-                        array_list_insert(annot_sample, sample_list);
                     }
                 }
-                if (i % 50 == 0) {
+
+                if(i % 50 == 0) {
                     LOG_INFO_F("Batch %d reached by thread %d - %zu/%zu records \n", 
                             i, omp_get_thread_num(),
                             batch->records->size, batch->records->capacity);
                 }
+                for (int n = 0; n < array_list_size(vcf_file->samples_names); n++) {
+                    annot_sample = (vcf_annot_sample_t*) malloc(sizeof(vcf_annot_sample_t));
+                    sample_name = (char*) array_list_get(n, vcf_file->samples_names);
+                    annot_sample->name = strndup(sample_name, strlen(sample_name));
+                    annot_sample->chromosomes = array_list_new(24, 1.25f, COLLECTION_MODE_SYNCHRONIZED);
+                    annot_sample->chromosomes->compare_fn = &vcf_annot_chr_cmp;
+                    array_list_insert(annot_sample, sample_list);
+                }
 
                 // Divide the list of passed records in ranges of size defined in config file
 
-                int num_chunks;
-                int *chunk_sizes = NULL;
                 array_list_t *input_records = batch->records;
+                bam_file_t* bam_file;
+                bam_header_t *bam_header;
+                bam_index_t *idx = 0;
+                char* aux;
+                char *bam_filename;
+                char *query = (char*) calloc(1024, sizeof(char));
+                int *chunk_sizes = NULL;
+                int count = 0, result, tid, beg, end;
+                int num_chunks;
+                khiter_t iter;
+                vcf_annot_chr_t *annot_chr;
+                vcf_annot_pos_t *annot_pos;
+                vcf_annot_sample_t *annot_sample;
                 int *chunk_starts = create_chunks(input_records->size, shared_options_data->entries_per_thread, &num_chunks, &chunk_sizes);
+
 #pragma omp parallel for num_threads(shared_options_data->num_threads) 
                 for (int j = 0; j < num_chunks; j++) {
                     vcf_annot_process_chunk((vcf_record_t**)(input_records->items + chunk_starts[j]), chunk_sizes[j], sample_list, sample_bams, vcf_file);
                 }
 
+#pragma omp parallel for num_threads(shared_options_data->num_threads) 
+                for (int j = 0; j < array_list_size(sample_list); j++){
+                    annot_sample = (vcf_annot_sample_t*) sample_list->items[j];
+                    vcf_annot_check_bams(annot_sample, sample_bams);
+
+                }
+
+#pragma omp parallel for num_threads(shared_options_data->num_threads) 
+                for (int j = 0; j < num_chunks; j++) {
+                    vcf_annot_edit_chunk((vcf_record_t**)(input_records->items + chunk_starts[j]), chunk_sizes[j], sample_list, sample_bams, vcf_file);
+                }
+
+//                                for (int i = 0; i < array_list_size(sample_list); i++){
+//                                    annot_sample = (vcf_annot_sample_t*) sample_list->items[i];
+//                                    printf ( "%s\n", annot_sample->name );
+//                
+//                                    for(int j = 0; j < array_list_size(annot_sample->chromosomes); j++){
+//                                        annot_chr = (vcf_annot_chr_t*) array_list_get(j, annot_sample->chromosomes);
+//                                        printf ( "\t%s(%d)\n", annot_chr->name, array_list_size(annot_chr->positions ));
+//                                    }
+//                                }
+                array_list_clear(sample_list, vcf_annot_sample_free);
+
+                output_item = list_item_new(i, 0, batch);
+                list_insert_item(output_item, output_list);
+
                 free(chunk_starts);
                 free(chunk_sizes);
-                vcf_batch_free(batch);
                 i++;
             }
+
 
             stop = omp_get_wtime();
             total = stop - start;
@@ -150,77 +201,49 @@ int run_annot(shared_options_data_t *shared_options_data, annot_options_data_t *
             LOG_INFO_F("[%d] Time elapsed = %e ms\n", omp_get_thread_num(), total*1000);
 
             if (sample_ids) { kh_destroy(ids, sample_ids); }
-        }
-    }
-    
-    // Print
-    for (int i = 0; i < array_list_size(sample_list); i++){
-        annot_sample = (vcf_annot_sample_t*) sample_list->items[i];
-        printf ( "%s\n", annot_sample->name );
+            if (sample_bams) { kh_destroy(ids, sample_bams); }
 
-        for(int j = 0; j < array_list_size(annot_sample->chromosomes); j++){
-            annot_chr = (vcf_annot_chr_t*) array_list_get(j, annot_sample->chromosomes);
-            printf ( "\t%s(%d)\n", annot_chr->name, array_list_size(annot_chr->positions ));
-        }
-    }
-    return 0;
-
-#pragma omp parallel num_threads(shared_options_data->num_threads) 
-    {
-        khiter_t iter;
-        char* aux;
-        char *bam_filename;
-        vcf_annot_sample_t *annot_sample;
-        vcf_annot_chr_t *annot_chr;
-        vcf_annot_pos_t *annot_pos;
-        int count = 0, result, tid, beg, end;
-        bam_file_t* bam_file;
-        bam_header_t *bam_header;
-        bam_index_t *idx = 0;
-        char *query = (char*) calloc(1024, sizeof(char));
-
-#pragma omp for
-        for (int i = 0; i < array_list_size(sample_list); i++){
-            annot_sample = (vcf_annot_sample_t*) sample_list->items[i];
-            iter = kh_get(ids, sample_bams, annot_sample->name);
-            aux = kh_value(sample_bams, iter);
-            bam_filename = (char*) calloc(strlen(annot_sample->name) +28 +1, sizeof(char));
-            strcpy(bam_filename, "/home/aaleman/tmp/vcf/");
-            strcat(bam_filename, annot_sample->name);
-            strcat(bam_filename, ".bam");
-            printf( "Procesando %s\n",bam_filename );
-            bam_file = bam_fopen(bam_filename);
-            idx = bam_index_load(bam_filename);
-
-            count_func_data_t count_data = { bam_file->bam_header_p, &count };
-
-            for(int j = 0; j < array_list_size(annot_sample->chromosomes); j++){
-                annot_chr = (vcf_annot_chr_t*) array_list_get(j, annot_sample->chromosomes);
-                //            printf ( "%s (%d)\n", annot_chr->name, array_list_size(annot_chr->positions) );
-                for(int k = 0; k < array_list_size(annot_chr->positions); k++){
-                    annot_pos = (vcf_annot_pos_t*) array_list_get(k, annot_chr->positions);
-                    sprintf(query, "%s:%d-%d", annot_chr->name, annot_pos->pos, annot_pos->pos); 
-                    //                printf ( "%s\t%s\t%d", annot_sample->name, annot_chr->name, annot_pos->pos);
-                    bam_parse_region(bam_file->bam_header_p, query, &tid, &beg, &end);
-                    result = bam_fetch(bam_file->bam_fd, idx, tid, beg, end, &count_data, count_func);
-                    annot_pos->dp = *(count_data.count);
-                    //                printf ( "\t%d\n", annot_pos->dp );
-                    *(count_data.count) = 0;
-                }
+            // Decrease list writers count
+            for (int i = 0; i < shared_options_data->num_threads; i++) {
+                list_decr_writers(output_list);
             }
-            free(bam_filename);
-            bam_index_destroy(idx);
-            bam_fclose(bam_file);
+        } // end section
+
+#pragma omp section
+        {
+            LOG_DEBUG_F("Thread %d writes the output\n", omp_get_thread_num());
+            
+            start = omp_get_wtime();
+
+            char *output_filename = shared_options_data->output_filename;
+            
+            char *aux_filename;
+            FILE *output_fd = get_output_file(shared_options_data, aux_filename, &aux_filename);
+            LOG_INFO_F("Output filename = %s\n", aux_filename);
+            free(aux_filename);
+            
+            list_item_t *list_item = NULL;
+            vcf_header_entry_t *entry;
+            vcf_record_t *record;
+            int *num_records;
+            vcf_batch_t *batch;
+
+            while( list_item = list_remove_item(output_list)){
+                    batch = (vcf_batch_t*) list_item->data_p;
+                    for (int i = 0; i < batch->records->size; i++) {
+                        record = (vcf_record_t*) batch->records->items[i];
+                        write_vcf_record(record, output_fd);
+                    }
+                    vcf_batch_free(batch);
+                    list_item_free(list_item);
+            }
+            fclose(output_fd);
+            free(output_filename);
         }
-    }
-
-
-
-
-
-    /// FREE
+    } // END Parallel sections
 
     array_list_free(sample_list, vcf_annot_sample_free);
+    list_free_deep(output_list, vcf_batch_free);
 
     vcf_close(vcf_file);
     return 0;
@@ -317,4 +340,150 @@ int vcf_annot_process_chunk(vcf_record_t **variants, int num_variants, array_lis
         }
     }
     return 0;
+}
+
+int vcf_annot_check_bams(vcf_annot_sample_t* annot_sample, khash_t(bams)* sample_bams){
+    khiter_t iter;
+    char* aux;
+    char *bam_filename;
+    vcf_annot_chr_t *annot_chr;
+    vcf_annot_pos_t *annot_pos;
+    int count = 0, result, tid, beg, end;
+    bam_file_t* bam_file;
+    bam_header_t *bam_header;
+    bam_index_t *idx = 0;
+    char *query = (char*) calloc(1024, sizeof(char));
+
+
+    iter = kh_get(ids, sample_bams, annot_sample->name);
+    aux = kh_value(sample_bams, iter);
+    bam_filename = (char*) calloc(strlen(annot_sample->name) +28 +1, sizeof(char));
+    strcpy(bam_filename, "/home/aaleman/tmp/vcf/");
+    strcat(bam_filename, annot_sample->name);
+    strcat(bam_filename, ".bam");
+//    printf( "Procesando %s\n",bam_filename );
+    bam_file = bam_fopen(bam_filename);
+    idx = bam_index_load(bam_filename);
+
+    count_func_data_t count_data = { bam_file->bam_header_p, &count };
+
+    for(int j = 0; j < array_list_size(annot_sample->chromosomes); j++){
+        annot_chr = (vcf_annot_chr_t*) array_list_get(j, annot_sample->chromosomes);
+        //            printf ( "%s (%d)\n", annot_chr->name, array_list_size(annot_chr->positions) );
+        for(int k = 0; k < array_list_size(annot_chr->positions); k++){
+            annot_pos = (vcf_annot_pos_t*) array_list_get(k, annot_chr->positions);
+            sprintf(query, "%s:%d-%d", annot_chr->name, annot_pos->pos, annot_pos->pos); 
+            //                printf ( "%s\t%s\t%d", annot_sample->name, annot_chr->name, annot_pos->pos);
+            bam_parse_region(bam_file->bam_header_p, query, &tid, &beg, &end);
+            result = bam_fetch(bam_file->bam_fd, idx, tid, beg, end, &count_data, count_func);
+            annot_pos->dp = *(count_data.count);
+            //                printf ( "\t%d\n", annot_pos->dp );
+            *(count_data.count) = 0;
+        }
+    }
+    free(bam_filename);
+    bam_index_destroy(idx);
+    bam_fclose(bam_file);
+
+    free(query);
+    return 0;
+}
+
+int vcf_annot_edit_chunk(vcf_record_t **variants, int num_variants, array_list_t *sample_list, khash_t(bams)* sample_bams, vcf_file_t *vcf_file){
+
+    char * copy_buf;
+    char * aux_buf;
+    char value[1024];
+    int gt_pos, i;
+    int dp_pos;
+    char *chr;
+    size_t pos;
+    vcf_record_t *record;
+    vcf_annot_pos_t* annot_pos;
+    vcf_annot_sample_t* annot_sample;
+    
+    for(int j = 0; j < num_variants; j++){
+        record = variants[j];
+        
+        copy_buf = strndup(record->format, record->format_len);
+        chr = strndup(record->chromosome, record->chromosome_len);
+        pos = record->position;
+        
+        dp_pos = get_field_position_in_format("DP", copy_buf); 
+        gt_pos = get_field_position_in_format("GT", copy_buf); 
+        if (copy_buf) {
+            free(copy_buf);
+            copy_buf = NULL;
+        }
+        if (dp_pos < 0) { 
+            continue; 
+        }   // This variant has no GT field
+
+        for (int n = 0; n < array_list_size(sample_list); n++){
+            annot_sample = (vcf_annot_sample_t*) array_list_get(n, sample_list); 
+//            printf ( "%d - %s - %s - %d\n",n,  annot_sample->name, chr, pos );
+            annot_pos = vcf_annot_get_pos(annot_sample->name, chr, pos, sample_list);
+            if(annot_pos){
+                copy_buf = (char*) array_list_get(n, record->samples); 
+                sprintf(value, "%d", annot_pos->dp);
+                set_field_value_in_sample(copy_buf, dp_pos, value);
+                set_field_value_in_sample(copy_buf, gt_pos, "0/0");
+
+            }
+        }
+        free(chr);
+    }
+    return 0;
+}
+void set_field_value_in_sample(char *sample, int position, char* value){
+    assert(sample);
+    assert(value);
+    assert(position >= 0);
+
+    int field_pos = 0;
+    int num_splits;
+
+    char **splits = split(sample, ":", &num_splits);
+    sample = (char*) realloc(sample, strlen(sample) + strlen(value) + 1);
+    strcpy(sample, "");
+    for(int i = 0; i < num_splits; i++)
+    {
+        if(i == position){
+            strcat(sample, value);
+        }else{
+            strcat(sample, splits[i]);
+        }
+        if(i < (num_splits - 1))
+            strcat(sample, ":");
+    }
+}
+
+
+vcf_annot_pos_t * vcf_annot_get_pos(char *sample_name, char *chr, size_t pos, array_list_t *sample_list){
+    int i,j,k;
+    vcf_annot_sample_t *annot_sample;
+    vcf_annot_pos_t *annot_pos = NULL;
+    vcf_annot_chr_t *annot_chr = NULL;
+    for (i = 0; i < array_list_size(sample_list); i++) {
+        annot_sample = (vcf_annot_sample_t*) array_list_get(i, sample_list);
+        if(strcmp(annot_sample->name, sample_name) == 0)
+        {
+            for (j = 0; j < array_list_size(annot_sample->chromosomes); j++) {
+                annot_chr = (vcf_annot_chr_t*) array_list_get(j, annot_sample->chromosomes);
+                if(strcmp(annot_chr->name, chr) == 0)
+                {
+                    for (k = 0; k < array_list_size(annot_chr->positions); k++) {
+                        annot_pos = (vcf_annot_pos_t*) array_list_get(k, annot_chr->positions);
+                        if(annot_pos->pos == pos)
+                        {
+//                            printf ( "Encontrado %s - %s - %d\n", annot_sample->name, annot_chr->name, annot_pos->pos );
+                            return annot_pos;
+                        }
+                    }
+                }
+                /* code */
+            }
+        }
+    }
+    return NULL;
 }
