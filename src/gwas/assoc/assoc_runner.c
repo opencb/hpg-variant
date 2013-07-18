@@ -276,7 +276,7 @@ static FILE *get_assoc_output_file(enum ASSOC_task task, shared_options_data_t *
     } else if (task == FISHER) {
         return get_output_file(global_options_data, "hpg-variant.fisher", path);
     } else {
-        LOG_FATAL("Requested association test is not recognized as a valid test.");
+        LOG_FATAL("Requested association test is not recognized as a valid test.\n");
     }
 }
 

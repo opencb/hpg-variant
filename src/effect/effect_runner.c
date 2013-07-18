@@ -86,7 +86,7 @@ int run_effect(char **urls, shared_options_data_t *shared_options_data, effect_o
     sprintf(job_status_filename, "%s/job.status", output_directory);
     FILE *job_status = new_job_status_file(job_status_filename);
     if (!job_status) {
-        LOG_FATAL("Can't create job status file");
+        LOG_FATAL("Can't create job status file\n");
     } else {
         update_job_status_file(0, job_status);
     }

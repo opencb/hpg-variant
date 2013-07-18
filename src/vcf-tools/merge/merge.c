@@ -531,7 +531,7 @@ char *merge_info_field(vcf_record_file_link **position_in_files, int position_oc
                 result = aux;
                 max_len += 128;
             } else {
-                LOG_FATAL("Can't allocate memory for file merging");
+                LOG_FATAL("Can't allocate memory for file merging\n");
             }
         }
         
