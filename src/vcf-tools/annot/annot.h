@@ -44,14 +44,12 @@
 #include "shared_options.h"
 #include "hpg_variant_utils.h"
 
-#define NUM_ANNOT_OPTIONS  3
+#define NUM_ANNOT_OPTIONS  1
 #define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
 
 
 typedef struct annot_options {
-    struct arg_lit *variant_annot;      /**< Whether to get annot about variants. */
-    struct arg_lit *sample_annot;       /**< Whether to get annot about samples. */
-    struct arg_lit *save_db;            /**< Whether to save annot to a database. */
+    struct arg_str *bam_directory; /**< BAM DIRECTORY */
     
     int num_options;
 } annot_options_t;
@@ -61,9 +59,7 @@ typedef struct annot_options {
  * 
  */
 typedef struct annot_options_data {
-    int variant_annot;  /**< Whether to get annot about variants. */
-    int sample_annot;   /**< Whether to get annot about samples. */
-    int save_db;        /**< Whether to save annot to a database. */
+    char *bam_directory; /**< BAM DIRECTORY */
 } annot_options_data_t;
 
 
@@ -82,7 +78,10 @@ typedef struct vcf_annot_pos{
     uint8_t dp;
 } vcf_annot_pos_t;
 
-
+typedef struct vcf_annot_bam{
+    char* bam_filename;
+    char* bai_filename;
+}vcf_annot_bam_t;
 
 // When counting records instead of printing them,
 // data passed to the bam_fetch callback is encapsulated in this struct.

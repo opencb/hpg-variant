@@ -35,7 +35,7 @@ int vcf_tool_annot(int argc, char *argv[], const char *configuration_file) {
     if (argc == 1 || !strcmp(argv[1], "-h") || !strcmp(argv[1], "--help")) {
         argtable = merge_annot_options(annot_options, shared_options, arg_end(annot_options->num_options + shared_options->num_options));
         show_usage("hpg-var-vcf annot", argtable, annot_options->num_options + shared_options->num_options);
-        arg_freetable(argtable, 15);
+        arg_freetable(argtable, 13);
         return 0;
     }
 
@@ -73,7 +73,7 @@ int vcf_tool_annot(int argc, char *argv[], const char *configuration_file) {
 
     free_annot_options_data(options_data);
     free_shared_options_data(shared_options_data);
-    arg_freetable(argtable, 15);
+    arg_freetable(argtable, 13);
 
     return 0;
 
@@ -81,22 +81,19 @@ int vcf_tool_annot(int argc, char *argv[], const char *configuration_file) {
 
 annot_options_t *new_annot_cli_options() {
     annot_options_t *options = (annot_options_t*) malloc (sizeof(annot_options_t));
-    options->sample_annot = arg_lit0(NULL, "samples", "Get statistics about samples");
-    options->variant_annot = arg_lit0(NULL, "variants", "Get statistics about variants, both per variant and per file (default)");
-    options->save_db = arg_lit0(NULL, "db", "Save statistics to SQLite3 database file");
+    options->bam_directory = arg_str1(NULL, "bamdir", NULL, "The folder where the input BAM files are stored");
     options->num_options = NUM_ANNOT_OPTIONS;
     return options;
 }
 
 annot_options_data_t *new_annot_options_data(annot_options_t *options) {
     annot_options_data_t *options_data = (annot_options_data_t*) malloc (sizeof(annot_options_data_t));
-    options_data->sample_annot = options->sample_annot->count;
-    options_data->variant_annot = options->variant_annot->count;
-    options_data->save_db = options->save_db->count;
+    options_data->bam_directory = strdup(*(options->bam_directory->sval));
     return options_data;
 }
 
 void free_annot_options_data(annot_options_data_t *options_data) {
+    free(options_data->bam_directory);
     free(options_data);
 }
 
