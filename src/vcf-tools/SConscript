@@ -1,7 +1,7 @@
 Import('env commons_path bioinfo_path math_path')
 
 prog = env.Program('hpg-var-vcf', 
-             source = [Glob('*.c'), Glob('filter/*.c'), Glob('merge/*.c'), Glob('split/*.c'), Glob('stats/*.c'), Glob('../*.c'),
+             source = [Glob('*.c'), Glob('filter/*.c'), Glob('merge/*.c'), Glob('split/*.c'), Glob('stats/*.c'), Glob('annot/*.c'), Glob('../*.c'),
                        "%s/libcommon.a" % commons_path,
                        "%s/libbioinfo.a" % bioinfo_path
                       ]
