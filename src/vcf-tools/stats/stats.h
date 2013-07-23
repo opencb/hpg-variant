@@ -44,7 +44,7 @@
 #include "shared_options.h"
 #include "hpg_variant_utils.h"
 
-#define NUM_STATS_OPTIONS  4
+#define NUM_STATS_OPTIONS  6
 #define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
 
 
@@ -52,7 +52,9 @@ typedef struct stats_options {
     struct arg_lit *variant_stats;      /**< Whether to get stats about variants. */
     struct arg_lit *sample_stats;       /**< Whether to get stats about samples. */
     struct arg_lit *save_db;            /**< Whether to save stats to a database. */
-    struct arg_str *custom_field;
+    struct arg_str *variable;
+    struct arg_str *variable_groups;
+    struct arg_lit *case_control;
     
     int num_options;
 } stats_options_t;
@@ -65,7 +67,9 @@ typedef struct stats_options_data {
     int variant_stats;  /**< Whether to get stats about variants. */
     int sample_stats;   /**< Whether to get stats about samples. */
     int save_db;        /**< Whether to save stats to a database. */
-    char* custom_field;
+    char* variable;
+    char* variable_groups;
+    int case_control;
 } stats_options_data_t;
 
 
