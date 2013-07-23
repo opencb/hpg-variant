@@ -254,7 +254,7 @@ int tdt_test(vcf_record_t **variants, int num_variants, family_t **families, int
         
 //         LOG_DEBUG_F("[%d] before adding %s:%ld\n", tid, record->chromosome, record->position);
         result = tdt_result_new(record->chromosome, record->chromosome_len, 
-                                record->position, 
+                                record->position, record->id, record->id_len,
                                 record->reference, record->reference_len, 
                                 record->alternate, record->alternate_len,
                                 t1, t2, tdt_chisq);
@@ -270,12 +270,13 @@ int tdt_test(vcf_record_t **variants, int num_variants, family_t **families, int
 }
 
 
-tdt_result_t* tdt_result_new(char *chromosome, int chromosome_len, unsigned long int position, char *reference, int reference_len, 
-                             char *alternate, int alternate_len, double t1, double t2, double chi_square) {
+tdt_result_t* tdt_result_new(char *chromosome, int chromosome_len, unsigned long int position, char *id, int id_len, 
+                             char *reference, int reference_len, char *alternate, int alternate_len, double t1, double t2, double chi_square) {
     tdt_result_t *result = (tdt_result_t*) malloc (sizeof(tdt_result_t));
     
     result->chromosome = strndup(chromosome, chromosome_len);
     result->position = position;
+    result->id = strndup(id, id_len);
     result->reference = strndup(reference, reference_len);
     result->alternate = strndup(alternate, alternate_len);
     result->t1 = t1;

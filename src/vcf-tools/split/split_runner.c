@@ -99,7 +99,9 @@ int run_split(shared_options_data_t *shared_options_data, split_options_data_t *
                 // Divide the list of passed records in ranges of size defined in config file
                 int num_chunks;
                 int *chunk_sizes;
-                int *chunk_starts = create_chunks(input_records->size, shared_options_data->entries_per_thread, &num_chunks, &chunk_sizes);
+                int *chunk_starts = create_chunks(input_records->size, 
+                                                  ceil((float) shared_options_data->batch_lines / shared_options_data->num_threads), 
+                                                  &num_chunks, &chunk_sizes);
                 
                 // OpenMP: Launch a thread for each range
                 #pragma omp parallel for

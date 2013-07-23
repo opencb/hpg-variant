@@ -51,7 +51,18 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
 
 static int insert_position_read(char key[64], vcf_record_file_link *link, kh_pos_t* positions_read); 
 
-static void calculate_merge_interval(vcf_record_t* current_record, char** max_chromosome_merged, long unsigned int* max_position_merged,
+/**
+ * @brief Given a record, checks that its position is before the last one marked for merging, and updates it in that case
+ * @details 
+ * 
+ * @param current_record
+ * @param max_chromosome_merged
+ * @param max_position_merged
+ * @param chromosome_order
+ * @param num_chromosomes
+ * @return Whether the max chromosome and position merged were updated
+ */
+static int calculate_merge_interval(vcf_record_t* current_record, char** max_chromosome_merged, long unsigned int* max_position_merged,
                                      char **chromosome_order, int num_chromosomes);
 
 static int merge_interval(kh_pos_t* positions_read, char *max_chromosome_merged, unsigned long max_position_merged,
