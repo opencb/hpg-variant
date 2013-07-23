@@ -522,7 +522,7 @@ char *merge_info_field(vcf_record_file_link **position_in_files, int position_oc
         if (!stats_checked && 
             (!strncmp(info_fields[i], "AC", 2) ||   // allele count in genotypes, for each ALT allele
              !strncmp(info_fields[i], "AF", 2))) {  // allele frequency for each ALT allele
-            get_variants_stats(&output_record, 1, NULL, NULL, stats_list, file_stats);
+            get_variants_stats(&output_record, 1, NULL, 0, stats_list, file_stats);
             list_item_t *item = list_remove_item(stats_list);
             variant_stats = item->data_p;
             list_item_free(item);

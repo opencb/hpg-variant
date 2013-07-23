@@ -56,7 +56,10 @@
 // -- Split tool errors
 #define CRITERION_NOT_SPECIFIED                 220
 #define INTERVALS_NOT_SPECIFIED                 221
+
 // -- Stats tool errors
+#define DUPLICATED_PHENOTYPE                    230
+#define TWO_GROUPS_IN_CASE_CONTROL              231
 
 #endif
 
