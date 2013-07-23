@@ -38,7 +38,6 @@ shared_options_t *new_shared_cli_options(int ped_required) {
     options_data->batch_lines = arg_int0(NULL, "batch-lines", NULL, "Maximum number of lines in a batch");
     options_data->batch_bytes = arg_int0(NULL, "batch-bytes", NULL, "Maximum number of bytes in a batch");
     options_data->num_threads = arg_int0(NULL, "num-threads", NULL, "Number of threads when a task runs in parallel");
-    options_data->entries_per_thread = arg_int0(NULL, "entries-per-thread", NULL, "Number of entries from a batch processed by a thread");
     
     options_data->num_alleles = arg_int0(NULL, "alleles", NULL, "Filter: by number of alleles");
     options_data->coverage = arg_int0(NULL, "coverage", NULL, "Filter: by minimum coverage");
@@ -54,7 +53,8 @@ shared_options_t *new_shared_cli_options(int ped_required) {
     options_data->dominant = arg_dbl0(NULL, "inh-dom", NULL, "Filter: by percentage of samples following dominant inheritance pattern (decimal like 0.1)");
     options_data->recessive = arg_dbl0(NULL, "inh-rec", NULL, "Filter: by percentage of samples following recessive inheritance pattern (decimal like 0.1)");
     
-    options_data->config_file = arg_file0(NULL, "config", NULL, "File that contains the parameters for configuring the application");
+    options_data->log_level = arg_str0("l", "log-level", NULL, "Level of the messages to log (debug, info, warn, error, fatal, nothing)");
+    options_data->config_file = arg_file0("c", "config", NULL, "File that contains the parameters for configuring the application");
     options_data->mmap_vcf_files = arg_lit0(NULL, "mmap-vcf", "Whether to map VCF files to virtual memory or use the I/O API");
     
     options_data->num_options = NUM_GLOBAL_OPTIONS;
@@ -78,7 +78,6 @@ shared_options_data_t* new_shared_options_data(shared_options_t* options) {
     options_data->batch_lines = *(options->batch_lines->ival);
     options_data->batch_bytes = *(options->batch_bytes->ival);
     options_data->num_threads = *(options->num_threads->ival);
-    options_data->entries_per_thread = *(options->entries_per_thread->ival);
     
     filter_t *filter;
     if (options->num_alleles->count > 0) {
@@ -147,6 +146,24 @@ shared_options_data_t* new_shared_options_data(shared_options_t* options) {
         LOG_DEBUG_F("recessive inheritance filter = %.2f\n", *(options->recessive->dval));
     }
     
+    if (options->log_level->count == 0) {
+        options_data->log_level = LOG_DEFAULT_LEVEL;
+    } else {
+        if (!strcasecmp(*(options->log_level->sval), "debug")) {
+            options_data->log_level = LOG_DEBUG_LEVEL;
+        } else if (!strcasecmp(*(options->log_level->sval), "info")) {
+            options_data->log_level = LOG_INFO_LEVEL;
+        } else if (!strcasecmp(*(options->log_level->sval), "warn")) {
+            options_data->log_level = LOG_WARN_LEVEL;
+        } else if (!strcasecmp(*(options->log_level->sval), "error")) {
+            options_data->log_level = LOG_ERROR_LEVEL;
+        } else if (!strcasecmp(*(options->log_level->sval), "fatal")) {
+            options_data->log_level = LOG_FATAL_LEVEL;
+        } else if (!strcasecmp(*(options->log_level->sval), "nothing")) {
+            options_data->log_level = LOG_NOTHING_LEVEL;
+        }
+    }
+    
     // If not previously defined, set the value present in the command-line
     if (!mmap_vcf) {
         mmap_vcf = options->mmap_vcf_files->count;
@@ -184,7 +201,7 @@ int read_shared_configuration(const char *filename, shared_options_t *options) {
     // Read output directory
     ret_code = config_lookup_string(config, "global.outdir", &tmp_string);
     if (ret_code == CONFIG_FALSE) {
-        LOG_WARN("Output folder not found in configuration file, must be set via command-line");
+        LOG_WARN("Output folder not found in configuration file, must be set via command-line\n");
     } else {
         *(options->output_directory->sval) = strdup(tmp_string);
         LOG_DEBUG_F("Output folder = %s (%zu chars)\n", *(options->output_directory->sval), strlen(*(options->output_directory->sval)));
@@ -193,7 +210,7 @@ int read_shared_configuration(const char *filename, shared_options_t *options) {
     // Read whether to mmap VCF files
     ret_code = config_lookup_bool(config, "global.mmap-vcf", &mmap_vcf);
     if (ret_code == CONFIG_FALSE) {
-        LOG_WARN("I/O strategy for VCF files not found in configuration file, must be set via command-line");
+        LOG_WARN("I/O strategy for VCF files not found in configuration file, must be set via command-line\n");
     } else {
         LOG_DEBUG_F("VCF files mapped to virtual memory = %d\n", mmap_vcf);
     }
@@ -201,7 +218,7 @@ int read_shared_configuration(const char *filename, shared_options_t *options) {
     // Read species
     ret_code = config_lookup_string(config, "global.species", &tmp_string);
     if (ret_code == CONFIG_FALSE) {
-        LOG_WARN("Species not found in configuration file, must be set via command-line");
+        LOG_WARN("Species not found in configuration file, must be set via command-line\n");
     } else {
         *(options->species->sval) = strdup(tmp_string);
         LOG_DEBUG_F("species = %s (%zu chars)\n",
@@ -211,7 +228,7 @@ int read_shared_configuration(const char *filename, shared_options_t *options) {
     // Read database URL
     ret_code = config_lookup_string(config, "global.db-url", &tmp_string);
     if (ret_code == CONFIG_FALSE) {
-        LOG_WARN("Web services URL not found in configuration file, must be set via command-line");
+        LOG_WARN("Web services URL not found in configuration file, must be set via command-line\n");
     } else {
         *(options->host_url->sval) = strdup(tmp_string);
         LOG_DEBUG_F("web services host URL = %s (%zu chars)\n",
@@ -221,7 +238,7 @@ int read_shared_configuration(const char *filename, shared_options_t *options) {
     // Read database version
     ret_code = config_lookup_string(config, "global.db-version", &tmp_string);
     if (ret_code == CONFIG_FALSE) {
-        LOG_WARN("Version not found in configuration file, must be set via command-line");
+        LOG_WARN("Version not found in configuration file, must be set via command-line\n");
     } else {
         *(options->version->sval) = strdup(tmp_string);
         LOG_DEBUG_F("version = %s (%zu chars)\n",
