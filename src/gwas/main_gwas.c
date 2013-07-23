@@ -24,10 +24,13 @@ int main(int argc, char *argv[]) {
     if (argc == 1 || !strcmp(argv[1], "-h") || !strcmp(argv[1], "--help")) {
         printf("Usage: %s < assoc | tdt > < tool-options >\nFor more information about a certain tool, type %s tool-name --help\n", argv[0], argv[0]);
         return 0;
+    } else if (!strcmp(argv[1], "--version")) {
+        show_version("GWAS");
+        return 0;
     }
     
-    init_log_custom(2, 1, "hpg-var-gwas.log", "w");
-
+    init_log_custom(LOG_DEFAULT_LEVEL, 1, "hpg-var-effect.log", "w");
+    
     array_list_t *config_search_paths = get_configuration_search_paths(argc, argv);
     const char *config = retrieve_config_file("hpg-variant.conf", config_search_paths);
     

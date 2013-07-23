@@ -37,13 +37,16 @@ int main(int argc, char *argv[]) {
         show_usage(argv[0], argtable, effect_options->num_options + shared_options->num_options);
         arg_freetable(argtable, 30);
         return 0;
+    } else if (!strcmp(argv[1], "--version")) {
+        show_version("Effect");
+        return 0;
     }
 
     /* ******************************
-     * 	    Execution steps	        *
+     * 	    Execution steps	    *
      * ******************************/
 
-    init_log_custom(2, 1, "hpg-var-effect.log", "w");
+    init_log_custom(LOG_DEFAULT_LEVEL, 1, "hpg-var-effect.log", "w");
     
     array_list_t *config_search_paths = get_configuration_search_paths(argc, argv);
     const char *configuration_file = retrieve_config_file("hpg-variant.conf", config_search_paths);
@@ -72,12 +75,17 @@ int main(int argc, char *argv[]) {
     shared_options_data_t *shared_options_data = new_shared_options_data(shared_options);
     effect_options_data_t *effect_options_data = new_effect_options_data(effect_options);
 
+    init_log_custom(shared_options_data->log_level, 1, "hpg-var-effect.log", "w");
+    
     // Step 5: Create the web service request with all the parameters
     const int num_urls = 3;
     char **urls = malloc (num_urls * sizeof(char*));
-    urls[0] = compose_effect_ws_request("genomic/variant", "consequence_type", shared_options_data);
-    urls[1] = compose_effect_ws_request("feature/snp", "phenotype", shared_options_data);
-    urls[2] = compose_effect_ws_request("genomic/variant", "mutation_phenotype", shared_options_data);
+    urls[0] = compose_cellbase_ws_request(shared_options_data->host_url, shared_options_data->version, shared_options_data->species, 
+                                          "genomic/variant", "consequence_type");
+    urls[1] = compose_cellbase_ws_request(shared_options_data->host_url, shared_options_data->version, shared_options_data->species, 
+                                          "feature/snp", "phenotype");
+    urls[2] = compose_cellbase_ws_request(shared_options_data->host_url, shared_options_data->version, shared_options_data->species, 
+                                          "genomic/variant", "mutation_phenotype");
 
     LOG_DEBUG_F("URL #1 = '%s'\nURL #2 = '%s'\nURL #3 = '%s'\n", urls[0], urls[1], urls[2]);
     
