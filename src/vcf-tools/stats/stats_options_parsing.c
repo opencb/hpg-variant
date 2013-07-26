@@ -91,7 +91,7 @@ void **merge_stats_options(stats_options_t *stats_options, shared_options_t *sha
     tool_options[6] = stats_options->save_db;
     tool_options[7] = stats_options->variable;
     tool_options[8] = stats_options->variable_groups;
-    tool_options[9] = stats_options->case_control;
+    tool_options[9] = stats_options->phenotype;
     
     // Configuration file
     tool_options[10] = shared_options->log_level;
