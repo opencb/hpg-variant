@@ -33,9 +33,10 @@ int vcf_tool_stats(int argc, char *argv[], const char *configuration_file) {
     // If no arguments or only --help are provided, show usage
     void **argtable;
     if (argc == 1 || !strcmp(argv[1], "-h") || !strcmp(argv[1], "--help")) {
-        argtable = merge_stats_options(stats_options, shared_options, arg_end(stats_options->num_options + shared_options->num_options));
+        argtable = merge_stats_options(stats_options, shared_options, 
+                        arg_end(stats_options->num_options + shared_options->num_options));
         show_usage("hpg-var-vcf stats", argtable, stats_options->num_options + shared_options->num_options);
-        arg_freetable(argtable, 15);
+        arg_freetable(argtable, 18);
         return 0;
     }
 
@@ -75,9 +76,9 @@ int vcf_tool_stats(int argc, char *argv[], const char *configuration_file) {
 
     free_stats_options_data(options_data);
     free_shared_options_data(shared_options_data);
-    arg_freetable(argtable, 15);
+    arg_freetable(argtable, 18);
 
-    return 0;
+    return result;
 }
 
 stats_options_t *new_stats_cli_options() {
@@ -85,7 +86,11 @@ stats_options_t *new_stats_cli_options() {
     options->sample_stats = arg_lit0(NULL, "samples", "Get statistics about samples");
     options->variant_stats = arg_lit0(NULL, "variants", "Get statistics about variants, both per variant and per file (default)");
     options->save_db = arg_lit0(NULL, "db", "Save statistics to SQLite3 database file");
+    options->variable = arg_str0(NULL, "variable", NULL, "Name for the variable field ");
+    options->variable_groups = arg_str0(NULL, "variable-group", NULL, "Sequence of variable groups ");
+    options->phenotype = arg_str0(NULL, "phenotype",NULL, "Affected,Unaffected phenotype values" );
     options->num_options = NUM_STATS_OPTIONS;
+    
     return options;
 }
 
@@ -94,10 +99,17 @@ stats_options_data_t *new_stats_options_data(stats_options_t *options) {
     options_data->sample_stats = options->sample_stats->count;
     options_data->variant_stats = options->variant_stats->count;
     options_data->save_db = options->save_db->count;
+
+    options_data->variable = options->variable->count? strdup(*(options->variable->sval)) :NULL;
+    options_data->variable_groups = options->variable_groups->count? strdup(*(options->variable_groups->sval)) :NULL;
+    options_data->phenotype = options->phenotype->count? strdup(*options->phenotype->sval) :NULL;
     return options_data;
 }
 
 void free_stats_options_data(stats_options_data_t *options_data) {
+    if(options_data->variable) free(options_data->variable);
+    if(options_data->variable_groups) free(options_data->variable_groups);
+    if(options_data->phenotype) free(options_data->phenotype);
     free(options_data);
 }
 
