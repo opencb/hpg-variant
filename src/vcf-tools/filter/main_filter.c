@@ -68,6 +68,8 @@ int vcf_tool_filter(int argc, char *argv[], const char *configuration_file) {
     shared_options_data_t *shared_options_data = new_shared_options_data(shared_options);
     filter_options_data_t *options_data = new_filter_options_data(filter_options, shared_options);
 
+    init_log_custom(shared_options_data->log_level, 1, "hpg-var-vcf.log", "w");
+
     // Step 5: Perform the requested task
     int result = run_filter(shared_options_data, options_data);
 

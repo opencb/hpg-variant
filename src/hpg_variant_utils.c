@@ -52,12 +52,12 @@ char *get_config_path_from_args(int argc, char *argv[]) {
     }
 
     if (config_dirpath && stat(config_dirpath, &sb) == -1 && errno == ENOENT) {
-        LOG_WARN("The folder specified to store configuration files does not exist.");
+        LOG_WARN("The folder specified to store configuration files does not exist.\n");
         return NULL;
     }
 
     if (config_dirpath && !S_ISDIR(sb.st_mode)) {
-        LOG_WARN("The path specified to store configuration files is not a folder.");
+        LOG_WARN("The path specified to store configuration files is not a folder.\n");
         return NULL;
 
     }
@@ -319,6 +319,12 @@ void show_usage(char *tool, void **argtable, int num_arguments) {
     arg_print_syntaxv(stdout, argtable, "\n");
     arg_print_glossary(stdout, argtable, " %-40s %s\n");
 }
+
+void show_version(char *tool) {
+    printf("HPG Variant %s %s\nCopyright (C) 2013 Institute for Computational Medicine (CIPF).\n\
+This is free software; see the source for copying conditions.\n", tool, HPG_VARIANT_VERSION);
+}
+
 
 int *create_chunks(int length, int max_chunk_size, int *num_chunks, int **chunk_sizes) {
     *num_chunks = (int) ceil((float) length / max_chunk_size);

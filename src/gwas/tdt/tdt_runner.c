@@ -271,7 +271,7 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
 
 void write_output_header(FILE *fd) {
     assert(fd);
-    fprintf(fd, "#CHR         POS       A1      A2         T       U           OR           CHISQ         P-VALUE\n");
+    fprintf(fd, "#CHR         POS               ID      A1      A2         T       U           OR           CHISQ         P-VALUE\n");
 }
 
 void write_output_body(list_t* output_list, FILE *fd) {
@@ -280,8 +280,8 @@ void write_output_body(list_t* output_list, FILE *fd) {
     while (item = list_remove_item(output_list)) {
         tdt_result_t *result = item->data_p;
         
-        fprintf(fd, "%s\t%8ld\t%s\t%s\t%3d\t%3d\t%6f\t%6f\t%6f\n",
-                result->chromosome, result->position, result->reference, result->alternate, 
+        fprintf(fd, "%s\t%8ld\t%s\t%s\t%s\t%3d\t%3d\t%6f\t%6f\t%6f\n",
+                result->chromosome, result->position, result->id, result->reference, result->alternate, 
                 result->t1, result->t2, result->odds_ratio, result->chi_square, result->p_value);
         
         tdt_result_free(result);
