@@ -68,6 +68,8 @@ int tdt(int argc, char *argv[], const char *configuration_file) {
     shared_options_data_t *shared_options_data = new_shared_options_data(shared_options);
 //     tdt_options_data_t *options_data = new_tdt_options_data(tdt_options);
 
+    init_log_custom(shared_options_data->log_level, 1, "hpg-var-gwas.log", "w");
+    
     // Step 5: Perform the operations related to the selected GWAS sub-tool
 //     run_tdt_test(shared_options_data, options_data);
     run_tdt_test(shared_options_data);

@@ -38,7 +38,7 @@ int read_merge_configuration(const char *filename, merge_options_t *options, sha
     // Read number of threads to perform the operations
     ret_code = config_lookup_int(config, "vcf-tools.merge.num-threads", shared_options->num_threads->ival);
     if (ret_code == CONFIG_FALSE) {
-        LOG_WARN("Number of threads not found in config file, must be set via command-line");
+        LOG_WARN("Number of threads not found in config file, must be set via command-line\n");
     } else {
         LOG_DEBUG_F("num-threads = %ld\n", *(shared_options->num_threads->ival));
     }
@@ -46,7 +46,7 @@ int read_merge_configuration(const char *filename, merge_options_t *options, sha
     // Read maximum number of batches that can be stored at certain moment
     ret_code = config_lookup_int(config, "vcf-tools.merge.max-batches", shared_options->max_batches->ival);
     if (ret_code == CONFIG_FALSE) {
-        LOG_WARN("Maximum number of batches not found in configuration file, must be set via command-line");
+        LOG_WARN("Maximum number of batches not found in configuration file, must be set via command-line\n");
     } else {
         LOG_DEBUG_F("max-batches = %ld\n", *(shared_options->max_batches->ival));
     }
@@ -55,24 +55,16 @@ int read_merge_configuration(const char *filename, merge_options_t *options, sha
     ret_code = config_lookup_int(config, "vcf-tools.merge.batch-lines", shared_options->batch_lines->ival);
     ret_code |= config_lookup_int(config, "vcf-tools.merge.batch-bytes", shared_options->batch_bytes->ival);
     if (ret_code == CONFIG_FALSE) {
-        LOG_WARN("Neither batch lines nor bytes found in configuration file, must be set via command-line");
+        LOG_WARN("Neither batch lines nor bytes found in configuration file, must be set via command-line\n");
     } 
     /*else {
         LOG_DEBUG_F("batch-lines = %ld\n", *(shared_options->batch_size->ival));
     }*/
     
-    // Read number of variants per request to the web service
-    ret_code = config_lookup_int(config, "vcf-tools.merge.entries-per-thread", shared_options->entries_per_thread->ival);
-    if (ret_code == CONFIG_FALSE) {
-        LOG_WARN("Entries per thread not found in configuration file, must be set via command-line");
-    } else {
-        LOG_DEBUG_F("entries-per-thread = %ld\n", *(shared_options->entries_per_thread->ival));
-    }
-    
     // Read missing mode
     ret_code = config_lookup_string(config, "vcf-tools.merge.missing-mode", &tmp_string);
     if (ret_code == CONFIG_FALSE) {
-        LOG_WARN("Missing mode not found in configuration file, must be set via command-line");
+        LOG_WARN("Missing mode not found in configuration file, must be set via command-line\n");
     } else {
         *(options->missing_mode->sval) = strdup(tmp_string);
         LOG_DEBUG_F("missing mode = %s (%zu chars)\n",
@@ -117,16 +109,16 @@ void **merge_merge_options(merge_options_t *merge_options, shared_options_t *sha
     tool_options[8] = merge_options->info_fields;
     
     // Configuration file
-    tool_options[9] = shared_options->config_file;
+    tool_options[9] = shared_options->log_level;
+    tool_options[10] = shared_options->config_file;
     
     // Advanced configuration
-    tool_options[10] = shared_options->host_url;
-    tool_options[11] = shared_options->version;
-    tool_options[12] = shared_options->max_batches;
-    tool_options[13] = shared_options->batch_lines;
-    tool_options[14] = shared_options->batch_bytes;
-    tool_options[15] = shared_options->num_threads;
-    tool_options[16] = shared_options->entries_per_thread;
+    tool_options[11] = shared_options->host_url;
+    tool_options[12] = shared_options->version;
+    tool_options[13] = shared_options->max_batches;
+    tool_options[14] = shared_options->batch_lines;
+    tool_options[15] = shared_options->batch_bytes;
+    tool_options[16] = shared_options->num_threads;
     tool_options[17] = shared_options->mmap_vcf_files;
     
     tool_options[18] = arg_end;

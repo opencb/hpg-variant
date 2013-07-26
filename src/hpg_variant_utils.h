@@ -35,6 +35,8 @@
 
 #include "shared_options.h"
 
+#define HPG_VARIANT_VERSION     "0.99.3"
+
 /* ***********************
  *     Initialization    *
  * ***********************/
@@ -98,6 +100,8 @@ FILE *get_output_file(shared_options_data_t *shared_options_data, char *default_
  * ***********************/
 
 void show_usage(char *tool, void **argtable, int num_arguments);
+
+void show_version(char *tool);
 
 /**
  * @brief Given a list of records, distributes them in chunks of similar size

@@ -70,6 +70,8 @@ int vcf_tool_split(int argc, char *argv[], const char *configuration_file) {
     shared_options_data_t *shared_options_data = new_shared_options_data(shared_options);
     split_options_data_t *options_data = new_split_options_data(split_options);
 
+    init_log_custom(shared_options_data->log_level, 1, "hpg-var-vcf.log", "w");
+
     // Step 5: Perform the requested task
     int result = run_split(shared_options_data, options_data);
 
