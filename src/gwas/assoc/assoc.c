@@ -60,7 +60,7 @@ void assoc_test(enum ASSOC_task test_type, vcf_record_t **variants, int num_vari
         if (test_type == CHI_SQUARE) {
             double assoc_basic_chisq = assoc_basic_test(A1, U1, A2, U2);
             assoc_basic_result_t *result = assoc_basic_result_new(record->chromosome, record->chromosome_len, 
-                                                                  record->position, 
+                                                                  record->position, record->id, record->id_len, 
                                                                   record->reference, record->reference_len,
                                                                   record->alternate, record->alternate_len,
                                                                   A1, A2, U1, U2, assoc_basic_chisq);
@@ -69,7 +69,7 @@ void assoc_test(enum ASSOC_task test_type, vcf_record_t **variants, int num_vari
         } else if (test_type == FISHER) {
             double p_value = assoc_fisher_test(A1, A2, U1, U2, (double*) opt_input);
             assoc_fisher_result_t *result = assoc_fisher_result_new(record->chromosome, record->chromosome_len, 
-                                                                    record->position, 
+                                                                    record->position, record->id, record->id_len, 
                                                                     record->reference, record->reference_len,
                                                                     record->alternate, record->alternate_len,
                                                                     A1, A2, U1, U2, p_value);

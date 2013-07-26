@@ -31,6 +31,7 @@
 
 #include <stdlib.h>
 
+#include <bioformats/db/cellbase_connector.h>
 #include <bioformats/vcf/vcf_filters.h>
 #include <commons/log.h>
 #include <commons/argtable/argtable2.h>

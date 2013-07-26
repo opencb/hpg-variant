@@ -70,6 +70,8 @@ int vcf_tool_merge(int argc, char *argv[], const char *configuration_file, array
     shared_options_data_t *shared_options_data = new_shared_options_data(shared_options);
     merge_options_data_t *options_data = new_merge_options_data(merge_options, config_search_paths);
 
+    init_log_custom(shared_options_data->log_level, 1, "hpg-var-vcf.log", "w");
+
     // Step 5: Perform the requested task
     int result = run_merge(shared_options_data, options_data);
 

@@ -59,7 +59,6 @@ typedef struct shared_options {
     struct arg_int *batch_lines;        /**< Maximum size of a batch (in lines). */
     struct arg_int *batch_bytes;        /**< Maximum size of a batch (in bytes). */
     struct arg_int *num_threads;        /**< Number of threads when a task runs in parallel. */
-    struct arg_int *entries_per_thread; /**< Number of entries in a batch each thread processes. */
     
     struct arg_int *coverage;           /**< Filter by coverage. */
     struct arg_dbl *maf;                /**< Filter by minimum allele frequency (MAF). */
@@ -75,8 +74,8 @@ typedef struct shared_options {
     struct arg_dbl *dominant;           /**< Filter by samples following a dominant inheritance model */
     struct arg_dbl *recessive;          /**< Filter by samples following a recessive inheritance model */
     
+    struct arg_str *log_level;          /**< Level to register in the log file */
     struct arg_file *config_file;       /**< Path to the configuration file */
-    
     struct arg_lit *mmap_vcf_files;     /**< Whether to map VCF files to virtual memory or use the I/O API. */
     
     int num_options;
@@ -106,7 +105,9 @@ typedef struct shared_options_data {
     int num_threads;                    /**< Number of threads when a task runs in parallel. */
     int entries_per_thread;             /**< Number of entries in a batch each thread processes. */
     
-    filter_chain *chain; /**< Chain of filters to apply to the VCF records, if that is the case. */
+    filter_chain *chain;                /**< Chain of filters to apply to the VCF records, if that is the case. */
+    
+    int log_level;                      /**< Level to register in the log file */
 } shared_options_data_t;
 
 
