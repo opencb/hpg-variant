@@ -82,7 +82,7 @@ int get_filtering_output_files(shared_options_data_t *shared_options, FILE **pas
 
 int write_filtering_output_files(array_list_t *passed_records, array_list_t *failed_records, FILE* passed_file, FILE* failed_file);
 
-array_list_t *filter_records(filter_t** filters, int num_filters, individual_t **individuals, khash_t(ids) *sample_ids, 
+array_list_t *filter_records(filter_t** filters, int num_filters, individual_t **individuals, khash_t(ids) *sample_ids, int num_variables,
                              array_list_t *input_records, array_list_t **failed_records);
 
 void free_filtered_records(array_list_t *passed_records, array_list_t *failed_records, array_list_t *input_records);

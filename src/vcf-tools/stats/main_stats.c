@@ -86,9 +86,9 @@ stats_options_t *new_stats_cli_options() {
     options->sample_stats = arg_lit0(NULL, "samples", "Get statistics about samples");
     options->variant_stats = arg_lit0(NULL, "variants", "Get statistics about variants, both per variant and per file (default)");
     options->save_db = arg_lit0(NULL, "db", "Save statistics to SQLite3 database file");
-    options->variable = arg_str0(NULL, "variable", NULL, "Name for the phenotype field ");
-    options->variable_groups = arg_str0(NULL, "variable-group", NULL, "Sequence of phenotype groups ");
-    options->case_control = arg_lit0(NULL, "case_control", "Control & Case stats " );
+    options->variable = arg_str0(NULL, "variable", NULL, "Name for the variable field ");
+    options->variable_groups = arg_str0(NULL, "variable-group", NULL, "Sequence of variable groups ");
+    options->phenotype = arg_str0(NULL, "phenotype",NULL, "Affected,Unaffected phenotype values" );
     options->num_options = NUM_STATS_OPTIONS;
     
     return options;
@@ -102,13 +102,14 @@ stats_options_data_t *new_stats_options_data(stats_options_t *options) {
 
     options_data->variable = options->variable->count? strdup(*(options->variable->sval)) :NULL;
     options_data->variable_groups = options->variable_groups->count? strdup(*(options->variable_groups->sval)) :NULL;
-    options_data->case_control = options->case_control->count;
+    options_data->phenotype = options->phenotype->count? strdup(*options->phenotype->sval) :NULL;
     return options_data;
 }
 
 void free_stats_options_data(stats_options_data_t *options_data) {
-    free(options_data->variable);
-    free(options_data->variable_groups);
+    if(options_data->variable) free(options_data->variable);
+    if(options_data->variable_groups) free(options_data->variable_groups);
+    if(options_data->phenotype) free(options_data->phenotype);
     free(options_data);
 }
 
