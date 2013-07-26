@@ -45,7 +45,9 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
             LOG_FATAL("PED file does not exist!\n");
         }
         if(options_data->variable){
-            set_custom_field(options_data->variable,ped_file);
+            set_variable_field(options_data->variable, 0,ped_file);
+        } else {
+            set_variable_field("PHENO", 6,ped_file);
         }
         
         if(options_data->variable_groups){
@@ -57,31 +59,32 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
             for(int i = 0; i < n; i++){
                 phenos_in_group = split(groups[i], ",", &m);
                 if(set_phenotype_group(phenos_in_group, m, ped_file) < 0){
-                    LOG_ERROR("Phenotype can't appear in two groups\n");
-                    return DUPLICATED_PHENOTYPE;
+                    LOG_ERROR("Variable can't appear in two groups\n");
+                    return DUPLICATED_VARIABLE;
                 }
                 free(phenos_in_group);
             }
             ped_file->accept_new_values = 0;
-            if(options_data->case_control){
-                if(get_num_phenotypes(ped_file) != 2) {
-                    LOG_ERROR("To handle case-control test, two groups are needed\n");
-                    return TWO_GROUPS_IN_CASE_CONTROL;
-                }
-                ped_file->unaffected_id = 0;
-                ped_file->affected_id = 1;
-            }
+            
             free(variable_groups);
             free(groups);
         } else {
             ped_file->accept_new_values = 1;
-            if(options_data->case_control) {
-                set_unaffected_phenotype("1",ped_file);
-                set_affected_phenotype("2",ped_file);
+        }
+        if(options_data->phenotype){
+            int n;
+            char* phenotypes = strdup(options_data->phenotype);
+            char** pheno_values = split(phenotypes, ",", &n);
+            if(n != 2) {
+                LOG_ERROR("To handle case-control test, only two phenotypes are supported\n");
+                return MORE_THAN_TWO_PHENOTYPES;
             } else {
-                ped_file->unaffected_id = -1;
-                ped_file->affected_id = -1;
+                set_unaffected_phenotype(pheno_values[0],ped_file);
+                set_affected_phenotype(pheno_values[1],ped_file);
             }
+        } else {
+            set_unaffected_phenotype("1",ped_file);
+            set_affected_phenotype("2",ped_file);        
         }
         
         LOG_INFO("About to read PED file...\n");
@@ -89,6 +92,10 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
         ret_code = ped_read(ped_file);
         if (ret_code != 0) {
             LOG_FATAL_F("Can't read PED file: %s\n", ped_file->filename);
+        }
+        if(!ped_file->num_field){
+            LOG_ERROR_F("Can't find the specified field \"%s\" in file: %s \n", options_data->variable, ped_file->filename);
+            return VARIABLE_FIELD_NOT_FOUND;
         }
     }
     
@@ -160,7 +167,7 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
                         individuals = sort_individuals(vcf_file, ped_file);
                         // Get the khash of the phenotypes in PED file
                         phenotype_ids = get_phenotypes(ped_file);
-                        num_phenotypes = get_num_phenotypes(ped_file);
+                        num_phenotypes = get_num_variables(ped_file);
                     }
                 }
                 
@@ -185,7 +192,7 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
                     // Invoke variant stats and/or sample stats when applies
                     if (options_data->variant_stats) {
                         int index = omp_get_thread_num() % shared_options_data->num_threads;
-                        ret_code = get_variants_stats_tmp((vcf_record_t**) (input_records->items + chunk_starts[j]),
+                        ret_code = get_variants_stats((vcf_record_t**) (input_records->items + chunk_starts[j]),
                                                       chunk_sizes[j], individuals, sample_ids,num_phenotypes, output_list[index], file_stats); 
                     }
                     
@@ -248,7 +255,7 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
             int num_phenotypes;
             if(ped_file){
                 phenotype_ids = get_phenotypes(ped_file);
-                num_phenotypes = get_num_phenotypes(ped_file);
+                num_phenotypes = get_num_variables(ped_file);
             }
             
             if (options_data->save_db) {

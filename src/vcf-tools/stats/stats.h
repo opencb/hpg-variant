@@ -54,7 +54,7 @@ typedef struct stats_options {
     struct arg_lit *save_db;            /**< Whether to save stats to a database. */
     struct arg_str *variable;
     struct arg_str *variable_groups;
-    struct arg_lit *case_control;
+    struct arg_str *phenotype;
     
     int num_options;
 } stats_options_t;
@@ -69,7 +69,7 @@ typedef struct stats_options_data {
     int save_db;        /**< Whether to save stats to a database. */
     char* variable;
     char* variable_groups;
-    int case_control;
+    char* phenotype;
 } stats_options_data_t;
 
 
