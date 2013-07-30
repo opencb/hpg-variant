@@ -50,7 +50,7 @@ void assoc_test(enum ASSOC_task test_type, vcf_record_t **variants, int num_vari
         for (int j = 0; j < num_samples; j++) {
         	individual = samples[j];
         	sample_data = strdup(array_list_get(j, record->samples));
-        	if (!get_alleles(sample_data, gt_position, &allele1, &allele2)) {
+        	if (get_alleles(sample_data, gt_position, &allele1, &allele2) == ALLELES_OK) {
                     assoc_count_individual(individual, record, allele1, allele2, &A1, &A2, &U1, &U2);
                 }
         	free(sample_data);

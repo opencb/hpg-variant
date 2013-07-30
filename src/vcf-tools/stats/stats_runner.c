@@ -295,7 +295,7 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
     }
     
     for (int i = 0; i < get_num_vcf_samples(vcf_file); i++) {
-        free(sample_stats[i]);
+        sample_stats_free(sample_stats[i]);
     }
     free(sample_stats);
     free(file_stats);
