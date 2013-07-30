@@ -267,14 +267,14 @@ int write_filtering_output_files(array_list_t *passed_records, array_list_t *fai
     return ret_code;
 }
 
-array_list_t *filter_records(filter_t** filters, int num_filters, individual_t **individuals, khash_t(ids) *sample_ids, 
+array_list_t *filter_records(filter_t** filters, int num_filters, individual_t **individuals, khash_t(ids) *sample_ids, int num_variables,
                              array_list_t *input_records, array_list_t **failed_records) {
     array_list_t *passed_records = NULL;
     if (filters == NULL || num_filters == 0) {
         passed_records = input_records;
     } else {
         *failed_records = array_list_new(input_records->size + 1, 1, COLLECTION_MODE_ASYNCHRONIZED);
-        passed_records = run_filter_chain(input_records, *failed_records, individuals, sample_ids, filters, num_filters);
+        passed_records = run_filter_chain(input_records, *failed_records, individuals, sample_ids, num_variables, filters, num_filters);
     }
     return passed_records;
 }

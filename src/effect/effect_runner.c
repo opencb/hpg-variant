@@ -197,7 +197,8 @@ int run_effect(char **urls, shared_options_data_t *shared_options_data, effect_o
 
                 // Write records that passed to a separate file, and query the WS with them as args
                 array_list_t *failed_records = NULL;
-                array_list_t *passed_records = filter_records(filters, num_filters, individuals, sample_ids, batch->records, &failed_records);
+                int num_variables = ped_file? get_num_variables(ped_file): 0;
+                array_list_t *passed_records = filter_records(filters, num_filters, individuals, sample_ids, num_variables, batch->records, &failed_records);
                 if (passed_records->size > 0) {
                     // Divide the list of passed records in ranges of size defined in config file
                     int num_chunks;
