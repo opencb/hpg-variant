@@ -44,11 +44,58 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
         if (!ped_file) {
             LOG_FATAL("PED file does not exist!\n");
         }
+        if(options_data->variable){
+            set_variable_field(options_data->variable, 0,ped_file);
+        } else {
+            set_variable_field("PHENO", 6,ped_file);
+        }
+        
+        if(options_data->variable_groups){
+            int n, m;
+            char *variable_groups = strdup(options_data->variable_groups);
+            char **groups;
+            char **phenos_in_group;
+            groups = split(variable_groups ,":",&n);
+            for(int i = 0; i < n; i++){
+                phenos_in_group = split(groups[i], ",", &m);
+                if(set_phenotype_group(phenos_in_group, m, ped_file) < 0){
+                    LOG_ERROR("Variable can't appear in two groups\n");
+                    return DUPLICATED_VARIABLE;
+                }
+                free(phenos_in_group);
+            }
+            ped_file->accept_new_values = 0;
+            
+            free(variable_groups);
+            free(groups);
+        } else {
+            ped_file->accept_new_values = 1;
+        }
+        if(options_data->phenotype){
+            int n;
+            char* phenotypes = strdup(options_data->phenotype);
+            char** pheno_values = split(phenotypes, ",", &n);
+            if(n != 2) {
+                LOG_ERROR("To handle case-control test, only two phenotypes are supported\n");
+                return MORE_THAN_TWO_PHENOTYPES;
+            } else {
+                set_unaffected_phenotype(pheno_values[0],ped_file);
+                set_affected_phenotype(pheno_values[1],ped_file);
+            }
+        } else {
+            set_unaffected_phenotype("1",ped_file);
+            set_affected_phenotype("2",ped_file);        
+        }
+        
         LOG_INFO("About to read PED file...\n");
         // Read PED file before doing any processing
         ret_code = ped_read(ped_file);
         if (ret_code != 0) {
             LOG_FATAL_F("Can't read PED file: %s\n", ped_file->filename);
+        }
+        if(!ped_file->num_field){
+            LOG_ERROR_F("Can't find the specified field \"%s\" in file: %s \n", options_data->variable, ped_file->filename);
+            return VARIABLE_FIELD_NOT_FOUND;
         }
     }
     
@@ -99,6 +146,8 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
             
             individual_t **individuals = NULL;
             khash_t(ids) *sample_ids = NULL;
+            khash_t(str) *phenotype_ids = NULL;
+            int num_phenotypes;
             
             start = omp_get_wtime();
             
@@ -116,6 +165,9 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
                         sample_ids = associate_samples_and_positions(vcf_file);
                         // Sort individuals in PED as defined in the VCF file
                         individuals = sort_individuals(vcf_file, ped_file);
+                        // Get the khash of the phenotypes in PED file
+                        phenotype_ids = get_phenotypes(ped_file);
+                        num_phenotypes = get_num_variables(ped_file);
                     }
                 }
                 
@@ -141,7 +193,7 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
                     if (options_data->variant_stats) {
                         int index = omp_get_thread_num() % shared_options_data->num_threads;
                         ret_code = get_variants_stats((vcf_record_t**) (input_records->items + chunk_starts[j]),
-                                                      chunk_sizes[j], individuals, sample_ids, output_list[index], file_stats); 
+                                                      chunk_sizes[j], individuals, sample_ids,num_phenotypes, output_list[index], file_stats); 
                     }
                     
                     if (options_data->sample_stats) {
@@ -192,12 +244,19 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
                                                                shared_options_data->output_directory);
             
             // File names and descriptors for output to plain text files
-            char *stats_filename, *summary_filename;
-            FILE *stats_fd, *summary_fd;
+            char *stats_filename, *summary_filename, *phenotype_filename;
+            FILE *stats_fd, *summary_fd, **phenotype_fd;
             
             char *stats_db_name;
             sqlite3 *db = NULL;
             khash_t(stats_chunks) *hash;
+            
+            khash_t(str) *phenotype_ids;
+            int num_phenotypes;
+            if(ped_file){
+                phenotype_ids = get_phenotypes(ped_file);
+                num_phenotypes = get_num_variables(ped_file);
+            }
             
             if (options_data->save_db) {
                 delete_files_by_extension(shared_options_data->output_directory, "db");
@@ -214,8 +273,41 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
                     LOG_FATAL_F("Can't open file for writing statistics of variants: %s\n", stats_filename);
                 }
                 
+                //Open one file for each phenotype
+                if(ped_file){
+                    phenotype_fd = malloc(sizeof(FILE*)*num_phenotypes);
+                    if(options_data->variable_groups){
+                        int n;
+                        char *variable_groups = strdup(options_data->variable_groups);
+                        char ** names = split(variable_groups, ":", &n);
+                        for(int i = 0; i < n; i++) {
+                            phenotype_filename = get_variant_phenotype_stats_output_filename(stats_prefix, names[i]);
+                            if(!(phenotype_fd[i] = fopen(phenotype_filename, "w"))) {
+                                LOG_FATAL_F("Can't open file for writing statistics of variants per phenotype: %s\n", stats_filename);
+                            }
+                            free(phenotype_filename);
+                        }
+                        free(names);
+                        free(variable_groups);
+                    } else {
+                 
+                        for (khint_t i = kh_begin(phenotype_ids); i != kh_end(phenotype_ids); ++i) {
+                            if (!kh_exist(phenotype_ids,i)) continue;
+                            
+                            phenotype_filename = get_variant_phenotype_stats_output_filename(stats_prefix, kh_key(phenotype_ids,i));
+                            if(!(phenotype_fd[kh_val(phenotype_ids,i)] = fopen(phenotype_filename, "w"))) {
+                                LOG_FATAL_F("Can't open file for writing statistics of variants per phenotype: %s\n", stats_filename);
+                            }
+                            free(phenotype_filename);
+                        }
+                    }
+                }
                 // Write header
                 report_vcf_variant_stats_header(stats_fd);
+                if(ped_file){
+                    for(int i = 0; i < num_phenotypes; i++)
+                        report_vcf_variant_phenotype_stats_header(phenotype_fd[i]);
+                }
                 
                 // For each variant, generate a new line
                 int avail_stats = 0;
@@ -231,6 +323,10 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
                     if (avail_stats >= VCF_CHUNKSIZE) {
                         report_vcf_variant_stats(stats_fd, db, hash, avail_stats, var_stats_batch);
                         
+                        if(ped_file)
+                            for(int i = 0; i < num_phenotypes; i++)
+                                report_vcf_variant_phenotype_stats(phenotype_fd[i], avail_stats, var_stats_batch, i);
+
                         // Free all stats from the "batch"
                         for (int i = 0; i < avail_stats; i++) {
                             variant_stats_free(var_stats_batch[i]);
@@ -245,6 +341,10 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
                 
                 if (avail_stats > 0) {
                     report_vcf_variant_stats(stats_fd, db, hash, avail_stats, var_stats_batch);
+                    
+                    if(ped_file)
+                        for(int i = 0; i < num_phenotypes; i++)
+                            report_vcf_variant_phenotype_stats(phenotype_fd[i], avail_stats, var_stats_batch, i);
 
                     // Free all stats from the "batch"
                     for (int i = 0; i < avail_stats; i++) {
@@ -266,6 +366,11 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
                 // Close variant stats file
                 if (stats_fd) { fclose(stats_fd); }
                 if (summary_fd) { fclose(summary_fd); }
+				if(ped_file){
+		            for(int i = 0; i < num_phenotypes; i++)
+		                if(phenotype_fd[i]) fclose(phenotype_fd[i]);
+					free(phenotype_fd);
+				}
             }
             
             // Write sample statistics
@@ -306,7 +411,7 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
     }
     
     vcf_close(vcf_file);
-    if (ped_file) { ped_close(ped_file, 1); }
+    if (ped_file) { ped_close(ped_file, 1,1); }
     
     return 0;
 }
