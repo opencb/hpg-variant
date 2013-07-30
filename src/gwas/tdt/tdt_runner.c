@@ -175,7 +175,8 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
                 array_list_t *failed_records = NULL;
                 assert(batch);
                 assert(batch->records);
-                array_list_t *passed_records = filter_records(filters, num_filters, individuals, sample_ids, batch->records, &failed_records);
+                int num_variables = ped_file? get_num_variables(ped_file): 0;
+                array_list_t *passed_records = filter_records(filters, num_filters, individuals, sample_ids,num_variables, batch->records, &failed_records);
                 if (passed_records->size > 0) {
                     ret_code = tdt_test((vcf_record_t**) passed_records->items, passed_records->size, families, num_families, sample_ids, output_list);
                     if (ret_code) {
@@ -259,7 +260,7 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
     
     free(output_list);
     vcf_close(vcf_file);
-    ped_close(ped_file, 1);
+    ped_close(ped_file, 1, 1);
     
     return ret_code;
 }

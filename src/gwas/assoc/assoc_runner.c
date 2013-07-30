@@ -184,7 +184,8 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
                 
                 // Launch association test over records that passed the filters
                 array_list_t *failed_records = NULL;
-                array_list_t *passed_records = filter_records(filters, num_filters, individuals, sample_ids, batch->records, &failed_records);
+                int num_variables = ped_file? get_num_variables(ped_file): 0;
+                array_list_t *passed_records = filter_records(filters, num_filters, individuals, sample_ids, num_variables, batch->records, &failed_records);
                 if (passed_records->size > 0) {
                     assoc_test(options_data->task, (vcf_record_t**) passed_records->items, passed_records->size, 
                                 individuals, get_num_vcf_samples(vcf_file), factorial_logarithms, output_list);
@@ -261,7 +262,7 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
    
     free(output_list);
     vcf_close(vcf_file);
-    ped_close(ped_file, 1);
+    ped_close(ped_file, 1,1);
         
     return ret_code;
 }

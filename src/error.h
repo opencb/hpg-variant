@@ -56,7 +56,11 @@
 // -- Split tool errors
 #define CRITERION_NOT_SPECIFIED                 220
 #define INTERVALS_NOT_SPECIFIED                 221
+
 // -- Stats tool errors
+#define DUPLICATED_VARIABLE                     230
+#define MORE_THAN_TWO_PHENOTYPES                231
+#define VARIABLE_FIELD_NOT_FOUND                232
 
 #endif
 
