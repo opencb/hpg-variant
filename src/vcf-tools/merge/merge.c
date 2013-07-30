@@ -733,7 +733,8 @@ array_list_t* merge_samples(vcf_record_file_link** position_in_files, int positi
                             int allele1, allele2;
                             int allele_ret = get_alleles(dupsplit, 0, &allele1, &allele2);
                             free(dupsplit);
-                            if (allele_ret == 3) {
+                            // TODO Haploid chromosomes such as X?
+                            if (allele_ret == ALL_ALLELES_MISSING) {
                                 strncat(sample, "./.", 3);
                                 len += 3;
                             } else {
