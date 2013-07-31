@@ -44,21 +44,21 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
         if (!ped_file) {
             LOG_FATAL("PED file does not exist!\n");
         }
-        if(options_data->variable){
-            set_variable_field(options_data->variable, 0,ped_file);
+        if(options_data->variable) {
+            set_variable_field(options_data->variable, 0, ped_file);
         } else {
-            set_variable_field("PHENO", 6,ped_file);
+            set_variable_field("PHENO", 6, ped_file);
         }
         
-        if(options_data->variable_groups){
+        if(options_data->variable_groups) {
             int n, m;
             char *variable_groups = strdup(options_data->variable_groups);
             char **groups;
             char **phenos_in_group;
-            groups = split(variable_groups ,":",&n);
+            groups = split(variable_groups, ":", &n);
             for(int i = 0; i < n; i++){
                 phenos_in_group = split(groups[i], ",", &m);
-                if(set_phenotype_group(phenos_in_group, m, ped_file) < 0){
+                if(set_phenotype_group(phenos_in_group, m, ped_file) < 0) {
                     LOG_ERROR("Variable can't appear in two groups\n");
                     return DUPLICATED_VARIABLE;
                 }
@@ -71,7 +71,7 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
         } else {
             ped_file->accept_new_values = 1;
         }
-        if(options_data->phenotype){
+        if(options_data->phenotype) {
             int n;
             char* phenotypes = strdup(options_data->phenotype);
             char** pheno_values = split(phenotypes, ",", &n);
@@ -83,8 +83,8 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
                 set_affected_phenotype(pheno_values[1],ped_file);
             }
         } else {
-            set_unaffected_phenotype("1",ped_file);
-            set_affected_phenotype("2",ped_file);        
+            set_unaffected_phenotype("1", ped_file);
+            set_affected_phenotype("2", ped_file);
         }
         
         LOG_INFO("About to read PED file...\n");
@@ -93,7 +93,7 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
         if (ret_code != 0) {
             LOG_FATAL_F("Can't read PED file: %s\n", ped_file->filename);
         }
-        if(!ped_file->num_field){
+        if(!ped_file->num_field) {
             LOG_ERROR_F("Can't find the specified field \"%s\" in file: %s \n", options_data->variable, ped_file->filename);
             return VARIABLE_FIELD_NOT_FOUND;
         }
