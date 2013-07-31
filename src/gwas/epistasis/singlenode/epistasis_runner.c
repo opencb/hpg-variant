@@ -312,7 +312,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
         best_models[r] = merge_rankings(num_folds, ranking_risky, heap_min_func, heap_max_func);
         
         // Show the best model of this repetition
-        char *path, default_path[20];
+        char *path, default_path[32];
         sprintf(default_path, "hpg-variant.cv%d.epi", r+1);
         FILE *fd = get_output_file(shared_options_data, default_path, &path);
         epistasis_report(order, r, options_data->eval_mode, options_data->eval_subset, best_models[r], options_data->max_ranking_size, heap_max_func, fd);
