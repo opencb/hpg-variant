@@ -288,6 +288,18 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
             _mm_free(counts_aff);
             _mm_free(counts_unaff);
 
+            // Notify a block has been processed
+            char end_block_msg[256]; memset(end_block_msg, 0, 256 * sizeof(char));
+            strcat(end_block_msg, "Block finished: (");
+            for (int s = 0; s < order; s++) {
+                sprintf(end_block_msg + strlen(end_block_msg), "%d,", my_block_coords[s] + 1);
+            }
+            size_t end_block_msg_len = strlen(end_block_msg);
+            end_block_msg[end_block_msg_len - 1] = ')';
+            // TODO Add when merged with 'next' branch because new logging system does not add newline at the end
+            //end_block_msg[end_block_msg_len] = '\n';
+            
+            LOG_INFO(end_block_msg);
             }
         } while (get_next_block(num_blocks_per_dim, order, block_coords));
 
