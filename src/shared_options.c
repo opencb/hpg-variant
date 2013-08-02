@@ -42,7 +42,7 @@ shared_options_t *new_shared_cli_options(int ped_required) {
     options_data->num_alleles = arg_int0(NULL, "alleles", NULL, "Filter: by number of alleles");
     options_data->coverage = arg_int0(NULL, "coverage", NULL, "Filter: by minimum coverage");
     options_data->quality = arg_int0(NULL, "quality", NULL, "Filter: by minimum quality");
-    options_data->maf = arg_dbl0(NULL, "maf", NULL, "Filter: by maximum MAF (minimum allele frequency, decimal like 0.01)");
+    options_data->maf = arg_dbl0(NULL, "maf", NULL, "Filter: by MAF (minimum allele frequency, decimal like 0.01)");
     options_data->missing = arg_dbl0(NULL, "missing", NULL, "Filter: by maximum missing values (decimal like 0.1)");
     options_data->gene = arg_str0(NULL, "gene", NULL, "Filter: by a comma-separated list of genes");
     options_data->region = arg_str0(NULL, "region", NULL, "Filter: by a list of regions (chr1:start1-end1,chr2:start2-end2...)");
@@ -98,7 +98,7 @@ shared_options_data_t* new_shared_options_data(shared_options_t* options) {
     if (options->maf->count > 0) {
         filter = maf_filter_new(*(options->maf->dval));
         options_data->chain = add_to_filter_chain(filter, options_data->chain);
-        LOG_DEBUG_F("maximum MAF = %.3f\n", ((maf_filter_args*)filter->args)->max_maf);
+        LOG_DEBUG_F("maximum MAF = %.3f\n", ((maf_filter_args*)filter->args)->min_maf);
     }
     if (options->missing->count > 0) {
         filter = missing_values_filter_new(*(options->missing->dval));
