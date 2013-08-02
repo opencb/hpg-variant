@@ -87,8 +87,8 @@ int tdt_test(vcf_record_t **variants, int num_variants, family_t **families, int
 //           LOG_DEBUG_F("[%d] Samples: Father = %s\tMother = %s\n", tid, father_sample, mother_sample);
             
             // If any parent's alleles can't be read or is missing, go to next family
-            if (get_alleles(father_sample, gt_position, &father_allele1, &father_allele2) ||
-                get_alleles(mother_sample, gt_position, &mother_allele1, &mother_allele2)) {
+            if (get_alleles(father_sample, gt_position, &father_allele1, &father_allele2) != ALLELES_OK ||
+                get_alleles(mother_sample, gt_position, &mother_allele1, &mother_allele2) != ALLELES_OK) {
                 free(father_sample);
                 free(mother_sample);
                 continue;

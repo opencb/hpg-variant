@@ -160,11 +160,12 @@ int run_filter(shared_options_data_t *shared_options_data, filter_options_data_t
                 #pragma omp atomic
                 i++;
                 
+                int num_variables = ped_file? get_num_variables(ped_file): 0;
                 if (filters == NULL) {
                     passed_records = input_records;
                 } else {
                     failed_records = array_list_new(input_records->size + 1, 1, COLLECTION_MODE_ASYNCHRONIZED);
-                    passed_records = run_filter_chain(input_records, failed_records, individuals, sample_ids, filters, num_filters);
+                    passed_records = run_filter_chain(input_records, failed_records, individuals, sample_ids,num_variables, filters, num_filters);
                 }
                 
                 filter_temp_output_t *output = filter_temp_output_new(batch, passed_records, failed_records);
@@ -241,7 +242,7 @@ int run_filter(shared_options_data_t *shared_options_data, filter_options_data_t
     }
 
     vcf_close(vcf_file);
-    if (ped_file) { ped_close(ped_file, 1); }
+    if (ped_file) { ped_close(ped_file, 1, 1); }
     
     return 0;
 }
