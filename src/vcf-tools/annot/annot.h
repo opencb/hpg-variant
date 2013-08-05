@@ -24,9 +24,12 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 #include <omp.h>
 
 #include <bioformats/db/db_utils.h>
+#include <bioformats/db/cellbase_connector.h>
+#include <bioformats/features/variant/variant_effect.h>
 #include <bioformats/ped/ped_file.h>
 #include <bioformats/bam/bam_file.h>
 #include <bioformats/vcf/vcf_db.h>
@@ -44,12 +47,18 @@
 #include "shared_options.h"
 #include "hpg_variant_utils.h"
 
-#define NUM_ANNOT_OPTIONS  1
+#define NUM_ANNOT_OPTIONS  5
+#define MAX_VARIANTS_PER_QUERY  1000
 #define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
 
 
 typedef struct annot_options {
     struct arg_str *bam_directory; /**< BAM DIRECTORY */
+    struct arg_lit *missing;
+    struct arg_lit *dbsnp;
+    struct arg_lit *effect;
+    struct arg_lit *phase;
+    struct arg_lit *all;
     
     int num_options;
 } annot_options_t;
@@ -60,6 +69,11 @@ typedef struct annot_options {
  */
 typedef struct annot_options_data {
     char *bam_directory; /**< BAM DIRECTORY */
+    int missing;
+    int dbsnp;
+    int effect;
+    int phase;
+    int all;
 } annot_options_data_t;
 
 
@@ -75,7 +89,7 @@ typedef struct vcf_annot_chr{
 
 typedef struct vcf_annot_pos{
     unsigned int pos;
-    uint8_t dp;
+    int dp;
 } vcf_annot_pos_t;
 
 typedef struct vcf_annot_bam{
@@ -107,7 +121,7 @@ static void free_annot_options_data(annot_options_data_t *options_data);
  *       Tool execution         *
  * ******************************/
 
-int run_annot(shared_options_data_t *shared_options_data, annot_options_data_t *options_data);
+int run_annot(char** urls, shared_options_data_t *shared_options_data, annot_options_data_t *options_data);
 
 
 /* ******************************
@@ -145,5 +159,32 @@ int verify_annot_options(annot_options_t *annot_options, shared_options_t *share
 
 
 KHASH_MAP_INIT_STR(bams, char*);
+
+
+
+int vcf_annot_chr_cmp(const vcf_annot_chr_t *v1, const vcf_annot_chr_t *v2);
+
+void vcf_annot_sample_free(vcf_annot_sample_t *sample);
+
+void vcf_annot_chr_free(vcf_annot_chr_t *chr);
+
+void vcf_annot_pos_free(vcf_annot_pos_t *pos);
+
+int vcf_annot_process_chunk(vcf_record_t **variants, int num_variants, array_list_t *sample_list, vcf_file_t *vcf_file);
+
+static void vcf_annot_sort_sample(vcf_annot_sample_t* annot_sample);
+
+int vcf_annot_check_bams(vcf_annot_sample_t* annot_sample, khash_t(bams)* sample_bams);
+
+int vcf_annot_edit_chunk(vcf_record_t **variants, int num_variants, array_list_t *sample_list, khash_t(bams)* sample_bams, vcf_file_t *vcf_file);
+
+static vcf_annot_pos_t * vcf_annot_get_pos(char *sample_name, char *chr, size_t pos, array_list_t *sample_list);
+
+static int vcf_annot_pos_cmp (const void * a, const void * b);
+
+static int binary_search_pos(array_list_t* array_list , unsigned int f,unsigned int l, unsigned int target);
+void set_field_value_in_sample(char **sample, int position, char* value);
+
+vcf_annot_chr_t * vcf_annot_get_chr(char* chr, array_list_t* array_chr);
 
 #endif

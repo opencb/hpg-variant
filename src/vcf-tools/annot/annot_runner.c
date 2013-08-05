@@ -20,38 +20,43 @@
 
 #include "annot.h"
 
-int vcf_annot_chr_cmp(const vcf_annot_chr_t *v1, const vcf_annot_chr_t *v2);
+static void vcf_annot_parse_effect_response(int tid, vcf_record_t ** variants, int num_variants);
+static void vcf_annot_process_dbsnp(char *chr, long pos, char * id, array_list_t *array_effect);
+static void vcf_annot_parse_snp_response(int tid, vcf_record_t ** variants, int num_variants);
+static void print_samples(array_list_t* sample_list);
+int invoke_snp_ws(const char *url, vcf_record_t **records, int num_records);
+static size_t save_snp_response(char *contents, size_t size, size_t nmemb, void *userdata);
+int set_field_value_in_info(char *key, char *value, bool append, vcf_record_t *record);
 
-void vcf_annot_sample_free(vcf_annot_sample_t *sample);
+typedef struct vcf_annot_effect{
+    char *chr;
+    long pos;
+    char * ids;
+} vcf_annot_effect_t;
 
-void vcf_annot_chr_free(vcf_annot_chr_t *chr);
+typedef struct vcf_annot_dbsnp{
+    char* chr;
+    long pos;
+    char *id;
+} vcf_annot_dbsnp_t;
 
-void vcf_annot_pos_free(vcf_annot_pos_t *pos);
-
-int vcf_annot_process_chunk(vcf_record_t **variants, int num_variants, array_list_t *sample_list, vcf_file_t *vcf_file);
-
-static void vcf_annot_sort_sample(vcf_annot_sample_t* annot_sample);
-
-int vcf_annot_check_bams(vcf_annot_sample_t* annot_sample, khash_t(bams)* sample_bams);
-
-int vcf_annot_edit_chunk(vcf_record_t **variants, int num_variants, array_list_t *sample_list, khash_t(bams)* sample_bams, vcf_file_t *vcf_file);
-
-static vcf_annot_pos_t * vcf_annot_get_pos(char *sample_name, char *chr, size_t pos, array_list_t *sample_list);
-
-static int vcf_annot_pos_cmp (const void * a, const void * b);
-
-static int binary_search_pos(array_list_t* array_list , unsigned int f,unsigned int l, unsigned int target);
-void set_field_value_in_sample(char **sample, int position, char* value);
-
-// annot.c
-static int count_func(const bam1_t *b, void *data)
-{
-		(*((count_func_data_t*)data)->count)++;
-	return 0;
+void vcf_annot_effect_free(vcf_annot_effect_t *effect) {
+    if(effect != NULL) {
+        free(effect->ids);
+        free(effect->chr);
+        free(effect);
+    }
 }
 
+void vcf_annot_dbsnp_free(vcf_annot_dbsnp_t *dbsnp) {
+    if(dbsnp != NULL) {
+        free(dbsnp->id);
+        free(dbsnp->chr);
+        free(dbsnp);
+    }
+}
 
-int run_annot(shared_options_data_t *shared_options_data, annot_options_data_t *options_data) {
+int run_annot(char **urls, shared_options_data_t *shared_options_data, annot_options_data_t *options_data) {
 
     int ret_code;
     double start, stop, total;
@@ -61,11 +66,20 @@ int run_annot(shared_options_data_t *shared_options_data, annot_options_data_t *
     vcf_annot_bam_t *annot_bam;
     char *sample_name;
     char * copy_buf;
+    char *directory;
     khiter_t iter;
     int ret;
     list_item_t *output_item;
 
-    char *directory = options_data->bam_directory;
+    // Check the Trailling slash
+    if(options_data->bam_directory[strlen(options_data->bam_directory) - 1] != '/') {
+        directory = (char*) calloc(strlen(options_data->bam_directory) + 2, sizeof(char));
+        strcpy(directory, options_data->bam_directory);
+        strcat(directory, "/");
+    }else{
+        directory = (char*) calloc(strlen(options_data->bam_directory) + 1, sizeof(char));
+        strcpy(directory, options_data->bam_directory);
+    }
 
     vcf_file_t *vcf_file = vcf_open(shared_options_data->vcf_filename, shared_options_data->max_batches);
     if (!vcf_file) {
@@ -76,6 +90,14 @@ int run_annot(shared_options_data_t *shared_options_data, annot_options_data_t *
     if (ret_code != 0 && errno != EEXIST) {
         LOG_FATAL_F("Can't create output directory: %s\n", shared_options_data->output_directory);
     }
+
+    // Initialize environment for connecting to the web service
+    ret_code = init_http_environment(0);
+    if (ret_code != 0) {
+        return ret_code;
+    }
+    
+    initialize_ws_buffers(shared_options_data->num_threads);
 
     LOG_INFO("Annotating VCF file...");
     
@@ -122,14 +144,16 @@ int run_annot(shared_options_data_t *shared_options_data, annot_options_data_t *
             vcf_batch_t *batch = NULL;
             khash_t(bams) *sample_bams = kh_init(bams);
             while ((batch = fetch_vcf_batch(vcf_file)) != NULL) {
-                if(i == 0) {
+                if(i == 0 && options_data->missing > 0) {
                     for (int n = 0; n < array_list_size(vcf_file->samples_names); n++) {
                         sample_name = (char*) array_list_get(n, vcf_file->samples_names);
                         iter = kh_get(ids, sample_bams, sample_name);
+
                         if (iter != kh_end(sample_bams)) {
                             LOG_FATAL_F("Sample %s appears more than once. File can not be analyzed.\n", annot_sample->name);
                         } else {
                             iter = kh_put(bams, sample_bams, sample_name, &ret);
+
                             if (ret) {
                                 annot_bam = (vcf_annot_bam_t*) malloc(sizeof(vcf_annot_bam_t));
                                 annot_bam->bam_filename = (char*) calloc(strlen(directory) + strlen(sample_name) + 4 + 1, sizeof(char));
@@ -137,7 +161,7 @@ int run_annot(shared_options_data_t *shared_options_data, annot_options_data_t *
                                 strcat(annot_bam->bam_filename, sample_name);
                                 strcat(annot_bam->bam_filename, ".bam");
                                 
-                                if(!exists(annot_bam->bam_filename)){
+                                if(!exists(annot_bam->bam_filename)) {
                                     LOG_FATAL_F("File %s does not exist\n", annot_bam->bam_filename);
                                 }
 
@@ -146,7 +170,7 @@ int run_annot(shared_options_data_t *shared_options_data, annot_options_data_t *
                                 strcat(annot_bam->bai_filename, sample_name);
                                 strcat(annot_bam->bai_filename, ".bam.bai");
                                 
-                                if(!exists(annot_bam->bai_filename)){
+                                if(!exists(annot_bam->bai_filename)) {
                                     LOG_FATAL_F("File %s does not exist\n", annot_bam->bai_filename);
                                 }
 
@@ -154,7 +178,6 @@ int run_annot(shared_options_data_t *shared_options_data, annot_options_data_t *
                             }
                         }
                     }
-                    // Check BAM files
                 }
 
                 if(i % 50 == 0) {
@@ -181,25 +204,105 @@ int run_annot(shared_options_data_t *shared_options_data, annot_options_data_t *
                 char* aux;
                 char *bam_filename;
                 int *chunk_sizes = NULL;
+                int *chunk_starts;
                 int result, tid, beg, end;
                 int num_chunks;
                 khiter_t iter;
                 vcf_annot_chr_t *annot_chr;
                 vcf_annot_pos_t *annot_pos;
                 vcf_annot_sample_t *annot_sample;
-                int *chunk_starts = create_chunks(input_records->size, shared_options_data->entries_per_thread, &num_chunks, &chunk_sizes);
+
+
+                int reconnections = 0;
+                int max_reconnections = 3; // TODO allow to configure?
+                int ret_ws_0 = 0;
+                int ret_ws_1 = 0;
+
+                if(options_data->missing > 0){
+
+                    // Maximum size processed by each thread (never allow more than 1000 variants per query)
+                    if (shared_options_data->batch_lines > 0) {
+                        shared_options_data->entries_per_thread = MIN(MAX_VARIANTS_PER_QUERY, 
+                                ceil((float) shared_options_data->batch_lines / shared_options_data->num_threads));
+                    } else {
+                        shared_options_data->entries_per_thread = MAX_VARIANTS_PER_QUERY;
+                    }
+                    LOG_DEBUG_F("entries-per-thread = %d\n", shared_options_data->entries_per_thread);
+
+                    chunk_starts = create_chunks(input_records->size, shared_options_data->entries_per_thread, &num_chunks, &chunk_sizes);
+#pragma omp parallel for num_threads(shared_options_data->num_threads) 
+                    for (int j = 0; j < num_chunks; j++) {
+                        vcf_annot_process_chunk((vcf_record_t**)(input_records->items + chunk_starts[j]), chunk_sizes[j], sample_list, vcf_file);
+                    }
 
 #pragma omp parallel for num_threads(shared_options_data->num_threads) 
-                for (int j = 0; j < num_chunks; j++) {
-                    vcf_annot_process_chunk((vcf_record_t**)(input_records->items + chunk_starts[j]), chunk_sizes[j], sample_list, vcf_file);
-                }
+                    for (int j = 0; j < array_list_size(sample_list); j++) {
+                        annot_sample = (vcf_annot_sample_t*) array_list_get(j, sample_list);
+                        vcf_annot_sort_sample(annot_sample);
+                    }
 
 #pragma omp parallel for num_threads(shared_options_data->num_threads) 
-                for (int j = 0; j < array_list_size(sample_list); j++) {
-                    annot_sample = (vcf_annot_sample_t*) sample_list->items[j];
-                    vcf_annot_sort_sample(annot_sample);
-                    vcf_annot_check_bams(annot_sample, sample_bams);
+                    for (int j = 0; j < array_list_size(sample_list); j++) {
+                        annot_sample = (vcf_annot_sample_t*) array_list_get(j, sample_list);
+                        vcf_annot_check_bams(annot_sample, sample_bams);
+                    }
+                    free(chunk_starts);
+                    free(chunk_sizes);
                 }
+               
+
+                if(options_data->dbsnp > 0 || options_data->effect >0){
+
+                    shared_options_data->entries_per_thread = 100;
+                    chunk_starts = create_chunks(input_records->size, shared_options_data->entries_per_thread, &num_chunks, &chunk_sizes);
+                    
+                    do {
+#pragma omp parallel for num_threads(shared_options_data->num_threads)
+                        for (int j = 0; j < num_chunks; j++) {
+                            int tid = omp_get_thread_num();
+                            if(options_data->effect && (!reconnections || ret_ws_0)) {
+
+                                ret_ws_0 = invoke_effect_ws(urls[0], (vcf_record_t**) (input_records->items + chunk_starts[j]), chunk_sizes[j], NULL);
+                                vcf_annot_parse_effect_response(tid, (vcf_record_t**) (input_records->items + chunk_starts[j]), chunk_sizes[j] );
+
+                                free(effect_line[tid]);
+                                effect_line[tid] = (char*) calloc (max_line_size[tid], sizeof(char));
+                            }
+                            if(options_data->dbsnp && (!reconnections || ret_ws_1)) {
+
+                                ret_ws_0 = invoke_snp_ws(urls[1], (vcf_record_t**) (input_records->items + chunk_starts[j]), chunk_sizes[j]);
+                                vcf_annot_parse_snp_response(tid, (vcf_record_t**) (input_records->items + chunk_starts[j]), chunk_sizes[j] );
+
+                                free(snp_line[tid]);
+                                snp_line[tid] = (char*) calloc (snp_max_line_size[tid], sizeof(char));
+                            }
+                        }
+                        if(ret_ws_0 || ret_ws_1) {
+                            if (ret_ws_0) {
+                                LOG_ERROR_F("Effect web service error: %s\n", get_last_http_error(ret_ws_0));
+                            }
+                            if (ret_ws_1) {
+                                LOG_ERROR_F("SNP web service error: %s\n", get_last_http_error(ret_ws_1));
+                            }
+                            reconnections++;
+                            LOG_ERROR_F("Some errors ocurred, reconnection #%d\n", reconnections);
+                            sleep(4);
+                        } 
+                    } while (reconnections < max_reconnections && (ret_ws_0 || ret_ws_1));
+                    
+                    free(chunk_starts);
+                    free(chunk_sizes);
+                }
+
+                if (shared_options_data->batch_lines > 0) {
+                    shared_options_data->entries_per_thread = MIN(MAX_VARIANTS_PER_QUERY, 
+                            ceil((float) shared_options_data->batch_lines / shared_options_data->num_threads));
+                } else {
+                    shared_options_data->entries_per_thread = MAX_VARIANTS_PER_QUERY;
+                }
+
+                
+                chunk_starts = create_chunks(input_records->size, shared_options_data->entries_per_thread, &num_chunks, &chunk_sizes);
 
 #pragma omp parallel for num_threads(shared_options_data->num_threads) 
                 for (int j = 0; j < num_chunks; j++) {
@@ -216,7 +319,6 @@ int run_annot(shared_options_data_t *shared_options_data, annot_options_data_t *
                 i++;
             } // End While
 
-
             stop = omp_get_wtime();
             total = stop - start;
 
@@ -230,7 +332,7 @@ int run_annot(shared_options_data_t *shared_options_data, annot_options_data_t *
                 list_decr_writers(output_list);
             }
         array_list_free(sample_list, vcf_annot_sample_free);
-        } // end section
+        } // End section
 
 #pragma omp section
         {
@@ -243,18 +345,35 @@ int run_annot(shared_options_data_t *shared_options_data, annot_options_data_t *
             char *aux_filename;
             FILE *output_fd = get_output_file(shared_options_data, aux_filename, &aux_filename);
             LOG_INFO_F("Output filename = %s\n", aux_filename);
-            free(aux_filename);
             
             list_item_t *list_item = NULL;
             vcf_header_entry_t *entry;
             vcf_record_t *record;
             int *num_records;
             vcf_batch_t *batch;
+            int header_aux = 0;
+            char *value;
 
-            // Write the header
-            write_vcf_header(vcf_file, output_fd);
-
-            while( list_item = list_remove_item(output_list)){
+            while( list_item = list_remove_item(output_list)) {
+                if(header_aux == 0) { // Para asegurarnos que se ha leído toda la cabecera antes de escribirla
+                    // Write the header
+                    if(options_data->dbsnp > 0){
+                        entry = vcf_header_entry_new();
+                        set_vcf_header_entry_name("INFO", 4, entry);
+                        value = "<ID=DB,Number=0,Type=Flag,Description=\"dbSNP id\">";
+                        add_vcf_header_entry_value(value, strlen(value), entry);
+                        add_vcf_header_entry(entry, vcf_file);
+                    }
+                    if(options_data->effect > 0){
+                        entry = vcf_header_entry_new();
+                        set_vcf_header_entry_name("INFO", 4, entry);
+                        value = "<ID=EFF,Number=.,Type=String,Description=\"Effect\">";
+                        add_vcf_header_entry_value(value, strlen(value), entry);
+                        add_vcf_header_entry(entry, vcf_file);
+                    }
+                    write_vcf_header(vcf_file, output_fd);
+                    header_aux = 1;
+                }
                     batch = (vcf_batch_t*) list_item->data_p;
                     for (int i = 0; i < batch->records->size; i++) {
                         record = (vcf_record_t*) batch->records->items[i];
@@ -265,292 +384,23 @@ int run_annot(shared_options_data_t *shared_options_data, annot_options_data_t *
             }
             fclose(output_fd);
             free(output_filename);
+            free(aux_filename);
         }
-    } // END Parallel sections
+    } // End Parallel sections
 
     list_free_deep(output_list, vcf_batch_free);
+    free(directory);
 
     vcf_close(vcf_file);
     return 0;
 }
 
-// annot.c
-int vcf_annot_chr_cmp(const vcf_annot_chr_t *v1, const vcf_annot_chr_t *v2){
-    return strcmp(v1->name, v2->name);
-}
 
-// annot.c
-void vcf_annot_sample_free(vcf_annot_sample_t *sample){
-    if(sample != NULL){
-        array_list_free(sample->chromosomes, vcf_annot_chr_free);
-        free(sample->name);
-        free(sample);
-    }
-}
-
-// annot.c
-void vcf_annot_chr_free(vcf_annot_chr_t *chr){
-    if(chr != NULL){
-        array_list_free(chr->positions, vcf_annot_pos_free);
-        free(chr->name);
-        free(chr);
-    }
-}
-
-// annot.c
-void vcf_annot_pos_free(vcf_annot_pos_t *pos){
-    if(pos != NULL){
-        free(pos);
-    }
-}
-
-// annot.c
-void vcf_annot_bam_free(vcf_annot_bam_t *bam){
-    if(bam != NULL)
-    {
-        free(bam->bam_filename);
-        free(bam->bai_filename);
-        free(bam);
-    }
-}
-
-// annot.c
-int vcf_annot_process_chunk(vcf_record_t **variants, int num_variants, array_list_t *sample_list, vcf_file_t *vcf_file){
-
-    int gt_pos, i;
-    int allele1, allele2, alleles_code;
-    vcf_record_t *record;
-    vcf_annot_sample_t *annot_sample;
-    vcf_annot_chr_t * annot_chr;
-    vcf_annot_pos_t * annot_pos;
-    char * sample_name;
-    char * chr;
-    char * copy_buf;
-    unsigned int pos;
-    size_t array_pos;
-    khiter_t iter;
-    int ret;
-
-    for(int j = 0; j < num_variants; j++){
-        record = variants[j]; 
-
-        copy_buf = strndup(record->format, record->format_len);
-        gt_pos = get_field_position_in_format("GT", copy_buf); 
-        if (copy_buf) {
-            free(copy_buf);
-            copy_buf = NULL;
-        }
-        if (gt_pos < 0) { 
-            continue; 
-        }   // This variant has no GT field
-
-        // TODO aaleman:d Comprobar que las samples no son todas missings, en caso de que sí lo
-        // sean saltar a la iteración siguiente
-        for (int n = 0; n < array_list_size(sample_list); n++){
-            copy_buf = strdup((char*) array_list_get(n, record->samples)); 
-            alleles_code = get_alleles(copy_buf, gt_pos, &allele1, &allele2);
-            if (copy_buf) {
-                free(copy_buf);
-                copy_buf = NULL;
-            }
-
-            if (alleles_code == 3) { //   ./.
-                annot_sample = array_list_get(n, sample_list);
-                pos = record->position;
-                chr = strndup(record->chromosome, record->chromosome_len);
-
-
-                annot_chr = (vcf_annot_chr_t*) malloc(sizeof(vcf_annot_chr_t));
-                annot_chr->name = chr;
-#pragma omp critical
-                {
-                    array_pos = array_list_index_of(annot_chr, annot_sample->chromosomes);
-                    if(array_pos != ULONG_MAX){
-                        free(annot_chr);
-                        free(chr);
-                        annot_chr = array_list_get(array_pos, annot_sample->chromosomes);
-                    }
-                    else{
-                        annot_chr->positions = array_list_new(100000, 1.25f, COLLECTION_MODE_SYNCHRONIZED);
-                        array_list_insert(annot_chr, annot_sample->chromosomes);
-                    }
-                    annot_pos = (vcf_annot_pos_t*) malloc(sizeof(vcf_annot_pos_t));
-                    annot_pos->pos = pos;
-                    array_list_insert(annot_pos, annot_chr->positions);
-                }
-            }
-        }
-    }
-    return 0;
-}
-
-// annot.c
-int vcf_annot_check_bams(vcf_annot_sample_t* annot_sample, khash_t(bams)* sample_bams){
-    khiter_t iter;
-    vcf_annot_bam_t* annot_bam;
-    char *bam_filename;
-    vcf_annot_chr_t *annot_chr;
-    vcf_annot_pos_t *annot_pos;
-    int count = 0, result, tid, beg, end;
-    bam_file_t* bam_file;
-    bam_header_t *bam_header;
-    bam_index_t *idx = 0;
-    char *query = (char*) calloc(1024, sizeof(char));
-
-
-    iter = kh_get(ids, sample_bams, annot_sample->name);
-    annot_bam = kh_value(sample_bams, iter);
-    bam_file = bam_fopen(annot_bam->bam_filename);
-    idx = bam_index_load(annot_bam->bam_filename);
-
-    count_func_data_t count_data = { bam_file->bam_header_p, &count };
-
-    for(int j = 0; j < array_list_size(annot_sample->chromosomes); j++){
-        annot_chr = (vcf_annot_chr_t*) array_list_get(j, annot_sample->chromosomes);
-        //            printf ( "%s (%d)\n", annot_chr->name, array_list_size(annot_chr->positions) );
-        for(int k = 0; k < array_list_size(annot_chr->positions); k++){
-            annot_pos = (vcf_annot_pos_t*) array_list_get(k, annot_chr->positions);
-            sprintf(query, "%s:%d-%d", annot_chr->name, annot_pos->pos, annot_pos->pos); 
-            bam_parse_region(bam_file->bam_header_p, query, &tid, &beg, &end);
-            result = bam_fetch(bam_file->bam_fd, idx, tid, beg, end, &count_data, count_func);
-            annot_pos->dp = *(count_data.count);
-            *(count_data.count) = 0;
-        }
-    }
-    bam_index_destroy(idx);
-    bam_fclose(bam_file);
-
-    free(bam_filename);
-    free(query);
-    return 0;
-}
-
-// annot.c
-int vcf_annot_edit_chunk(vcf_record_t **variants, int num_variants, array_list_t *sample_list, khash_t(bams)* sample_bams, vcf_file_t *vcf_file){
-
-    char * copy_buf;
-    char * aux_buf;
-    char value[1024];
-    int gt_pos, i;
-    int dp_pos;
-    char *chr;
-    size_t pos;
-    vcf_record_t *record;
-    vcf_annot_pos_t* annot_pos;
-    vcf_annot_sample_t* annot_sample;
-    
-    for(int j = 0; j < num_variants; j++){
-        record = variants[j];
-        
-        copy_buf = strndup(record->format, record->format_len);
-        chr = strndup(record->chromosome, record->chromosome_len);
-        pos = record->position;
-        
-        dp_pos = get_field_position_in_format("DP", copy_buf); 
-        free(copy_buf);
-        
-        copy_buf = strndup(record->format, record->format_len);
-        gt_pos = get_field_position_in_format("GT", copy_buf); 
-        free(copy_buf);
-        
-        if (dp_pos < 0 || gt_pos < 0) { 
-            continue; 
-        }   // This variant has no GT/DP field
-
-        for (int n = 0; n < array_list_size(sample_list); n++){
-            annot_sample = (vcf_annot_sample_t*) array_list_get(n, sample_list); 
-            annot_pos = vcf_annot_get_pos(annot_sample->name, chr, pos, sample_list);
-            if(annot_pos && annot_pos->dp > 0){
-                copy_buf = (char*) array_list_get(n, record->samples); 
-                sprintf(value, "%d", annot_pos->dp);
-                set_field_value_in_sample(&copy_buf, dp_pos, value);
-                set_field_value_in_sample(&copy_buf, gt_pos, "0/0");
-            }
-        }
-        if(chr)
-            free(chr);
-    }
-    return 0;
-}
-
-// vcf_util.c
-void set_field_value_in_sample(char **sample, int position, char* value){
-    assert(sample);
-    assert(value);
-    assert(position >= 0);
-
-    int field_pos = 0;
-    int num_splits;
-
-    char **splits = split(*sample, ":", &num_splits);
-    *sample = realloc(*sample, strlen(*sample) + strlen(value) + 1);
-    strcpy(*sample, "");
-    for(int i = 0; i < num_splits; i++)
-    {
-        if(i == position){
-            strcat(*sample, value);
-        }else{
-            strcat(*sample, splits[i]);
-        }
-        if(i < (num_splits - 1))
-            strcat(*sample, ":");
-        free(splits[i]);
-    }
-    free(splits);
-}
-
-// annot.c
-vcf_annot_pos_t * vcf_annot_get_pos(char *sample_name, char *chr, size_t pos, array_list_t *sample_list){
-    vcf_annot_sample_t *annot_sample;
-    vcf_annot_pos_t *annot_pos = NULL;
-    vcf_annot_chr_t *annot_chr = NULL;
-    int res_pos = -1;
-    for (int i = 0; i < array_list_size(sample_list); i++) {
-        annot_sample = (vcf_annot_sample_t*) array_list_get(i, sample_list);
-        if(strcmp(annot_sample->name, sample_name) == 0){
-            for (int j = 0; j < array_list_size(annot_sample->chromosomes); j++) {
-                annot_chr = (vcf_annot_chr_t*) array_list_get(j, annot_sample->chromosomes);
-                if(strcmp(annot_chr->name, chr) == 0){
-                    res_pos = binary_search_pos(annot_chr->positions, 0 , array_list_size(annot_chr->positions) - 1, pos);
-                    if(res_pos >= 0){
-                        annot_pos = array_list_get(res_pos, annot_chr->positions);
-                        return annot_pos;
-                    }
-                }
-            }
-        }
-    }
-    return NULL;
-}
-
-// annot.c
-static int binary_search_pos(array_list_t* array_list , unsigned int f,unsigned int l, unsigned int target) {
-
-    long middle, first, last;
-    first = f;
-    last = l;
-    vcf_annot_pos_t **array = (vcf_annot_pos_t*) array_list->items;
-    while (first <= last) {
-        if ( array[middle]->pos < target )
-            first = middle + 1;    
-        else if ( array[middle]->pos == target) 
-        {
-            return middle;
-        }
-        else
-            last = middle - 1;
-
-        middle = (first + last)/2;
-    }
-    return -1;
-}
-
-static void vcf_annot_sort_sample(vcf_annot_sample_t* annot_sample){
+static void vcf_annot_sort_sample(vcf_annot_sample_t* annot_sample) {
     int j;
     vcf_annot_pos_t ** annot_pos_array;
     vcf_annot_chr_t *annot_chr = NULL;
 
-    int res_pos = -1;
     for (j = 0; j < array_list_size(annot_sample->chromosomes); j++) {
         annot_chr = (vcf_annot_chr_t*) array_list_get(j, annot_sample->chromosomes);
         annot_pos_array = (vcf_annot_pos_t*) annot_chr->positions->items;
@@ -558,9 +408,280 @@ static void vcf_annot_sort_sample(vcf_annot_sample_t* annot_sample){
     }
 }
 
-static int vcf_annot_pos_cmp (const void * a, const void * b){
+static int vcf_annot_pos_cmp (const void * a, const void * b) {
     long pos_a_val = (*(vcf_annot_pos_t **)a)->pos;  
     long pos_b_val = (*(vcf_annot_pos_t **)b)->pos; 
 
     return (pos_a_val - pos_b_val );
+}
+
+static void vcf_annot_parse_effect_response(int tid, vcf_record_t ** variants, int num_variants) { 
+    char *aux_buffer;
+    char *copy_buf;
+    char *info;
+    int count;
+    int num_lines;
+    vcf_record_t * record;
+    char **split_batch = split(effect_line[tid], "\n", &num_lines);
+
+    for (int i = 0, j = 0; i < num_lines; i++) {
+        int num_columns;
+        char *copy_buf = strdup(split_batch[i]);
+        char **split_result = split(copy_buf, "\t", &num_columns);
+        free(copy_buf);
+
+        // Find consequence type name (always after SO field)
+        if (num_columns == 25) {
+            for(; j < num_variants; j++){
+                record = variants[j];
+                if(strncmp(split_result[0], record->chromosome, record->chromosome_len) == 0 && atoi(split_result[1]) == record->position){
+                        set_field_value_in_info("EFF", split_result[19], true, record);
+//                    info = strndup(record->info, record->info_len);
+//                    if(strcmp(info, ".") == 0) {
+//                        aux_buffer = calloc((strlen(split_result[19]) + strlen(info) + 8 + 1) , sizeof(char));
+//                        strcpy(aux_buffer, "EFF=");
+//                        strcat(aux_buffer, split_result[19]);
+//                    }
+//                    else{
+//                        if(!strstr(info, split_result[19])){
+//                            if(strstr(info, "EFF=")){
+//                                aux_buffer = (char*) calloc((strlen(split_result[19]) + strlen(info) + 1 + 1), sizeof(char));
+//                                strcpy(aux_buffer, info);
+//                                strcat(aux_buffer, ",");
+//                                strcat(aux_buffer, split_result[19]);
+//                            }
+//                            else{
+//                                aux_buffer = calloc((strlen(split_result[19]) + strlen(info) + 8 + 1 + 1), sizeof(char));
+//                                strcpy(aux_buffer, info);
+//                                strcat(aux_buffer, ";");
+//                                strcat(aux_buffer, "EFF=");
+//                                strcat(aux_buffer, split_result[19]);
+//                            }
+//                        }
+//                    }
+//                    record->info = aux_buffer;
+//                    record->info_len = strlen(aux_buffer);
+//                    free(info);
+                    break;
+                }
+            }
+        } else {
+            if (strlen(split_batch[i]) == 0) { // Last line in batch could be only a newline
+                continue;
+            }
+            LOG_INFO_F("[%d] Non-valid line found (%d fields): '%s'\n", tid, num_columns, split_batch[i]);
+        }
+
+        for (int s = 0; s < num_columns; s++) {
+            free(split_result[s]);
+        }
+        free(split_result);
+
+    }
+
+    for (int i = 0; i < num_lines; i++) {
+        free(split_batch[i]);
+    }
+    free(split_batch);
+}
+
+static void print_samples(array_list_t* sample_list) {
+    vcf_annot_sample_t *annot_sample;
+    vcf_annot_chr_t *annot_chr;
+    vcf_annot_pos_t *annot_pos;
+    
+    for(int i = 0; i < array_list_size(sample_list); i++) {
+        annot_sample = (vcf_annot_sample_t*) array_list_get(i, sample_list);
+        printf ( "Sample: %s\n", annot_sample->name );
+        for(int j = 0; j < array_list_size(annot_sample->chromosomes); j++) {
+            annot_chr = (vcf_annot_chr_t*) array_list_get(j, annot_sample->chromosomes);
+            printf ( "Chr: %s(%d)\n", annot_chr->name , array_list_size(annot_chr->positions));
+        }
+    }
+}
+
+int invoke_snp_ws(const char *url, vcf_record_t **records, int num_records) {
+    CURLcode ret_code = CURLE_OK;
+
+    const char *output_format = "txt";
+    int variants_len = 512, current_index = 0;
+    char *variants = (char*) calloc (variants_len, sizeof(char));
+
+    char URL_AUX_1[4*1028] = "localhost:8080/cellbase/rest/latest/hsa/genomic/position/";
+    char URL_AUX_2[]="/snp";
+    char *URL;
+    
+    int chr_len, new_len_range;
+
+    for (int i = 0; i < num_records; i++) {
+        vcf_record_t *record = records[i];
+        if (!strcmp(".", record->id)) {
+            continue;
+        }
+        
+        chr_len = record->chromosome_len;
+        new_len_range = current_index + chr_len + 32;
+        
+        // Reallocate memory if next record won't fit
+        if (variants_len < (current_index + new_len_range + 1)) {
+            char *aux = (char*) realloc(variants, (variants_len + new_len_range + 1) * sizeof(char));
+            if (aux) { 
+                variants = aux; 
+                variants_len += new_len_range;
+            }
+        }
+        
+        // Append region info to buffer
+        strncat(variants, record->chromosome, chr_len);
+        strncat(variants, ":", 1);
+        current_index += chr_len + 1;
+        sprintf(variants + current_index, "%lu", record->position);
+        strncat(variants, ",", 1);
+        current_index = strlen(variants); // TODO cambiar nombre
+    }
+    // PROVISIONAL
+    URL = (char*) calloc(strlen(URL_AUX_1) + strlen(variants) + strlen(URL_AUX_2) +1, sizeof(char));
+    strcpy(URL, URL_AUX_1);
+    strcat(URL, variants);
+    strcat(URL, URL_AUX_2);
+
+    if (current_index > 0) {
+        char *params[2] = { "of", "geneId" };
+        char *params_values[2] = { output_format, variants };
+//        ret_code = http_post(url, params, params_values, 2, save_snp_response, NULL);
+        ret_code = http_get(URL, NULL, NULL, 0, save_snp_response, NULL);
+    }
+    
+    free(variants);
+    
+    return ret_code;
+}
+
+static size_t save_snp_response(char *contents, size_t size, size_t nmemb, void *userdata) {
+    int tid = omp_get_thread_num();
+    
+    strncat(snp_line[tid], contents, size * nmemb);
+    
+    char *buffer = realloc (snp_line[tid], snp_max_line_size[tid] + size * nmemb);
+    if (buffer) {
+        snp_line[tid] = buffer;
+        max_line_size[tid] += size * nmemb;
+    } else {
+        LOG_FATAL("Error while allocating memory for SNP phenotype web service response");
+    }
+
+    return size * nmemb;
+}
+
+static void vcf_annot_parse_snp_response(int tid, vcf_record_t ** variants, int num_variants) { 
+    char *copy_buf;
+    int num_lines;
+    vcf_record_t * record;
+    char **split_batch = split(snp_line[tid], "\n", &num_lines);
+    
+    for (int i = 0, j = 0; i < num_lines; i++) {
+        int num_columns;
+        char *copy_buf = strdup(split_batch[i]);
+        char **split_result = split(copy_buf, "\t", &num_columns);
+        free(copy_buf);
+        
+        // Find consequence type name (always after SO field)
+        if (num_columns == 6) {
+            
+            for(; j < num_variants; j++){
+                record = variants[j];
+
+                if( strncmp(split_result[1], record->chromosome, record->chromosome_len) == 0 &&  atoi(split_result[2]) == record->position){
+                    set_vcf_record_id(strdup(split_result[0]), strlen(split_result[0]), record);
+                    break;
+                }
+            }
+        } else {
+            if (strlen(split_batch[i]) == 0) { // Last line in batch could be only a newline
+                continue;
+            }
+            LOG_INFO_F("[%d] Non-valid line found (%d fields): '%s'\n", tid, num_columns, split_batch[i]);
+        }
+        
+        for (int s = 0; s < num_columns; s++) {
+            free(split_result[s]);
+        }
+        free(split_result);
+    }
+    
+    for (int i = 0; i < num_lines; i++) {
+        free(split_batch[i]);
+    }
+    free(split_batch);
+}
+
+int set_field_value_in_info(char *key, char *value, bool append, vcf_record_t *record){
+   
+    char *info = strndup(record->info, record->info_len);
+    char **splits_info;
+    char **splits_key;
+    char *aux_string;
+    char *key_string;
+    char *val_string;
+    int num_splits, num_key_val;
+    char *copy_buf;
+    int find = 0;
+
+    if(strcmp(info, ".") == 0){
+        copy_buf = (char*) calloc(strlen(key) + strlen(value) + 1 + 1, sizeof(char));
+        strcpy(copy_buf, key);
+        strcat(copy_buf, "=");
+        strcat(copy_buf, value);
+        record->info = copy_buf;
+        record->info_len = strlen(copy_buf);
+        free(info);
+        return 1;
+    }else{
+        splits_info = split(info, ";", &num_splits);
+        copy_buf = (char*) calloc(record->info_len + strlen(key) + strlen(value) + 1 + 1 + 1, sizeof(char));
+        for(int i = 0; i < num_splits; i++){
+            aux_string = strdup(splits_info[i]);
+            splits_key = split(aux_string, "=", &num_key_val);
+            key_string = strdup(splits_key[0]);
+            val_string = strdup(splits_key[1]);
+            if(strcmp(key, key_string) == 0){
+                strcat(copy_buf, key_string);
+                strcat(copy_buf, "=");
+                if(append){
+                    strcat(copy_buf, val_string);
+                }
+                if(!strstr(val_string, value)){
+                    if(append)
+                        strcat(copy_buf, ",");
+                    strcat(copy_buf, value);    
+                }
+                find = 1;
+            }else{
+                strcat(copy_buf, key_string);
+                strcat(copy_buf, "=");
+                strcat(copy_buf, val_string);
+            }
+            if(i < (num_splits - 1)){
+                strcat(copy_buf, ";");
+            }
+
+            free(splits_key[0]);
+            free(splits_key[1]);
+            free(key_string);
+            free(val_string);
+            free(aux_string);
+        }
+        if(find == 0){
+            strcat(copy_buf, ";");
+            strcat(copy_buf, key);
+            strcat(copy_buf, "=");
+            strcat(copy_buf, value);
+        }
+        record->info = copy_buf;
+        record->info_len = strlen(copy_buf);
+        free(info);
+        return 1;
+    }
+        free(info);
+    return 0;
 }
