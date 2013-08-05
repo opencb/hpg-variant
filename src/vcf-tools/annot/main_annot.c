@@ -35,7 +35,7 @@ int vcf_tool_annot(int argc, char *argv[], const char *configuration_file) {
     if (argc == 1 || !strcmp(argv[1], "-h") || !strcmp(argv[1], "--help")) {
         argtable = merge_annot_options(annot_options, shared_options, arg_end(annot_options->num_options + shared_options->num_options));
         show_usage("hpg-var-vcf annot", argtable, annot_options->num_options + shared_options->num_options);
-        arg_freetable(argtable, 13);
+        arg_freetable(argtable, 16);
         return 0;
     }
 
@@ -68,12 +68,22 @@ int vcf_tool_annot(int argc, char *argv[], const char *configuration_file) {
     shared_options_data_t *shared_options_data = new_shared_options_data(shared_options);
     annot_options_data_t *options_data = new_annot_options_data(annot_options);
 
-    // Step 5: Perform the requested task
-    int result = run_annot(shared_options_data, options_data);
+    // Step 5: Create the web service request with all the parameters
+    const int num_urls = 2;
+    char **urls = malloc (num_urls * sizeof(char*));
+    urls[0] = compose_cellbase_ws_request(shared_options_data->host_url, shared_options_data->version, shared_options_data->species, 
+                                          "genomic/variant", "consequence_type");
+    urls[1] = compose_cellbase_ws_request(shared_options_data->host_url, shared_options_data->version, shared_options_data->species, 
+                                          "genomic/position", "snp");
+    
+    LOG_DEBUG_F("URL #1 = '%s'\n", urls[0]);
+    
+    // Step 6: Perform the requested task
+    int result = run_annot(urls, shared_options_data, options_data);
 
     free_annot_options_data(options_data);
     free_shared_options_data(shared_options_data);
-    arg_freetable(argtable, 13);
+    arg_freetable(argtable, 16);
 
     return 0;
 
@@ -82,6 +92,11 @@ int vcf_tool_annot(int argc, char *argv[], const char *configuration_file) {
 annot_options_t *new_annot_cli_options() {
     annot_options_t *options = (annot_options_t*) malloc (sizeof(annot_options_t));
     options->bam_directory = arg_str1(NULL, "bamdir", NULL, "The folder where the input BAM files are stored");
+    options->missing = arg_lit0(NULL, "missing", "Annotate the missings values");
+    options->dbsnp = arg_lit0(NULL, "dbsnp", "Annotate the dbSNP id");
+    options->effect = arg_lit0(NULL, "effect", "Annotate the Effect");
+    options->phase = arg_lit0(NULL, "phase", "Annotate the Phase");
+    options->all = arg_lit0(NULL, "all", "Activate all annotations");
     options->num_options = NUM_ANNOT_OPTIONS;
     return options;
 }
@@ -89,6 +104,11 @@ annot_options_t *new_annot_cli_options() {
 annot_options_data_t *new_annot_options_data(annot_options_t *options) {
     annot_options_data_t *options_data = (annot_options_data_t*) malloc (sizeof(annot_options_data_t));
     options_data->bam_directory = strdup(*(options->bam_directory->sval));
+    options_data->missing = options->missing->count;
+    options_data->dbsnp = options->dbsnp->count;
+    options_data->effect = options->effect->count;
+    options_data->phase = options->phase->count;
+    options_data->all = options->all->count;
     return options_data;
 }
 

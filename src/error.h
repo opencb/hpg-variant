@@ -62,5 +62,10 @@
 #define MORE_THAN_TWO_PHENOTYPES                231
 #define VARIABLE_FIELD_NOT_FOUND                232
 
+// -- Annot tool errors
+#define BAM_DIRECTORY_NOT_SPECIFIED                 330
+#define EMPTY_LIST_OF_ANNOTATIONS                   331
+// -- Annot tool errors
+
 #endif
 
