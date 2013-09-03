@@ -10,12 +10,13 @@ env = Environment(tools = ['default', 'packaging'],
                   CPPPATH = ['#', '#src', '#include', bioinfo_path, commons_path, math_path, 
                              '/usr/include', '/usr/local/include', '/usr/include/libxml2', '/usr/lib/openmpi/include'],
                   LIBPATH = [commons_path, bioinfo_path, '/usr/lib', '/usr/local/lib'],
-                  LIBS = ['common', 'bioinfo', 'curl', 'dl', 'gsl', 'gslcblas', 'm', 'mpi', 'xml2', 'z'],
+                  LIBS = ['common', 'bioinfo', 'curl', 'dl', 'gsl', 'gslcblas', 'm', 'xml2', 'z'],
                   LINKFLAGS = ['-fopenmp'])
 
 mode = 'single'
 if ARGUMENTS.get('mode', '') == 'mpi':
     env['CFLAGS'] += ' -D_USE_MPI'
+    env['LIBS'] += ['mpi']
     mode = 'mpi'
 
 
@@ -29,8 +30,6 @@ else:
 env['objects'] = []
 
 # bioinfo-libs compilation
-formats = [ 'family', 'features', 'gff', 'ped', 'vcf' ]
-aligners = []
 compiler = 'gcc'
 
 ##### Targets
@@ -39,7 +38,7 @@ compiler = 'gcc'
 SConscript(['%s/SConscript' % bioinfo_path,
             '%s/SConscript' % commons_path,
             '%s/SConscript' % math_path
-            ], exports = ['env', 'debug', 'formats', 'aligners', 'compiler'])
+            ], exports = ['env', 'debug', 'compiler'])
 
 # Create binaries and copy them to 'bin' folder
 progs = SConscript(['src/effect/SConscript',

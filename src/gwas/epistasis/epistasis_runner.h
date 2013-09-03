@@ -27,7 +27,6 @@
 #include <string.h>
 #include <unistd.h>
 
-#include <mpi.h>
 #include <omp.h>
 
 #include <commons/log.h>
@@ -43,6 +42,7 @@
 #include "model.h"
 
 #ifdef _USE_MPI
+#include <mpi.h>
 #include "mpi/mpi_epistasis_helper.h"
 #endif
 

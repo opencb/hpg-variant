@@ -30,7 +30,6 @@
 #include <omp.h>
 #include <xmmintrin.h>
 #include <smmintrin.h>
-#include <popcntintrin.h>
 
 #include <commons/log.h>
 #include <containers/array_list.h>
