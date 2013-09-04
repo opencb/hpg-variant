@@ -453,13 +453,21 @@ char* merge_filter_field(vcf_record_file_link** position_in_files, int position_
         } else if (!strncmp(input->filter, ".", input->filter_len)) {
             miss_found = 1;
         } else {
-            char *filter = strndup(input->filter, input->filter_len);
-            if (!array_list_contains(filter, failed_filters)) {
-                array_list_insert(filter, failed_filters);
-                filter_text_len += strlen(filter) + 1; // concat field + ","
-            } else {
-                free(filter);
+            char *filter_field = strndup(input->filter, input->filter_len);
+            int num_filters;
+            char **all_filters = split(filter_field, ";", &num_filters);
+            
+            for (int j = 0; j < num_filters; j++) {
+                char *filter = all_filters[j];
+                if (!array_list_contains(filter, failed_filters)) {
+                    array_list_insert(filter, failed_filters);
+                    filter_text_len += strlen(filter) + 1; // concat field + ","
+                } else {
+                    free(filter);
+                }
             }
+            free(all_filters);
+            free(filter_field);
         }
     }
     
