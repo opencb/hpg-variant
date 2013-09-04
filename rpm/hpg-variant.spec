@@ -1,5 +1,5 @@
 %define name hpg-variant
-%define version 0.99.2
+%define version 0.99.3
 Name:           %{name}
 Version:        %{version}
 Release:        1%{?dist}
