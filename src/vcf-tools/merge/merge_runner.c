@@ -247,19 +247,23 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
                 }
                 
                 LOG_DEBUG_F("Last position is (%s, %ld). Files ahead: ", max_chromosome_merged, max_position_merged);
+                
                 // Check which files are ahead the last position merged and will not be read in the next iteration
-                for (int i = 0; i < options_data->num_files; i++) {
-                    char *file_chromosome = last_chromosome_read[i];
-                    long file_position = last_position_read[i];
-                    
-                    int chrom_comparison = compare_chromosomes(file_chromosome, max_chromosome_merged, chromosome_order, num_chromosomes);
-                    int position_comparison = compare_positions(file_position, max_position_merged);
-                    
-                    if (chrom_comparison < 0 || (chrom_comparison == 0 && position_comparison <= 0)) {
-                        file_ahead_last_merged[i] = 0;
-                    } else {
-                        file_ahead_last_merged[i] = 1;
-                        LOG_DEBUG_F("%d (%s, %ld), ", i, file_chromosome, file_position);
+                // Only one file pending -> mark none as ahead
+                memset(file_ahead_last_merged, 0, options_data->num_files * sizeof(int));
+                
+                if (num_eof_found < options_data->num_files - 1) {
+                    for (int i = 0; i < options_data->num_files; i++) {
+                        char *file_chromosome = last_chromosome_read[i];
+                        long file_position = last_position_read[i];
+
+                        int chrom_comparison = compare_chromosomes(file_chromosome, max_chromosome_merged, chromosome_order, num_chromosomes);
+                        int position_comparison = compare_positions(file_position, max_position_merged);
+
+                        if (chrom_comparison > 0 || (chrom_comparison == 0 && position_comparison > 0)) {
+                            file_ahead_last_merged[i] = 1;
+                            LOG_DEBUG_F("%d (%s, %ld), ", i, file_chromosome, file_position);
+                        }
                     }
                 }
                 LOG_DEBUG("\n");
