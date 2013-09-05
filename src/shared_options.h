@@ -70,6 +70,7 @@ typedef struct shared_options {
     struct arg_file *region_file;       /**< Filter by region (using a GFF file) */
     struct arg_str *region_type;        /**< Filter by region and type (used along with the 'region_file' arg) */
     struct arg_str *snp;                /**< Filter by SNP */
+    struct arg_str *variant_type;       /**< Filter by variant type */
     struct arg_str *indel;              /**< Filter by indel */
     struct arg_dbl *dominant;           /**< Filter by samples following a dominant inheritance model */
     struct arg_dbl *recessive;          /**< Filter by samples following a recessive inheritance model */
