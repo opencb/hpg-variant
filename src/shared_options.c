@@ -49,7 +49,8 @@ shared_options_t *new_shared_cli_options(int ped_required) {
     options_data->region_file = arg_file0(NULL, "region-file", NULL, "Filter: by a list of regions (read from a GFF file)");
     options_data->region_type = arg_str0(NULL, "region-type", NULL, "Filter: by type of region (used along with the 'region-file' argument)");
     options_data->snp = arg_str0(NULL, "snp", NULL, "Filter: by being a SNP or not (include/exclude)");
-    options_data->indel = arg_str0(NULL, "indel", NULL, "Filter: by being an indel or not (include/exclude)");
+    options_data->variant_type = arg_str0(NULL, "var-type", NULL, "Filter: by variant type (snv/indel/structural)");
+    options_data->indel = arg_str0(NULL, "indel", NULL, "Filter: by being an indel or not, counting characters in REF and ALT (include/exclude)");
     options_data->dominant = arg_dbl0(NULL, "inh-dom", NULL, "Filter: by percentage of samples following dominant inheritance pattern (decimal like 0.1)");
     options_data->recessive = arg_dbl0(NULL, "inh-rec", NULL, "Filter: by percentage of samples following recessive inheritance pattern (decimal like 0.1)");
     
@@ -129,6 +130,19 @@ shared_options_data_t* new_shared_options_data(shared_options_t* options) {
         filter = snp_filter_new(strcmp(*(options->snp->sval), "exclude"));
         options_data->chain = add_to_filter_chain(filter, options_data->chain);
         LOG_DEBUG_F("snp filter to %s SNPs\n", *(options->snp->sval));
+    }
+    if (options->variant_type->count > 0) {
+        enum variant_type type = VARIANT_SNV;
+        if (!strcasecmp(*(options->variant_type->sval), "snv")) {
+            type = VARIANT_SNV;
+        } else if (!strcasecmp(*(options->variant_type->sval), "indel")) {
+            type = VARIANT_INDEL;
+        } else if (!strcasecmp(*(options->variant_type->sval), "structural")) {
+            type = VARIANT_SV;
+        }
+        filter = variant_type_filter_new(type);
+        options_data->chain = add_to_filter_chain(filter, options_data->chain);
+        LOG_DEBUG_F("variant_type filter to %s indels\n", *(options->indel->sval));
     }
     if (options->indel->count > 0) {
         filter = indel_filter_new(strcmp(*(options->indel->sval), "exclude"));
