@@ -403,6 +403,10 @@ static void parse_effect_response(int tid, char *output_directory, size_t output
            strncat(tmp_consequence_type, split_result[19], strlen(split_result[19]));
         } else {
             if (strlen(split_batch[i]) == 0) { // Last line in batch could be only a newline
+                for (int s = 0; s < num_columns; s++) {
+                    free(split_result[s]);
+                }
+                free(split_result);
                 continue;
             }
             
