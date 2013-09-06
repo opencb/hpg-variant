@@ -134,7 +134,7 @@ int run_effect(char **urls, shared_options_data_t *shared_options_data, effect_o
             get_filtering_output_files(shared_options_data, &passed_file, &failed_file);
             
             // Pedigree information (used in some filters)
-            individual_t **individuals;
+            individual_t **individuals = NULL;
             khash_t(ids) *sample_ids = NULL;
             
             // Filename structure outdir/vcfname.errors
