@@ -35,9 +35,9 @@ int vcf_tool_split(int argc, char *argv[], const char *configuration_file) {
     // If no arguments or only --help are provided, show usage
     void **argtable;
     if (argc == 1 || !strcmp(argv[1], "-h") || !strcmp(argv[1], "--help")) {
-        argtable = merge_split_options(split_options, shared_options, arg_end(split_options->num_options + shared_options->num_options));
-        show_usage("hpg-var-vcf split", argtable, split_options->num_options + shared_options->num_options);
-        arg_freetable(argtable, 12);
+        argtable = merge_split_options(split_options, shared_options, arg_end(NUM_SPLIT_OPTIONS));
+        show_usage("hpg-var-vcf split", argtable);
+        arg_freetable(argtable, NUM_SPLIT_OPTIONS);
         return 0;
     }
 
@@ -77,14 +77,13 @@ int vcf_tool_split(int argc, char *argv[], const char *configuration_file) {
 
     free_split_options_data(options_data);
     free_shared_options_data(shared_options_data);
-    arg_freetable(argtable, 12);
+    arg_freetable(argtable, NUM_SPLIT_OPTIONS);
 
     return 0;
 }
 
 split_options_t *new_split_cli_options() {
     split_options_t *options = (split_options_t*) malloc (sizeof(split_options_t));
-    options->num_options = NUM_SPLIT_OPTIONS;
     options->criterion = arg_str1(NULL, "criterion", NULL, "Criterion for splitting the file");
     options->intervals = arg_str0(NULL, "intervals", NULL, "Values of intervals for splitting the file");
     return options;

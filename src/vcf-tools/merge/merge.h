@@ -44,7 +44,7 @@
 #include "hpg_variant_utils.h"
 #include "shared_options.h"
 
-#define NUM_MERGE_OPTIONS   6
+#define NUM_MERGE_OPTIONS   19
 
 
 #define MERGED_RECORD       1
@@ -62,7 +62,6 @@ typedef struct merge_options {
     struct arg_lit *strict_reference;   /**< Whether to reject variants whose reference allele is not the same in all files */
     struct arg_lit *copy_filter;        /**< Whether to copy the contents of the original FILTER field into the samples */
     struct arg_lit *copy_info;          /**< Whether to copy the contents of the original INFO field into the samples */
-    int num_options;
 } merge_options_t;
 
 typedef struct merge_options_data {

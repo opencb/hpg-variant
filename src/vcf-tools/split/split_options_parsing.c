@@ -66,7 +66,7 @@ int read_split_configuration(const char *filename, split_options_t *options, sha
 }
 
 void **parse_split_options(int argc, char *argv[], split_options_t *split_options, shared_options_t *shared_options) {
-    struct arg_end *end = arg_end(split_options->num_options + shared_options->num_options);
+    struct arg_end *end = arg_end(NUM_SPLIT_OPTIONS);
     void **argtable = merge_split_options(split_options, shared_options, end);
     
     int num_errors = arg_parse(argc, argv, argtable);
@@ -78,7 +78,7 @@ void **parse_split_options(int argc, char *argv[], split_options_t *split_option
 }
 
 void **merge_split_options(split_options_t *split_options, shared_options_t *shared_options, struct arg_end *arg_end) {
-    void **tool_options = malloc (12 * sizeof(void*));
+    void **tool_options = malloc (NUM_SPLIT_OPTIONS * sizeof(void*));
     // Input/output files
     tool_options[0] = shared_options->vcf_filename;
     tool_options[1] = shared_options->output_directory;

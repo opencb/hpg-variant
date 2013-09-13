@@ -63,7 +63,7 @@ int read_assoc_configuration(const char *filename, assoc_options_t *assoc_option
 }
 
 void **parse_assoc_options(int argc, char *argv[], assoc_options_t *assoc_options, shared_options_t *shared_options) {
-    struct arg_end *end = arg_end(assoc_options->num_options + shared_options->num_options);
+    struct arg_end *end = arg_end(NUM_ASSOC_OPTIONS);
     void **argtable = merge_assoc_options(assoc_options, shared_options, end);
     
     int num_errors = arg_parse(argc, argv, argtable);
@@ -75,7 +75,7 @@ void **parse_assoc_options(int argc, char *argv[], assoc_options_t *assoc_option
 }
 
 void **merge_assoc_options(assoc_options_t *assoc_options, shared_options_t *shared_options, struct arg_end *arg_end) {
-    void **tool_options = malloc (31 * sizeof(void*));
+    void **tool_options = malloc (NUM_ASSOC_OPTIONS * sizeof(void*));
     
     // Input/output files
     tool_options[0] = shared_options->vcf_filename;

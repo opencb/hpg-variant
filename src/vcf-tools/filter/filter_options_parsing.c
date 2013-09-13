@@ -69,7 +69,7 @@ int read_filter_configuration(const char *filename, filter_options_t *options, s
 
 
 void **parse_filter_options(int argc, char *argv[], filter_options_t *filter_options, shared_options_t *shared_options) {
-    struct arg_end *end = arg_end(filter_options->num_options + shared_options->num_options);
+    struct arg_end *end = arg_end(NUM_FILTER_OPTIONS);
     void **argtable = merge_filter_options(filter_options, shared_options, end);
     
     int num_errors = arg_parse(argc, argv, argtable);
@@ -81,7 +81,7 @@ void **parse_filter_options(int argc, char *argv[], filter_options_t *filter_opt
 }
 
 void **merge_filter_options(filter_options_t *filter_options, shared_options_t *shared_options, struct arg_end *arg_end) {
-    void **tool_options = malloc (29 * sizeof(void*));
+    void **tool_options = malloc (NUM_FILTER_OPTIONS * sizeof(void*));
     // Input/output files
     tool_options[0] = shared_options->vcf_filename;
     tool_options[1] = shared_options->ped_filename;

@@ -33,9 +33,9 @@ int tdt(int argc, char *argv[], const char *configuration_file) {
     // If no arguments or only --help are provided, show usage
     void **argtable;
     if (argc == 1 || !strcmp(argv[1], "--help")) {
-        argtable = merge_tdt_options(tdt_options, shared_options, arg_end(tdt_options->num_options + shared_options->num_options));
-        show_usage("hpg-var-gwas tdt", argtable, tdt_options->num_options + shared_options->num_options);
-        arg_freetable(argtable, 29);
+        argtable = merge_tdt_options(tdt_options, shared_options, arg_end(NUM_TDT_OPTIONS));
+        show_usage("hpg-var-gwas tdt", argtable);
+        arg_freetable(argtable, NUM_TDT_OPTIONS);
         return 0;
     }
 
@@ -76,7 +76,7 @@ int tdt(int argc, char *argv[], const char *configuration_file) {
     
 //     free_tdt_options_data(options_data);
     free_shared_options_data(shared_options_data);
-    arg_freetable(argtable, 29);
+    arg_freetable(argtable, NUM_TDT_OPTIONS);
     free(configuration_file);
 
     return 0;
@@ -84,6 +84,5 @@ int tdt(int argc, char *argv[], const char *configuration_file) {
 
 tdt_options_t *new_tdt_cli_options(void) {
     tdt_options_t *options = (tdt_options_t*) malloc (sizeof(tdt_options_t));
-    options->num_options = NUM_TDT_OPTIONS;
     return options;
 }

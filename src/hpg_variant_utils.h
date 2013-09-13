@@ -99,7 +99,7 @@ FILE *get_output_file(shared_options_data_t *shared_options_data, char *default_
  *      Miscellaneous    *
  * ***********************/
 
-void show_usage(char *tool, void **argtable, int num_arguments);
+void show_usage(char *tool, void **argtable);
 
 void show_version(char *tool);
 
