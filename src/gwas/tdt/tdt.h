@@ -47,12 +47,10 @@
 /**
  * Number of options applicable to the TDT tool.
  */
-#define NUM_TDT_OPTIONS  0
+#define NUM_TDT_OPTIONS  29
 
 
-typedef struct tdt_options {
-    int num_options;
-} tdt_options_t;
+typedef struct tdt_options { } tdt_options_t;
 
 static tdt_options_t *new_tdt_cli_options(void);
 
