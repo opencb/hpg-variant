@@ -66,7 +66,7 @@ int read_stats_configuration(const char *filename, stats_options_t *options, sha
 }
 
 void **parse_stats_options(int argc, char *argv[], stats_options_t *stats_options, shared_options_t *shared_options) {
-    struct arg_end *end = arg_end(stats_options->num_options + shared_options->num_options);
+    struct arg_end *end = arg_end(NUM_STATS_OPTIONS);
     void **argtable = merge_stats_options(stats_options, shared_options, end);
     
     int num_errors = arg_parse(argc, argv, argtable);
@@ -78,7 +78,7 @@ void **parse_stats_options(int argc, char *argv[], stats_options_t *stats_option
 }
 
 void **merge_stats_options(stats_options_t *stats_options, shared_options_t *shared_options, struct arg_end *arg_end) {
-    void **tool_options = malloc (18 * sizeof(void*));
+    void **tool_options = malloc (NUM_STATS_OPTIONS * sizeof(void*));
     // Input/output files
     tool_options[0] = shared_options->vcf_filename;
     tool_options[1] = shared_options->ped_filename;

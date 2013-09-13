@@ -33,9 +33,9 @@ int main(int argc, char *argv[]) {
 
     // If no arguments or only -h / --help are provided, show usage
     if (argc == 1 || !strcmp(argv[1], "-h") || !strcmp(argv[1], "--help")) {
-        argtable = merge_effect_options(effect_options, shared_options, arg_end(effect_options->num_options + shared_options->num_options));
-        show_usage(argv[0], argtable, effect_options->num_options + shared_options->num_options);
-        arg_freetable(argtable, 31);
+        argtable = merge_effect_options(effect_options, shared_options, arg_end(NUM_EFFECT_OPTIONS));
+        show_usage(argv[0], argtable);
+        arg_freetable(argtable, NUM_EFFECT_OPTIONS);
         return 0;
     } else if (!strcmp(argv[1], "--version")) {
         show_version("Effect");
@@ -100,7 +100,7 @@ int main(int argc, char *argv[]) {
     
     free_effect_options_data(effect_options_data);
     free_shared_options_data(shared_options_data);
-    arg_freetable(argtable, 31);
+    arg_freetable(argtable, NUM_EFFECT_OPTIONS);
     array_list_free(config_search_paths, free);
     free(configuration_file);
 
@@ -111,7 +111,6 @@ int main(int argc, char *argv[]) {
 
 effect_options_t *new_effect_cli_options(void) {
     effect_options_t *options = (effect_options_t*) malloc (sizeof(effect_options_t));
-    options->num_options = NUM_EFFECT_OPTIONS;
     options->no_phenotypes = arg_lit0(NULL, "no-phenotypes", "Flag asking not to retrieve phenotypical information");
     options->excludes = arg_str0(NULL, "exclude", NULL, "Consequence types to exclude from the query (comma-separated)");
     return options;

@@ -65,7 +65,7 @@ int read_tdt_configuration(const char *filename, tdt_options_t *tdt_options, sha
 }
 
 void **parse_tdt_options(int argc, char *argv[], tdt_options_t *tdt_options, shared_options_t *shared_options) {
-    struct arg_end *end = arg_end(shared_options->num_options);
+    struct arg_end *end = arg_end(NUM_TDT_OPTIONS);
     void **argtable = merge_tdt_options(tdt_options, shared_options, end);
     
     int num_errors = arg_parse(argc, argv, argtable);
@@ -77,7 +77,7 @@ void **parse_tdt_options(int argc, char *argv[], tdt_options_t *tdt_options, sha
 }
 
 void **merge_tdt_options(tdt_options_t *tdt_options, shared_options_t *shared_options, struct arg_end *arg_end) {
-    void **tool_options = malloc (29 * sizeof(void*));
+    void **tool_options = malloc (NUM_TDT_OPTIONS * sizeof(void*));
     
     // Input/output files
     tool_options[0] = shared_options->vcf_filename;

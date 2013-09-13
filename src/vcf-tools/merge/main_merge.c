@@ -34,9 +34,9 @@ int vcf_tool_merge(int argc, char *argv[], const char *configuration_file, array
     // If no arguments or only --help are provided, show usage
     void **argtable;
     if (argc == 1 || !strcmp(argv[1], "-h") || !strcmp(argv[1], "--help")) {
-        argtable = merge_merge_options(merge_options, shared_options, arg_end(merge_options->num_options + shared_options->num_options));
-        show_usage("hpg-var-vcf merge", argtable, merge_options->num_options + shared_options->num_options);
-        arg_freetable(argtable, 19);
+        argtable = merge_merge_options(merge_options, shared_options, arg_end(NUM_MERGE_OPTIONS));
+        show_usage("hpg-var-vcf merge", argtable);
+        arg_freetable(argtable, NUM_MERGE_OPTIONS);
         return 0;
     }
 
@@ -77,14 +77,13 @@ int vcf_tool_merge(int argc, char *argv[], const char *configuration_file, array
 
     free_merge_options_data(options_data);
     free_shared_options_data(shared_options_data);
-    arg_freetable(argtable, 19);
+    arg_freetable(argtable, NUM_MERGE_OPTIONS);
 
     return 0;
 }
 
 merge_options_t *new_merge_cli_options() {
     merge_options_t *options = (merge_options_t*) malloc (sizeof(merge_options_t));
-    options->num_options = NUM_MERGE_OPTIONS;
     options->input_files = arg_str1(NULL, "vcf-list", NULL, "List of comma-separated input VCF files");
     options->missing_mode = arg_str0(NULL, "missing-mode", NULL, "How to fill missing genotypes (missing = ./., reference = 0/0)");
     options->info_fields = arg_str0(NULL, "info-fields", NULL, "Information to generate in the new INFO column");

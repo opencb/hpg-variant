@@ -78,7 +78,7 @@ int read_merge_configuration(const char *filename, merge_options_t *options, sha
 }
 
 void **parse_merge_options(int argc, char *argv[], merge_options_t *merge_options, shared_options_t *shared_options) {
-    struct arg_end *end = arg_end(merge_options->num_options + shared_options->num_options);
+    struct arg_end *end = arg_end(NUM_MERGE_OPTIONS);
     void **argtable = merge_merge_options(merge_options, shared_options, end);
     
     assert(argv);
@@ -92,7 +92,7 @@ void **parse_merge_options(int argc, char *argv[], merge_options_t *merge_option
 }
 
 void **merge_merge_options(merge_options_t *merge_options, shared_options_t *shared_options, struct arg_end *arg_end) {
-    void **tool_options = malloc (19 * sizeof(void*));
+    void **tool_options = malloc (NUM_MERGE_OPTIONS * sizeof(void*));
     // Input/output files
     tool_options[0] = merge_options->input_files;
     tool_options[1] = shared_options->output_filename;

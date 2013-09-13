@@ -34,14 +34,13 @@
 #include "error.h"
 #include "shared_options.h"
 
-#define NUM_SPLIT_OPTIONS  2
+#define NUM_SPLIT_OPTIONS  12
 
 enum Split_criterion { NONE, SPLIT_CHROMOSOME, SPLIT_COVERAGE };
 
 typedef struct split_options {
     struct arg_str *criterion;   /**< Criterion for splitting the file */
     struct arg_str *intervals;
-    int num_options;
 } split_options_t;
 
 typedef struct split_options_data {

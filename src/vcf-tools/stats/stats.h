@@ -44,7 +44,7 @@
 #include "shared_options.h"
 #include "hpg_variant_utils.h"
 
-#define NUM_STATS_OPTIONS  6
+#define NUM_STATS_OPTIONS  18
 #define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
 
 
@@ -55,8 +55,6 @@ typedef struct stats_options {
     struct arg_str *variable;
     struct arg_str *variable_groups;
     struct arg_str *phenotype;
-    
-    int num_options;
 } stats_options_t;
 
 /**

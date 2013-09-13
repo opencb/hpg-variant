@@ -66,7 +66,7 @@ int read_effect_configuration(const char *filename, effect_options_t *effect_opt
 }
 
 void **parse_effect_options(int argc, char *argv[], effect_options_t *effect_options, shared_options_t *shared_options) {
-    struct arg_end *end = arg_end(effect_options->num_options + shared_options->num_options);
+    struct arg_end *end = arg_end(NUM_EFFECT_OPTIONS);
     void **argtable = merge_effect_options(effect_options, shared_options, end);
     
     int num_errors = arg_parse(argc, argv, argtable);
@@ -78,7 +78,7 @@ void **parse_effect_options(int argc, char *argv[], effect_options_t *effect_opt
 }
 
 void **merge_effect_options(effect_options_t *effect_options, shared_options_t *shared_options, struct arg_end *arg_end) {
-    void **tool_options = malloc (31 * sizeof(void*));
+    void **tool_options = malloc (NUM_EFFECT_OPTIONS * sizeof(void*));
     
     // Input/output files
     tool_options[0] = shared_options->vcf_filename;
