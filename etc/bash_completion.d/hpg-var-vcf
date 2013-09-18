@@ -1,0 +1,47 @@
+_hpg_var_vcf() 
+{
+    local cur prev opts base
+    COMPREPLY=()
+    cur="${COMP_WORDS[COMP_CWORD]}"
+    prev="${COMP_WORDS[COMP_CWORD-1]}"
+
+    #
+    #  The basic options we'll complete.
+    #
+    opts="filter merge split stats"
+    subopts="--help --version --log-level --config --outdir --num-batches --batch-lines --batch-bytes --num-threads --mmap-vcf"
+
+    #
+    #  Complete the arguments to some of the basic commands.
+    #
+    case "${prev}" in
+        filter)
+	    local filter_opts="${subopts} --vcf-file --ped-file --species --alleles --coverage --quality --maf --missing --gene --region --region-file --region-type --snp --var-type --indel --inh-dom --inh-rec --url"
+	    COMPREPLY=( $(compgen -W "${filter_opts}" -- ${cur}) )
+            return 0
+            ;;
+	merge)
+	    local merge_opts="${subopts} --vcf-list --species --missing-mode --strict-ref --copy-filter --copy-info --info-fields --url"
+	    COMPREPLY=( $(compgen -W "${merge_opts}" -- ${cur}) )
+            return 0
+            ;;
+        split)
+	    local split_opts="${subopts} --vcf-file --criterion --intervals"
+	    COMPREPLY=( $(compgen -W "${split_opts}" -- ${cur}) )
+            return 0
+            ;;
+        stats)
+	    local stats_opts="${subopts} --vcf-file --ped-file --out --variants --samples --db --variable --variable-group --phenotype"
+	    COMPREPLY=( $(compgen -W "${stats_opts}" -- ${cur}) )
+            return 0
+            ;;
+        *)
+        ;;
+    esac
+
+   COMPREPLY=($(compgen -W "${opts}" -- ${cur}))  
+   return 0
+}
+
+complete -F _hpg_var_vcf hpg-var-vcf
+
