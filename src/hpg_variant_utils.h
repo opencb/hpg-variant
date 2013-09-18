@@ -35,7 +35,7 @@
 
 #include "shared_options.h"
 
-#define HPG_VARIANT_VERSION     "0.99.3"
+#define HPG_VARIANT_VERSION     "0.99.4"
 
 /* ***********************
  *     Initialization    *
