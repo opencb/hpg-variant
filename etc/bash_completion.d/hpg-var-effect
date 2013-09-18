@@ -1,0 +1,16 @@
+_hpg_var_effect()
+{
+    local cur prev opts
+    COMPREPLY=()
+    cur="${COMP_WORDS[COMP_CWORD]}"
+    prev="${COMP_WORDS[COMP_CWORD-1]}"
+    opts="--help --version --log-level --config  --vcf-file --ped-file --out --outdir --species --no-phenotypes --exclude --alleles --coverage --quality --maf --missing --gene --region --region-file --region-type --snp --var-type --indel --inh-dom --inh-rec --url --num-batches --batch-lines --batch-bytes --num-threads --mmap-vcf"
+
+    if [[ ${cur} == -* ]] ; then
+        COMPREPLY=( $(compgen -W "${opts}" -- ${cur}) )
+        return 0
+    fi
+}
+
+
+complete -F _hpg_var_effect hpg-var-effect

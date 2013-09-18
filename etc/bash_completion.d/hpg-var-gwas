@@ -1,0 +1,37 @@
+_hpg_var_gwas() 
+{
+    local cur prev opts base
+    COMPREPLY=()
+    cur="${COMP_WORDS[COMP_CWORD]}"
+    prev="${COMP_WORDS[COMP_CWORD-1]}"
+
+    #
+    #  The basic options we'll complete.
+    #
+    opts="assoc tdt"
+    subopts="--help --version --log-level --config  --vcf-file --ped-file --out --outdir --species --alleles --coverage --quality --maf --missing --gene --region --region-file --region-type --snp --var-type --indel --inh-dom --inh-rec --url --num-batches --batch-lines --batch-bytes --num-threads --mmap-vcf"
+
+    #
+    #  Complete the arguments to some of the basic commands.
+    #
+    case "${prev}" in
+	assoc)
+	    local assoc_opts="${subopts} --chisq --fisher"
+	    COMPREPLY=( $(compgen -W "${assoc_opts}" -- ${cur}) )
+            return 0
+            ;;
+        tdt)
+	    local tdt_opts="${subopts}"
+	    COMPREPLY=( $(compgen -W "${tdt_opts}" -- ${cur}) )
+            return 0
+            ;;
+        *)
+        ;;
+    esac
+
+   COMPREPLY=($(compgen -W "${opts}" -- ${cur}))  
+   return 0
+}
+
+complete -F _hpg_var_gwas hpg-var-gwas
+
