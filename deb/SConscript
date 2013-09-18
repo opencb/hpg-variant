@@ -4,7 +4,7 @@ Import('env') # exported by parent SConstruct
 
 # Here's the core info for the DEBIAN/control file of the package
 DEBNAME = "hpg-variant"
-DEBVERSION = "0.99.3"
+DEBVERSION = "0.99.4"
 DEBMAINT = "Cristina Yenyxe Gonzalez Garcia <cgonzalez@cipf.es>"
 DEBARCH = "amd64"
 DEBDEPENDS = "libc6, libcurl4-openssl-dev, libgsl0ldbl, libxml2, zlib1g"
@@ -30,14 +30,25 @@ DEBFILES = [
     ("usr/bin/hpg-var-gwas",                    "#bin/hpg-var-gwas"),
     ("usr/bin/hpg-var-vcf",                     "#bin/hpg-var-vcf"),
     
-    ("etc/hpg-variant/hpg-variant.conf",        "#bin/hpg-variant.conf"),
-    ("etc/hpg-variant/vcf-info-fields.conf",    "#bin/vcf-info-fields.conf"), 
+    ("etc/hpg-variant/hpg-variant.conf",        "#etc/hpg-variant/hpg-variant.conf"),
+    ("etc/hpg-variant/vcf-info-fields.conf",    "#etc/hpg-variant/vcf-info-fields.conf"),
+
+    ("etc/bash_completion.d/hpg-var-effect",    "#etc/bash_completion.d/hpg-var-effect"),
+    ("etc/bash_completion.d/hpg-var-gwas",      "#etc/bash_completion.d/hpg-var-gwas"),
+    ("etc/bash_completion.d/hpg-var-vcf",       "#etc/bash_completion.d/hpg-var-vcf"),
 ]
 
 CONFFILES = [
     "/etc/hpg-variant/hpg-variant.conf",
     "/etc/hpg-variant/vcf-info-fields.conf"
 ]
+
+COMPLETFILES = [
+    "etc/bash_completion.d/hpg-var-effect",
+    "etc/bash_completion.d/hpg-var-gwas",
+    "etc/bash_completion.d/hpg-var-vcf"
+]
+
 
 # This is the debian package we're going to create
 #debpkg = '#%s_%s-%s_%s.deb' % (DEBNAME, DEBVERSION, svn_version, DEBARCH)
@@ -47,6 +58,7 @@ debpkg = '#%s_%s-%s.deb' % (DEBNAME, DEBVERSION, DEBARCH)
 env.Alias("debian", debpkg)
 
 DEBCONFFILE = os.path.join(DEBNAME, "DEBIAN/conffiles")
+DEBCOMPLETFILE = os.path.join(DEBNAME, "DEBIAN/package.bash-completion")
 DEBCONTROLFILE = os.path.join(DEBNAME, "DEBIAN/control")
 DEBMD5FILE = os.path.join(DEBNAME, "DEBIAN/md5sums")
 
@@ -62,6 +74,7 @@ for f in DEBFILES:
     # The control and MD5 files also depend on each source because we'd like
     # to know the total installed size of the package
     env.Depends(DEBCONTROLFILE, dest)
+    env.Depends(DEBCOMPLETFILE, dest)
     env.Depends(DEBMD5FILE, dest)
 
 # Now to create the control file:
@@ -89,6 +102,15 @@ def make_conffiles(target=None, source=None, env=None):
     with open(str(target[0]), 'w') as f:
         os.fchmod(f.fileno(), 0644)
         f.write(conffile)
+
+# This function creates the bash_completion file.
+def make_completion(target=None, source=None, env=None):
+    completfile = ''
+    for i in COMPLETFILES:
+        completfile += i + '\n'
+    with open(str(target[0]), 'w') as f:
+        os.fchmod(f.fileno(), 0644)
+        f.write(completfile)
 
 # This function creates the control file from the template and info specified 
 # above, and works out the final size of the package.
@@ -124,9 +146,11 @@ def make_md5sums(target=None, source=None, env=None):
     
 # We can generate the files in the DEBIAN folder
 env.Command(DEBCONFFILE, None, make_conffiles)
+env.Command(DEBCOMPLETFILE, None, make_completion)
 env.Command(DEBCONTROLFILE, None, make_control)
 env.Command(DEBMD5FILE, None, make_md5sums)
 
 # And we can generate the .deb file by calling dpkg-deb
-env.Command(debpkg, [DEBCONFFILE, DEBCONTROLFILE, DEBMD5FILE],
+env.Command(debpkg, [DEBCONFFILE, DEBCOMPLETFILE, DEBCONTROLFILE, DEBMD5FILE],
             "fakeroot dpkg-deb -b %s %s" % ("deb/%s" % DEBNAME, "$TARGET"))
+

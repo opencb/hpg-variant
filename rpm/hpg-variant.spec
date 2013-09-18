@@ -1,5 +1,5 @@
 %define name hpg-variant
-%define version 0.99.3
+%define version 0.99.4
 Name:           %{name}
 Version:        %{version}
 Release:        1%{?dist}
@@ -55,6 +55,11 @@ mkdir -p %{buildroot}%{_sysconfdir}/%{name}/
 cp bin/hpg-variant.conf %{buildroot}%{_sysconfdir}/%{name}/
 cp bin/vcf-info-fields.conf %{buildroot}%{_sysconfdir}/%{name}/
 
+mkdir -p %{buildroot}%{_sysconfdir}/bash_completion.d/
+cp bin/bash_completion/hpg-var-effect %{buildroot}%{_sysconfdir}/bash_completion.d/
+cp bin/bash_completion/hpg-var-gwas %{buildroot}%{_sysconfdir}/bash_completion.d/
+cp bin/bash_completion/hpg-var-vcf %{buildroot}%{_sysconfdir}/bash_completion.d/
+
 
 %files
 %doc
@@ -63,6 +68,19 @@ cp bin/vcf-info-fields.conf %{buildroot}%{_sysconfdir}/%{name}/
 
 
 %changelog
+* Wed Sep 18 2013 Cristina Yenyxe Gonzalez <cgonzalez@cipf.es> - 0.99.4
+- Great reduction of memory usage in the VCF merging tool allows to merge 
+  hundreds of VCF files at twice the previous speed
+- VCF statistics tool retrieves statistics grouped by column (for instance, 
+  population)
+- Full support for Variant Call Format v4.1, including structural variants 
+  and novel adjancencies with breakends
+- Configuration of the Effect application simplified (entries-per-thread 
+  argument removed, calculated automatically)
+- Command-line autocompletion
+- Arguments --version and --log-level added
+- SNP ID shown in GWAS output report
+
 * Mon Jun 10 2013 Cristina Yenyxe Gonzalez <cgonzalez@cipf.es> - 0.99.2
 - VCF merging tool more tolerant to different reference alleles
 - Variant effect checked for all alternate alleles of a single variant
