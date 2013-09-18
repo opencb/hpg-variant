@@ -58,7 +58,7 @@ tb = env.Package(NAME          = 'hpg-variant',
                              [ '#buildaux.py', '#libs/bioinfo-libs/buildvars.py',
                                '#deb/SConscript', '#rpm/SConscript', '#rpm/hpg-variant.spec',
                                Glob('etc/hpg-variant/*.conf'), Glob('etc/bash_completion.d/*'),
-                               '#COPYING', '#INSTALL' ] )
+                               '#COPYING', '#README' ] )
 Alias('tarball', tb)
   
 # Create Debian package
