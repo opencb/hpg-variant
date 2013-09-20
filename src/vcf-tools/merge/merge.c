@@ -137,7 +137,7 @@ array_list_t *merge_vcf_sample_names(vcf_file_t **files, int num_files) {
             khiter_t iter = kh_get(names, samples, sample_name);
             if (iter != kh_end(samples)) {
                 kh_destroy(names, samples);
-                LOG_ERROR_F("Sample %s appears more than once.\n", sample_name);
+                LOG_FATAL_F("Sample %s appears more than once.\n", sample_name);
                 return NULL;
             } else {
                 int ret;
@@ -152,6 +152,7 @@ array_list_t *merge_vcf_sample_names(vcf_file_t **files, int num_files) {
     for (int i = 0; i < num_files; i++) {
         array_list_insert_all(files[i]->samples_names->items, files[i]->samples_names->size, sample_names);
     }
+    
     return sample_names;
 }
 
@@ -367,7 +368,7 @@ char* merge_alternate_field(vcf_record_file_link** position_in_files, int positi
             cur_alternate = split_pos_alternates[j];
             cur_alternate_len = strlen(cur_alternate);
 
-            if (!cp_hashtable_contains(alleles_table, cur_alternate)) {
+            if (strcmp(cur_alternate, ".") && !cp_hashtable_contains(alleles_table, cur_alternate)) {
                 if (!alternates) {
                     alternates = strdup(cur_alternate);
                     max_len = cur_alternate_len;
@@ -400,6 +401,12 @@ char* merge_alternate_field(vcf_record_file_link** position_in_files, int positi
         free(split_pos_alternates);
     }
 
+    // If the reference allele was the same in all files, and only "." was found as alternate,
+    // then the 'alternates' variable would still be null
+    if (!alternates) {
+        alternates = strdup(".");
+    }
+    
     return alternates;
 }
 
