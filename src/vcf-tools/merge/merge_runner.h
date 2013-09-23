@@ -49,6 +49,10 @@ KHASH_MAP_INIT_STR(pos, array_list_t*);
 
 int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *options_data);
 
+
+
+static int are_all_files_available(int num_files, char *input_files[num_files], int started[num_files]);
+
 static int insert_position_read(char key[64], vcf_record_file_link *link, kh_pos_t* positions_read); 
 
 /**
