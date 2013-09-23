@@ -76,6 +76,9 @@ static int merge_interval(kh_pos_t* positions_read, char *max_chromosome_merged,
 static int merge_remaining_interval(kh_pos_t* positions_read, vcf_file_t **files,
                                      shared_options_data_t *shared_options_data, merge_options_data_t *options_data, list_t *output_list);
 
+static void check_files_ahead_last_merged(int num_files, int file_ahead_last_merged[num_files], 
+                                          char *last_chromosome_read[num_files], long last_position_read[num_files], 
+                                          char *max_chromosome_merged, long max_position_merged, int num_eof_found);
 
 
 

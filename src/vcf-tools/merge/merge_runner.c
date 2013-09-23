@@ -139,7 +139,7 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
                  * last minimum registered.
                  */
                 
-                // Getting text elements in a critical region guarantees that each thread gets variants in positions in the same range
+                // Retrieve a text batch from each file
                 for (int i = 0; i < options_data->num_files; i++) {
                     if (eof_found[i] || file_ahead_last_merged[i] > 0) {
                         continue;
@@ -147,12 +147,12 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
                     
                     items[i] = list_remove_item(read_list[i]);
                     if (!started[i] && items[i] == NULL) {
-                        LOG_DEBUG_F("No text batch retrieved from file %s\n", options_data->input_files[i]);
+                        LOG_DEBUG_F("No text batch retrieved from file %s\n", files[i]->filename);
                         continue;
                     }
                     
                     if (items[i] == NULL || !strcmp(items[i]->data_p, "")) {
-                        LOG_INFO_F("[%d] EOF found in file %s\n", omp_get_thread_num(), options_data->input_files[i]);
+                        LOG_INFO_F("[%d] EOF found in file %s\n", omp_get_thread_num(), files[i]->filename);
                         // Mark as finished
                         eof_found[i] = 1;
                         num_eof_found++;
@@ -171,14 +171,12 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
                         continue;
                     }
                     
-                    if (!started[i]) {
-                        started[i] = 1;
-                    }
-                    
                     assert(items[i]->data_p != NULL);
                     texts[i] = items[i]->data_p;
+                    started[i] = 1;
                 }
                 
+                // If the file provided a text batch, parse it and store its records in the merge tree
                 for (int i = 0; i < options_data->num_files; i++) {
                     if (!started[i] || eof_found[i] || file_ahead_last_merged[i] > 0) {
                         continue;
@@ -227,10 +225,35 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
                     list_item_free(items[i]);
                 }
                 
-                
-                // Check that at least one batch of data has been loaded from each file
+                // Check that at least one batch of data has been loaded FROM EVERY FILE
                 if (!are_all_files_available(options_data->num_files, options_data->input_files, started)) {
                     continue;
+                }
+                
+                // Merge headers, if not previously done
+                if (!header_merged) {
+                    // Check correction of input file headers
+                    array_list_t *sample_names = merge_vcf_sample_names(files, options_data->num_files);
+                    if (!sample_names) {
+                        // Avoid as many leaks as possible
+                        array_list_free(sample_names, NULL);
+                        free_merge_tree(positions_read);
+                        free(max_chromosome_merged);
+
+                        LOG_FATAL("Files can not be merged!\n");
+                    } else {
+                        array_list_free(sample_names, NULL);
+                    }
+
+                    // Run the merge itself
+                    merge_vcf_headers(files, options_data->num_files, options_data, output_header_list);
+
+                    // Decrease list writers count
+                    for (int i = 0; i < shared_options_data->num_threads; i++) {
+                        list_decr_writers(output_header_list);
+                    }
+                    
+                    header_merged = 1;
                 }
                 
                 // Calculate least common position to merge
@@ -268,55 +291,15 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
                 
                 // Check which files are ahead the last position merged and will not be read in the next iteration
                 // Only one file pending -> mark none as ahead
-                memset(file_ahead_last_merged, 0, options_data->num_files * sizeof(int));
-                
-                if (num_eof_found < options_data->num_files - 1) {
-                    for (int i = 0; i < options_data->num_files; i++) {
-                        char *file_chromosome = last_chromosome_read[i];
-                        long file_position = last_position_read[i];
+                check_files_ahead_last_merged(options_data->num_files, file_ahead_last_merged, last_chromosome_read, 
+                                              last_position_read, max_chromosome_merged, max_position_merged, num_eof_found);
 
-                        int chrom_comparison = compare_chromosomes(file_chromosome, max_chromosome_merged, chromosome_order, num_chromosomes);
-                        int position_comparison = compare_positions(file_position, max_position_merged);
-
-                        if (chrom_comparison > 0 || (chrom_comparison == 0 && position_comparison > 0)) {
-                            file_ahead_last_merged[i] = 1;
-                            LOG_DEBUG_F("%d (%s, %ld), ", i, file_chromosome, file_position);
-                        }
-                    }
-                }
-                LOG_DEBUG("\n");
-                
-                // Merge headers, if not previously done
-                if (!header_merged) {
-                    // Check correction of input file headers
-                    array_list_t *sample_names = merge_vcf_sample_names(files, options_data->num_files);
-                    if (!sample_names) {
-                        // Avoid as many leaks as possible
-                        array_list_free(sample_names, NULL);
-                        free_merge_tree(positions_read);
-                        free(max_chromosome_merged);
-
-                        LOG_FATAL("Files can not be merged!\n");
-                    } else {
-                        array_list_free(sample_names, NULL);
-                    }
-
-                    // Run the merge itself
-                    merge_vcf_headers(files, options_data->num_files, options_data, output_header_list);
-                    header_merged = 1;
-
-                    // Decrease list writers count
-                    for (int i = 0; i < shared_options_data->num_threads; i++) {
-                        list_decr_writers(output_header_list);
-                    }
-                }
-                
                 // If the data structure reaches certain size or the end of a chromosome, 
                 // merge positions prior to the last minimum registered
                 if (num_eof_found < options_data->num_files && kh_size(positions_read) > TREE_LIMIT) {
                     LOG_INFO_F("Merging until position %s:%ld\n", max_chromosome_merged, max_position_merged);
                     token = merge_interval(positions_read, max_chromosome_merged, max_position_merged, chromosome_order, num_chromosomes,
-                                   	   	   files, shared_options_data, options_data, output_list);
+                                   	   files, shared_options_data, options_data, output_list);
                 }
                 // When reaching EOF for all files, merge the remaining entries
                 else if (num_eof_found == options_data->num_files && kh_size(positions_read) > 0) {
@@ -404,12 +387,6 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
 
                 // Sort records
                 qsort(records, *num_records, sizeof(vcf_record_t*), record_cmp);
-
-/*
-                for (int i = 0; i < options_data->num_files; i++) {
-                    assert(get_num_vcf_samples(files[i]) > 0);
-                }
-*/
                 
                 // Write and free sorted records
                 for (int i = 0; i < *num_records; i++) {
@@ -594,6 +571,28 @@ static int merge_remaining_interval(kh_pos_t* positions_read, vcf_file_t **files
     return num_entries;
 }
 
+
+static void check_files_ahead_last_merged(int num_files, int file_ahead_last_merged[num_files], 
+                                          char *last_chromosome_read[num_files], long last_position_read[num_files], 
+                                          char *max_chromosome_merged, long max_position_merged, int num_eof_found) {
+    memset(file_ahead_last_merged, 0, num_files * sizeof(int));
+
+    if (num_eof_found < num_files - 1) {
+        for (int i = 0; i < num_files; i++) {
+            char *file_chromosome = last_chromosome_read[i];
+            long file_position = last_position_read[i];
+
+            int chrom_comparison = compare_chromosomes(file_chromosome, max_chromosome_merged, chromosome_order, num_chromosomes);
+            int position_comparison = compare_positions(file_position, max_position_merged);
+
+            if (chrom_comparison > 0 || (chrom_comparison == 0 && position_comparison > 0)) {
+                file_ahead_last_merged[i] = 1;
+                LOG_DEBUG_F("%d (%s, %ld), ", i, file_chromosome, file_position);
+            }
+        }
+    }
+    LOG_DEBUG("\n");
+}
 
 
 static void compose_key_value(const char *chromosome, const long position, char *key) {
