@@ -296,6 +296,7 @@ tdt_result_t* tdt_result_new(char *chromosome, int chromosome_len, unsigned long
 
 void tdt_result_free(tdt_result_t* result) {
     free(result->chromosome);
+    free(result->id);
     free(result->reference);
     free(result->alternate);
     free(result);

@@ -213,6 +213,10 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
             
             if (sample_ids) { kh_destroy(ids, sample_ids); }
             if (individuals) { free(individuals); }
+            
+            for (int f = 0; f < num_families; f++) {
+                free(families[f]);
+            }
             free(families);
             
             // Decrease list writers count
