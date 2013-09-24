@@ -53,11 +53,24 @@ int tdt_test(vcf_record_t **variants, int num_variants, family_t **families, int
         
         
         // Count over families
-        family_t *family;
         for (int f = 0; f < num_families; f++) {
-            family = families[f];
-            individual_t *father = family->father;
-            individual_t *mother = family->mother;
+            family_t *family = families[f];
+            individual_t *father = NULL, *mother = NULL;
+            
+            assert(family);
+            assert(family->founders);
+            for (int i = kh_begin(family->founders); i < kh_end(family->founders); i++) {
+                if (!kh_exist(family->founders, i)) { continue; }
+                if (father && mother) { break; }
+                
+                individual_t *indiv = kh_value(family->founders, i);
+                
+                if (indiv->sex == MALE) {
+                    father = indiv;
+                } else if (indiv->sex == FEMALE) {
+                    mother = indiv;
+                }
+            }
 
 //           LOG_DEBUG_F("[%d] Checking suitability of family %s\n", tid, family->id);
             
@@ -119,30 +132,27 @@ int tdt_test(vcf_record_t **variants, int num_variants, family_t **families, int
             int unB = 0;  // untransmitted allele from second het parent
             
             // Consider all offspring in nuclear family
-            linked_list_iterator_t *children_iterator = linked_list_iterator_new(family->children);
-            individual_t *child = NULL;
-            
-            while (child = linked_list_iterator_curr(children_iterator)) {
-                // Only consider affected children
-                if (child->condition != AFFECTED) { 
-                    linked_list_iterator_next(children_iterator);
+            for (int i = kh_begin(family->members); i < kh_end(family->members); i++) {
+                if (!kh_exist(family->members, i)) { continue; }
+                individual_t *child = kh_value(family->members, i);
+                
+                if (!child->father || !child->mother) {
                     continue;
                 }
                 
+                // Only consider affected children
+                if (child->condition != AFFECTED) { continue; }
+                
                 iter = kh_get(ids, sample_ids, child->id);
-                if (iter != kh_end(sample_ids)) {
-                    child_pos = kh_value(sample_ids, iter);
-                } else {
-                    linked_list_iterator_next(children_iterator);
-                    continue;
-                }
+                if (iter == kh_end(sample_ids)) { continue; }
+                child_pos = kh_value(sample_ids, iter);
+                
                 char *child_sample = strdup(sample_data[child_pos]);
     //           LOG_DEBUG_F("[%d] Samples: Child = %s\n", tid, child_sample);
                 
                 // Skip if offspring has missing genotype
                 if (get_alleles(child_sample, gt_position, &child_allele1, &child_allele2)) {
                     free(child_sample);
-                    linked_list_iterator_next(children_iterator);
                     continue;
                 }
                 
@@ -152,7 +162,6 @@ int tdt_test(vcf_record_t **variants, int num_variants, family_t **families, int
                     child_allele1, child_allele2, child->sex)) {
                     free(child_sample);
                     free(aux_chromosome);
-                    linked_list_iterator_next(children_iterator);
                     continue;
                 }
                 free(aux_chromosome);
@@ -233,10 +242,8 @@ int tdt_test(vcf_record_t **variants, int num_variants, family_t **families, int
 //                             record->id_len, record->id, family->id, trA, unA, trB, unB, t1, t2, 
 //                             father_allele1, father_allele2, mother_allele1, mother_allele2, child_allele1, child_allele2);
                 free(child_sample);
-                linked_list_iterator_next(children_iterator);
             } // next offspring in family
             
-            linked_list_iterator_free(children_iterator);
             free(father_sample);
             free(mother_sample);
         }  // next nuclear family
@@ -252,7 +259,6 @@ int tdt_test(vcf_record_t **variants, int num_variants, family_t **families, int
             tdt_chisq = ((double) ((t1-t2) * (t1-t2))) / (t1+t2);
         }
         
-//         LOG_DEBUG_F("[%d] before adding %s:%ld\n", tid, record->chromosome, record->position);
         result = tdt_result_new(record->chromosome, record->chromosome_len, 
                                 record->position, record->id, record->id_len,
                                 record->reference, record->reference_len, 
