@@ -83,8 +83,8 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
             
             volatile int initialization_done = 0;
             // Pedigree information
-            family_t **families = (family_t**) cp_hashtable_get_values(ped_file->families);
-            int num_families = get_num_families(ped_file);
+            int num_families;
+            family_t **families = ped_flatten_families(ped_file, &num_families);
             individual_t **individuals = NULL;
             khash_t(ids) *sample_ids = NULL;
             
@@ -100,7 +100,6 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
             double start = omp_get_wtime();
             
             int i = 0;
-//#pragma omp parallel num_threads(shared_options_data->num_threads) shared(initialization_done, families, sample_ids, filters)
 #pragma omp parallel num_threads(shared_options_data->num_threads)
             {
             LOG_DEBUG_F("Level %d: number of threads in the team - %d\n", 11, omp_get_num_threads());
@@ -176,9 +175,11 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
                 assert(batch);
                 assert(batch->records);
                 int num_variables = ped_file? get_num_variables(ped_file): 0;
-                array_list_t *passed_records = filter_records(filters, num_filters, individuals, sample_ids,num_variables, batch->records, &failed_records);
+                array_list_t *passed_records = filter_records(filters, num_filters, individuals, sample_ids, 
+                                                              num_variables, batch->records, &failed_records);
                 if (passed_records->size > 0) {
-                    ret_code = tdt_test((vcf_record_t**) passed_records->items, passed_records->size, families, num_families, sample_ids, output_list);
+                    ret_code = tdt_test((vcf_record_t**) passed_records->items, passed_records->size, 
+                                        families, num_families, sample_ids, output_list);
                     if (ret_code) {
                         LOG_FATAL_F("[%d] Error in execution #%d of TDT\n", omp_get_thread_num(), i);
                     }
