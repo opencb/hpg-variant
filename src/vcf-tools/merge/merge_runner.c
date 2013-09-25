@@ -208,16 +208,23 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
                     // Insert records into hashtable
                     for (int j = 0; j < batch->records->size; j++) {
                         vcf_record_t *record = vcf_record_copy(array_list_get(j, batch->records));
-                        vcf_record_file_link *link = vcf_record_file_link_new(record, files[i]);
-                        char key[64];
-                        compose_key_value(record->chromosome, record->position, key);
-                        int ret = insert_position_read(key, link, positions_read);
-                        assert(ret);
+                        char *aux_chr = strndup(record->chromosome, record->chromosome_len);
+                        
+                        // Check that the record is in a valid chromosome for this species
+                        if (is_valid_chromosome(aux_chr, chromosome_order, num_chromosomes)) {
+                            vcf_record_file_link *link = vcf_record_file_link_new(record, files[i]);
+                            char key[64];
+                            compose_key_value(record->chromosome, record->position, key);
+                            int ret = insert_position_read(key, link, positions_read);
+                            assert(ret);
+                            
+                            last_chromosome_read[i] = aux_chr;
+                            last_position_read[i] = record->position;
+                        } else {
+                            LOG_WARN_F("Chromosome %.*s from file %s ignored\n", record->chromosome_len, record->chromosome, files[i]->filename);
+                            free(aux_chr);
+                        }
                     }
-                    
-                    vcf_record_t *current_record = (vcf_record_t*) array_list_get(batch->records->size - 1, batch->records);
-                    last_chromosome_read[i] = strndup(current_record->chromosome, current_record->chromosome_len);
-                    last_position_read[i] = current_record->position;
                     
                     // Free batch and its contents
                     vcf_reader_status_free(status);
