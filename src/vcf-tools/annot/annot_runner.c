@@ -234,15 +234,14 @@ int run_annot(char **urls, shared_options_data_t *shared_options_data, annot_opt
                         for (int j = 0; j < num_chunks; j++) {
                             int tid = omp_get_thread_num();
                             if(options_data->effect && (!reconnections || ret_ws_0)) {
-
                                 ret_ws_0 = invoke_effect_ws(urls[0], (vcf_record_t**) (input_records->items + chunk_starts[j]), chunk_sizes[j], NULL);
                                 vcf_annot_parse_effect_response(tid, (vcf_record_t**) (input_records->items + chunk_starts[j]), chunk_sizes[j] );
 
                                 free(effect_line[tid]);
                                 effect_line[tid] = (char*) calloc (max_line_size[tid], sizeof(char));
                             }
+                            
                             if(options_data->dbsnp && (!reconnections || ret_ws_1)) {
-
                                 ret_ws_0 = invoke_snp_ws(urls[1], (vcf_record_t**) (input_records->items + chunk_starts[j]), chunk_sizes[j]);
                                 vcf_annot_parse_snp_response(tid, (vcf_record_t**) (input_records->items + chunk_starts[j]), chunk_sizes[j] );
 
@@ -365,6 +364,7 @@ int run_annot(char **urls, shared_options_data_t *shared_options_data, annot_opt
     } // End Parallel sections
 
     list_free_deep(output_list, vcf_batch_free);
+    free_ws_buffers(shared_options_data->num_threads);
     free(directory);
 
     vcf_close(vcf_file);
@@ -392,67 +392,34 @@ static int vcf_annot_pos_cmp (const void * a, const void * b) {
 }
 
 static void vcf_annot_parse_effect_response(int tid, vcf_record_t ** variants, int num_variants) { 
-    char *aux_buffer;
-    char *copy_buf;
-    char *info;
-    int count;
-    int num_lines;
+    int num_lines, num_columns;
     vcf_record_t * record;
     char **split_batch = split(effect_line[tid], "\n", &num_lines);
 
-    for (int i = 0, j = 0; i < num_lines; i++) {
-        int num_columns;
+    for (int i = 0; i < num_lines; i++) {
         char *copy_buf = strdup(split_batch[i]);
         char **split_result = split(copy_buf, "\t", &num_columns);
         free(copy_buf);
 
         // Find consequence type name (always after SO field)
         if (num_columns == 25) {
-            for(; j < num_variants; j++){
+            for(int j = 0; j < num_variants; j++) {
                 record = variants[j];
-                if(strncmp(split_result[0], record->chromosome, record->chromosome_len) == 0 && atoi(split_result[1]) == record->position){
+                if (strncmp(split_result[0], record->chromosome, record->chromosome_len) == 0 && 
+                    atoi(split_result[1]) == record->position) {
                         set_field_value_in_info("EFF", split_result[19], true, record);
-//                    info = strndup(record->info, record->info_len);
-//                    if(strcmp(info, ".") == 0) {
-//                        aux_buffer = calloc((strlen(split_result[19]) + strlen(info) + 8 + 1) , sizeof(char));
-//                        strcpy(aux_buffer, "EFF=");
-//                        strcat(aux_buffer, split_result[19]);
-//                    }
-//                    else{
-//                        if(!strstr(info, split_result[19])){
-//                            if(strstr(info, "EFF=")){
-//                                aux_buffer = (char*) calloc((strlen(split_result[19]) + strlen(info) + 1 + 1), sizeof(char));
-//                                strcpy(aux_buffer, info);
-//                                strcat(aux_buffer, ",");
-//                                strcat(aux_buffer, split_result[19]);
-//                            }
-//                            else{
-//                                aux_buffer = calloc((strlen(split_result[19]) + strlen(info) + 8 + 1 + 1), sizeof(char));
-//                                strcpy(aux_buffer, info);
-//                                strcat(aux_buffer, ";");
-//                                strcat(aux_buffer, "EFF=");
-//                                strcat(aux_buffer, split_result[19]);
-//                            }
-//                        }
-//                    }
-//                    record->info = aux_buffer;
-//                    record->info_len = strlen(aux_buffer);
-//                    free(info);
                     break;
                 }
             }
-        } else {
-            if (strlen(split_batch[i]) == 0) { // Last line in batch could be only a newline
-                continue;
-            }
+            
+        } else if (strlen(split_batch[i]) > 0) { // Last line in batch could be only a newline
             LOG_INFO_F("[%d] Non-valid line found (%d fields): '%s'\n", tid, num_columns, split_batch[i]);
         }
-
+        
         for (int s = 0; s < num_columns; s++) {
             free(split_result[s]);
         }
         free(split_result);
-
     }
 
     for (int i = 0; i < num_lines; i++) {
@@ -603,7 +570,7 @@ int set_field_value_in_info(char *key, char *value, bool append, vcf_record_t *r
     char *copy_buf;
     int find = 0;
 
-    if(strcmp(info, ".") == 0){
+    if(strcmp(info, ".") == 0) {
         copy_buf = (char*) calloc(strlen(key) + strlen(value) + 1 + 1, sizeof(char));
         strcpy(copy_buf, key);
         strcat(copy_buf, "=");
@@ -612,42 +579,42 @@ int set_field_value_in_info(char *key, char *value, bool append, vcf_record_t *r
         record->info_len = strlen(copy_buf);
         free(info);
         return 1;
-    }else{
+    } else {
         splits_info = split(info, ";", &num_splits);
         copy_buf = (char*) calloc(record->info_len + strlen(key) + strlen(value) + 1 + 1 + 1, sizeof(char));
-        for(int i = 0; i < num_splits; i++){
+        for(int i = 0; i < num_splits; i++) {
             aux_string = strdup(splits_info[i]);
             splits_key = split(aux_string, "=", &num_key_val);
             key_string = strdup(splits_key[0]);
             val_string = strdup(splits_key[1]);
-            if(strcmp(key, key_string) == 0){
+            
+            if(strcmp(key, key_string) == 0) {
                 strcat(copy_buf, key_string);
                 strcat(copy_buf, "=");
-                if(append){
-                    strcat(copy_buf, val_string);
-                }
-                if(!strstr(val_string, value)){
-                    if(append)
-                        strcat(copy_buf, ",");
+                if(append) { strcat(copy_buf, val_string); }
+                
+                if(!strstr(val_string, value)) {
+                    if(append) { strcat(copy_buf, ","); }
                     strcat(copy_buf, value);    
                 }
                 find = 1;
-            }else{
+            } else {
                 strcat(copy_buf, key_string);
                 strcat(copy_buf, "=");
                 strcat(copy_buf, val_string);
             }
-            if(i < (num_splits - 1)){
+            if(i < (num_splits - 1)) {
                 strcat(copy_buf, ";");
             }
 
             free(splits_key[0]);
             free(splits_key[1]);
+            free(splits_key);
             free(key_string);
             free(val_string);
             free(aux_string);
         }
-        if(find == 0){
+        if(find == 0) {
             strcat(copy_buf, ";");
             strcat(copy_buf, key);
             strcat(copy_buf, "=");
@@ -655,9 +622,16 @@ int set_field_value_in_info(char *key, char *value, bool append, vcf_record_t *r
         }
         record->info = copy_buf;
         record->info_len = strlen(copy_buf);
+        
+        for (int i = 0; i < num_splits; i++) {
+            free(splits_info[i]);
+        }
+        free(splits_info);
+        
         free(info);
         return 1;
     }
-        free(info);
+    
+    free(info);
     return 0;
 }
