@@ -22,7 +22,7 @@ else:
 env['objects'] = []
 
 # bioinfo-libs compilation
-formats = [ 'family', 'features', 'gff', 'ped', 'vcf' ]
+formats = [ 'family', 'features', 'gff', 'ped', 'vcf', 'bam' ]
 aligners = []
 compiler = 'gcc'
 
