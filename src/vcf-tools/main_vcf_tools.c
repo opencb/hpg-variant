@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2012-2013 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
+ * Copyright (c) 2013 Alejandro Alemán Ramos (ICM-CIPF)
  * Copyright (c) 2012 Ignacio Medina (ICM-CIPF)
  *
  * This file is part of hpg-variant.
@@ -22,7 +23,7 @@
 
 int main(int argc, char *argv[]) {
     if (argc == 1 || !strcmp(argv[1], "-h") || !strcmp(argv[1], "--help")) {
-        printf("Usage: %s < filter | merge | split | stats > < tool-options >\nFor more information about a certain tool, type %s tool-name --help\n", argv[0], argv[0]);
+        printf("Usage: %s < annot | filter | merge | split | stats > < tool-options >\nFor more information about a certain tool, type %s tool-name --help\n", argv[0], argv[0]);
         return 0;
     } else if (!strcmp(argv[1], "--version")) {
         show_version("VCF Tools");

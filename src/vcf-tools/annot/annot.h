@@ -1,6 +1,7 @@
 /*
- * Copyright (c) 2012 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
- * Copyright (c) 2012 Ignacio Medina (ICM-CIPF)
+ * Copyright (c) 2013 Alejandro Alemán Ramos (ICM-CIPF)
+ * Copyright (c) 2013 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
+ * Copyright (c) 2013 Ignacio Medina (ICM-CIPF)
  *
  * This file is part of hpg-variant.
  *
@@ -77,25 +78,26 @@ typedef struct annot_options_data {
 } annot_options_data_t;
 
 
-typedef struct vcf_annot_sample{
+typedef struct vcf_annot_sample {
     char *name;
     array_list_t *chromosomes;
 } vcf_annot_sample_t;
 
-typedef struct vcf_annot_chr{
+typedef struct vcf_annot_chr {
     char *name;
     array_list_t *positions;
 } vcf_annot_chr_t;
 
-typedef struct vcf_annot_pos{
+typedef struct vcf_annot_pos {
     unsigned int pos;
     int dp;
 } vcf_annot_pos_t;
 
-typedef struct vcf_annot_bam{
+typedef struct vcf_annot_bam {
     char* bam_filename;
     char* bai_filename;
-}vcf_annot_bam_t;
+} vcf_annot_bam_t;
+
 
 // When counting records instead of printing them,
 // data passed to the bam_fetch callback is encapsulated in this struct.

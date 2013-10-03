@@ -1,6 +1,7 @@
 /*
- * Copyright (c) 2012-2013 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
- * Copyright (c) 2012 Ignacio Medina (ICM-CIPF)
+ * Copyright (c) 2013 Alejandro Alemán Ramos (ICM-CIPF)
+ * Copyright (c) 2013 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
+ * Copyright (c) 2013 Ignacio Medina (ICM-CIPF)
  *
  * This file is part of hpg-variant.
  *
@@ -28,36 +29,8 @@ int invoke_snp_ws(const char *url, vcf_record_t **records, int num_records);
 static size_t save_snp_response(char *contents, size_t size, size_t nmemb, void *userdata);
 int set_field_value_in_info(char *key, char *value, bool append, vcf_record_t *record);
 
-typedef struct vcf_annot_effect{
-    char *chr;
-    long pos;
-    char * ids;
-} vcf_annot_effect_t;
-
-typedef struct vcf_annot_dbsnp{
-    char* chr;
-    long pos;
-    char *id;
-} vcf_annot_dbsnp_t;
-
-void vcf_annot_effect_free(vcf_annot_effect_t *effect) {
-    if(effect != NULL) {
-        free(effect->ids);
-        free(effect->chr);
-        free(effect);
-    }
-}
-
-void vcf_annot_dbsnp_free(vcf_annot_dbsnp_t *dbsnp) {
-    if(dbsnp != NULL) {
-        free(dbsnp->id);
-        free(dbsnp->chr);
-        free(dbsnp);
-    }
-}
 
 int run_annot(char **urls, shared_options_data_t *shared_options_data, annot_options_data_t *options_data) {
-
     int ret_code;
     double start, stop, total;
     vcf_annot_sample_t *annot_sample;
@@ -99,7 +72,7 @@ int run_annot(char **urls, shared_options_data_t *shared_options_data, annot_opt
     
     initialize_ws_buffers(shared_options_data->num_threads);
 
-    LOG_INFO("Annotating VCF file...");
+    LOG_INFO("Annotating VCF file...\n");
     
     array_list_t *sample_list = array_list_new(100, 1.25f, COLLECTION_MODE_SYNCHRONIZED);
     
@@ -340,11 +313,14 @@ int run_annot(char **urls, shared_options_data_t *shared_options_data, annot_opt
             
             start = omp_get_wtime();
 
-            char *output_filename = shared_options_data->output_filename;
+            char *prefix_filename = calloc(strlen(shared_options_data->vcf_filename), sizeof(char));
+            get_filename_from_path(shared_options_data->vcf_filename, prefix_filename);
+            char default_filename[strlen(prefix_filename) + 7];
+            sprintf(default_filename, "%s.annot", prefix_filename);
             
-            char *aux_filename;
-            FILE *output_fd = get_output_file(shared_options_data, aux_filename, &aux_filename);
-            LOG_INFO_F("Output filename = %s\n", aux_filename);
+            char *annot_filename;
+            FILE *output_fd = get_output_file(shared_options_data, default_filename, &annot_filename);
+            LOG_INFO_F("Output filename = %s\n", annot_filename);
             
             list_item_t *list_item = NULL;
             vcf_header_entry_t *entry;
@@ -360,14 +336,14 @@ int run_annot(char **urls, shared_options_data_t *shared_options_data, annot_opt
                     if(options_data->dbsnp > 0){
                         entry = vcf_header_entry_new();
                         set_vcf_header_entry_name("INFO", 4, entry);
-                        value = "<ID=DB,Number=0,Type=Flag,Description=\"dbSNP id\">";
+                        value = "<ID=DB,Number=0,Type=Flag,Description=\"ID extracted from the dbSNP database\">";
                         add_vcf_header_entry_value(value, strlen(value), entry);
                         add_vcf_header_entry(entry, vcf_file);
                     }
                     if(options_data->effect > 0){
                         entry = vcf_header_entry_new();
                         set_vcf_header_entry_name("INFO", 4, entry);
-                        value = "<ID=EFF,Number=.,Type=String,Description=\"Effect\">";
+                        value = "<ID=EFF,Number=.,Type=String,Description=\"Effect of each variant\">";
                         add_vcf_header_entry_value(value, strlen(value), entry);
                         add_vcf_header_entry(entry, vcf_file);
                     }
@@ -383,8 +359,8 @@ int run_annot(char **urls, shared_options_data_t *shared_options_data, annot_opt
                     list_item_free(list_item);
             }
             fclose(output_fd);
-            free(output_filename);
-            free(aux_filename);
+            free(prefix_filename);
+            free(annot_filename);
         }
     } // End Parallel sections
 
@@ -495,7 +471,7 @@ static void print_samples(array_list_t* sample_list) {
         printf ( "Sample: %s\n", annot_sample->name );
         for(int j = 0; j < array_list_size(annot_sample->chromosomes); j++) {
             annot_chr = (vcf_annot_chr_t*) array_list_get(j, annot_sample->chromosomes);
-            printf ( "Chr: %s(%d)\n", annot_chr->name , array_list_size(annot_chr->positions));
+            printf ( "Chr: %s(%zu)\n", annot_chr->name , array_list_size(annot_chr->positions));
         }
     }
 }

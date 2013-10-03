@@ -1,6 +1,7 @@
 /*
- * Copyright (c) 2012 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
- * Copyright (c) 2012 Ignacio Medina (ICM-CIPF)
+ * Copyright (c) 2013 Alejandro Alemán Ramos (ICM-CIPF)
+ * Copyright (c) 2013 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
+ * Copyright (c) 2013 Ignacio Medina (ICM-CIPF)
  *
  * This file is part of hpg-variant.
  *
@@ -34,7 +35,7 @@ int vcf_tool_annot(int argc, char *argv[], const char *configuration_file) {
     void **argtable;
     if (argc == 1 || !strcmp(argv[1], "-h") || !strcmp(argv[1], "--help")) {
         argtable = merge_annot_options(annot_options, shared_options, arg_end(annot_options->num_options + shared_options->num_options));
-        show_usage("hpg-var-vcf annot", argtable, annot_options->num_options + shared_options->num_options);
+        show_usage("hpg-var-vcf annot", argtable);
         arg_freetable(argtable, 16);
         return 0;
     }

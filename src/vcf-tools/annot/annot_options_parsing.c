@@ -111,19 +111,19 @@ void **merge_annot_options(annot_options_t *annot_options, shared_options_t *sha
 int verify_annot_options(annot_options_t *annot_options, shared_options_t *shared_options) {
     // Check whether the input VCF file is defined
     if (shared_options->vcf_filename->count == 0) {
-        LOG_ERROR("Please specify the input VCF file.");
+        LOG_ERROR("Please specify the input VCF file.\n");
         return VCF_FILE_NOT_SPECIFIED;
     }
 
     // Check whether batch lines or bytes are defined
     if (*(shared_options->batch_lines->ival) == 0 && *(shared_options->batch_bytes->ival) == 0) {
-        LOG_ERROR("Please specify the size of the reading batches (in lines or bytes).");
+        LOG_ERROR("Please specify the size of the reading batches (in lines or bytes).\n");
         return BATCH_SIZE_NOT_SPECIFIED;
     }
 
     // Check if both batch lines or bytes are defined
     if (*(shared_options->batch_lines->ival) > 0 && *(shared_options->batch_bytes->ival) > 0) {
-        LOG_WARN("The size of reading batches has been specified both in lines and bytes. The size in bytes will be used.");
+        LOG_WARN("The size of reading batches has been specified both in lines and bytes. The size in bytes will be used.\n");
         return 0;
     }
     if(annot_options->all->count > 0){
@@ -134,12 +134,13 @@ int verify_annot_options(annot_options_t *annot_options, shared_options_t *share
     }
 
     if(annot_options->missing->count + annot_options->phase->count + annot_options->dbsnp->count + annot_options->effect->count == 0){
-        LOG_ERROR("Please specify one annotation option.");
+        LOG_ERROR("Please specify one annotation option.\n");
         return BATCH_SIZE_NOT_SPECIFIED;
     }
-    // Checi if bam directory is defined (with missing/phase)
+    
+    // Check if the BAM directory is defined (with missing/phase)
     if((annot_options->missing->count > 0 || annot_options->phase->count > 0) && annot_options->bam_directory->count == 0){
-        LOG_ERROR("Please specify the input BAM directory. ");
+        LOG_ERROR("Please specify the input BAM directory.\n");
         return BAM_DIRECTORY_NOT_SPECIFIED;
     }
     return 0;
