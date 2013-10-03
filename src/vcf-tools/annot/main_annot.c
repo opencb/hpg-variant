@@ -78,6 +78,7 @@ int vcf_tool_annot(int argc, char *argv[], const char *configuration_file) {
                                           "genomic/position", "snp");
     
     LOG_DEBUG_F("URL #1 = '%s'\n", urls[0]);
+    LOG_DEBUG_F("URL #2 = '%s'\n", urls[1]);
     
     // Step 6: Perform the requested task
     int result = run_annot(urls, shared_options_data, options_data);

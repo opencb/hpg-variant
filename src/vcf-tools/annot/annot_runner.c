@@ -43,7 +43,7 @@ int run_annot(char **urls, shared_options_data_t *shared_options_data, annot_opt
     int ret;
     list_item_t *output_item;
 
-    // Check the Trailling slash
+    // Check the trailing slash
     if(options_data->bam_directory[strlen(options_data->bam_directory) - 1] != '/') {
         directory = (char*) calloc(strlen(options_data->bam_directory) + 2, sizeof(char));
         strcpy(directory, options_data->bam_directory);
@@ -167,12 +167,25 @@ int run_annot(char **urls, shared_options_data_t *shared_options_data, annot_opt
                     array_list_insert(annot_sample, sample_list);
                 }
 
+                
+                // Maximum size processed by each thread (never allow more than 1000 variants per query)
+                if (shared_options_data->batch_lines > 0) {
+                    shared_options_data->entries_per_thread = MIN(MAX_VARIANTS_PER_QUERY, 
+                            ceil((float) shared_options_data->batch_lines / shared_options_data->num_threads));
+                } else {
+                    shared_options_data->entries_per_thread = MAX_VARIANTS_PER_QUERY;
+                }
+                LOG_DEBUG_F("entries-per-thread = %d\n", shared_options_data->entries_per_thread);
+                
                 // Divide the list of passed records in ranges of size defined in config file
                 array_list_t *input_records = batch->records;
-                int *chunk_sizes = NULL;
-                int *chunk_starts;
                 int num_chunks;
+                int *chunk_sizes = NULL;
+                int *chunk_starts = create_chunks(input_records->size, shared_options_data->entries_per_thread, &num_chunks, &chunk_sizes);
+                
+/*
                 vcf_annot_sample_t *annot_sample;
+*/
 
 
                 int reconnections = 0;
@@ -181,16 +194,9 @@ int run_annot(char **urls, shared_options_data_t *shared_options_data, annot_opt
                 int ret_ws_1 = 0;
 
                 if(options_data->missing > 0) {
-                    // Maximum size processed by each thread (never allow more than 1000 variants per query)
-                    if (shared_options_data->batch_lines > 0) {
-                        shared_options_data->entries_per_thread = MIN(MAX_VARIANTS_PER_QUERY, 
-                                ceil((float) shared_options_data->batch_lines / shared_options_data->num_threads));
-                    } else {
-                        shared_options_data->entries_per_thread = MAX_VARIANTS_PER_QUERY;
-                    }
-                    LOG_DEBUG_F("entries-per-thread = %d\n", shared_options_data->entries_per_thread);
-
+/*
                     chunk_starts = create_chunks(input_records->size, shared_options_data->entries_per_thread, &num_chunks, &chunk_sizes);
+*/
 #pragma omp parallel for num_threads(shared_options_data->num_threads) 
                     for (int j = 0; j < num_chunks; j++) {
                         vcf_annot_process_chunk((vcf_record_t**)(input_records->items + chunk_starts[j]), chunk_sizes[j], sample_list, vcf_file);
@@ -198,29 +204,35 @@ int run_annot(char **urls, shared_options_data_t *shared_options_data, annot_opt
 
 #pragma omp parallel for num_threads(shared_options_data->num_threads) 
                     for (int j = 0; j < array_list_size(sample_list); j++) {
-                        annot_sample = (vcf_annot_sample_t*) array_list_get(j, sample_list);
+                        vcf_annot_sample_t *annot_sample = (vcf_annot_sample_t*) array_list_get(j, sample_list);
                         vcf_annot_sort_sample(annot_sample);
                     }
 
 #pragma omp parallel for num_threads(shared_options_data->num_threads) 
                     for (int j = 0; j < array_list_size(sample_list); j++) {
-                        annot_sample = (vcf_annot_sample_t*) array_list_get(j, sample_list);
+                        vcf_annot_sample_t *annot_sample = (vcf_annot_sample_t*) array_list_get(j, sample_list);
                         vcf_annot_check_bams(annot_sample, sample_bams);
                     }
+/*
                     free(chunk_starts);
                     free(chunk_sizes);
+*/
                 }
                
 
                 if(options_data->dbsnp > 0 || options_data->effect >0){
 
+/*
                     shared_options_data->entries_per_thread = 100;
                     chunk_starts = create_chunks(input_records->size, shared_options_data->entries_per_thread, &num_chunks, &chunk_sizes);
+*/
                     
                     do {
 #pragma omp parallel for num_threads(shared_options_data->num_threads)
                         for (int j = 0; j < num_chunks; j++) {
                             int tid = omp_get_thread_num();
+                            LOG_DEBUG_F("[%d] WS invocation\n", tid);
+                            
                             if(options_data->effect && (!reconnections || ret_ws_0)) {
                                 ret_ws_0 = invoke_effect_ws(urls[0], (vcf_record_t**) (input_records->items + chunk_starts[j]), chunk_sizes[j], NULL);
                                 vcf_annot_parse_effect_response(tid, (vcf_record_t**) (input_records->items + chunk_starts[j]), chunk_sizes[j] );
@@ -250,10 +262,13 @@ int run_annot(char **urls, shared_options_data_t *shared_options_data, annot_opt
                         } 
                     } while (reconnections < max_reconnections && (ret_ws_0 || ret_ws_1));
                     
+/*
                     free(chunk_starts);
                     free(chunk_sizes);
+*/
                 }
 
+/*
                 if (shared_options_data->batch_lines > 0) {
                     shared_options_data->entries_per_thread = MIN(MAX_VARIANTS_PER_QUERY, 
                             ceil((float) shared_options_data->batch_lines / shared_options_data->num_threads));
@@ -263,6 +278,7 @@ int run_annot(char **urls, shared_options_data_t *shared_options_data, annot_opt
 
                 
                 chunk_starts = create_chunks(input_records->size, shared_options_data->entries_per_thread, &num_chunks, &chunk_sizes);
+*/
 
 #pragma omp parallel for num_threads(shared_options_data->num_threads) 
                 for (int j = 0; j < num_chunks; j++) {
@@ -316,6 +332,8 @@ int run_annot(char **urls, shared_options_data_t *shared_options_data, annot_opt
             int header_aux = 0;
             char *value;
 
+            int items_freed = 0;
+            
             while(list_item = list_remove_item(output_list)) {
                 if(header_aux == 0) { // Make sure the file header has been already read
                     // Write the header
@@ -342,7 +360,7 @@ int run_annot(char **urls, shared_options_data_t *shared_options_data, annot_opt
                     record = (vcf_record_t*) batch->records->items[i];
                     write_vcf_record(record, output_fd);
                     // If the effect tool was invoked, the INFO field has been allocated
-                    if (options_data->effect > 0) { free(record->info); }
+                    if (options_data->effect > 0) { free(record->info); items_freed++; }
                 }
                 vcf_batch_free(batch);
                 list_item_free(list_item);
@@ -350,6 +368,8 @@ int run_annot(char **urls, shared_options_data_t *shared_options_data, annot_opt
             fclose(output_fd);
             free(prefix_filename);
             free(annot_filename);
+            
+            printf("Records freed = %d\n", items_freed);
         }
     } // End Parallel sections
 
@@ -381,38 +401,70 @@ static int vcf_annot_pos_cmp (const void * a, const void * b) {
     return (pos_a_val - pos_b_val );
 }
 
-static void vcf_annot_parse_effect_response(int tid, vcf_record_t ** variants, int num_variants) { 
-    int num_lines, num_columns;
-    vcf_record_t * record;
+static void vcf_annot_parse_effect_response(int tid, vcf_record_t **variants, int num_variants) { 
+    int num_lines, num_columns, curr_line = 0;
+    vcf_record_t *record;
+    
     char **split_batch = split(effect_line[tid], "\n", &num_lines);
 
-    for (int i = 0; i < num_lines; i++) {
-        char *copy_buf = strdup(split_batch[i]);
-        char **split_result = split(copy_buf, "\t", &num_columns);
-        free(copy_buf);
-
-        // Find consequence type name (always after SO field)
-        if (num_columns == 25) {
-            for(int j = 0; j < num_variants; j++) {
-                record = variants[j];
+    for (int i = 0; i < num_variants; i++) {
+        record = variants[i];
+        int max_length = 128, curr_length = 0;
+        char *effects = calloc(max_length, sizeof(char));
+        
+        // While the current line refers to the same record, keep appending consequence types
+        for (; curr_line < num_lines; curr_line++) {
+            char *copy_buf = strdup(split_batch[curr_line]);
+            char **split_result = split(copy_buf, "\t", &num_columns);
+            free(copy_buf);
+            
+            // Find consequence type name (always after SO field)
+            if (num_columns == 25) {
                 if (strncmp(split_result[0], record->chromosome, record->chromosome_len) == 0 && 
                     atoi(split_result[1]) == record->position) {
-                        record->info = set_field_value_in_info("EFF", split_result[19], 1, record->info, record->info_len);
-                        record->info_len = strlen(record->info);
+                    char *consequence_type = split_result[19];
+                    if (!strstr(effects, consequence_type)) {
+                        int new_length = curr_length + strlen(consequence_type) + 1;
+                        if (new_length >= max_length) {
+                            char *aux_effects = realloc(effects, (new_length + 16) * sizeof(char));
+                            if (aux_effects) {
+                                effects = aux_effects;
+                                max_length = new_length + 16;
+                            } else {
+                                LOG_FATAL_F("Error while allocating memory for the effect of variant in position *.%s:%ld\n",
+                                            record->chromosome_len, record->chromosome, record->position);
+                            }
+                        }
+                        strcat(effects, consequence_type);
+                        strcat(effects, ",");
+                        curr_length = new_length;
+                    }
+                } else {
+                    for (int s = 0; s < num_columns; s++) {
+                        free(split_result[s]);
+                    }
+                    free(split_result);
                     break;
                 }
+            } else if (strlen(split_batch[curr_line]) > 0) { // Last line in batch could be only a newline
+                LOG_INFO_F("[%d] Non-valid line found (%d fields): '%s'\n", tid, num_columns, split_batch[i]);
             }
             
-        } else if (strlen(split_batch[i]) > 0) { // Last line in batch could be only a newline
-            LOG_INFO_F("[%d] Non-valid line found (%d fields): '%s'\n", tid, num_columns, split_batch[i]);
+            for (int s = 0; s < num_columns; s++) {
+                free(split_result[s]);
+            }
+            free(split_result);
         }
         
-        for (int s = 0; s < num_columns; s++) {
-            free(split_result[s]);
+        if (curr_length > 0) {
+            effects[curr_length - 1] = '\0';
         }
-        free(split_result);
+        char *new_info = set_field_value_in_info("EFF", effects, 0, record->info, record->info_len);
+        free(effects);
+        record->info = new_info;
+        record->info_len = strlen(new_info);
     }
-
+    
     for (int i = 0; i < num_lines; i++) {
         free(split_batch[i]);
     }
