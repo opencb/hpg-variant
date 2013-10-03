@@ -27,7 +27,6 @@ static void vcf_annot_parse_snp_response(int tid, vcf_record_t ** variants, int 
 static void print_samples(array_list_t* sample_list);
 int invoke_snp_ws(const char *url, vcf_record_t **records, int num_records);
 static size_t save_snp_response(char *contents, size_t size, size_t nmemb, void *userdata);
-int set_field_value_in_info(char *key, char *value, bool append, vcf_record_t *record);
 
 
 int run_annot(char **urls, shared_options_data_t *shared_options_data, annot_options_data_t *options_data) {
@@ -169,20 +168,10 @@ int run_annot(char **urls, shared_options_data_t *shared_options_data, annot_opt
                 }
 
                 // Divide the list of passed records in ranges of size defined in config file
-
                 array_list_t *input_records = batch->records;
-                bam_file_t* bam_file;
-                bam_header_t *bam_header;
-                bam_index_t *idx = 0;
-                char* aux;
-                char *bam_filename;
                 int *chunk_sizes = NULL;
                 int *chunk_starts;
-                int result, tid, beg, end;
                 int num_chunks;
-                khiter_t iter;
-                vcf_annot_chr_t *annot_chr;
-                vcf_annot_pos_t *annot_pos;
                 vcf_annot_sample_t *annot_sample;
 
 
@@ -191,8 +180,7 @@ int run_annot(char **urls, shared_options_data_t *shared_options_data, annot_opt
                 int ret_ws_0 = 0;
                 int ret_ws_1 = 0;
 
-                if(options_data->missing > 0){
-
+                if(options_data->missing > 0) {
                     // Maximum size processed by each thread (never allow more than 1000 variants per query)
                     if (shared_options_data->batch_lines > 0) {
                         shared_options_data->entries_per_thread = MIN(MAX_VARIANTS_PER_QUERY, 
@@ -303,7 +291,7 @@ int run_annot(char **urls, shared_options_data_t *shared_options_data, annot_opt
             for (int i = 0; i < shared_options_data->num_threads; i++) {
                 list_decr_writers(output_list);
             }
-        array_list_free(sample_list, vcf_annot_sample_free);
+            array_list_free(sample_list, vcf_annot_sample_free);
         } // End section
 
 #pragma omp section
@@ -324,22 +312,21 @@ int run_annot(char **urls, shared_options_data_t *shared_options_data, annot_opt
             list_item_t *list_item = NULL;
             vcf_header_entry_t *entry;
             vcf_record_t *record;
-            int *num_records;
             vcf_batch_t *batch;
             int header_aux = 0;
             char *value;
 
-            while( list_item = list_remove_item(output_list)) {
-                if(header_aux == 0) { // Para asegurarnos que se ha leído toda la cabecera antes de escribirla
+            while(list_item = list_remove_item(output_list)) {
+                if(header_aux == 0) { // Make sure the file header has been already read
                     // Write the header
-                    if(options_data->dbsnp > 0){
+                    if(options_data->dbsnp > 0) {
                         entry = vcf_header_entry_new();
                         set_vcf_header_entry_name("INFO", 4, entry);
                         value = "<ID=DB,Number=0,Type=Flag,Description=\"ID extracted from the dbSNP database\">";
                         add_vcf_header_entry_value(value, strlen(value), entry);
                         add_vcf_header_entry(entry, vcf_file);
                     }
-                    if(options_data->effect > 0){
+                    if(options_data->effect > 0) {
                         entry = vcf_header_entry_new();
                         set_vcf_header_entry_name("INFO", 4, entry);
                         value = "<ID=EFF,Number=.,Type=String,Description=\"Effect of each variant\">";
@@ -349,13 +336,16 @@ int run_annot(char **urls, shared_options_data_t *shared_options_data, annot_opt
                     write_vcf_header(vcf_file, output_fd);
                     header_aux = 1;
                 }
-                    batch = (vcf_batch_t*) list_item->data_p;
-                    for (int i = 0; i < batch->records->size; i++) {
-                        record = (vcf_record_t*) batch->records->items[i];
-                        write_vcf_record(record, output_fd);
-                    }
-                    vcf_batch_free(batch);
-                    list_item_free(list_item);
+                
+                batch = (vcf_batch_t*) list_item->data_p;
+                for (int i = 0; i < batch->records->size; i++) {
+                    record = (vcf_record_t*) batch->records->items[i];
+                    write_vcf_record(record, output_fd);
+                    // If the effect tool was invoked, the INFO field has been allocated
+                    if (options_data->effect > 0) { free(record->info); }
+                }
+                vcf_batch_free(batch);
+                list_item_free(list_item);
             }
             fclose(output_fd);
             free(prefix_filename);
@@ -407,7 +397,8 @@ static void vcf_annot_parse_effect_response(int tid, vcf_record_t ** variants, i
                 record = variants[j];
                 if (strncmp(split_result[0], record->chromosome, record->chromosome_len) == 0 && 
                     atoi(split_result[1]) == record->position) {
-                        set_field_value_in_info("EFF", split_result[19], true, record);
+                        record->info = set_field_value_in_info("EFF", split_result[19], 1, record->info, record->info_len);
+                        record->info_len = strlen(record->info);
                     break;
                 }
             }
@@ -556,82 +547,4 @@ static void vcf_annot_parse_snp_response(int tid, vcf_record_t ** variants, int 
         free(split_batch[i]);
     }
     free(split_batch);
-}
-
-int set_field_value_in_info(char *key, char *value, bool append, vcf_record_t *record){
-   
-    char *info = strndup(record->info, record->info_len);
-    char **splits_info;
-    char **splits_key;
-    char *aux_string;
-    char *key_string;
-    char *val_string;
-    int num_splits, num_key_val;
-    char *copy_buf;
-    int find = 0;
-
-    if(strcmp(info, ".") == 0) {
-        copy_buf = (char*) calloc(strlen(key) + strlen(value) + 1 + 1, sizeof(char));
-        strcpy(copy_buf, key);
-        strcat(copy_buf, "=");
-        strcat(copy_buf, value);
-        record->info = copy_buf;
-        record->info_len = strlen(copy_buf);
-        free(info);
-        return 1;
-    } else {
-        splits_info = split(info, ";", &num_splits);
-        copy_buf = (char*) calloc(record->info_len + strlen(key) + strlen(value) + 1 + 1 + 1, sizeof(char));
-        for(int i = 0; i < num_splits; i++) {
-            aux_string = strdup(splits_info[i]);
-            splits_key = split(aux_string, "=", &num_key_val);
-            key_string = strdup(splits_key[0]);
-            val_string = strdup(splits_key[1]);
-            
-            if(strcmp(key, key_string) == 0) {
-                strcat(copy_buf, key_string);
-                strcat(copy_buf, "=");
-                if(append) { strcat(copy_buf, val_string); }
-                
-                if(!strstr(val_string, value)) {
-                    if(append) { strcat(copy_buf, ","); }
-                    strcat(copy_buf, value);    
-                }
-                find = 1;
-            } else {
-                strcat(copy_buf, key_string);
-                strcat(copy_buf, "=");
-                strcat(copy_buf, val_string);
-            }
-            if(i < (num_splits - 1)) {
-                strcat(copy_buf, ";");
-            }
-
-            free(splits_key[0]);
-            free(splits_key[1]);
-            free(splits_key);
-            free(key_string);
-            free(val_string);
-            free(aux_string);
-        }
-        if(find == 0) {
-            strcat(copy_buf, ";");
-            strcat(copy_buf, key);
-            strcat(copy_buf, "=");
-            strcat(copy_buf, value);
-        }
-        record->info = copy_buf;
-        record->info_len = strlen(copy_buf);
-        
-        for (int i = 0; i < num_splits; i++) {
-            free(splits_info[i]);
-        }
-        free(splits_info);
-        
-        free(info);
-        return 1;
-    }
-    
-    free(info);
-    return 0;
 }
