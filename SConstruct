@@ -1,9 +1,9 @@
 import buildaux
 
 # Initialize the environment with path variables, CFLAGS, and so on
-bioinfo_path = '#libs/bioinfo-libs'
-commons_path = '#libs/common-libs'
-math_path = '#libs/math'
+bioinfo_path = '#lib/bioinfo-libs'
+commons_path = '#lib/common-libs'
+math_path = '#lib/math'
 
 env = Environment(tools = ['default', 'packaging'],
                   CFLAGS = '-std=c99 -D_XOPEN_SOURCE=600 -D_GNU_SOURCE -fopenmp',
@@ -55,7 +55,7 @@ tb = env.Package(NAME          = 'hpg-variant',
                 PACKAGEVERSION = 0,
                 PACKAGETYPE    = 'src_targz',
                 source         = env.FindSourceFiles() + env.FindHeaderFiles(progs) + 
-                             [ '#buildaux.py', '#libs/bioinfo-libs/buildvars.py',
+                             [ '#buildaux.py', '#lib/bioinfo-libs/buildvars.py',
                                '#deb/SConscript', '#rpm/SConscript', '#rpm/hpg-variant.spec',
                                Glob('etc/hpg-variant/*.conf'), Glob('etc/bash_completion.d/*'),
                                '#COPYING', '#README' ] )
