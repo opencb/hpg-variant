@@ -215,7 +215,10 @@ int run_effect(char **urls, shared_options_data_t *shared_options_data, effect_o
                             if (!reconnections || ret_ws_0) {
                                 ret_ws_0 = invoke_effect_ws(urls[0], (vcf_record_t**) (passed_records->items + chunk_starts[j]), 
                                                             chunk_sizes[j], options_data->excludes);
+/*
                                 parse_effect_response(tid, output_directory, output_directory_len, output_files, output_list, summary_count, gene_list);
+*/
+                                parse_effect_response_json(tid, output_directory, output_directory_len, output_files, output_list, summary_count, gene_list);
                                 free(effect_line[tid]);
                                 effect_line[tid] = (char*) calloc (max_line_size[tid], sizeof(char));
                             }
@@ -318,6 +321,9 @@ int run_effect(char **urls, shared_options_data_t *shared_options_data, effect_o
             FILE *all_variants_file = cp_hashtable_get(output_files, "all_variants");
             FILE *snp_phenotype_file = cp_hashtable_get(output_files, "snp_phenotypes");
             FILE *mutation_phenotype_file = cp_hashtable_get(output_files, "mutation_phenotypes");
+            FILE *files[] = { all_variants_file, snp_phenotype_file, mutation_phenotype_file };
+            
+            begin_writing_output_files(files, 3);
             
             while ((item = list_remove_item(output_list)) != NULL) {
                 line = item->data_p;
@@ -328,25 +334,25 @@ int run_effect(char **urls, shared_options_data_t *shared_options_data, effect_o
                 if (item->type > 0) {
                     // Write entry in the consequence type file
                     fd = cp_hashtable_get(output_files, &(item->type));
-                    int ret = fprintf(fd, "%s\n", line);
+                    int ret = fprintf(fd, "%s,\n", line);
                     if (ret < 0) {
                         LOG_ERROR_F("Error writing to file: '%s'\n", line);
                     }
                     
                     // Write in all_variants
-                    ret = fprintf(all_variants_file, "%s\n", line);
+                    ret = fprintf(all_variants_file, "%s,\n", line);
                     if (ret < 0) {
                         LOG_ERROR_F("Error writing to all_variants: '%s'\n", line);
                     }
                     
                 } else if (item->type == SNP_PHENOTYPE) {
-                    ret = fprintf(snp_phenotype_file, "%s\n", line);
+                    ret = fprintf(snp_phenotype_file, "%s,\n", line);
                     if (ret < 0) {
                         LOG_ERROR_F("Error writing to snp_phenotypes: '%s'\n", line);
                     }
                     
                 } else if (item->type == MUTATION_PHENOTYPE) {
-                    ret = fprintf(mutation_phenotype_file, "%s\n", line);
+                    ret = fprintf(mutation_phenotype_file, "%s,\n", line);
                     if (ret < 0) {
                         LOG_ERROR_F("Error writing to mutation_phenotypes: '%s'\n", line);
                     }
@@ -356,6 +362,7 @@ int run_effect(char **urls, shared_options_data_t *shared_options_data, effect_o
                 list_item_free(item);
             }
             
+            end_writing_output_files((FILE**) cp_hashtable_get_values(output_files), cp_hashtable_count(output_files));
         }
     }
 
@@ -490,6 +497,106 @@ static void parse_effect_response(int tid, char *output_directory, size_t output
     free(split_batch);
 }
 
+
+static void parse_effect_response_json(int tid, char *output_directory, size_t output_directory_len, cp_hashtable *output_files, 
+                                       list_t *output_list, cp_hashtable *summary_count, cp_hashtable *gene_list) {
+    json_error_t error;
+    json_t *root = json_loadb(effect_line[tid], strlen(effect_line[tid]), 0, &error);
+    int *SO_found = (int*) malloc (sizeof(int));
+    int *count;
+    
+    if (!root) {
+        LOG_WARN_F("[%d] Non-valid response: '%s'\n", tid, error.text);
+        json_decref(root);
+        return;
+    }
+    if(!json_is_array(root)) {
+        LOG_WARN_F("[%d] Non-valid response: Data is not a JSON array\n", tid);
+        json_decref(root);
+        return;
+    }
+    
+    for(int i = 0; i < json_array_size(root); i++) {
+        json_t *data, *gene, *so_code, *consequence_type;
+        char *gene_str, *so_code_str, *consequence_type_str;
+        size_t consequence_type_len;
+
+        data = json_array_get(root, i);
+        gene = json_object_get(data, "geneName");
+        gene_str = json_string_value(gene);
+        so_code = json_object_get(data, "consequenceType");
+        so_code_str = json_string_value(so_code);
+        *SO_found = atoi(so_code_str + 3);
+        consequence_type = json_object_get(data, "consequenceTypeObo");
+        consequence_type_str = json_string_value(consequence_type);
+        consequence_type_len = strlen(consequence_type_str);
+        
+        if (*SO_found == 0) { // SO:000000 is not valid
+            LOG_INFO_F("[%d] Non-valid SO found (0)\n", tid);
+            continue;
+        }
+        
+        if (!cp_hashtable_contains(gene_list, gene_str)) {
+            cp_hashtable_put(gene_list, strdup(gene_str), NULL);
+        }
+        
+        // If file does not exist, create its descriptor and summary counter
+        FILE *aux_file = cp_hashtable_get(output_files, SO_found);
+        if (!aux_file) {
+#pragma omp critical
+            {
+                // This construction avoids 2 threads trying to insert the same CT
+                aux_file = cp_hashtable_get(output_files, SO_found);
+                if (!aux_file) {
+                    char filename[output_directory_len + consequence_type_len + 7];
+                    memset(filename, 0, (output_directory_len + consequence_type_len + 7) * sizeof(char));
+                    strncat(filename, output_directory, output_directory_len);
+                    strncat(filename, "/", 1);
+                    strncat(filename, consequence_type_str, consequence_type_len);
+                    strncat(filename, ".json", 5);
+                    aux_file = fopen(filename, "w");
+                    begin_writing_output_files(&aux_file, 1);
+                    
+                    // Add to hashtables (file descriptors and summary counters)
+                    int *SO_stored = (int*) malloc (sizeof(int));
+                    *SO_stored = *SO_found;
+                    cp_hashtable_put(output_files, SO_stored, aux_file);
+
+                    LOG_INFO_F("[%d] New consequence type found = %s\n", tid, consequence_type_str);
+                }
+            }
+        }
+        
+        // Write "line" to file corresponding to its consequence type
+        if (aux_file) { 
+#pragma omp critical
+            {
+                // TODO move critical one level below?
+                count = (int*) cp_hashtable_get(summary_count, consequence_type_str);
+                if (count == NULL) {
+                    char *consequence_type = (char*) calloc (consequence_type_len+1, sizeof(char));
+                    strncat(consequence_type, consequence_type_str, consequence_type_len);
+                    assert(!strcmp(consequence_type, consequence_type_str));
+                    count = (int*) malloc (sizeof(int));
+                    *count = 0;
+                    cp_hashtable_put(summary_count, consequence_type, count);
+//                     LOG_DEBUG_F("[%d] Initialized summary count for %s\n", tmp_consequence_type);
+                }
+                // Increment counter for summary
+                (*count)++;
+            }
+            
+//             LOG_DEBUG_F("[%d] before writing %s\n", tid, tmp_consequence_type);
+            list_item_t *output_item = list_item_new(tid, *SO_found, json_dumps(data, 0));
+            list_insert_item(output_item, output_list);
+//             LOG_DEBUG_F("[%d] after writing %s\n", tid, tmp_consequence_type);
+        }
+    }
+    
+    json_decref(root);
+}
+
+
 static void parse_snp_phenotype_response(int tid, list_t *output_list) {
     list_item_t *output_item = list_item_new(tid, SNP_PHENOTYPE, trim(strdup(snp_line[tid])));
     list_insert_item(output_item, output_list);
@@ -515,8 +622,8 @@ static int initialize_output_files(char *output_directory, size_t output_directo
                                                  );
     
     char all_variants_filename[output_directory_len + 18];
-    sprintf(all_variants_filename, "%s/all_variants.txt", output_directory);
-    FILE *all_variants_file = fopen(all_variants_filename, "a");
+    sprintf(all_variants_filename, "%s/all_variants.json", output_directory);
+    FILE *all_variants_file = fopen(all_variants_filename, "w");
     if (!all_variants_file) {   // Can't store results
         return 1;
     }
@@ -535,8 +642,8 @@ static int initialize_output_files(char *output_directory, size_t output_directo
     cp_hashtable_put(*output_files, key, summary_file);
     
     char snp_phenotype_filename[output_directory_len + 20];
-    sprintf(snp_phenotype_filename, "%s/snp_phenotypes.txt", output_directory);
-    FILE *snp_phenotype_file = fopen(snp_phenotype_filename, "a");
+    sprintf(snp_phenotype_filename, "%s/snp_phenotypes.json", output_directory);
+    FILE *snp_phenotype_file = fopen(snp_phenotype_filename, "w");
     if (!snp_phenotype_filename) {
         return 3;
     }
@@ -545,8 +652,8 @@ static int initialize_output_files(char *output_directory, size_t output_directo
     cp_hashtable_put(*output_files, key, snp_phenotype_file);
     
     char mutation_phenotype_filename[output_directory_len + 25];
-    sprintf(mutation_phenotype_filename, "%s/mutation_phenotypes.txt", output_directory);
-    FILE *mutation_phenotype_file = fopen(mutation_phenotype_filename, "a");
+    sprintf(mutation_phenotype_filename, "%s/mutation_phenotypes.json", output_directory);
+    FILE *mutation_phenotype_file = fopen(mutation_phenotype_filename, "w");
     if (!mutation_phenotype_filename) {
         return 3;
     }
@@ -555,6 +662,29 @@ static int initialize_output_files(char *output_directory, size_t output_directo
     cp_hashtable_put(*output_files, key, mutation_phenotype_file);
     
     return 0;
+}
+
+static void begin_writing_output_files(FILE **files, int num_files) {
+    for (int i = 0; i < num_files; i++) {
+        fprintf(files[i], "[\n");
+    }
+}
+
+static void end_writing_output_files(FILE **files, int num_files) {
+    for (int i = 0; i < num_files; i++) {
+        int file = fileno(files[i]);
+        struct stat file_stat;
+        fstat(file, &file_stat);
+        
+        // If contents are longer than only '[' (something useful was written), replace last comma with ']'
+        if (file_stat.st_size > 2) {
+            fseek(files[i], -2L, SEEK_CUR);
+            fwrite("\n]\n", sizeof(char), 3, files[i]);
+        } else { // Only '[\n' in the file
+            fprintf(files[i], "]\n");
+        }
+    
+    }
 }
 
 static void initialize_output_data_structures(shared_options_data_t *shared_options, list_t **output_list, cp_hashtable **summary_count, cp_hashtable **gene_list) {
