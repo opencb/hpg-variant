@@ -506,12 +506,12 @@ static void parse_effect_response_json(int tid, char *output_directory, size_t o
     int *count;
     
     if (!root) {
-        LOG_WARN_F("[%d] Non-valid response: '%s'\n", tid, error.text);
+        LOG_WARN_F("[%d] Non-valid response from variant effect web service: '%s'\n", tid, error.text);
         json_decref(root);
         return;
     }
     if(!json_is_array(root)) {
-        LOG_WARN_F("[%d] Non-valid response: Data is not a JSON array\n", tid);
+        LOG_WARN_F("[%d] Non-valid response from variant effect web service: Data is not a JSON array\n", tid);
         json_decref(root);
         return;
     }
@@ -598,13 +598,57 @@ static void parse_effect_response_json(int tid, char *output_directory, size_t o
 
 
 static void parse_snp_phenotype_response(int tid, list_t *output_list) {
-    list_item_t *output_item = list_item_new(tid, SNP_PHENOTYPE, trim(strdup(snp_line[tid])));
-    list_insert_item(output_item, output_list);
+    json_error_t error;
+    json_t *root = json_loadb(snp_line[tid], strlen(snp_line[tid]), 0, &error);
+    
+    if (!root) {
+        LOG_WARN_F("[%d] Non-valid response from SNP phenotype web service: '%s'\n", tid, error.text);
+        json_decref(root);
+        return;
+    }
+    if(!json_is_array(root)) {
+        LOG_WARN_F("[%d] Non-valid response from SNP phenotype web service: Data is not a JSON array\n", tid);
+        json_decref(root);
+        return;
+    }
+    
+    for(int i = 0; i < json_array_size(root); i++) {
+        json_t *data, *subdata;
+        
+        data = json_array_get(root, i);
+        for(int j = 0; j < json_array_size(data); j++) {
+            subdata = json_array_get(data, j);
+            list_item_t *output_item = list_item_new(tid, SNP_PHENOTYPE, json_dumps(subdata, 0));
+            list_insert_item(output_item, output_list);
+        }
+    }
 }
 
 static void parse_mutation_phenotype_response(int tid, list_t *output_list) {
-    list_item_t *output_item = list_item_new(tid, MUTATION_PHENOTYPE, trim(strdup(mutation_line[tid])));
-    list_insert_item(output_item, output_list);
+    json_error_t error;
+    json_t *root = json_loadb(mutation_line[tid], strlen(mutation_line[tid]), 0, &error);
+    
+    if (!root) {
+        LOG_WARN_F("[%d] Non-valid response from mutation phenotype web service: '%s'\n", tid, error.text);
+        json_decref(root);
+        return;
+    }
+    if(!json_is_array(root)) {
+        LOG_WARN_F("[%d] Non-valid response from mutation phenotype web service: Data is not a JSON array\n", tid);
+        json_decref(root);
+        return;
+    }
+    
+    for(int i = 0; i < json_array_size(root); i++) {
+        json_t *data, *subdata;
+        
+        data = json_array_get(root, i);
+        for(int j = 0; j < json_array_size(data); j++) {
+            subdata = json_array_get(data, j);
+            list_item_t *output_item = list_item_new(tid, MUTATION_PHENOTYPE, json_dumps(subdata, 0));
+            list_insert_item(output_item, output_list);
+        }
+    }
 }
 
 
