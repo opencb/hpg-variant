@@ -133,17 +133,15 @@ int run_effect(char **urls, shared_options_data_t *shared_options_data, effect_o
             FILE *passed_file = NULL, *failed_file = NULL, *non_processed_file = NULL;
             get_filtering_output_files(shared_options_data, &passed_file, &failed_file);
             
-            // Pedigree information (used in some filters)
-            individual_t **individuals = NULL;
-            khash_t(ids) *sample_ids = NULL;
-            
             // Filename structure outdir/vcfname.errors
             char *prefix_filename = calloc(strlen(shared_options_data->vcf_filename), sizeof(char));
             get_filename_from_path(shared_options_data->vcf_filename, prefix_filename);
             char *non_processed_filename = malloc((strlen(shared_options_data->output_directory) + strlen(prefix_filename) + 9) * sizeof(char));
             sprintf(non_processed_filename, "%s/%s.errors", shared_options_data->output_directory, prefix_filename);
-            non_processed_file = fopen(non_processed_filename, "w");
-            free(non_processed_filename);
+            
+            // Pedigree information (used in some filters)
+            individual_t **individuals = NULL;
+            khash_t(ids) *sample_ids = NULL;
             
             // Maximum size processed by each thread (never allow more than 1000 variants per query)
             if (shared_options_data->batch_lines > 0) {
@@ -171,7 +169,6 @@ int run_effect(char **urls, shared_options_data_t *shared_options_data, effect_o
                     // Write file format, header entries and delimiter
                     if (passed_file != NULL) { write_vcf_header(vcf_file, passed_file); }
                     if (failed_file != NULL) { write_vcf_header(vcf_file, failed_file); }
-                    if (non_processed_file != NULL) { write_vcf_header(vcf_file, non_processed_file); }
                     
                     LOG_DEBUG("VCF header written\n");
                     
@@ -268,6 +265,10 @@ int run_effect(char **urls, shared_options_data_t *shared_options_data, effect_o
                 if (reconnections == max_reconnections && (ret_ws_0 || ret_ws_1 || ret_ws_2)) {
                 #pragma omp critical
                     {
+                        if (!non_processed_file) {
+                            non_processed_file = fopen(non_processed_filename, "w");
+                            write_vcf_header(vcf_file, non_processed_file);
+                        }
                         write_vcf_batch(batch, non_processed_file);
                     }
                 }
@@ -293,6 +294,7 @@ int run_effect(char **urls, shared_options_data_t *shared_options_data, effect_o
             if (passed_file) { fclose(passed_file); }
             if (failed_file) { fclose(failed_file); }
             if (non_processed_file) { fclose(non_processed_file); }
+            free(non_processed_filename);
             
             // Free filters
             for (i = 0; i < num_filters; i++) {
