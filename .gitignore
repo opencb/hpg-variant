@@ -1,4 +1,3 @@
-
 *.o
 *.test
 *.pyc
@@ -16,6 +15,7 @@
 *.project
 
 .sconsign.dblite
+nbproject
 
 bin/*
 deb/hpg-variant/*
@@ -27,7 +27,6 @@ src/epistasis/hpg-var-epistasis
 src/gwas/hpg-var-gwas
 src/vcf-tools/hpg-var-vcf
 
-/nbproject/private/
 
 test/*.txt
 test/*.bin

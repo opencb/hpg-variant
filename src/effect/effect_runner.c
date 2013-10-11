@@ -212,30 +212,30 @@ int run_effect(char **urls, shared_options_data_t *shared_options_data, effect_o
                             int tid = omp_get_thread_num();
                             LOG_DEBUG_F("[%d] WS invocation\n", tid);
                             LOG_DEBUG_F("[%d] -- effect WS\n", tid);
-                            if (!reconnections || ret_ws_0) {
+                            if (!reconnections || ret_ws_0 > 0) {
                                 ret_ws_0 = invoke_effect_ws(urls[0], (vcf_record_t**) (passed_records->items + chunk_starts[j]), 
                                                             chunk_sizes[j], options_data->excludes);
 /*
                                 parse_effect_response(tid, output_directory, output_directory_len, output_files, output_list, summary_count, gene_list);
 */
-                                parse_effect_response_json(tid, output_directory, output_directory_len, output_files, output_list, summary_count, gene_list);
+                                if (ret_ws_0 == 0) { parse_effect_response_json(tid, output_directory, output_directory_len, output_files, output_list, summary_count, gene_list); }
                                 free(effect_line[tid]);
                                 effect_line[tid] = (char*) calloc (max_line_size[tid], sizeof(char));
                             }
                             
                             if (!options_data->no_phenotypes) {
-                                if (!reconnections || ret_ws_1) {
+                                if (!reconnections || ret_ws_1 > 0) {
                                     LOG_DEBUG_F("[%d] -- snp WS\n", omp_get_thread_num());
                                     ret_ws_1 = invoke_snp_phenotype_ws(urls[1], (vcf_record_t**) (passed_records->items + chunk_starts[j]), chunk_sizes[j]);
-                                    parse_snp_phenotype_response(tid, output_list);
+                                    if (ret_ws_1 == 0) { parse_snp_phenotype_response(tid, output_list); }
                                     free(snp_line[tid]);
                                     snp_line[tid] = (char*) calloc (snp_max_line_size[tid], sizeof(char));
                                 }
                                  
-                                if (!reconnections || ret_ws_2) {
+                                if (!reconnections || ret_ws_2 > 0) {
                                     LOG_DEBUG_F("[%d] -- mutation WS\n", omp_get_thread_num());
                                     ret_ws_2 = invoke_mutation_phenotype_ws(urls[2], (vcf_record_t**) (passed_records->items + chunk_starts[j]), chunk_sizes[j]);
-                                    parse_mutation_phenotype_response(tid, output_list);
+                                    if (ret_ws_2 == 0) { parse_mutation_phenotype_response(tid, output_list); }
                                     free(mutation_line[tid]);
                                     mutation_line[tid] = (char*) calloc (mutation_max_line_size[tid], sizeof(char));
                                 }
@@ -244,14 +244,14 @@ int run_effect(char **urls, shared_options_data_t *shared_options_data, effect_o
                         
                         LOG_DEBUG_F("*** %dth web services invocation finished\n", i);
                         
-                        if (ret_ws_0 || ret_ws_1 || ret_ws_2) {
-                            if (ret_ws_0) {
+                        if (ret_ws_0 > 0 || ret_ws_1 > 0 || ret_ws_2 > 0) {
+                            if (ret_ws_0 > 0) {
                                 LOG_ERROR_F("Effect web service error: %s\n", get_last_http_error(ret_ws_0));
                             }
-                            if (ret_ws_1) {
+                            if (ret_ws_1 > 0) {
                                 LOG_ERROR_F("SNP phenotype web service error: %s\n", get_last_http_error(ret_ws_1));
                             }
-                            if (ret_ws_2) {
+                            if (ret_ws_2 > 0) {
                                 LOG_ERROR_F("Mutations phenotype web service error: %s\n", get_last_http_error(ret_ws_2));
                             }
                             
@@ -263,7 +263,7 @@ int run_effect(char **urls, shared_options_data_t *shared_options_data, effect_o
                             free(chunk_starts);
                             free(chunk_sizes);
                         }
-                    } while (reconnections < max_reconnections && (ret_ws_0 || ret_ws_1 || ret_ws_2));
+                    } while (reconnections < max_reconnections && (ret_ws_0 > 0 || ret_ws_1 > 0 || ret_ws_2 > 0));
                 }
                 
                 // If the maximum number of reconnections was reached still with errors, 
@@ -721,13 +721,13 @@ static void end_writing_output_files(FILE **files, int num_files) {
         fstat(file, &file_stat);
         
         // If contents are longer than only '[' (something useful was written), replace last comma with ']'
+        // TODO Does not work with very small files, does not remove the comma!!!!
         if (file_stat.st_size > 2) {
             fseek(files[i], -2L, SEEK_CUR);
             fwrite("\n]\n", sizeof(char), 3, files[i]);
         } else { // Only '[\n' in the file
             fprintf(files[i], "]\n");
         }
-    
     }
 }
 
