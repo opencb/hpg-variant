@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
+ * Copyright (c) 2012-2013 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
  * Copyright (c) 2012 Ignacio Medina (ICM-CIPF)
  *
  * This file is part of hpg-variant.
@@ -20,38 +20,35 @@
 
 #include "effect_runner.h"
 
-void write_summary_file(cp_hashtable *summary_count, FILE *summary_file) {
-     char *consequence_type;
-     int *count;
-     
-     char **keys = (char**) cp_hashtable_get_keys(summary_count);
-     int num_keys = cp_hashtable_count(summary_count);
-     for (int i = 0; i < num_keys; i++) {
-         consequence_type = keys[i];
-         count = (int*) cp_hashtable_get(summary_count, consequence_type);
-         fprintf(summary_file, "%s\t%d\n", consequence_type, *count);
-     }
-     free(keys);
+void write_summary_file(cp_hashtable *summary_count, char *output_directory) {
+    char aux_buffer[strlen(output_directory) + 13];
+    sprintf(aux_buffer, "%s/summary.txt", output_directory);
+    FILE *file = fopen(aux_buffer, "w");
+    
+    char **keys = (char**) cp_hashtable_get_keys(summary_count);
+    int num_keys = cp_hashtable_count(summary_count);
+    for (int i = 0; i < num_keys; i++) {
+        char *consequence_type = keys[i];
+        int *count = (int*) cp_hashtable_get(summary_count, consequence_type);
+        fprintf(file, "%s\t%d\n", consequence_type, *count);
+    }
+    
+    free(keys);
+    fclose(file);
 }
 
 void write_genes_with_variants_file(cp_hashtable *gene_list, char *output_directory) {
-    char filename[] = "genes_with_variants.txt";
-    FILE *file = NULL;
-    char *aux_buffer;
-    
-    // Create genes file
-    aux_buffer = (char*) calloc (strlen(output_directory) + strlen(filename) + 2, sizeof(char));
-    sprintf(aux_buffer, "%s/%s", output_directory, filename);
-    file = fopen(aux_buffer, "w");
-    free(aux_buffer);
+    char aux_buffer[strlen(output_directory) + 23 + 2];
+    sprintf(aux_buffer, "%s/genes_with_variants.txt", output_directory);
+    FILE *file = fopen(aux_buffer, "w");
     
     char **keys = (char**) cp_hashtable_get_keys(gene_list);
     int num_keys = cp_hashtable_count(gene_list);
     for (int i = 0; i < num_keys; i++) {
         fprintf(file, "%s\n", keys[i]);
     }
-    free(keys);
     
+    free(keys);
     fclose(file);
 }
 
