@@ -114,7 +114,7 @@ static void parse_mutation_phenotype_response(int tid, list_t *output_list);
 /**
  * Writes a summary file containing the number of entries for each of the consequence types processed.
  */
-void write_summary_file(cp_hashtable *summary_count, FILE *summary_file);
+void write_summary_file(cp_hashtable *summary_count, char *output_directory);
 
 /**
  * Writes a file containing the list of genes with any variant taking place in them.

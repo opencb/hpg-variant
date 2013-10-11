@@ -366,7 +366,7 @@ int run_effect(char **urls, shared_options_data_t *shared_options_data, effect_o
         }
     }
 
-    write_summary_file(summary_count, cp_hashtable_get(output_files, "summary"));
+    write_summary_file(summary_count, output_directory);
     write_genes_with_variants_file(gene_list, output_directory);
     write_result_file(shared_options_data, options_data, summary_count, output_directory);
 
@@ -675,16 +675,6 @@ static int initialize_output_files(char *output_directory, size_t output_directo
     strncat(key, "all_variants", 12);
     cp_hashtable_put(*output_files, key, all_variants_file);
     
-    char summary_filename[output_directory_len + 13];
-    sprintf(summary_filename, "%s/summary.txt", output_directory);
-    FILE *summary_file = fopen(summary_filename, "a");
-    if (!summary_file) {   // Can't store results
-        return 2;
-    }
-    key = (char*) calloc (8, sizeof(char));
-    strncat(key, "summary", 7);
-    cp_hashtable_put(*output_files, key, summary_file);
-    
     char snp_phenotype_filename[output_directory_len + 20];
     sprintf(snp_phenotype_filename, "%s/snp_phenotypes.json", output_directory);
     FILE *snp_phenotype_file = fopen(snp_phenotype_filename, "w");
@@ -716,12 +706,12 @@ static void begin_writing_output_files(FILE **files, int num_files) {
 
 static void end_writing_output_files(FILE **files, int num_files) {
     for (int i = 0; i < num_files; i++) {
+        fflush(files[i]); // Write all pending contents to the file so the calculated size is correct
         int file = fileno(files[i]);
         struct stat file_stat;
         fstat(file, &file_stat);
         
         // If contents are longer than only '[' (something useful was written), replace last comma with ']'
-        // TODO Does not work with very small files, does not remove the comma!!!!
         if (file_stat.st_size > 2) {
             fseek(files[i], -2L, SEEK_CUR);
             fwrite("\n]\n", sizeof(char), 3, files[i]);
