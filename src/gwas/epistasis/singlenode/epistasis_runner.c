@@ -44,6 +44,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
     int num_folds = options_data->num_folds;
     int num_samples = num_affected + num_unaffected;
     int num_blocks_per_dim = ceil((double) num_variants / stride);
+    size_t max_num_block_coords = (size_t) pow(num_blocks_per_dim, order);
     
     LOG_INFO_F("Combinations of order %d, %d variants per block\n", order, stride);
     LOG_INFO_F("%d variants, %d blocks per dimension\n", num_variants, num_blocks_per_dim);
@@ -106,19 +107,22 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
             heap_init(ranking_risky[i]);
         }
         
-        // Coordinates of the block being tested
-        int block_coords[order]; memset(block_coords, 0, order * sizeof(int));
-
-#pragma omp parallel num_threads(shared_options_data->num_threads)
-{
-#pragma omp single
-    {
+        int *block_coords = calloc(max_num_block_coords * order, sizeof(int));
+        
+        // Calculate all blocks coordinates
+        int curr_idx = 0, next_idx = 0;
+        size_t num_block_coords = 0;
         do {
-
-            // OpenMP parallelization: Each block will be run in a separate thread
-#pragma omp task
-            {
-
+            curr_idx = num_block_coords * order;
+            next_idx = curr_idx + order;
+            memcpy(block_coords + next_idx, block_coords + curr_idx, order * sizeof(int));
+            curr_idx = next_idx;
+            num_block_coords++;
+        } while (get_next_block(num_blocks_per_dim, order, block_coords + curr_idx));
+        
+        
+        #pragma omp parallel for num_threads(shared_options_data->num_threads)
+        for (int i = 0; i < num_block_coords; i++) {
             int my_block_coords[order];
             
             // Initialize rankings for each repetition
@@ -128,11 +132,8 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                 heap_init(ranking_risky_local[i]);
             }
         
-#pragma omp critical
-            {
-                memcpy(my_block_coords, block_coords, order * sizeof(int));
-            }
-//            printf("%d) cv %d, block %d %d\n", omp_get_thread_num(), r, my_block_coords[0], my_block_coords[1]);
+            memcpy(my_block_coords, block_coords + i * order, order * sizeof(int));
+            // printf("%d) cv %d, block %d %d\n", omp_get_thread_num(), r, my_block_coords[0], my_block_coords[1]);
 
             // ***************** Variables private to each task (block) *****************
 
@@ -300,11 +301,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
             //end_block_msg[end_block_msg_len] = '\n';
             
             LOG_INFO(end_block_msg);
-            }
-        } while (get_next_block(num_blocks_per_dim, order, block_coords));
-
-    }
-}
+        }
         
 /*
         for (int f = 0; f < num_folds; f++) {
