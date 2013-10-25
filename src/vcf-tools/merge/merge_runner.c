@@ -109,7 +109,7 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
             memset(last_position_read, 0, options_data->num_files * sizeof(long));
             // Last chromosome and position merged
             char *max_chromosome_merged = NULL;
-            long max_position_merged = LONG_MAX;
+            long max_position_merged = 0;
             
             // Whether at least a text batch has been read from each file
             int started[options_data->num_files];
@@ -210,14 +210,29 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
                         vcf_record_t *record = vcf_record_copy(array_list_get(j, batch->records));
                         char *aux_chr = strndup(record->chromosome, record->chromosome_len);
                         
+                        // If last merged chrom:position is greater than the last one in this batch -> file is not sorted
+                        if (max_chromosome_merged) {
+                            int chrom_comparison = compare_chromosomes(aux_chr, max_chromosome_merged, chromosome_order, num_chromosomes);
+                            int position_comparison = compare_positions(record->position, max_position_merged);
+                            if (chrom_comparison < 0 || (chrom_comparison == 0 && position_comparison < 0)) {
+                                // Avoid as many leaks as possible
+                                free_merge_tree(positions_read);
+                                free(aux_chr);
+                                        
+                                LOG_FATAL_F("Position %.*s:%d found: File %s is not sorted!\n", 
+                                            record->chromosome_len, record->chromosome, record->position, files[i]->filename);
+                            }
+                        }
+                        
                         // Check that the record is in a valid chromosome for this species
                         if (is_valid_chromosome(aux_chr, chromosome_order, num_chromosomes)) {
                             vcf_record_file_link *link = vcf_record_file_link_new(record, files[i]);
                             char key[64];
-                            compose_key_value(record->chromosome, record->position, key);
+                            compose_key_value(aux_chr, record->position, key);
                             int ret = insert_position_read(key, link, positions_read);
                             assert(ret);
                             
+                            if(last_chromosome_read[i]) { free(last_chromosome_read[i]); }
                             last_chromosome_read[i] = aux_chr;
                             last_position_read[i] = record->position;
                         } else {
@@ -247,7 +262,7 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
                         free_merge_tree(positions_read);
                         free(max_chromosome_merged);
 
-                        LOG_FATAL("Files can not be merged!\n");
+                        LOG_FATAL("Files cannot be merged!\n");
                     } else {
                         array_list_free(sample_names, NULL);
                     }
@@ -264,27 +279,28 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
                 }
                 
                 // Calculate least common position to merge
+                if(max_chromosome_merged) {
+                    free(max_chromosome_merged);
+                    max_chromosome_merged = NULL;
+                }
+                max_position_merged = 0;
+                
                 for (int i = 0; i < options_data->num_files; i++) {
                     char *file_chromosome = last_chromosome_read[i];
                     long file_position = last_position_read[i];
-                    if (max_chromosome_merged == NULL) {
+                    if (!max_chromosome_merged) {
                         // Max merged chrom:position not set, assign without any other consideration
                         max_chromosome_merged = strdup(file_chromosome);
                         max_position_merged = file_position;
-                        //return 1;
                     } else {
-                        char *current_chromosome = file_chromosome;
-                        long unsigned int current_position = file_position;
-
-                //         printf("current = %s:%ld\tmax = %s:%ld\n", current_chromosome, current_position, *max_chromosome_merged, *max_position_merged);
-                        int chrom_comparison = compare_chromosomes(current_chromosome, max_chromosome_merged, chromosome_order, num_chromosomes);
-                        int position_comparison = compare_positions(current_position, max_position_merged);
+                //         printf("current = %s:%ld\tmax = %s:%ld\n", file_chromosome, file_position, *max_chromosome_merged, *max_position_merged);
+                        int chrom_comparison = compare_chromosomes(file_chromosome, max_chromosome_merged, chromosome_order, num_chromosomes);
+                        int position_comparison = compare_positions(file_position, max_position_merged);
 
                         // Max merged chrom:position is greater than the last one in this batch
                         if (chrom_comparison < 0 || (chrom_comparison == 0 && position_comparison < 0)) {
-                            max_chromosome_merged = strdup(current_chromosome);
-                            max_position_merged = current_position;
-                            //return 1;
+                            max_chromosome_merged = strdup(file_chromosome);
+                            max_position_merged = file_position;
                         }
                     }
                 }
@@ -321,12 +337,7 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
                 }
 
                 // Set variables ready for next iteration of the algorithm
-                if (max_chromosome_merged) {
-                    free(max_chromosome_merged);
-                }
             	token = 0;
-                max_chromosome_merged = NULL;
-                max_position_merged = LONG_MAX;
             }
             
             kh_destroy(pos, positions_read);
