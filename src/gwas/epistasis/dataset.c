@@ -14,7 +14,12 @@ uint8_t *epistasis_dataset_load_mpi(char *filename, int *num_affected, int *num_
     MPI_Offset len;
     MPI_Status status;
     
+    // Check if file exists
+    FILE *fp = fopen(filename, "rb");
+    if (!fp) { return NULL; }
+    
     MPI_File_open(MPI_COMM_WORLD, filename, MPI_MODE_RDONLY, MPI_INFO_NULL, fd);
+    
     MPI_File_get_size(*fd, &len);
     
     LOG_DEBUG_F("File %s length = %llu bytes / %zu bytes\n", filename, len);
@@ -49,6 +54,8 @@ void epistasis_dataset_close_mpi(uint8_t *contents, MPI_File fd) {
 
 uint8_t *epistasis_dataset_load(int *num_affected, int *num_unaffected, size_t *num_variants, size_t *file_len, size_t *genotypes_offset, char *filename) {
     FILE *fp = fopen(filename, "rb");
+    if (!fp) { return NULL; }
+    
     fread(num_variants, 1, sizeof(size_t), fp);
     fread(num_affected, 1, sizeof(uint32_t), fp);
     fread(num_unaffected, 1, sizeof(uint32_t), fp);

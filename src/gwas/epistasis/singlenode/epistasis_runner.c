@@ -29,6 +29,10 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
     size_t num_variants, file_len, genotypes_offset;
     
     uint8_t *input_file = epistasis_dataset_load(&num_affected, &num_unaffected, &num_variants, &file_len, &genotypes_offset, options_data->dataset_filename);
+    if (!input_file) {
+        LOG_FATAL_F("File %s does not exist!\n", options_data->dataset_filename);
+    }
+    
     uint8_t *genotypes = input_file + genotypes_offset;
     
     // Try to create the directory where the output files will be stored

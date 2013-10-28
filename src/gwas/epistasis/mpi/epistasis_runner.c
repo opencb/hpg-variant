@@ -36,11 +36,17 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
     MPI_File fd;
     uint8_t *input_file = epistasis_dataset_load_mpi(options_data->dataset_filename, &num_affected, &num_unaffected, &num_variants, 
                                                      &file_len, &genotypes_offset, &fd);
+    if (!input_file) {
+        MPI_Finalize();
+        LOG_FATAL_F("File %s does not exist!\n", options_data->dataset_filename);
+    }
+    
     uint8_t *genotypes = input_file + genotypes_offset;
 
     // Try to create the directory where the output files will be stored
     ret_code = create_directory(shared_options_data->output_directory);
     if (ret_code != 0 && errno != EEXIST) {
+        MPI_Finalize();
         LOG_FATAL_F("Can't create output directory: %s\n", shared_options_data->output_directory);
     }
     
