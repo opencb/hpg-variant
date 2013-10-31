@@ -381,7 +381,7 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
                 }
                 
                 report_vcf_sample_stats_header(stats_fd);
-                report_vcf_sample_stats(stats_fd, NULL, vcf_file->samples_names->size, sample_stats);
+                report_vcf_sample_stats(stats_fd, db, vcf_file->samples_names->size, sample_stats);
                 
                 // Close sample stats file
                 free(stats_filename);
