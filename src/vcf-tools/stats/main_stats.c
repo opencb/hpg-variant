@@ -82,8 +82,6 @@ int vcf_tool_stats(int argc, char *argv[], const char *configuration_file) {
 
 stats_options_t *new_stats_cli_options() {
     stats_options_t *options = (stats_options_t*) malloc (sizeof(stats_options_t));
-    options->sample_stats = arg_lit0(NULL, "samples", "Get statistics about samples");
-    options->variant_stats = arg_lit0(NULL, "variants", "Get statistics about variants, both per variant and per file (default)");
     options->save_db = arg_lit0(NULL, "db", "Save statistics to SQLite3 database file");
     options->variable = arg_str0(NULL, "variable", NULL, "Name for the variable field");
     options->variable_groups = arg_str0(NULL, "variable-group", NULL, "Sequence of variable groups");
@@ -94,10 +92,7 @@ stats_options_t *new_stats_cli_options() {
 
 stats_options_data_t *new_stats_options_data(stats_options_t *options) {
     stats_options_data_t *options_data = (stats_options_data_t*) malloc (sizeof(stats_options_data_t));
-    options_data->sample_stats = options->sample_stats->count;
-    options_data->variant_stats = options->variant_stats->count;
     options_data->save_db = options->save_db->count;
-
     options_data->variable = options->variable->count? strdup(*(options->variable->sval)) :NULL;
     options_data->variable_groups = options->variable_groups->count? strdup(*(options->variable_groups->sval)) :NULL;
     options_data->phenotype = options->phenotype->count? strdup(*options->phenotype->sval) :NULL;
