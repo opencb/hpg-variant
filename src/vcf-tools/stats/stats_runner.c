@@ -262,7 +262,7 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
                 delete_files_by_extension(shared_options_data->output_directory, "db");
                 stats_db_name = calloc(strlen(stats_prefix) + strlen(".db") + 2, sizeof(char));
                 sprintf(stats_db_name, "%s.db", stats_prefix);
-                create_stats_db(stats_db_name, VCF_CHUNKSIZE, create_vcf_query_fields, &db);
+                create_stats_db(stats_db_name, VCF_CHUNKSIZE, pre_variant_stats_db, &db);
                 hash = kh_init(stats_chunks);
             }
             
@@ -392,7 +392,7 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
             
             if (db) {
                 insert_chunk_hash(VCF_CHUNKSIZE, hash, db);
-                create_stats_index(create_vcf_index, db);
+                create_stats_index(post_variant_stats_db, db);
                 close_stats_db(db, hash);
             }
             
