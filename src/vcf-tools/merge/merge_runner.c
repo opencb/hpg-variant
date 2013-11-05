@@ -286,6 +286,8 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
                 max_position_merged = 0;
                 
                 for (int i = 0; i < options_data->num_files; i++) {
+                    if (!last_chromosome_read[i]) { continue; }
+
                     char *file_chromosome = last_chromosome_read[i];
                     long file_position = last_position_read[i];
                     if (!max_chromosome_merged) {
@@ -293,7 +295,7 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
                         max_chromosome_merged = strdup(file_chromosome);
                         max_position_merged = file_position;
                     } else {
-                //         printf("current = %s:%ld\tmax = %s:%ld\n", file_chromosome, file_position, *max_chromosome_merged, *max_position_merged);
+                        // printf("current = %s:%ld\tmax = %s:%ld\n", file_chromosome, file_position, max_chromosome_merged, max_position_merged);
                         int chrom_comparison = compare_chromosomes(file_chromosome, max_chromosome_merged, chromosome_order, num_chromosomes);
                         int position_comparison = compare_positions(file_position, max_position_merged);
 
@@ -304,7 +306,8 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
                         }
                     }
                 }
-                
+                printf("------------------------------\n");                
+
                 if (num_eof_found == options_data->num_files) {
                     max_chromosome_merged = chromosome_order[num_chromosomes-1];
                     max_position_merged = LONG_MAX;
@@ -597,9 +600,10 @@ static void check_files_ahead_last_merged(int num_files, int file_ahead_last_mer
 
     if (num_eof_found < num_files - 1) {
         for (int i = 0; i < num_files; i++) {
+            if (!last_chromosome_read[i]) { continue; }
+
             char *file_chromosome = last_chromosome_read[i];
             long file_position = last_position_read[i];
-
             int chrom_comparison = compare_chromosomes(file_chromosome, max_chromosome_merged, chromosome_order, num_chromosomes);
             int position_comparison = compare_positions(file_position, max_position_merged);
 
