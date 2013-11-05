@@ -208,7 +208,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
         }
         
         // Masks information (number (un)affected with padding, buffers, and so on)
-#pragma omp parallel for num_threads(shared_options_data->num_threads)
+#pragma omp parallel for num_threads(shared_options_data->num_threads) schedule(dynamic)
         for (int i = 0; i < num_block_coords; i++) {
             // Coordinates of the block being tested
             int task_block_coords[order];
@@ -379,7 +379,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
             
             // Notify a block has been processed
             char end_block_msg[256]; memset(end_block_msg, 0, 256 * sizeof(char));
-            strcat(end_block_msg, "Block finished: (");
+            sprintf(end_block_msg, "[%d,%d] Block finished: (", mpi_rank, omp_get_thread_num());
             for (int s = 0; s < order; s++) {
                 sprintf(end_block_msg + strlen(end_block_msg), "%d,", task_block_coords[s] + 1);
             }
@@ -406,48 +406,55 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
 */
         if (mpi_rank == 0) {
             LOG_DEBUG_F("Merging rankings in node for CV %d\n", r+1);
-        }        
-        // Merge rankings from all nodes in root node (TODO: optimize by reducing root load)
-        for (int f = 0; f < num_folds; f++) {
-            if (mpi_rank != 0) {
-                // Send size of this ranking
-                send_ranking_risky_size_mpi(ranking_risky[f], 0, MPI_COMM_WORLD);
-                
-                // Send best combinations to root node
-                struct heap_node *hn;
-                risky_combination *risky = NULL;
+        }
+ 
+        // Merge rankings from all nodes in a tree fashion so none of them gets overloaded
+        int numprocs_log2 = ceil(log((double) num_mpi_ranks) / log(2.0));
+        MPI_Status stat;
 
-                while (!heap_empty(ranking_risky[f])) {
-                    hn = heap_take(heap_min_func, ranking_risky[f]);
-                    risky = (risky_combination*) hn->value;
-                    send_risky_combination_mpi(risky, risky_mpi_type, 0, MPI_COMM_WORLD);
-                    risky_combination_free(risky);
-                    free(hn);
-                }
-            } else {
-                MPI_Status stat;
-                size_t ranking_sizes[num_mpi_ranks];
-                
-                // Receive size of ranking from each node
-                for (int src = 1; src < num_mpi_ranks; src++) {
-                    ranking_sizes[src] = receive_ranking_risky_size_mpi(src, MPI_COMM_WORLD, stat);
-/*
-                    printf("CV %d, proc %d, ranking %d has size %zu\n", r, src, f, ranking_sizes[src]);
-*/
-                }
-                
-                // Receive best combinations from each node
-                for (int src = 1; src < num_mpi_ranks; src++) {
-                    for (int c = 0; c < ranking_sizes[src]; c++) {
-                        risky_combination *risky_comb = receive_risky_combination_mpi(order, risky_mpi_type, info, src, MPI_COMM_WORLD, stat);
-                        int position = add_to_model_ranking(risky_comb, options_data->max_ranking_size, ranking_risky[f], heap_min_func);
-                        if (position < 0) {
-                            risky_combination_free(risky_comb);
+        for (int f = 0; f < num_folds; f++) {
+            for (int i = 1; i <= numprocs_log2; i++) {
+                if (mpi_rank % (1 << i) == 0) {
+                    int src = mpi_rank + (1 << (i - 1));
+                    if (src < num_mpi_ranks) { // Take care when the number of ranks is not a power of 2
+                        size_t ranking_size = receive_ranking_risky_size_mpi(src, MPI_COMM_WORLD, stat);
+                        for (int c = 0; c < ranking_size; c++) {
+                            risky_combination *risky_comb = receive_risky_combination_mpi(order, risky_mpi_type, info, src, MPI_COMM_WORLD, stat);
+                            int position = add_to_model_ranking(risky_comb, options_data->max_ranking_size, ranking_risky[f], heap_min_func);
+                            if (position < 0) {
+                                risky_combination_free(risky_comb);
+                            }
                         }
+                        
+                        printf("IN, iteracion %d -> El nodo %d recibe de %d\n", i, mpi_rank, src);
+                    } else {
+                        printf("--, iteracion %d -> El nodo %d mantiene su dato\n", i, mpi_rank);
                     }
+                } else if (mpi_rank % (1 << (i - 1)) == 0) {
+                    int dest = mpi_rank - (1 << (i - 1));
+                    // Send size of this ranking
+                    send_ranking_risky_size_mpi(ranking_risky[f], dest, MPI_COMM_WORLD);
+
+                    // Send best combinations to another node
+                    struct heap_node *hn;
+                    risky_combination *risky = NULL;
+
+                    while (!heap_empty(ranking_risky[f])) {
+                        hn = heap_take(heap_min_func, ranking_risky[f]);
+                        risky = (risky_combination*) hn->value;
+                        send_risky_combination_mpi(risky, risky_mpi_type, dest, MPI_COMM_WORLD);
+                        risky_combination_free(risky);
+                        free(hn);
+                    }
+                
+                    printf("OUT, iteracion %d <- El nodo %d envia a %d\n", i, mpi_rank, mpi_rank - (1 << (i - 1)));
+                    //MPI_Send(&suma, 1, MPI_DOUBLE, mpi_rank - (1 << (i - 1)), TAG,
+                    //                MPI_COMM_WORLD);
                 }
             }
         }
+
+	MPI_Barrier(MPI_COMM_WORLD);
         if (mpi_rank == 0) {
             LOG_DEBUG_F("Rankings in node for CV %d merged!\n", r+1);
         }        
