@@ -284,9 +284,9 @@ static FILE *get_assoc_output_file(enum ASSOC_task task, shared_options_data_t *
 void write_output_header(enum ASSOC_task task, FILE *fd) {
     assert(fd);
     if (task == CHI_SQUARE) {
-        fprintf(fd, "#CHR         POS               ID      A1      C_A1    C_U1         F_A1            F_U1       A2      C_A2    C_U2         F_A2            F_U2              OR           CHISQ         P-VALUE\n");
+        fprintf(fd, "#CHR\tPOS\tID\tA1\tC_A1\tC_U1\tF_A1\tF_U1\tA2\tC_A2\tC_U2\tF_A2\tF_U2\tOR\tCHISQ\tP-VALUE\n");
     } else if (task == FISHER) {
-        fprintf(fd, "#CHR         POS               ID      A1      C_A1    C_U1         F_A1            F_U1       A2      C_A2    C_U2         F_A2            F_U2              OR         P-VALUE\n");
+        fprintf(fd, "#CHR\tPOS\tID\tA1\tC_A1\tC_U1\tF_A1\tF_U1\tA2\tC_A2\tC_U2\tF_A2\tF_U2\tOR\tP-VALUE\n");
     }
 }
 
@@ -303,7 +303,7 @@ void write_output_body(enum ASSOC_task task, list_t* output_list, FILE *fd) {
             double freq_a2 = (result->affected1 + result->affected2 > 0) ? (double) result->affected2 / (result->affected1 + result->affected2) : 0.0f;
             double freq_u2 = (result->unaffected1 + result->unaffected2 > 0) ? (double) result->unaffected2 / (result->unaffected1 + result->unaffected2) : 0.0f;
             
-            fprintf(fd, "%s\t%8ld\t%s\t%s\t%3d\t%3d\t%6f\t%6f\t%s\t%3d\t%3d\t%6f\t%6f\t%6f\t%6f\t%6f\n",
+            fprintf(fd, "%s\t%ld\t%s\t%s\t%d\t%d\t%6f\t%6f\t%s\t%d\t%d\t%6f\t%6f\t%6f\t%6f\t%6f\n",
                     result->chromosome, result->position, result->id,
                     result->reference, result->affected1, result->unaffected1, freq_a1, freq_u1,
                     result->alternate, result->affected2, result->unaffected2, freq_a2, freq_u2,
@@ -321,7 +321,7 @@ void write_output_body(enum ASSOC_task task, list_t* output_list, FILE *fd) {
             double freq_a2 = (result->affected1 + result->affected2 > 0) ? (double) result->affected2 / (result->affected1 + result->affected2) : 0.0f;
             double freq_u2 = (result->unaffected1 + result->unaffected2 > 0) ? (double) result->unaffected2 / (result->unaffected1 + result->unaffected2) : 0.0f;
             
-            fprintf(fd, "%s\t%8ld\t%s\t%s\t%3d\t%3d\t%6f\t%6f\t%s\t%3d\t%3d\t%6f\t%6f\t%6f\t%6f\n",
+            fprintf(fd, "%s\t%ld\t%s\t%s\t%d\t%d\t%6f\t%6f\t%s\t%d\t%d\t%6f\t%6f\t%6f\t%6f\n",
                     result->chromosome, result->position, result->id, 
                     result->reference, result->affected1, result->unaffected1, freq_a1, freq_u1,
                     result->alternate, result->affected2, result->unaffected2, freq_a2, freq_u2,
