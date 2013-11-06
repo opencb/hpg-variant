@@ -61,6 +61,9 @@ int run_filter(shared_options_data_t *shared_options_data, filter_options_data_t
     list_init("next_token", shared_options_data->num_threads, shared_options_data->max_batches, next_token_list);
     
     get_filtering_output_files(shared_options_data, &passed_file, &failed_file);
+    if (shared_options_data->chain && !(passed_file && failed_file)) {
+        LOG_FATAL_F("Files for filtered results could not be created. Output folder = '%s'\n", shared_options_data->output_directory);
+    }
     if (!options_data->save_rejected) {
         fclose(failed_file);
     }

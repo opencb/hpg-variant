@@ -306,7 +306,6 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
                         }
                     }
                 }
-                printf("------------------------------\n");                
 
                 if (num_eof_found == options_data->num_files) {
                     max_chromosome_merged = chromosome_order[num_chromosomes-1];
@@ -371,7 +370,12 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
             
             char *merge_filename;
             FILE *merge_fd = get_output_file(shared_options_data, aux_filename, &merge_filename);
-            LOG_INFO_F("Output filename = %s\n", merge_filename);
+            if (merge_fd) {
+                LOG_INFO_F("Output filename = '%s'\n", merge_filename);
+            } else {
+                LOG_FATAL_F("Output file could not be created. Output folder = '%s'\tOutput file = '%s'\n",
+                            shared_options_data->output_directory, merge_filename);
+            }
             free(merge_filename);
             
             list_item_t *item1 = NULL, *item2 = NULL;

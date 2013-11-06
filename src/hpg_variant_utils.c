@@ -237,7 +237,7 @@ int get_filtering_output_files(shared_options_data_t *shared_options, FILE** pas
     
     LOG_DEBUG_F("passed filename = %s\nfailed filename = %s\n", passed_filename, failed_filename);
     
-    return 0;
+    return passed_file && failed_file;
 }
 
 int write_filtering_output_files(array_list_t *passed_records, array_list_t *failed_records, FILE* passed_file, FILE* failed_file) {

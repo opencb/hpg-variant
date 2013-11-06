@@ -75,8 +75,10 @@ int run_effect(char **urls, shared_options_data_t *shared_options_data, effect_o
 
     // Initialize collections of file descriptors and summary counters
     ret_code = initialize_output_files(output_directory, output_directory_len, &output_files);
-    if (ret_code != 0) {
-        return ret_code;
+    if (!ret_code) {
+        LOG_INFO_F("Output folder = '%s'\n", output_directory);
+    } else {
+        LOG_FATAL_F("Output folder ('%s') could not be created.\n", output_directory);
     }
     initialize_output_data_structures(shared_options_data, &output_list, &summary_count, &gene_list);
     initialize_ws_buffers(shared_options_data->num_threads);
@@ -132,6 +134,9 @@ int run_effect(char **urls, shared_options_data_t *shared_options_data, effect_o
             }
             FILE *passed_file = NULL, *failed_file = NULL, *non_processed_file = NULL;
             get_filtering_output_files(shared_options_data, &passed_file, &failed_file);
+            if (shared_options_data->chain && !(passed_file && failed_file)) {
+                LOG_FATAL_F("Files for filtered results could not be created. Output folder = '%s'\n", shared_options_data->output_directory);
+            }
             
             // Filename structure outdir/vcfname.errors
             char *prefix_filename = calloc(strlen(shared_options_data->vcf_filename), sizeof(char));

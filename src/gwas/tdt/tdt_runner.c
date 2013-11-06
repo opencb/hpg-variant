@@ -96,6 +96,9 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
             }
             FILE *passed_file = NULL, *failed_file = NULL;
             get_filtering_output_files(shared_options_data, &passed_file, &failed_file);
+            if (shared_options_data->chain && !(passed_file && failed_file)) {
+                LOG_FATAL_F("Files for filtered results could not be created. Output folder = '%s'\n", shared_options_data->output_directory);
+            }
     
             double start = omp_get_wtime();
             
@@ -233,7 +236,12 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
             // Get the file descriptor
             char *path;
             FILE *fd = get_output_file(shared_options_data, "hpg-variant.tdt", &path);
-            LOG_INFO_F("TDT output filename = %s\n", path);
+            if (fd) {
+                LOG_INFO_F("TDT output filename = '%s'\n", path);
+            } else {
+                LOG_FATAL_F("TDT output file could not be created. Output folder = '%s' -- Output file = '%s'\n",
+                            shared_options_data->output_directory, path);
+            }
             
             double start = omp_get_wtime();
             

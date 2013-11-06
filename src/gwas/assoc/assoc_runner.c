@@ -94,6 +94,9 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
             }
             FILE *passed_file = NULL, *failed_file = NULL;
             get_filtering_output_files(shared_options_data, &passed_file, &failed_file);
+            if (shared_options_data->chain && !(passed_file && failed_file)) {
+                LOG_FATAL_F("Files for filtered results could not be created. Output folder = '%s'\n", shared_options_data->output_directory);
+            }
     
             double start = omp_get_wtime();
 
@@ -235,7 +238,12 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
             // Get the file descriptor
             char *path;
             FILE *fd = get_assoc_output_file(options_data->task, shared_options_data, &path);
-            LOG_INFO_F("Association test output filename = %s\n", path);
+            if (fd) {
+                LOG_INFO_F("Association test output filename = '%s'\n", path);
+            } else {
+                LOG_FATAL_F("Association test output file could not be created. Output folder = '%s' -- Output file = '%s'\n",
+                            shared_options_data->output_directory, path);
+            }
             
             // Write data: header + one line per variant
             write_output_header(options_data->task, fd);
@@ -332,80 +340,3 @@ void write_output_body(enum ASSOC_task task, list_t* output_list, FILE *fd) {
         }
     }
 }
-
-
-/* *******************
- *      Sorting      *
- * *******************/
-
-/*
-individual_t **sort_individuals(vcf_file_t *vcf, ped_file_t *ped) {
-    family_t *family;
-    family_t **families = (family_t**) cp_hashtable_get_values(ped->families);
-    int num_families = get_num_families(ped);
-
-    individual_t **individuals = calloc (get_num_vcf_samples(vcf), sizeof(individual_t*));
-    khash_t(ids) *positions = associate_samples_and_positions(vcf);
-    int pos = 0;
-
-    for (int f = 0; f < num_families; f++) {
-        family = families[f];
-        individual_t *father = family->father;
-        individual_t *mother = family->mother;
-
-        if (father != NULL) {
-            pos = 0;
-            LOG_DEBUG_F("father ID = %s\n", father->id);
-            khiter_t iter = kh_get(ids, positions, father->id);
-            if (iter != kh_end(positions)) {
-                pos = kh_value(positions, iter);
-                individuals[pos] = father;
-            }
-        }
-
-        if (mother != NULL) {
-            pos = 0;
-            LOG_DEBUG_F("mother ID = %s\n", mother->id);
-            khiter_t iter = kh_get(ids, positions, mother->id);
-            if (iter != kh_end(positions)) {
-                pos = kh_value(positions, iter);
-                individuals[pos] = mother;
-            }
-        }
-
-        linked_list_iterator_t *iterator = linked_list_iterator_new(family->children);
-        individual_t *child = NULL;
-        while (child = linked_list_iterator_curr(iterator)) {
-            pos = 0;
-            LOG_DEBUG_F("child ID = %s\n", child->id);
-            khiter_t iter = kh_get(ids, positions, child->id);
-            if (iter != kh_end(positions)) {
-                pos = kh_value(positions, iter);
-                individuals[pos] = child;
-            }
-            linked_list_iterator_next(iterator);
-        }
-        linked_list_iterator_free(iterator);
-        
-        iterator = linked_list_iterator_new(family->unknown);
-        individual_t *unknown = NULL;
-        while (unknown = linked_list_iterator_curr(iterator)) {
-            pos = 0;
-            LOG_DEBUG_F("unknown ID = %s\n", unknown->id);
-            khiter_t iter = kh_get(ids, positions, unknown->id);
-            if (iter != kh_end(positions)) {
-                pos = kh_value(positions, iter);
-                individuals[pos] = unknown;
-            }
-            linked_list_iterator_next(iterator);
-        }
-        linked_list_iterator_free(iterator);
-        
-        assert(father || mother || linked_list_size(family->unknown) > 0);
-    }
-
-    kh_destroy(ids, positions);
-
-    return individuals;
-}
-*/
