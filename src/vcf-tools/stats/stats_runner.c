@@ -375,7 +375,8 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
             if (ped_file) {
                 for (int i = 0; i < num_phenotypes; i++) {
                     if (phenotype_fd[i]) { fclose(phenotype_fd[i]); }
-                    free(phenotype_fd);
+                    // I don't understand why this causes a double free
+                    //if (phenotype_fd) { free(phenotype_fd); }
                 }
             }
             
