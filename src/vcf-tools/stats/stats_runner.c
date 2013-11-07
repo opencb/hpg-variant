@@ -239,13 +239,13 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
             
             // File names and descriptors for output to plain text files
             char *stats_filename, *summary_filename, *phenotype_filename;
-            FILE *var_stats_fd, *sam_stats_fd, *summary_fd, **phenotype_fd;
+            FILE *var_stats_fd = NULL, *sam_stats_fd = NULL, *summary_fd = NULL, **phenotype_fd = NULL;
             
-            char *stats_db_name;
+            char *stats_db_name = NULL;
             sqlite3 *db = NULL;
-            khash_t(stats_chunks) *hash;
+            khash_t(stats_chunks) *hash = NULL;
+            khash_t(str) *phenotype_ids = NULL;
             
-            khash_t(str) *phenotype_ids;
             int num_phenotypes;
             if(ped_file){
                 phenotype_ids = get_phenotypes(ped_file);
