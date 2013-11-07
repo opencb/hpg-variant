@@ -147,7 +147,7 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
             individual_t **individuals = NULL;
             khash_t(ids) *sample_ids = NULL;
             khash_t(str) *phenotype_ids = NULL;
-            int num_phenotypes;
+            int num_phenotypes = 0;
             
             start = omp_get_wtime();
             
@@ -246,7 +246,7 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
             khash_t(stats_chunks) *hash = NULL;
             khash_t(str) *phenotype_ids = NULL;
             
-            int num_phenotypes;
+            int num_phenotypes = 0;
             if(ped_file){
                 phenotype_ids = get_phenotypes(ped_file);
                 num_phenotypes = get_num_variables(ped_file);
