@@ -321,7 +321,7 @@ void show_usage(char *tool, void **argtable) {
 }
 
 void show_version(char *tool) {
-    printf("HPG Variant %s %s\nCopyright (C) 2013 Institute for Computational Medicine (CIPF).\n\
+    printf("HPG Variant %s %s\nCopyright (C) 2012-2013 Institute for Computational Medicine (CIPF).\n\
 This is free software; see the source for copying conditions.\n", tool, HPG_VARIANT_VERSION);
 }
 
