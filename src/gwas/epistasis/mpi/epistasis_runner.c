@@ -426,9 +426,9 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                             }
                         }
                         
-                        printf("IN, iteracion %d -> El nodo %d recibe de %d\n", i, mpi_rank, src);
+                        LOG_DEBUG_F("IN, step %d -> Node %d receives from %d\n", i, mpi_rank, src);
                     } else {
-                        printf("--, iteracion %d -> El nodo %d mantiene su dato\n", i, mpi_rank);
+                        LOG_DEBUG_F("--, step %d -> Node %d keeps its data\n", i, mpi_rank);
                     }
                 } else if (mpi_rank % (1 << (i - 1)) == 0) {
                     int dest = mpi_rank - (1 << (i - 1));
@@ -447,9 +447,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
                         free(hn);
                     }
                 
-                    printf("OUT, iteracion %d <- El nodo %d envia a %d\n", i, mpi_rank, mpi_rank - (1 << (i - 1)));
-                    //MPI_Send(&suma, 1, MPI_DOUBLE, mpi_rank - (1 << (i - 1)), TAG,
-                    //                MPI_COMM_WORLD);
+                    LOG_DEBUG_F("OUT, step %d <- Node %d sends to %d\n", i, mpi_rank, mpi_rank - (1 << (i - 1)));
                 }
             }
         }
