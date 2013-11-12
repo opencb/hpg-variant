@@ -248,7 +248,8 @@ int* choose_high_risk_combinations2(unsigned int* counts_aff, unsigned int* coun
         }
     }
     
-    free(is_high_risk);
+//    free(is_high_risk);
+    _mm_free(is_high_risk);
     
     return risky;
 }
