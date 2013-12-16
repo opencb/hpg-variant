@@ -5,7 +5,12 @@ bioinfo_path = '#lib/bioinfo-libs'
 commons_path = '#lib/common-libs'
 math_path = '#lib/math'
 
-env = Environment(tools = ['default', 'packaging'],
+compiler = ARGUMENTS.get('compiler', 'gcc')
+build_tools = [ 'default', 'packaging' ]
+if compiler == 'icc':
+    build_tools.append('intelc')
+
+env = Environment(tools = build_tools,
                   CFLAGS = '-std=c99 -D_XOPEN_SOURCE=600 -D_GNU_SOURCE -fopenmp -Wuninitialized -Wmissing-braces',
                   CPPPATH = ['#', '#src', '#include', bioinfo_path, commons_path, math_path, '/usr/include', '/usr/local/include', '/usr/include/libxml2'],
                   LIBPATH = [commons_path, bioinfo_path, '/usr/lib', '/usr/local/lib'],
@@ -22,9 +27,9 @@ else:
 env['objects'] = []
 
 # bioinfo-libs compilation
-formats = [ 'family', 'features', 'gff', 'ped', 'vcf' ]
-aligners = []
-compiler = 'gcc'
+#formats = [ 'family', 'features', 'gff', 'ped', 'vcf' ]
+#aligners = []
+#compiler = 'gcc'
 
 ##### Targets
 
@@ -32,7 +37,8 @@ compiler = 'gcc'
 SConscript(['%s/SConscript' % bioinfo_path,
             '%s/SConscript' % commons_path,
             '%s/SConscript' % math_path
-            ], exports = ['env', 'debug', 'formats', 'aligners', 'compiler'])
+#            ], exports = ['env', 'debug', 'formats', 'aligners', 'compiler'])
+            ], exports = ['env', 'debug', 'compiler'])
 
 # Create binaries and copy them to 'bin' folder
 progs = SConscript(['src/effect/SConscript',
