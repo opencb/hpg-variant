@@ -86,25 +86,23 @@ void **merge_stats_options(stats_options_t *stats_options, shared_options_t *sha
     tool_options[3] = shared_options->output_directory;
     
     // Stats arguments
-    tool_options[4] = stats_options->variant_stats;
-    tool_options[5] = stats_options->sample_stats;
-    tool_options[6] = stats_options->save_db;
-    tool_options[7] = stats_options->variable;
-    tool_options[8] = stats_options->variable_groups;
-    tool_options[9] = stats_options->phenotype;
+    tool_options[4] = stats_options->save_db;
+    tool_options[5] = stats_options->variable;
+    tool_options[6] = stats_options->variable_groups;
+    tool_options[7] = stats_options->phenotype;
     
     // Configuration file
-    tool_options[10] = shared_options->log_level;
-    tool_options[11] = shared_options->config_file;
+    tool_options[8] = shared_options->log_level;
+    tool_options[9] = shared_options->config_file;
     
     // Advanced configuration
-    tool_options[12] = shared_options->max_batches;
-    tool_options[13] = shared_options->batch_lines;
-    tool_options[14] = shared_options->batch_bytes;
-    tool_options[15] = shared_options->num_threads;
-    tool_options[16] = shared_options->mmap_vcf_files;
+    tool_options[10] = shared_options->max_batches;
+    tool_options[11] = shared_options->batch_lines;
+    tool_options[12] = shared_options->batch_bytes;
+    tool_options[13] = shared_options->num_threads;
+    tool_options[14] = shared_options->mmap_vcf_files;
     
-    tool_options[17] = arg_end;
+    tool_options[15] = arg_end;
     
     return tool_options;
 }
@@ -127,19 +125,6 @@ int verify_stats_options(stats_options_t *stats_options, shared_options_t *share
     if (*(shared_options->batch_lines->ival) > 0 && *(shared_options->batch_bytes->ival) > 0) {
         LOG_WARN("The size of reading batches has been specified both in lines and bytes. The size in bytes will be used.\n");
         return 0;
-    }
-    
-    // Check whether variant or sample stats are requested
-    // If none of them is, set variant stats as default
-    if (stats_options->variant_stats->count + stats_options->sample_stats->count == 0) {
-        LOG_INFO("Statistics requested neither for variants nor samples. Only-variants taken as default.\n");
-        stats_options->variant_stats->count = 1;
-    }
-    
-    // Check whether the input PED file is defined when sample stats are requested
-    if (stats_options->sample_stats->count > 0 && shared_options->ped_filename->count == 0) {
-        LOG_ERROR("Please specify the input PED file.\n");
-        return PED_FILE_NOT_SPECIFIED;
     }
     
     // If no PED file is specified, not all statistics can be calculated

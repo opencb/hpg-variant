@@ -162,6 +162,10 @@ int run_split(shared_options_data_t *shared_options_data, split_options_data_t *
                 if (!split_fd) {
                     // If this is the first line to be written to the file, create the file descriptor...
                     split_fd = fopen(split_filename, "w");
+                    if (!split_fd) {
+                        LOG_FATAL_F("Output file could not be created. Output folder = '%s' -- Output file = '%s'\n",
+                                    shared_options_data->output_directory, split_filename);
+                    }
                     cp_hashtable_put(output_files, strdup(result->split_name), split_fd);
                     // ...and insert the header
                     write_vcf_header(file, split_fd);

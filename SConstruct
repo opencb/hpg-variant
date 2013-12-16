@@ -1,12 +1,17 @@
 import buildaux
 
 # Initialize the environment with path variables, CFLAGS, and so on
-bioinfo_path = '#libs/bioinfo-libs'
-commons_path = '#libs/common-libs'
-math_path = '#libs/math'
+bioinfo_path = '#lib/bioinfo-libs'
+commons_path = '#lib/common-libs'
+math_path = '#lib/math'
 
-env = Environment(tools = ['default', 'packaging'],
-                  CFLAGS = '-std=c99 -D_XOPEN_SOURCE=600 -D_GNU_SOURCE -fopenmp',
+compiler = ARGUMENTS.get('compiler', 'gcc')
+build_tools = [ 'default', 'packaging' ]
+if compiler == 'icc':
+    build_tools.append('intelc')
+
+env = Environment(tools = build_tools,
+                  CFLAGS = '-std=c99 -D_XOPEN_SOURCE=600 -D_GNU_SOURCE -fopenmp -Wuninitialized -Wmissing-braces',
                   CPPPATH = ['#', '#src', '#include', bioinfo_path, commons_path, math_path, '/usr/include', '/usr/local/include', '/usr/include/libxml2'],
                   LIBPATH = [commons_path, bioinfo_path, '/usr/lib', '/usr/local/lib'],
                   LIBS = ['common', 'bioinfo', 'curl', 'dl', 'gsl', 'gslcblas', 'm', 'xml2', 'z'],
@@ -21,18 +26,13 @@ else:
 
 env['objects'] = []
 
-# bioinfo-libs compilation
-formats = [ 'family', 'features', 'gff', 'ped', 'vcf', 'bam' ]
-aligners = []
-compiler = 'gcc'
-
 ##### Targets
 
 # Compile dependencies
 SConscript(['%s/SConscript' % bioinfo_path,
             '%s/SConscript' % commons_path,
             '%s/SConscript' % math_path
-            ], exports = ['env', 'debug', 'formats', 'aligners', 'compiler'])
+            ], exports = ['env', 'debug', 'compiler'])
 
 # Create binaries and copy them to 'bin' folder
 progs = SConscript(['src/effect/SConscript',
@@ -51,11 +51,11 @@ t = SConscript("test/SConscript", exports = ['env', 'debug', 'commons_path', 'bi
 # For the packaging manager: Don't forget to point the XXX_INCLUDE_PATH and XXX_LIBRARY_PATH 
 # variables to the application libraries folder!!
 tb = env.Package(NAME          = 'hpg-variant',
-                VERSION        = '0.99.4',
+                VERSION        = '1.0',
                 PACKAGEVERSION = 0,
                 PACKAGETYPE    = 'src_targz',
                 source         = env.FindSourceFiles() + env.FindHeaderFiles(progs) + 
-                             [ '#buildaux.py', '#libs/bioinfo-libs/buildvars.py',
+                             [ '#buildaux.py', '#lib/bioinfo-libs/buildvars.py',
                                '#deb/SConscript', '#rpm/SConscript', '#rpm/hpg-variant.spec',
                                Glob('etc/hpg-variant/*.conf'), Glob('etc/bash_completion.d/*'),
                                '#COPYING', '#README' ] )
@@ -75,3 +75,4 @@ if 'fedora' in COMMAND_LINE_TARGETS:
 
 # By default, create only the executables and install them
 Default(progs, inst1, inst2)
+

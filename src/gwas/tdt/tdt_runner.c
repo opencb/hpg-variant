@@ -96,6 +96,9 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
             }
             FILE *passed_file = NULL, *failed_file = NULL;
             get_filtering_output_files(shared_options_data, &passed_file, &failed_file);
+            if (shared_options_data->chain && !(passed_file && failed_file)) {
+                LOG_FATAL_F("Files for filtered results could not be created. Output folder = '%s'\n", shared_options_data->output_directory);
+            }
     
             double start = omp_get_wtime();
             
@@ -233,7 +236,12 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
             // Get the file descriptor
             char *path;
             FILE *fd = get_output_file(shared_options_data, "hpg-variant.tdt", &path);
-            LOG_INFO_F("TDT output filename = %s\n", path);
+            if (fd) {
+                LOG_INFO_F("TDT output filename = '%s'\n", path);
+            } else {
+                LOG_FATAL_F("TDT output file could not be created. Output folder = '%s' -- Output file = '%s'\n",
+                            shared_options_data->output_directory, path);
+            }
             
             double start = omp_get_wtime();
             
@@ -277,7 +285,7 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
 
 void write_output_header(FILE *fd) {
     assert(fd);
-    fprintf(fd, "#CHR         POS               ID      A1      A2         T       U           OR           CHISQ         P-VALUE\n");
+    fprintf(fd, "#CHR\tPOS\tID\tA1\tA2\tT\tU\tOR\tCHISQ\tP-VALUE\n");
 }
 
 void write_output_body(list_t* output_list, FILE *fd) {
@@ -286,7 +294,7 @@ void write_output_body(list_t* output_list, FILE *fd) {
     while (item = list_remove_item(output_list)) {
         tdt_result_t *result = item->data_p;
         
-        fprintf(fd, "%s\t%8ld\t%s\t%s\t%s\t%3d\t%3d\t%6f\t%6f\t%6f\n",
+        fprintf(fd, "%s\t%ld\t%s\t%s\t%s\t%d\t%d\t%6f\t%6f\t%6f\n",
                 result->chromosome, result->position, result->id, result->reference, result->alternate, 
                 result->t1, result->t2, result->odds_ratio, result->chi_square, result->p_value);
         

@@ -3,14 +3,14 @@ import hashlib, os, shutil, sys
 Import('env') # exported by parent SConstruct
 
 RPMNAME = "hpg-variant"
-RPMVERSION = "0.99.4"
+RPMVERSION = "1.0"
 RPMARCH = "x86_64"
 RPMBUILDREQUIRES = "gcc glibc-devel scons libcurl-devel gsl-devel libxml2-devel ncurses-devel zlib-devel".split(" ")
 RPMREQUIRES = "libcurl gsl libxml2 zlib".split(" ") # what are we dependent on?
-RPMSUMMARY = "HPG Variant summary"
+RPMSUMMARY = "HPG Variant is a suite for the study of genomic variations"
 RPMDESC = "HPG Variant retrieves the effect of genome mutations and allows to conduct analysis"
 RPMSECTION = "Application/Engineering"
-RPMSOURCE = "hpg-variant-0.99.4.tar.gz"
+RPMSOURCE = "hpg-variant-1.0.tar.gz"
 RPMURL = "http://bioinfo.cipf.es"
 
 RPMBUILDIR = 'rpmbuild'

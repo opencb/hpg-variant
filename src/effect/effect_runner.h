@@ -34,7 +34,10 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <time.h>
+#include <unistd.h>
 
 #include <omp.h>
 
@@ -48,6 +51,7 @@
 #include <commons/http_utils.h>
 #include <commons/log.h>
 #include <commons/result.h>
+#include <commons/jansson/jansson.h>
 #include <containers/array_list.h>
 #include <containers/list.h>
 #include <containers/cprops/hashtable.h>
@@ -88,11 +92,19 @@ int run_effect(char **urls, shared_options_data_t *global_options_data, effect_o
  * **********************************************/
 
 /**
- * @brief Parses the response from the effect web service.
+ * @brief Parses the response from the effect web service in plain text format.
  * 
- * Reads the contents of the response from the effect web service
+ * Reads the contents of the response from the effect web service in plain text format
  */
 static void parse_effect_response(int tid, char *output_directory, size_t output_directory_len, cp_hashtable *output_files, 
+                                  list_t *output_list, cp_hashtable *summary_count, cp_hashtable *gene_list);
+
+/**
+ * @brief Parses the response from the effect web service in JSON format.
+ * 
+ * Reads the contents of the response from the effect web service in JSON format
+ */
+static void parse_effect_response_json(int tid, char *output_directory, size_t output_directory_len, cp_hashtable *output_files, 
                                   list_t *output_list, cp_hashtable *summary_count, cp_hashtable *gene_list);
 
 static void parse_snp_phenotype_response(int tid, list_t *output_list);
@@ -102,7 +114,7 @@ static void parse_mutation_phenotype_response(int tid, list_t *output_list);
 /**
  * Writes a summary file containing the number of entries for each of the consequence types processed.
  */
-void write_summary_file(cp_hashtable *summary_count, FILE *summary_file);
+void write_summary_file(cp_hashtable *summary_count, char *output_directory);
 
 /**
  * Writes a file containing the list of genes with any variant taking place in them.
@@ -123,6 +135,10 @@ void write_result_file(shared_options_data_t *global_options_data, effect_option
  * Initialize the output files where the web service response will be written to.
  */
 static int initialize_output_files(char *output_directory, size_t output_directory_len, cp_hashtable **output_files);
+
+static void begin_writing_output_files(FILE **files, int num_files);
+
+static void end_writing_output_files(FILE **files, int num_files);
 
 /**
  * @param num_threads the number of threads that parse the response

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
+ * Copyright (c) 2012-2013 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
  * Copyright (c) 2012 Ignacio Medina (ICM-CIPF)
  *
  * This file is part of hpg-variant.
@@ -63,9 +63,8 @@
 #define VARIABLE_FIELD_NOT_FOUND                232
 
 // -- Annot tool errors
-#define BAM_DIRECTORY_NOT_SPECIFIED                 330
-#define EMPTY_LIST_OF_ANNOTATIONS                   331
-// -- Annot tool errors
+#define BAM_DIRECTORY_NOT_SPECIFIED             240
+#define EMPTY_LIST_OF_ANNOTATIONS               241
 
 #endif
 

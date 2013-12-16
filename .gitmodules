@@ -1,9 +1,4 @@
-[submodule "libs/math"]
-	path = libs/math
-	url = git://localhost/bioinfo-c/libs/math
-[submodule "libs/common-libs"]
-	path = libs/common-libs
-	url = git://localhost/bioinfo-c/libs/common-libs
-[submodule "libs/bioinfo-libs"]
-	path = libs/bioinfo-libs
-	url = git://localhost/bioinfo-c/libs/bioinfo-libs
+[submodule "lib"]
+	path = lib
+	url = git@github.com:opencb/hpg-libs.git
+
