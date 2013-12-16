@@ -26,18 +26,12 @@ else:
 
 env['objects'] = []
 
-# bioinfo-libs compilation
-#formats = [ 'family', 'features', 'gff', 'ped', 'vcf' ]
-#aligners = []
-#compiler = 'gcc'
-
 ##### Targets
 
 # Compile dependencies
 SConscript(['%s/SConscript' % bioinfo_path,
             '%s/SConscript' % commons_path,
             '%s/SConscript' % math_path
-#            ], exports = ['env', 'debug', 'formats', 'aligners', 'compiler'])
             ], exports = ['env', 'debug', 'compiler'])
 
 # Create binaries and copy them to 'bin' folder
