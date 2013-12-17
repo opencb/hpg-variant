@@ -74,7 +74,8 @@ int vcf_tool_annot(int argc, char *argv[], const char *configuration_file) {
     char **urls = malloc (num_urls * sizeof(char*));
     urls[0] = compose_cellbase_ws_request(shared_options_data->host_url, shared_options_data->version, shared_options_data->species, 
                                           "genomic/variant", "consequence_type");
-    urls[1] = compose_cellbase_ws_request(shared_options_data->host_url, shared_options_data->version, shared_options_data->species, 
+    // TODO Set dynamically when CellBase final and beta are fixed :(
+    urls[1] = compose_cellbase_ws_request("ws-beta.bioinfo.cipf.es", "v3", "hsapiens", 
                                           "genomic/position", "snp");
     
     LOG_DEBUG_F("URL #1 = '%s'\n", urls[0]);

@@ -22,8 +22,12 @@
 #include "annot.h"
 
 static void vcf_annot_parse_effect_response(int tid, vcf_record_t ** variants, int num_variants);
+static void vcf_annot_parse_effect_response_json(int tid, vcf_record_t **variants, int num_variants);
+
 static void vcf_annot_process_dbsnp(char *chr, long pos, char * id, array_list_t *array_effect);
 static void vcf_annot_parse_snp_response(int tid, vcf_record_t ** variants, int num_variants);
+static void vcf_annot_parse_snp_response_json(int tid, vcf_record_t **variants, int num_variants);
+
 static void print_samples(array_list_t* sample_list);
 int invoke_snp_ws(const char *url, vcf_record_t **records, int num_records);
 static size_t save_snp_response(char *contents, size_t size, size_t nmemb, void *userdata);
@@ -235,25 +239,25 @@ int run_annot(char **urls, shared_options_data_t *shared_options_data, annot_opt
                             
                             if(options_data->effect && (!reconnections || ret_ws_0)) {
                                 ret_ws_0 = invoke_effect_ws(urls[0], (vcf_record_t**) (input_records->items + chunk_starts[j]), chunk_sizes[j], NULL);
-                                vcf_annot_parse_effect_response(tid, (vcf_record_t**) (input_records->items + chunk_starts[j]), chunk_sizes[j] );
+                                if (ret_ws_0 == 0) { vcf_annot_parse_effect_response_json(tid, (vcf_record_t**) (input_records->items + chunk_starts[j]), chunk_sizes[j] ); }
 
                                 free(effect_line[tid]);
                                 effect_line[tid] = (char*) calloc (max_line_size[tid], sizeof(char));
                             }
                             
                             if(options_data->dbsnp && (!reconnections || ret_ws_1)) {
-                                ret_ws_0 = invoke_snp_ws(urls[1], (vcf_record_t**) (input_records->items + chunk_starts[j]), chunk_sizes[j]);
-                                vcf_annot_parse_snp_response(tid, (vcf_record_t**) (input_records->items + chunk_starts[j]), chunk_sizes[j] );
+                                ret_ws_1 = invoke_snp_ws(urls[1], (vcf_record_t**) (input_records->items + chunk_starts[j]), chunk_sizes[j]);
+                                if (ret_ws_1 == 0) { vcf_annot_parse_snp_response_json(tid, (vcf_record_t**) (input_records->items + chunk_starts[j]), chunk_sizes[j] ); }
 
                                 free(snp_line[tid]);
                                 snp_line[tid] = (char*) calloc (snp_max_line_size[tid], sizeof(char));
                             }
                         }
                         if(ret_ws_0 || ret_ws_1) {
-                            if (ret_ws_0) {
+                            if (ret_ws_0 > 0) {
                                 LOG_ERROR_F("Effect web service error: %s\n", get_last_http_error(ret_ws_0));
                             }
-                            if (ret_ws_1) {
+                            if (ret_ws_1 > 0) {
                                 LOG_ERROR_F("SNP web service error: %s\n", get_last_http_error(ret_ws_1));
                             }
                             reconnections++;
@@ -289,7 +293,6 @@ int run_annot(char **urls, shared_options_data_t *shared_options_data, annot_opt
 
                 output_item = list_item_new(i, 0, batch);
                 list_insert_item(output_item, output_list);
-
                 free(chunk_starts);
                 free(chunk_sizes);
                 i++;
@@ -471,6 +474,71 @@ static void vcf_annot_parse_effect_response(int tid, vcf_record_t **variants, in
     free(split_batch);
 }
 
+
+static void vcf_annot_parse_effect_response_json(int tid, vcf_record_t **variants, int num_variants) { 
+    json_error_t error;
+    json_t *root = json_loadb(effect_line[tid], strlen(effect_line[tid]), 0, &error);
+    
+    if (!root) {
+        LOG_WARN_F("[%d] Non-valid response from variant effect web service: '%s'\n", tid, error.text);
+        json_decref(root);
+        return;
+    }
+    if(!json_is_array(root)) {
+        LOG_WARN_F("[%d] Non-valid response from variant effect web service: Data is not a JSON array\n", tid);
+        json_decref(root);
+        return;
+    }
+    
+    for (int i = 0, curr_effect = 0; i < num_variants; i++) {
+        vcf_record_t *record = variants[i];
+        int max_length = 128, curr_length = 0;
+        char *effects = calloc(max_length, sizeof(char));
+        
+        for(; curr_effect < json_array_size(root); curr_effect++) {
+            json_t *data = json_array_get(root, curr_effect);
+            
+            char *chromosome = json_string_value(json_object_get(data, "chromosome"));
+            long position = json_number_value(json_object_get(data, "position"));
+            
+            if (!strncmp(record->chromosome, chromosome, record->chromosome_len) && record->position == position) {
+                free(chromosome);
+                break;
+            }
+            
+            char *consequence_type = json_string_value(json_object_get(data, "consequenceTypeObo"));
+            
+            if (!strstr(effects, consequence_type)) {
+                int new_length = curr_length + strlen(consequence_type) + 1;
+                if (new_length >= max_length) {
+                    char *aux_effects = realloc(effects, (new_length + 16) * sizeof(char));
+                    if (aux_effects) {
+                        effects = aux_effects;
+                        max_length = new_length + 16;
+                    } else {
+                        LOG_FATAL_F("Error while allocating memory for the effect of variant in position *.%s:%ld\n",
+                                    record->chromosome_len, record->chromosome, record->position);
+                    }
+                }
+                strcat(effects, consequence_type);
+                strcat(effects, ",");
+                curr_length = new_length;
+            }
+        }
+        
+        if (curr_length > 0) {
+            effects[curr_length - 1] = '\0';
+        }
+        char *new_info = set_field_value_in_info("EFF", effects, 0, record->info, record->info_len);
+        free(effects);
+        record->info = new_info;
+        record->info_len = strlen(new_info);
+    }
+    
+    json_decref(root);
+}
+
+
 static void print_samples(array_list_t* sample_list) {
     vcf_annot_sample_t *annot_sample;
     vcf_annot_chr_t *annot_chr;
@@ -493,9 +561,11 @@ int invoke_snp_ws(const char *url, vcf_record_t **records, int num_records) {
     int variants_len = 512, current_index = 0;
     char *variants = (char*) calloc (variants_len, sizeof(char));
 
+/*
     char URL_AUX_1[4*1028] = "localhost:8080/cellbase/rest/latest/hsa/genomic/position/";
     char URL_AUX_2[]="/snp";
     char *URL;
+*/
     
     int chr_len, new_len_range;
 
@@ -525,17 +595,21 @@ int invoke_snp_ws(const char *url, vcf_record_t **records, int num_records) {
         strncat(variants, ",", 1);
         current_index = strlen(variants); // TODO cambiar nombre
     }
+/*
     // PROVISIONAL
     URL = (char*) calloc(strlen(URL_AUX_1) + strlen(variants) + strlen(URL_AUX_2) +1, sizeof(char));
     strcpy(URL, URL_AUX_1);
     strcat(URL, variants);
     strcat(URL, URL_AUX_2);
+*/
 
     if (current_index > 0) {
-        char *params[2] = { "of", "geneId" };
+        char *params[2] = { "of", "position" };
         char *params_values[2] = { output_format, variants };
-//        ret_code = http_post(url, params, params_values, 2, save_snp_response, NULL);
+        ret_code = http_post(url, params, params_values, 2, save_snp_response, NULL);
+/*
         ret_code = http_get(URL, NULL, NULL, 0, save_snp_response, NULL);
+*/
     }
     
     free(variants);
@@ -559,7 +633,7 @@ static size_t save_snp_response(char *contents, size_t size, size_t nmemb, void 
     return size * nmemb;
 }
 
-static void vcf_annot_parse_snp_response(int tid, vcf_record_t ** variants, int num_variants) { 
+static void vcf_annot_parse_snp_response(int tid, vcf_record_t **variants, int num_variants) { 
     char *copy_buf;
     int num_lines;
     vcf_record_t * record;
@@ -599,4 +673,45 @@ static void vcf_annot_parse_snp_response(int tid, vcf_record_t ** variants, int 
         free(split_batch[i]);
     }
     free(split_batch);
+}
+
+static void vcf_annot_parse_snp_response_json(int tid, vcf_record_t **variants, int num_variants) { 
+    json_error_t error;
+    json_t *root = json_loadb(snp_line[tid], strlen(snp_line[tid]), 0, &error);
+    json_t *query_response = json_object_get(root, "response");
+    
+    if (!root) {
+        LOG_WARN_F("[%d] Non-valid response from SNP by position web service: '%s'\n", tid, error.text);
+        json_decref(root);
+        return;
+    }
+    if(!json_is_object(root)) {
+        LOG_WARN_F("[%d] Non-valid response from SNP by position web service: Data is not a JSON object\n", tid);
+        json_decref(root);
+        return;
+    }
+    
+    size_t response_index, result_index;
+    json_t *query_result, *result_value;
+    int curr_variant = 0;
+    
+    json_array_foreach(query_response, response_index, query_result) {
+        json_t *result = json_object_get(query_result, "result");
+        
+        json_array_foreach(result, result_index, result_value) {
+            char *chromosome = json_string_value(json_object_get(result_value, "chromosome"));
+            long position = json_number_value(json_object_get(result_value, "start"));
+            char *id = json_string_value(json_object_get(result_value, "id"));
+            
+            for(; curr_variant < num_variants; curr_variant++){
+                vcf_record_t *record = variants[curr_variant];
+                if (!strncmp(chromosome, record->chromosome, record->chromosome_len) && position == record->position) {
+                    set_vcf_record_id(strdup(chromosome), strlen(chromosome), record);
+                    break;
+                }
+            }
+        }
+    }
+    
+    json_decref(root);
 }
