@@ -43,7 +43,7 @@
 /**
  * Number of options applicable to the effect tool.
  */
-#define NUM_EFFECT_OPTIONS  31
+#define NUM_EFFECT_OPTIONS  32
 
 typedef struct effect_options {
     struct arg_lit *no_phenotypes; /**< Flag asking not to retrieve phenotypical information. */

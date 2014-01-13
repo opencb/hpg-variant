@@ -45,7 +45,7 @@
 /**
  * Number of options applicable to the assoc tool.
  */
-#define NUM_ASSOC_OPTIONS  31
+#define NUM_ASSOC_OPTIONS  32
 
 typedef struct assoc_options {
     struct arg_lit *chisq;

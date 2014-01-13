@@ -62,6 +62,7 @@ typedef struct shared_options {
     
     struct arg_int *coverage;           /**< Filter by coverage. */
     struct arg_dbl *maf;                /**< Filter by minimum allele frequency (MAF). */
+    struct arg_int *mendelian_errors;   /**< Filter by mendelian errors. */
     struct arg_dbl *missing;            /**< Filter by missing values. */
     struct arg_int *num_alleles;        /**< Filter by number of alleles. */
     struct arg_int *quality;            /**< Filter by quality. */
