@@ -52,12 +52,12 @@ char *get_config_path_from_args(int argc, char *argv[]) {
     }
 
     if (config_dirpath && stat(config_dirpath, &sb) == -1 && errno == ENOENT) {
-        LOG_WARN("The folder specified to store configuration files does not exist.");
+        LOG_WARN("The folder specified to store configuration files does not exist.\n");
         return NULL;
     }
 
     if (config_dirpath && !S_ISDIR(sb.st_mode)) {
-        LOG_WARN("The path specified to store configuration files is not a folder.");
+        LOG_WARN("The path specified to store configuration files is not a folder.\n");
         return NULL;
 
     }
@@ -238,7 +238,7 @@ int get_filtering_output_files(shared_options_data_t *shared_options, FILE** pas
     
     LOG_DEBUG_F("passed filename = %s\nfailed filename = %s\n", passed_filename, failed_filename);
     
-    return 0;
+    return passed_file && failed_file;
 }
 
 int write_filtering_output_files(array_list_t *passed_records, array_list_t *failed_records, FILE* passed_file, FILE* failed_file) {
@@ -268,14 +268,14 @@ int write_filtering_output_files(array_list_t *passed_records, array_list_t *fai
     return ret_code;
 }
 
-array_list_t *filter_records(filter_t** filters, int num_filters, individual_t **individuals, khash_t(ids) *sample_ids, 
+array_list_t *filter_records(filter_t** filters, int num_filters, individual_t **individuals, khash_t(ids) *sample_ids, int num_variables,
                              array_list_t *input_records, array_list_t **failed_records) {
     array_list_t *passed_records = NULL;
     if (filters == NULL || num_filters == 0) {
         passed_records = input_records;
     } else {
         *failed_records = array_list_new(input_records->size + 1, 1, COLLECTION_MODE_ASYNCHRONIZED);
-        passed_records = run_filter_chain(input_records, *failed_records, individuals, sample_ids, filters, num_filters);
+        passed_records = run_filter_chain(input_records, *failed_records, individuals, sample_ids, num_variables, filters, num_filters);
     }
     return passed_records;
 }
@@ -318,11 +318,17 @@ FILE *get_output_file(shared_options_data_t *shared_options_data, char *default_
  *      Miscellaneous    *
  * ***********************/
 
-void show_usage(char *tool, void **argtable, int num_arguments) {
+void show_usage(char *tool, void **argtable) {
     printf("Usage: %s", tool);
     arg_print_syntaxv(stdout, argtable, "\n");
     arg_print_glossary(stdout, argtable, " %-40s %s\n");
 }
+
+void show_version(char *tool) {
+    printf("HPG Variant %s %s\nCopyright (C) 2012-2013 Institute for Computational Medicine (CIPF).\n\
+This is free software; see the source for copying conditions.\n", tool, HPG_VARIANT_VERSION);
+}
+
 
 int *create_chunks(int length, int max_chunk_size, int *num_chunks, int **chunk_sizes) {
     *num_chunks = (int) ceil((float) length / max_chunk_size);

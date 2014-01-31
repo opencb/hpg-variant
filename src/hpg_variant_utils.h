@@ -35,6 +35,7 @@
 
 #include "shared_options.h"
 
+#define HPG_VARIANT_VERSION     "1.0"
 #define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
 
 /* ***********************
@@ -82,7 +83,7 @@ int get_filtering_output_files(shared_options_data_t *shared_options, FILE **pas
 
 int write_filtering_output_files(array_list_t *passed_records, array_list_t *failed_records, FILE* passed_file, FILE* failed_file);
 
-array_list_t *filter_records(filter_t** filters, int num_filters, individual_t **individuals, khash_t(ids) *sample_ids, 
+array_list_t *filter_records(filter_t** filters, int num_filters, individual_t **individuals, khash_t(ids) *sample_ids, int num_variables,
                              array_list_t *input_records, array_list_t **failed_records);
 
 void free_filtered_records(array_list_t *passed_records, array_list_t *failed_records, array_list_t *input_records);
@@ -99,7 +100,9 @@ FILE *get_output_file(shared_options_data_t *shared_options_data, char *default_
  *      Miscellaneous    *
  * ***********************/
 
-void show_usage(char *tool, void **argtable, int num_arguments);
+void show_usage(char *tool, void **argtable);
+
+void show_version(char *tool);
 
 /**
  * @brief Given a list of records, distributes them in chunks of similar size

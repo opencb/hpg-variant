@@ -38,7 +38,7 @@ int read_tdt_configuration(const char *filename, tdt_options_t *tdt_options, sha
     // Read number of threads that will make request to the web service
     ret_code = config_lookup_int(config, "gwas.tdt.num-threads", shared_options->num_threads->ival);
     if (ret_code == CONFIG_FALSE) {
-        LOG_WARN("Number of threads not found in config file, must be set via command-line");
+        LOG_WARN("Number of threads not found in config file, must be set via command-line\n");
     } else {
         LOG_DEBUG_F("num-threads = %ld\n", *(shared_options->num_threads->ival));
     }
@@ -46,7 +46,7 @@ int read_tdt_configuration(const char *filename, tdt_options_t *tdt_options, sha
     // Read maximum number of batches that can be stored at certain moment
     ret_code = config_lookup_int(config, "gwas.tdt.max-batches", shared_options->max_batches->ival);
     if (ret_code == CONFIG_FALSE) {
-        LOG_WARN("Maximum number of batches not found in configuration file, must be set via command-line");
+        LOG_WARN("Maximum number of batches not found in configuration file, must be set via command-line\n");
     } else {
         LOG_DEBUG_F("max-batches = %ld\n", *(shared_options->max_batches->ival));
     }
@@ -55,7 +55,7 @@ int read_tdt_configuration(const char *filename, tdt_options_t *tdt_options, sha
     ret_code = config_lookup_int(config, "gwas.tdt.batch-lines", shared_options->batch_lines->ival);
     ret_code |= config_lookup_int(config, "gwas.tdt.batch-bytes", shared_options->batch_bytes->ival);
     if (ret_code == CONFIG_FALSE) {
-        LOG_WARN("Neither batch lines nor bytes found in configuration file, must be set via command-line");
+        LOG_WARN("Neither batch lines nor bytes found in configuration file, must be set via command-line\n");
     }
     
     config_destroy(config);
@@ -65,7 +65,7 @@ int read_tdt_configuration(const char *filename, tdt_options_t *tdt_options, sha
 }
 
 void **parse_tdt_options(int argc, char *argv[], tdt_options_t *tdt_options, shared_options_t *shared_options) {
-    struct arg_end *end = arg_end(shared_options->num_options);
+    struct arg_end *end = arg_end(NUM_TDT_OPTIONS);
     void **argtable = merge_tdt_options(tdt_options, shared_options, end);
     
     int num_errors = arg_parse(argc, argv, argtable);
@@ -77,7 +77,7 @@ void **parse_tdt_options(int argc, char *argv[], tdt_options_t *tdt_options, sha
 }
 
 void **merge_tdt_options(tdt_options_t *tdt_options, shared_options_t *shared_options, struct arg_end *arg_end) {
-    void **tool_options = malloc (28 * sizeof(void*));
+    void **tool_options = malloc (NUM_TDT_OPTIONS * sizeof(void*));
     
     // Input/output files
     tool_options[0] = shared_options->vcf_filename;
@@ -93,30 +93,32 @@ void **merge_tdt_options(tdt_options_t *tdt_options, shared_options_t *shared_op
     tool_options[6] = shared_options->coverage;
     tool_options[7] = shared_options->quality;
     tool_options[8] = shared_options->maf;
-    tool_options[9] = shared_options->missing;
-    tool_options[10] = shared_options->gene;
-    tool_options[11] = shared_options->region;
-    tool_options[12] = shared_options->region_file;
-    tool_options[13] = shared_options->region_type;
-    tool_options[14] = shared_options->snp;
-    tool_options[15] = shared_options->indel;
-    tool_options[16] = shared_options->dominant;
-    tool_options[17] = shared_options->recessive;
+    tool_options[9] = shared_options->mendelian_errors;
+    tool_options[10] = shared_options->missing;
+    tool_options[11] = shared_options->gene;
+    tool_options[12] = shared_options->region;
+    tool_options[13] = shared_options->region_file;
+    tool_options[14] = shared_options->region_type;
+    tool_options[15] = shared_options->snp;
+    tool_options[16] = shared_options->variant_type;
+    tool_options[17] = shared_options->indel;
+    tool_options[18] = shared_options->dominant;
+    tool_options[19] = shared_options->recessive;
     
     // Configuration file
-    tool_options[18] = shared_options->config_file;
+    tool_options[20] = shared_options->log_level;
+    tool_options[21] = shared_options->config_file;
     
     // Advanced configuration
-    tool_options[19] = shared_options->host_url;
-    tool_options[20] = shared_options->version;
-    tool_options[21] = shared_options->max_batches;
-    tool_options[22] = shared_options->batch_lines;
-    tool_options[23] = shared_options->batch_bytes;
-    tool_options[24] = shared_options->num_threads;
-    tool_options[25] = shared_options->entries_per_thread;
-    tool_options[26] = shared_options->mmap_vcf_files;
+    tool_options[22] = shared_options->host_url;
+    tool_options[23] = shared_options->version;
+    tool_options[24] = shared_options->max_batches;
+    tool_options[25] = shared_options->batch_lines;
+    tool_options[26] = shared_options->batch_bytes;
+    tool_options[27] = shared_options->num_threads;
+    tool_options[28] = shared_options->mmap_vcf_files;
     
-    tool_options[27] = arg_end;
+    tool_options[29] = arg_end;
     
     return tool_options;
 }

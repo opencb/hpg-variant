@@ -29,15 +29,14 @@ uint8_t *epistasis_dataset_load_mpi(char *filename, int *num_affected, int *num_
     MPI_File_seek(*fd, 0, MPI_SEEK_SET);
     MPI_Barrier(MPI_COMM_WORLD);
 
-    *genotypes_offset = sizeof(size_t) + sizeof(uint32_t) + sizeof(uint32_t);
+    *genotypes_offset = sizeof(uint32_t) + sizeof(uint32_t) + sizeof(uint32_t);
     
     MPI_File_read(*fd, map, len, MPI_BYTE, &status);
     
-    size_t *map_size_t = (size_t*) map;
-    uint32_t *map_uint32 = (uint32_t*) (map + sizeof(size_t));
-    *num_variants = map_size_t[0];
-    *num_affected = map_uint32[0];
-    *num_unaffected = map_uint32[1];
+    uint32_t *map_uint32 = (uint32_t*) map;
+    *num_variants = map_uint32[0];
+    *num_affected = map_uint32[1];
+    *num_unaffected = map_uint32[2];
     LOG_DEBUG_F("num variants = %zu, aff = %d, unaff = %d\n", *num_variants, *num_affected, *num_unaffected);
     
     *file_len = len;
@@ -56,12 +55,12 @@ uint8_t *epistasis_dataset_load(int *num_affected, int *num_unaffected, size_t *
     FILE *fp = fopen(filename, "rb");
     if (!fp) { return NULL; }
     
-    fread(num_variants, 1, sizeof(size_t), fp);
+    fread(num_variants, 1, sizeof(uint32_t), fp);
     fread(num_affected, 1, sizeof(uint32_t), fp);
     fread(num_unaffected, 1, sizeof(uint32_t), fp);
     fclose(fp);
     
-    *genotypes_offset = sizeof(size_t) + sizeof(uint32_t) + sizeof(uint32_t);
+    *genotypes_offset = sizeof(uint32_t) + sizeof(uint32_t) + sizeof(uint32_t);
     
     return mmap_file(file_len, filename);
 }

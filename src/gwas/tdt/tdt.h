@@ -47,12 +47,10 @@
 /**
  * Number of options applicable to the TDT tool.
  */
-#define NUM_TDT_OPTIONS  0
+#define NUM_TDT_OPTIONS  30
 
 
-typedef struct tdt_options {
-    int num_options;
-} tdt_options_t;
+typedef struct tdt_options { } tdt_options_t;
 
 static tdt_options_t *new_tdt_cli_options(void);
 
@@ -105,6 +103,7 @@ int verify_tdt_options(tdt_options_t *tdt_options, shared_options_t *shared_opti
 
 typedef struct {
     char *chromosome;
+    char *id;
     char *reference;
     char *alternate;
     
@@ -119,8 +118,8 @@ typedef struct {
 
 int tdt_test(vcf_record_t **variants, int num_variants, family_t **families, int num_families, khash_t(ids) *sample_ids, list_t *output_list);
 
-tdt_result_t* tdt_result_new(char *chromosome, int chromosome_len, unsigned long int position, char *reference, int reference_len,
-                             char *alternate, int alternate_len, double t1, double t2, double chi_square);
+tdt_result_t* tdt_result_new(char *chromosome, int chromosome_len, unsigned long int position, char *id, int id_len, 
+                             char *reference, int reference_len, char *alternate, int alternate_len, double t1, double t2, double chi_square);
 
 void tdt_result_free(tdt_result_t *result);
 

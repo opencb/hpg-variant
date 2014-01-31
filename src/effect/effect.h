@@ -31,6 +31,7 @@
 
 #include <stdlib.h>
 
+#include <bioformats/db/cellbase_connector.h>
 #include <bioformats/vcf/vcf_filters.h>
 #include <commons/log.h>
 #include <commons/argtable/argtable2.h>
@@ -42,11 +43,9 @@
 /**
  * Number of options applicable to the effect tool.
  */
-#define NUM_EFFECT_OPTIONS  2
+#define NUM_EFFECT_OPTIONS  32
 
 typedef struct effect_options {
-    int num_options;
-    
     struct arg_lit *no_phenotypes; /**< Flag asking not to retrieve phenotypical information. */
     struct arg_str *excludes; /**< Comma-separated consequence types to exclude from the query. */
 } effect_options_t;

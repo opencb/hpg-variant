@@ -33,9 +33,9 @@ int association(int argc, char *argv[], const char *configuration_file) {
     // If no arguments or only --help are provided, show usage
     void **argtable;
     if (argc == 1 || !strcmp(argv[1], "--help")) {
-        argtable = merge_assoc_options(assoc_options, shared_options, arg_end(assoc_options->num_options + shared_options->num_options));
-        show_usage("hpg-var-gwas assoc", argtable, assoc_options->num_options + shared_options->num_options);
-        arg_freetable(argtable, 30);
+        argtable = merge_assoc_options(assoc_options, shared_options, arg_end(NUM_ASSOC_OPTIONS));
+        show_usage("hpg-var-gwas assoc", argtable);
+        arg_freetable(argtable, NUM_ASSOC_OPTIONS);
         return 0;
     }
 
@@ -67,12 +67,14 @@ int association(int argc, char *argv[], const char *configuration_file) {
     shared_options_data_t *shared_options_data = new_shared_options_data(shared_options);
     assoc_options_data_t *options_data = new_assoc_options_data(assoc_options);
 
+    init_log_custom(shared_options_data->log_level, 1, "hpg-var-gwas.log", "w");
+    
     // Step 5: Perform the GWAS test
     run_association_test(shared_options_data, options_data);
     
     free_assoc_options_data(options_data);
     free_shared_options_data(shared_options_data);
-    arg_freetable(argtable, 30);
+    arg_freetable(argtable, NUM_ASSOC_OPTIONS);
     free(configuration_file);
 
     return 0;
@@ -80,7 +82,6 @@ int association(int argc, char *argv[], const char *configuration_file) {
 
 assoc_options_t *new_assoc_cli_options(void) {
     assoc_options_t *options = (assoc_options_t*) malloc (sizeof(assoc_options_t));
-    options->num_options = NUM_ASSOC_OPTIONS;
     options->chisq = arg_lit0(NULL, "chisq", "Chi-square association test");
     options->fisher = arg_lit0(NULL, "fisher", "Fisher's exact test");
     return options;

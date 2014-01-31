@@ -33,9 +33,9 @@ int vcf_tool_filter(int argc, char *argv[], const char *configuration_file) {
     // If no arguments or only --help are provided, show usage
     void **argtable;
     if (argc == 1 || !strcmp(argv[1], "-h") || !strcmp(argv[1], "--help")) {
-        argtable = merge_filter_options(filter_options, shared_options, arg_end(filter_options->num_options + shared_options->num_options));
-        show_usage("hpg-var-vcf filter", argtable, filter_options->num_options + shared_options->num_options);
-        arg_freetable(argtable, 28);
+        argtable = merge_filter_options(filter_options, shared_options, arg_end(NUM_FILTER_OPTIONS));
+        show_usage("hpg-var-vcf filter", argtable);
+        arg_freetable(argtable, NUM_FILTER_OPTIONS);
         return 0;
     }
 
@@ -68,19 +68,20 @@ int vcf_tool_filter(int argc, char *argv[], const char *configuration_file) {
     shared_options_data_t *shared_options_data = new_shared_options_data(shared_options);
     filter_options_data_t *options_data = new_filter_options_data(filter_options, shared_options);
 
+    init_log_custom(shared_options_data->log_level, 1, "hpg-var-vcf.log", "w");
+
     // Step 5: Perform the requested task
     int result = run_filter(shared_options_data, options_data);
 
     free_filter_options_data(options_data);
     free_shared_options_data(shared_options_data);
-    arg_freetable(argtable, 28);
+    arg_freetable(argtable, NUM_FILTER_OPTIONS);
 
     return 0;
 }
 
 filter_options_t *new_filter_cli_options(void) {
     filter_options_t *options = (filter_options_t*) malloc (sizeof(filter_options_t));
-    options->num_options = NUM_FILTER_OPTIONS;
     options->save_rejected = arg_lit0(NULL, "save-rejected", "Write a file containing the rejected records");
     return options;
 }
@@ -95,7 +96,7 @@ filter_options_data_t *new_filter_options_data(filter_options_t *options, shared
 void free_filter_options_data(filter_options_data_t *options_data) {
     if (options_data->chain) {
         free_filter_chain(options_data->chain);
-    };
+    }
     free(options_data);
 }
 

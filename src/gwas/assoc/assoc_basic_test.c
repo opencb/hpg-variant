@@ -41,13 +41,14 @@ double assoc_basic_test(int a, int b, int c, int d) {
 }
 
 
-assoc_basic_result_t* assoc_basic_result_new(char *chromosome, int chromosome_len, unsigned long int position, 
+assoc_basic_result_t* assoc_basic_result_new(char *chromosome, int chromosome_len, unsigned long int position, char *id, int id_len,
                                              char *reference, int reference_len, char *alternate, int alternate_len, 
                                              int affected1, int affected2, int unaffected1, int unaffected2, double chi_square) {
     assoc_basic_result_t *result = (assoc_basic_result_t*) malloc (sizeof(assoc_basic_result_t));
     
     result->chromosome = strndup(chromosome, chromosome_len);
     result->position = position;
+    result->id = strndup(id, id_len);
     result->reference = strndup(reference, reference_len);
     result->alternate = strndup(alternate, alternate_len);
     result->affected1 = affected1;

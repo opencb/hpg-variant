@@ -99,7 +99,9 @@ int run_split(shared_options_data_t *shared_options_data, split_options_data_t *
                 // Divide the list of passed records in ranges of size defined in config file
                 int num_chunks;
                 int *chunk_sizes;
-                int *chunk_starts = create_chunks(input_records->size, shared_options_data->entries_per_thread, &num_chunks, &chunk_sizes);
+                int *chunk_starts = create_chunks(input_records->size, 
+                                                  ceil((float) shared_options_data->batch_lines / shared_options_data->num_threads), 
+                                                  &num_chunks, &chunk_sizes);
                 
                 // OpenMP: Launch a thread for each range
                 #pragma omp parallel for
@@ -160,6 +162,10 @@ int run_split(shared_options_data_t *shared_options_data, split_options_data_t *
                 if (!split_fd) {
                     // If this is the first line to be written to the file, create the file descriptor...
                     split_fd = fopen(split_filename, "w");
+                    if (!split_fd) {
+                        LOG_FATAL_F("Output file could not be created. Output folder = '%s' -- Output file = '%s'\n",
+                                    shared_options_data->output_directory, split_filename);
+                    }
                     cp_hashtable_put(output_files, strdup(result->split_name), split_fd);
                     // ...and insert the header
                     write_vcf_header(file, split_fd);

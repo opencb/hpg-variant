@@ -35,11 +35,11 @@
 #define SPECIES_NOT_SPECIFIED                   32
 
 // Effect tool errors
-#define EFFECT_REGIONS_NOT_SPECIFIED            103
+#define EFFECT_REGIONS_NOT_SPECIFIED            50
 
 // GWAS tool errors
-#define GWAS_TASK_NOT_SPECIFIED                 200
-#define GWAS_MANY_TASKS_SPECIFIED               201
+#define GWAS_TASK_NOT_SPECIFIED                 150
+#define GWAS_MANY_TASKS_SPECIFIED               151
 
 #define EPISTASIS_DATASET_NOT_SPECIFIED         210
 #define EPISTASIS_ORDER_NOT_SPECIFIED           211
@@ -51,18 +51,23 @@
 
 // VCF tools errors
 // -- Filter tool errors
-#define EMPTY_LIST_OF_FILTERS                   300
+#define EMPTY_LIST_OF_FILTERS                   200
 
 // -- Merge tool errors
-#define MISSING_MODE_NOT_SPECIFIED              400
-#define INFO_FIELDS_NOT_SPECIFIED               401
-#define DISCORDANT_CHROMOSOME                   410
-#define DISCORDANT_POSITION                     411
-#define DISCORDANT_REFERENCE                    412
+#define MISSING_MODE_NOT_SPECIFIED              210
+#define INFO_FIELDS_NOT_SPECIFIED               211
+#define DISCORDANT_CHROMOSOME                   212
+#define DISCORDANT_POSITION                     213
+#define DISCORDANT_REFERENCE                    214
 
 // -- Split tool errors
-#define CRITERION_NOT_SPECIFIED                 500
-#define INTERVALS_NOT_SPECIFIED                 501
+#define CRITERION_NOT_SPECIFIED                 220
+#define INTERVALS_NOT_SPECIFIED                 221
+
 // -- Stats tool errors
+#define DUPLICATED_VARIABLE                     230
+#define MORE_THAN_TWO_PHENOTYPES                231
+#define VARIABLE_FIELD_NOT_FOUND                232
 
 #endif
+

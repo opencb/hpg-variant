@@ -94,6 +94,9 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
             }
             FILE *passed_file = NULL, *failed_file = NULL;
             get_filtering_output_files(shared_options_data, &passed_file, &failed_file);
+            if (shared_options_data->chain && !(passed_file && failed_file)) {
+                LOG_FATAL_F("Files for filtered results could not be created. Output folder = '%s'\n", shared_options_data->output_directory);
+            }
     
             double start = omp_get_wtime();
 
@@ -184,7 +187,8 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
                 
                 // Launch association test over records that passed the filters
                 array_list_t *failed_records = NULL;
-                array_list_t *passed_records = filter_records(filters, num_filters, individuals, sample_ids, batch->records, &failed_records);
+                int num_variables = ped_file? get_num_variables(ped_file): 0;
+                array_list_t *passed_records = filter_records(filters, num_filters, individuals, sample_ids, num_variables, batch->records, &failed_records);
                 if (passed_records->size > 0) {
                     assoc_test(options_data->task, (vcf_record_t**) passed_records->items, passed_records->size, 
                                 individuals, get_num_vcf_samples(vcf_file), factorial_logarithms, output_list);
@@ -234,7 +238,12 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
             // Get the file descriptor
             char *path;
             FILE *fd = get_assoc_output_file(options_data->task, shared_options_data, &path);
-            LOG_INFO_F("Association test output filename = %s\n", path);
+            if (fd) {
+                LOG_INFO_F("Association test output filename = '%s'\n", path);
+            } else {
+                LOG_FATAL_F("Association test output file could not be created. Output folder = '%s' -- Output file = '%s'\n",
+                            shared_options_data->output_directory, path);
+            }
             
             // Write data: header + one line per variant
             write_output_header(options_data->task, fd);
@@ -261,7 +270,7 @@ int run_association_test(shared_options_data_t* shared_options_data, assoc_optio
    
     free(output_list);
     vcf_close(vcf_file);
-    ped_close(ped_file, 1);
+    ped_close(ped_file, 1,1);
         
     return ret_code;
 }
@@ -276,16 +285,16 @@ static FILE *get_assoc_output_file(enum ASSOC_task task, shared_options_data_t *
     } else if (task == FISHER) {
         return get_output_file(global_options_data, "hpg-variant.fisher", path);
     } else {
-        LOG_FATAL("Requested association test is not recognized as a valid test.");
+        LOG_FATAL("Requested association test is not recognized as a valid test.\n");
     }
 }
 
 void write_output_header(enum ASSOC_task task, FILE *fd) {
     assert(fd);
     if (task == CHI_SQUARE) {
-        fprintf(fd, "#CHR         POS       A1      C_A1    C_U1         F_A1            F_U1       A2      C_A2    C_U2         F_A2            F_U2              OR           CHISQ         P-VALUE\n");
+        fprintf(fd, "#CHR\tPOS\tID\tA1\tC_A1\tC_U1\tF_A1\tF_U1\tA2\tC_A2\tC_U2\tF_A2\tF_U2\tOR\tCHISQ\tP-VALUE\n");
     } else if (task == FISHER) {
-        fprintf(fd, "#CHR         POS       A1      C_A1    C_U1         F_A1            F_U1       A2      C_A2    C_U2         F_A2            F_U2              OR         P-VALUE\n");
+        fprintf(fd, "#CHR\tPOS\tID\tA1\tC_A1\tC_U1\tF_A1\tF_U1\tA2\tC_A2\tC_U2\tF_A2\tF_U2\tOR\tP-VALUE\n");
     }
 }
 
@@ -302,8 +311,8 @@ void write_output_body(enum ASSOC_task task, list_t* output_list, FILE *fd) {
             double freq_a2 = (result->affected1 + result->affected2 > 0) ? (double) result->affected2 / (result->affected1 + result->affected2) : 0.0f;
             double freq_u2 = (result->unaffected1 + result->unaffected2 > 0) ? (double) result->unaffected2 / (result->unaffected1 + result->unaffected2) : 0.0f;
             
-            fprintf(fd, "%s\t%8ld\t%s\t%3d\t%3d\t%6f\t%6f\t%s\t%3d\t%3d\t%6f\t%6f\t%6f\t%6f\t%6f\n",
-                    result->chromosome, result->position, 
+            fprintf(fd, "%s\t%ld\t%s\t%s\t%d\t%d\t%6f\t%6f\t%s\t%d\t%d\t%6f\t%6f\t%6f\t%6f\t%6f\n",
+                    result->chromosome, result->position, result->id,
                     result->reference, result->affected1, result->unaffected1, freq_a1, freq_u1,
                     result->alternate, result->affected2, result->unaffected2, freq_a2, freq_u2,
                     result->odds_ratio, result->chi_square, result->p_value);
@@ -320,8 +329,8 @@ void write_output_body(enum ASSOC_task task, list_t* output_list, FILE *fd) {
             double freq_a2 = (result->affected1 + result->affected2 > 0) ? (double) result->affected2 / (result->affected1 + result->affected2) : 0.0f;
             double freq_u2 = (result->unaffected1 + result->unaffected2 > 0) ? (double) result->unaffected2 / (result->unaffected1 + result->unaffected2) : 0.0f;
             
-            fprintf(fd, "%s\t%8ld\t%s\t%3d\t%3d\t%6f\t%6f\t%s\t%3d\t%3d\t%6f\t%6f\t%6f\t%6f\n",
-                    result->chromosome, result->position, 
+            fprintf(fd, "%s\t%ld\t%s\t%s\t%d\t%d\t%6f\t%6f\t%s\t%d\t%d\t%6f\t%6f\t%6f\t%6f\n",
+                    result->chromosome, result->position, result->id, 
                     result->reference, result->affected1, result->unaffected1, freq_a1, freq_u1,
                     result->alternate, result->affected2, result->unaffected2, freq_a2, freq_u2,
                     result->odds_ratio, result->p_value);
@@ -331,80 +340,3 @@ void write_output_body(enum ASSOC_task task, list_t* output_list, FILE *fd) {
         }
     }
 }
-
-
-/* *******************
- *      Sorting      *
- * *******************/
-
-/*
-individual_t **sort_individuals(vcf_file_t *vcf, ped_file_t *ped) {
-    family_t *family;
-    family_t **families = (family_t**) cp_hashtable_get_values(ped->families);
-    int num_families = get_num_families(ped);
-
-    individual_t **individuals = calloc (get_num_vcf_samples(vcf), sizeof(individual_t*));
-    khash_t(ids) *positions = associate_samples_and_positions(vcf);
-    int pos = 0;
-
-    for (int f = 0; f < num_families; f++) {
-        family = families[f];
-        individual_t *father = family->father;
-        individual_t *mother = family->mother;
-
-        if (father != NULL) {
-            pos = 0;
-            LOG_DEBUG_F("father ID = %s\n", father->id);
-            khiter_t iter = kh_get(ids, positions, father->id);
-            if (iter != kh_end(positions)) {
-                pos = kh_value(positions, iter);
-                individuals[pos] = father;
-            }
-        }
-
-        if (mother != NULL) {
-            pos = 0;
-            LOG_DEBUG_F("mother ID = %s\n", mother->id);
-            khiter_t iter = kh_get(ids, positions, mother->id);
-            if (iter != kh_end(positions)) {
-                pos = kh_value(positions, iter);
-                individuals[pos] = mother;
-            }
-        }
-
-        linked_list_iterator_t *iterator = linked_list_iterator_new(family->children);
-        individual_t *child = NULL;
-        while (child = linked_list_iterator_curr(iterator)) {
-            pos = 0;
-            LOG_DEBUG_F("child ID = %s\n", child->id);
-            khiter_t iter = kh_get(ids, positions, child->id);
-            if (iter != kh_end(positions)) {
-                pos = kh_value(positions, iter);
-                individuals[pos] = child;
-            }
-            linked_list_iterator_next(iterator);
-        }
-        linked_list_iterator_free(iterator);
-        
-        iterator = linked_list_iterator_new(family->unknown);
-        individual_t *unknown = NULL;
-        while (unknown = linked_list_iterator_curr(iterator)) {
-            pos = 0;
-            LOG_DEBUG_F("unknown ID = %s\n", unknown->id);
-            khiter_t iter = kh_get(ids, positions, unknown->id);
-            if (iter != kh_end(positions)) {
-                pos = kh_value(positions, iter);
-                individuals[pos] = unknown;
-            }
-            linked_list_iterator_next(iterator);
-        }
-        linked_list_iterator_free(iterator);
-        
-        assert(father || mother || linked_list_size(family->unknown) > 0);
-    }
-
-    kh_destroy(ids, positions);
-
-    return individuals;
-}
-*/

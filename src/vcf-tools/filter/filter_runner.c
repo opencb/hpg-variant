@@ -61,6 +61,9 @@ int run_filter(shared_options_data_t *shared_options_data, filter_options_data_t
     list_init("next_token", shared_options_data->num_threads, shared_options_data->max_batches, next_token_list);
     
     get_filtering_output_files(shared_options_data, &passed_file, &failed_file);
+    if (shared_options_data->chain && !(passed_file && failed_file)) {
+        LOG_FATAL_F("Files for filtered results could not be created. Output folder = '%s'\n", shared_options_data->output_directory);
+    }
     if (!options_data->save_rejected) {
         fclose(failed_file);
     }
@@ -103,7 +106,7 @@ int run_filter(shared_options_data_t *shared_options_data, filter_options_data_t
             }
             
             volatile int initialization_done = 0;
-            individual_t **individuals;
+            individual_t **individuals = NULL;
             khash_t(ids) *sample_ids = NULL;
             
             start = omp_get_wtime();
@@ -160,11 +163,12 @@ int run_filter(shared_options_data_t *shared_options_data, filter_options_data_t
                 #pragma omp atomic
                 i++;
                 
+                int num_variables = ped_file? get_num_variables(ped_file): 0;
                 if (filters == NULL) {
                     passed_records = input_records;
                 } else {
                     failed_records = array_list_new(input_records->size + 1, 1, COLLECTION_MODE_ASYNCHRONIZED);
-                    passed_records = run_filter_chain(input_records, failed_records, individuals, sample_ids, filters, num_filters);
+                    passed_records = run_filter_chain(input_records, failed_records, individuals, sample_ids,num_variables, filters, num_filters);
                 }
                 
                 filter_temp_output_t *output = filter_temp_output_new(batch, passed_records, failed_records);
@@ -241,7 +245,7 @@ int run_filter(shared_options_data_t *shared_options_data, filter_options_data_t
     }
 
     vcf_close(vcf_file);
-    if (ped_file) { ped_close(ped_file, 1); }
+    if (ped_file) { ped_close(ped_file, 1, 1); }
     
     return 0;
 }

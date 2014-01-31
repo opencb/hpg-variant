@@ -38,7 +38,7 @@ int read_epistasis_configuration(const char *filename, epistasis_options_t *epis
     // Read number of threads that will run epistasis checks in parallel
     ret_code = config_lookup_int(config, "gwas.epistasis.num-threads", shared_options->num_threads->ival);
     if (ret_code == CONFIG_FALSE) {
-        LOG_WARN("Number of threads not found in config file, must be set via command-line");
+        LOG_WARN("Number of threads not found in config file, must be set via command-line\n");
     } else {
         LOG_DEBUG_F("num-threads = %ld\n", *(shared_options->num_threads->ival));
     }
@@ -46,7 +46,7 @@ int read_epistasis_configuration(const char *filename, epistasis_options_t *epis
     // Read maximum number of SNPs per block
     ret_code = config_lookup_int(config, "gwas.epistasis.stride", epistasis_options->stride->ival);
     if (ret_code == CONFIG_FALSE) {
-        LOG_WARN("Number of SNPs per block partition not found in configuration file, must be set via command-line");
+        LOG_WARN("Number of SNPs per block partition not found in configuration file, must be set via command-line\n");
     } else {
         LOG_DEBUG_F("stride = %ld\n", *(epistasis_options->stride->ival));
     }
@@ -54,7 +54,7 @@ int read_epistasis_configuration(const char *filename, epistasis_options_t *epis
     // Read number of folds per k-fold cross-validation
     ret_code = config_lookup_int(config, "gwas.epistasis.num-folds", epistasis_options->num_folds->ival);
     if (ret_code == CONFIG_FALSE) {
-        LOG_WARN("Number of folds per k-fold cross-validation not found in configuration file, must be set via command-line");
+        LOG_WARN("Number of folds per k-fold cross-validation not found in configuration file, must be set via command-line\n");
     } else {
         LOG_DEBUG_F("num-folds = %ld\n", *(epistasis_options->num_folds->ival));
     }
@@ -62,7 +62,7 @@ int read_epistasis_configuration(const char *filename, epistasis_options_t *epis
     // Read number of times cross-validation will be run
     ret_code = config_lookup_int(config, "gwas.epistasis.num-cv-repetitions", epistasis_options->num_cv_repetitions->ival);
     if (ret_code == CONFIG_FALSE) {
-        LOG_WARN("Number of cross-validation repetitions not found in configuration file, must be set via command-line");
+        LOG_WARN("Number of cross-validation repetitions not found in configuration file, must be set via command-line\n");
     } else {
         LOG_DEBUG_F("num-cv-repetitions = %ld\n", *(epistasis_options->num_cv_repetitions->ival));
     }
@@ -70,7 +70,7 @@ int read_epistasis_configuration(const char *filename, epistasis_options_t *epis
     // Read maximum number of best models recorded
     ret_code = config_lookup_int(config, "gwas.epistasis.max-ranking-size", epistasis_options->max_ranking_size->ival);
     if (ret_code == CONFIG_FALSE) {
-        LOG_WARN("Maximum number of best models recorded not found in configuration file, must be set via command-line");
+        LOG_WARN("Maximum number of best models recorded not found in configuration file, must be set via command-line\n");
     } else {
         LOG_DEBUG_F("max-ranking-size = %ld\n", *(epistasis_options->max_ranking_size->ival));
     }
@@ -78,7 +78,7 @@ int read_epistasis_configuration(const char *filename, epistasis_options_t *epis
     // Read whether the training of testing partitions will be used for evaluating best models
     ret_code = config_lookup_string(config, "gwas.epistasis.evaluation-subset", &tmp_string);
     if (ret_code == CONFIG_FALSE) {
-        LOG_WARN("Evaluation subset not found in configuration file, must be set via command-line");
+        LOG_WARN("Evaluation subset not found in configuration file, must be set via command-line\n");
     } else {
         *(epistasis_options->evaluation_subset->sval) = strdup(tmp_string);
         LOG_DEBUG_F("evaluation subset = %s (%zu chars)\n",
@@ -88,7 +88,7 @@ int read_epistasis_configuration(const char *filename, epistasis_options_t *epis
     // Read whether the CV-c or CV-a will be used to rank risky combinations
     ret_code = config_lookup_string(config, "gwas.epistasis.evaluation-mode", &tmp_string);
     if (ret_code == CONFIG_FALSE) {
-        LOG_WARN("Evaluation mode not found in configuration file, must be set via command-line");
+        LOG_WARN("Evaluation mode not found in configuration file, must be set via command-line\n");
     } else {
         *(epistasis_options->evaluation_mode->sval) = strdup(tmp_string);
         LOG_DEBUG_F("evaluation mode = %s (%zu chars)\n",

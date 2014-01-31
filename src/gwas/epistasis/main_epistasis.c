@@ -34,7 +34,7 @@ int epistasis(int argc, char *argv[], const char *configuration_file) {
     void **argtable;
     if (argc == 1 || !strcmp(argv[1], "-h") || !strcmp(argv[1], "--help")) {
         argtable = merge_epistasis_options(epistasis_options, shared_options, arg_end(epistasis_options->num_options + shared_options->num_options));
-        show_usage("hpg-var-gwas epi", argtable, epistasis_options->num_options + shared_options->num_options);
+        show_usage("hpg-var-gwas epi", argtable);
         arg_freetable(argtable, 12);
         return 0;
     }

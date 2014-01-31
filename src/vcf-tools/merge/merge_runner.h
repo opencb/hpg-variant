@@ -43,15 +43,29 @@
 #include "hpg_variant_utils.h"
 #include "merge.h"
 
-#define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
 
 KHASH_MAP_INIT_STR(pos, array_list_t*);
 
 int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *options_data);
 
+
+
+static int are_all_files_available(int num_files, char *input_files[num_files], int started[num_files]);
+
 static int insert_position_read(char key[64], vcf_record_file_link *link, kh_pos_t* positions_read); 
 
-static void calculate_merge_interval(vcf_record_t* current_record, char** max_chromosome_merged, long unsigned int* max_position_merged,
+/**
+ * @brief Given a record, checks that its position is before the last one marked for merging, and updates it in that case
+ * @details 
+ * 
+ * @param current_record
+ * @param max_chromosome_merged
+ * @param max_position_merged
+ * @param chromosome_order
+ * @param num_chromosomes
+ * @return Whether the max chromosome and position merged were updated
+ */
+static int calculate_merge_interval(vcf_record_t* current_record, char** max_chromosome_merged, long unsigned int* max_position_merged,
                                      char **chromosome_order, int num_chromosomes);
 
 static int merge_interval(kh_pos_t* positions_read, char *max_chromosome_merged, unsigned long max_position_merged,
@@ -61,6 +75,9 @@ static int merge_interval(kh_pos_t* positions_read, char *max_chromosome_merged,
 static int merge_remaining_interval(kh_pos_t* positions_read, vcf_file_t **files,
                                      shared_options_data_t *shared_options_data, merge_options_data_t *options_data, list_t *output_list);
 
+static void check_files_ahead_last_merged(int num_files, int file_ahead_last_merged[num_files], 
+                                          char *last_chromosome_read[num_files], long last_position_read[num_files], 
+                                          char *max_chromosome_merged, long max_position_merged, int num_eof_found);
 
 
 

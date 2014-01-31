@@ -3,10 +3,10 @@
 
 int** get_k_folds(unsigned int num_samples_affected, unsigned int num_samples_unaffected, unsigned int k, unsigned int **sizes) {
     if (num_samples_affected < k) {
-        LOG_WARN("There are less affected samples than folds and they won't be properly distributed");
+        LOG_WARN("There are less affected samples than folds and they won't be properly distributed\n");
     }
     if (num_samples_unaffected < k) {
-        LOG_WARN("There are less unaffected samples than folds and they won't be properly distributed");
+        LOG_WARN("There are less unaffected samples than folds and they won't be properly distributed\n");
     }
     
     // Fill an array of samples identifiers

@@ -137,7 +137,7 @@ array_list_t *merge_vcf_sample_names(vcf_file_t **files, int num_files) {
             khiter_t iter = kh_get(names, samples, sample_name);
             if (iter != kh_end(samples)) {
                 kh_destroy(names, samples);
-                LOG_ERROR_F("Sample %s appears more than once.\n", sample_name);
+                LOG_FATAL_F("Sample %s appears more than once.\n", sample_name);
                 return NULL;
             } else {
                 int ret;
@@ -152,6 +152,7 @@ array_list_t *merge_vcf_sample_names(vcf_file_t **files, int num_files) {
     for (int i = 0; i < num_files; i++) {
         array_list_insert_all(files[i]->samples_names->items, files[i]->samples_names->size, sample_names);
     }
+    
     return sample_names;
 }
 
@@ -367,7 +368,7 @@ char* merge_alternate_field(vcf_record_file_link** position_in_files, int positi
             cur_alternate = split_pos_alternates[j];
             cur_alternate_len = strlen(cur_alternate);
 
-            if (!cp_hashtable_contains(alleles_table, cur_alternate)) {
+            if (strcmp(cur_alternate, ".") && !cp_hashtable_contains(alleles_table, cur_alternate)) {
                 if (!alternates) {
                     alternates = strdup(cur_alternate);
                     max_len = cur_alternate_len;
@@ -400,6 +401,12 @@ char* merge_alternate_field(vcf_record_file_link** position_in_files, int positi
         free(split_pos_alternates);
     }
 
+    // If the reference allele was the same in all files, and only "." was found as alternate,
+    // then the 'alternates' variable would still be null
+    if (!alternates) {
+        alternates = strdup(".");
+    }
+    
     return alternates;
 }
 
@@ -453,13 +460,21 @@ char* merge_filter_field(vcf_record_file_link** position_in_files, int position_
         } else if (!strncmp(input->filter, ".", input->filter_len)) {
             miss_found = 1;
         } else {
-            char *filter = strndup(input->filter, input->filter_len);
-            if (!array_list_contains(filter, failed_filters)) {
-                array_list_insert(filter, failed_filters);
-                filter_text_len += strlen(filter) + 1; // concat field + ","
-            } else {
-                free(filter);
+            char *filter_field = strndup(input->filter, input->filter_len);
+            int num_filters;
+            char **all_filters = split(filter_field, ";", &num_filters);
+            
+            for (int j = 0; j < num_filters; j++) {
+                char *filter = all_filters[j];
+                if (!array_list_contains(filter, failed_filters)) {
+                    array_list_insert(filter, failed_filters);
+                    filter_text_len += strlen(filter) + 1; // concat field + ","
+                } else {
+                    free(filter);
+                }
             }
+            free(all_filters);
+            free(filter_field);
         }
     }
     
@@ -487,123 +502,67 @@ char* merge_filter_field(vcf_record_file_link** position_in_files, int position_
 
 char *merge_info_field(vcf_record_file_link **position_in_files, int position_occurrences, char **info_fields, int num_fields,
                        vcf_record_t *output_record, cp_hashtable *alleles, char *empty_sample) {
-	if (num_fields == 0) {
-		return strndup(".", 1);
-	}
+    if (num_fields == 0) {
+        return strndup(".", 1);
+    }
 
     size_t len = 0;
     size_t max_len = 128;
     char *result = calloc (max_len, sizeof(char));
-    char *aux;
     
     list_t *stats_list = malloc (sizeof(list_t));
     list_init("stats", 1, INT_MAX, stats_list);
     file_stats_t *file_stats = file_stats_new();
     variant_stats_t *variant_stats = NULL;
     int dp = 0, mq0 = 0;
-    int dp_checked = 0, mq_checked = 0, stats_checked = 0;
     double mq = 0;
+    int calculate_stats = 0, calculate_dp = 0, calculate_mq = 0;
+    
+    // Precalculate auxiliary values
+    for (int i = 0; i < num_fields; i++) {
+        if (!strncmp(info_fields[i], "AC", 2) ||   // allele count in genotypes, for each ALT allele
+            !strncmp(info_fields[i], "AF", 2)) {
+            calculate_stats = 1;
+            continue;
+        }
+        if (!strncmp(info_fields[i], "DP", 2) ||    // combined depth across samples
+            !strncmp(info_fields[i], "QD", 2)) {
+            calculate_dp = 1;
+            continue;
+        }
+        if (!strncmp(info_fields[i], "MQ0", 3) ||    // Number of MAPQ == 0 reads covering this record
+            !strncmp(info_fields[i], "MQ", 2)) {
+            calculate_mq = 1;
+            continue;
+        }
+    }
+    precalculate_aux_values_for_annotation(calculate_stats, calculate_dp, calculate_mq, output_record,
+                                           &variant_stats, file_stats, stats_list, &dp, &mq0, &mq);
     
     for (int i = 0; i < num_fields; i++) {
-//         printf("\n----------\nfield = %s\nresult = %s\n--------\n", info_fields[i], result);
         if (len >= max_len - 32) {
-            aux = realloc(result, max_len + 128);
+            char *aux = realloc(result, max_len + 128);
             if (aux) {
                 result = aux;
                 max_len += 128;
             } else {
-                LOG_FATAL("Can't allocate memory for file merging");
+                LOG_FATAL("Can't allocate memory for file merging\n");
             }
-        }
-        
-        // Conditional precalculations
-        // TODO will it be faster to calculate these once and for all or keep asking strncmp?
-        
-        if (!stats_checked && 
-            (!strncmp(info_fields[i], "AC", 2) ||   // allele count in genotypes, for each ALT allele
-             !strncmp(info_fields[i], "AF", 2))) {  // allele frequency for each ALT allele
-            get_variants_stats(&output_record, 1, NULL, NULL, stats_list, file_stats);
-            list_item_t *item = list_remove_item(stats_list);
-            variant_stats = item->data_p;
-            list_item_free(item);
-            stats_checked = 1;
-        }
-        
-        if (!dp_checked && 
-            (!strncmp(info_fields[i], "DP", 2) ||    // combined depth across samples
-             !strncmp(info_fields[i], "QD", 2))) {   // quality by depth (GATK)
-            int dp_pos = -1;
-            for (int j = 0; j < output_record->samples->size; j++) {
-                aux = strndup(output_record->format, output_record->format_len);
-                dp_pos = get_field_position_in_format("DP", aux);
-                free(aux);
-                if (dp_pos >= 0) {
-                    aux = strdup((char*) array_list_get(j, output_record->samples));
-                    dp += atoi(get_field_value_in_sample(aux, dp_pos));
-                    free(aux);
-                }
-            }
-            dp_checked = 1;
-        }
-        
-        if (!mq_checked &&
-            (!strncmp(info_fields[i], "MQ0", 3) ||    // Number of MAPQ == 0 reads covering this record
-             !strncmp(info_fields[i], "MQ", 2))) {    // RMS mapping quality
-            int mq_pos;
-            int cur_gq;
-            for (int j = 0; j < output_record->samples->size; j++) {
-                aux = strndup(output_record->format, output_record->format_len);
-                mq_pos = get_field_position_in_format("GQ", aux);
-                free(aux);
-                if (mq_pos < 0) {
-                    continue;
-                }
-                
-                aux = strdup((char*) array_list_get(j, output_record->samples));
-                cur_gq = atoi(get_field_value_in_sample(aux, mq_pos));
-                free(aux);
-//                 printf("sample = %s\tmq_pos = %d\tvalue = %d\n", array_list_get(j, record->samples), mq_pos,
-//                        atoi(get_field_value_in_sample(strdup((char*) array_list_get(j, record->samples)), mq_pos)));
-                if (cur_gq == 0) {
-                    mq0++;
-                } else {
-                    mq += cur_gq * cur_gq;
-                }
-            }
-            mq = sqrt(mq / output_record->samples->size);
-            mq_checked = 1;
         }
         
         // Composition of the INFO field
         
+        char *field = NULL;
+        size_t field_len = 0;
+        
         if (!strncmp(info_fields[i], "AC", 2)) {   // allele count in genotypes, for each ALT allele
-            strncat(result, "AC=", 3);
-            len += 3;
-            for (int j = 1; j < variant_stats->num_alleles; j++) {
-                if (j < variant_stats->num_alleles - 1) {
-                    sprintf(result+len, "%d,", variant_stats->alleles_count[j]);
-                } else {
-                    sprintf(result+len, "%d;", variant_stats->alleles_count[j]);
-                }
-                len = strlen(result);
-            }
+            field = get_annotation_allele_count(variant_stats, &field_len);
             
         } else if (!strncmp(info_fields[i], "AF", 2)) {   // allele frequency for each ALT allele
-            // For each ALT, AF = alt_freq / (1 - ref_freq)
-            strncat(result, "AF=", 3);
-            len += 3;
-            for (int j = 1; j < variant_stats->num_alleles; j++) {
-                if (j < variant_stats->num_alleles - 1) {
-                    sprintf(result+len, "%.3f,", variant_stats->alleles_freq[j] / (1 - variant_stats->alleles_freq[0]));
-                } else {
-                    sprintf(result+len, "%.3f;", variant_stats->alleles_freq[j] / (1 - variant_stats->alleles_freq[0]));
-                }
-                len = strlen(result);
-            }
+            field = get_annotation_allele_freq(variant_stats, &field_len);
             
         } else if (!strncmp(info_fields[i], "AN", 2)) {    // total number of alleles in called genotypes
-            sprintf(result+len, "AN=%ld;", cp_hashtable_count(alleles));
-            len = strlen(result);
+            field = get_annotation_allele_number(variant_stats, &field_len);
             
         } else if (!strncmp(info_fields[i], "DB", 2)) {    // dbSNP membership
             for (int j = 0; j < position_occurrences; j++) {
@@ -615,8 +574,7 @@ char *merge_info_field(vcf_record_file_link **position_in_files, int position_oc
             }
             
         } else if (!strncmp(info_fields[i], "DP", 2)) {    // combined depth across samples
-            sprintf(result+len, "DP=%d;", dp);
-            len = strlen(result);
+            field = get_annotation_read_depth(dp, &field_len);
             
         } else if (!strncmp(info_fields[i], "H2", 2)) {    // membership in hapmap2
             for (int j = 0; j < position_occurrences; j++) {
@@ -637,34 +595,16 @@ char *merge_info_field(vcf_record_file_link **position_in_files, int position_oc
             }
             
         } else if (!strncmp(info_fields[i], "MQ0", 3)) {   // Number of MAPQ == 0 reads covering this record
-            sprintf(result+len, "MQ0=%d;", mq0);
-            len = strlen(result);
+            field = get_annotation_mapping_quality_zero(mq0, &field_len);
             
         } else if (!strncmp(info_fields[i], "MQ", 2)) {    // RMS mapping quality
-            sprintf(result+len, "MQ=%.3f;", mq);
-            len = strlen(result);
+            field = get_annotation_mapping_quality(mq, &field_len);
             
         } else if (!strncmp(info_fields[i], "NS", 2)) {    // Number of samples with data
-            int ns = 0;
-            for (int j = 0; j < output_record->samples->size; j++) {
-                if (strcmp(array_list_get(j, output_record->samples), empty_sample)) {
-                    ns++;
-                }
-            }
-            sprintf(result+len, "NS=%d;", ns);
-            len = strlen(result);
+            field = get_annotation_non_missing_samples(output_record, empty_sample, &field_len);
             
         } else if (!strncmp(info_fields[i], "QD", 2)) {    // quality by depth (GATK)
-            if (output_record->quality < 0) {
-                strncat(result, "QD=.;", 1);
-                len += 5;
-            } else if (output_record->quality > 0) {
-                sprintf(result+len, "QD=%.3f;", output_record->quality / dp);
-                len = strlen(result);
-            } else {
-                strncat(result, "QD=0.000;", 1);
-                len += 5;
-            }
+            field = get_annotation_quality_by_depth(output_record, dp, &field_len);
             
         } else if (!strncmp(info_fields[i], "SOMATIC", 7)) {   // the record is a somatic mutation, for cancer genomics
             for (int j = 0; j < position_occurrences; j++) {
@@ -677,12 +617,19 @@ char *merge_info_field(vcf_record_file_link **position_in_files, int position_oc
             
         } else if (!strncmp(info_fields[i], "VALIDATED", 9)) { // validated by follow-up experiment
             for (int j = 0; j < position_occurrences; j++) {
-                if (strstr(position_in_files[j]->record->info, "SOMATIC")) {
+                if (strstr(position_in_files[j]->record->info, "VALIDATED")) {
                     strncat(result, "VALIDATED;", 10);
                     len += 10;
                     break;
                 }
             }
+        }
+        
+        if (field) {
+            strncat(result, field, field_len);
+            strncat(result, ";", 1);
+            len += field_len + 1;
+            free(field);
         }
     }
     
@@ -801,7 +748,8 @@ array_list_t* merge_samples(vcf_record_file_link** position_in_files, int positi
                             int allele1, allele2;
                             int allele_ret = get_alleles(dupsplit, 0, &allele1, &allele2);
                             free(dupsplit);
-                            if (allele_ret == 3) {
+                            // TODO Haploid chromosomes such as X?
+                            if (allele_ret == ALL_ALLELES_MISSING) {
                                 strncat(sample, "./.", 3);
                                 len += 3;
                             } else {

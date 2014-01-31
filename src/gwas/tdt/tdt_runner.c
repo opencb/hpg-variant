@@ -83,8 +83,8 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
             
             volatile int initialization_done = 0;
             // Pedigree information
-            family_t **families = (family_t**) cp_hashtable_get_values(ped_file->families);
-            int num_families = get_num_families(ped_file);
+            int num_families;
+            family_t **families = ped_flatten_families(ped_file, &num_families);
             individual_t **individuals = NULL;
             khash_t(ids) *sample_ids = NULL;
             
@@ -96,6 +96,9 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
             }
             FILE *passed_file = NULL, *failed_file = NULL;
             get_filtering_output_files(shared_options_data, &passed_file, &failed_file);
+            if (shared_options_data->chain && !(passed_file && failed_file)) {
+                LOG_FATAL_F("Files for filtered results could not be created. Output folder = '%s'\n", shared_options_data->output_directory);
+            }
     
             double start = omp_get_wtime();
             
@@ -174,9 +177,12 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
                 array_list_t *failed_records = NULL;
                 assert(batch);
                 assert(batch->records);
-                array_list_t *passed_records = filter_records(filters, num_filters, individuals, sample_ids, batch->records, &failed_records);
+                int num_variables = ped_file? get_num_variables(ped_file): 0;
+                array_list_t *passed_records = filter_records(filters, num_filters, individuals, sample_ids, 
+                                                              num_variables, batch->records, &failed_records);
                 if (passed_records->size > 0) {
-                    ret_code = tdt_test((vcf_record_t**) passed_records->items, passed_records->size, families, num_families, sample_ids, output_list);
+                    ret_code = tdt_test((vcf_record_t**) passed_records->items, passed_records->size, 
+                                        families, num_families, sample_ids, output_list);
                     if (ret_code) {
                         LOG_FATAL_F("[%d] Error in execution #%d of TDT\n", omp_get_thread_num(), i);
                     }
@@ -210,6 +216,10 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
             
             if (sample_ids) { kh_destroy(ids, sample_ids); }
             if (individuals) { free(individuals); }
+            
+            for (int f = 0; f < num_families; f++) {
+                free(families[f]);
+            }
             free(families);
             
             // Decrease list writers count
@@ -226,7 +236,12 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
             // Get the file descriptor
             char *path;
             FILE *fd = get_output_file(shared_options_data, "hpg-variant.tdt", &path);
-            LOG_INFO_F("TDT output filename = %s\n", path);
+            if (fd) {
+                LOG_INFO_F("TDT output filename = '%s'\n", path);
+            } else {
+                LOG_FATAL_F("TDT output file could not be created. Output folder = '%s' -- Output file = '%s'\n",
+                            shared_options_data->output_directory, path);
+            }
             
             double start = omp_get_wtime();
             
@@ -258,7 +273,7 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
     
     free(output_list);
     vcf_close(vcf_file);
-    ped_close(ped_file, 1);
+    ped_close(ped_file, 1, 1);
     
     return ret_code;
 }
@@ -270,7 +285,7 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
 
 void write_output_header(FILE *fd) {
     assert(fd);
-    fprintf(fd, "#CHR         POS       A1      A2         T       U           OR           CHISQ         P-VALUE\n");
+    fprintf(fd, "#CHR\tPOS\tID\tA1\tA2\tT\tU\tOR\tCHISQ\tP-VALUE\n");
 }
 
 void write_output_body(list_t* output_list, FILE *fd) {
@@ -279,8 +294,8 @@ void write_output_body(list_t* output_list, FILE *fd) {
     while (item = list_remove_item(output_list)) {
         tdt_result_t *result = item->data_p;
         
-        fprintf(fd, "%s\t%8ld\t%s\t%s\t%3d\t%3d\t%6f\t%6f\t%6f\n",
-                result->chromosome, result->position, result->reference, result->alternate, 
+        fprintf(fd, "%s\t%ld\t%s\t%s\t%s\t%d\t%d\t%6f\t%6f\t%6f\n",
+                result->chromosome, result->position, result->id, result->reference, result->alternate, 
                 result->t1, result->t2, result->odds_ratio, result->chi_square, result->p_value);
         
         tdt_result_free(result);

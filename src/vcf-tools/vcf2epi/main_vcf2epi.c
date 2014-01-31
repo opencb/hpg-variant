@@ -34,7 +34,7 @@ int vcf_tool_vcf2epi(int argc, char *argv[], const char *configuration_file) {
     void **argtable;
     if (argc == 1 || !strcmp(argv[1], "-h") || !strcmp(argv[1], "--help")) {
         argtable = merge_vcf2epi_options(vcf2epi_options, shared_options, arg_end(vcf2epi_options->num_options + shared_options->num_options));
-        show_usage("hpg-vcf-var vcf2epi", argtable, vcf2epi_options->num_options + shared_options->num_options);
+        show_usage("hpg-vcf-var vcf2epi", argtable);
         arg_freetable(argtable, vcf2epi_options->num_options + shared_options->num_options);
         return 0;
     }

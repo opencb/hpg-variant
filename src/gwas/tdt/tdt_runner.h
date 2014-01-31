@@ -44,11 +44,9 @@
 #include <containers/khash.h>
 #include <containers/cprops/hashtable.h>
 
-#include "shared_options.h"
 #include "hpg_variant_utils.h"
+#include "shared_options.h"
 #include "tdt.h"
-
-#define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
 
 
 int run_tdt_test(shared_options_data_t *global_options_data);

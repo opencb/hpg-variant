@@ -124,7 +124,8 @@ int create_dataset_from_vcf(shared_options_data_t* shared_options_data) {
 
                 // Write records that passed to a separate file, and query the WS with them as args
                 array_list_t *failed_records = NULL;
-                array_list_t *passed_records = filter_records(filters, num_filters, individuals, sample_ids, batch->records, &failed_records);
+                int num_variables = ped_file? get_num_variables(ped_file): 0;
+                array_list_t *passed_records = filter_records(filters, num_filters, individuals, sample_ids, num_variables, batch->records, &failed_records);
                 if (passed_records->size > 0) {
                     num_variants += passed_records->size;
                     uint8_t *genotypes = epistasis_dataset_process_records((vcf_record_t**) passed_records->items, passed_records->size, 
@@ -189,7 +190,7 @@ int create_dataset_from_vcf(shared_options_data_t* shared_options_data) {
                 // First make room for the number of variants, then write the number of samples and phenotypes
                 if (!header_written) {
                     num_samples = get_num_vcf_samples(vcf_file);
-                    if (!fwrite(&num_variants, sizeof(size_t), 1, fp) ||
+                    if (!fwrite(&num_variants, sizeof(uint32_t), 1, fp) ||
                         !fwrite(&num_affected, sizeof(uint32_t), 1, fp) ||
                         !fwrite(&num_unaffected, sizeof(uint32_t), 1, fp)) {
                         LOG_ERROR("The header of the dataset could not be written!");
@@ -208,7 +209,7 @@ int create_dataset_from_vcf(shared_options_data_t* shared_options_data) {
             
             // Finally, write the real number of variants
             fseek(fp, 0, SEEK_SET);
-            if (!fwrite(&num_variants, sizeof(size_t), 1, fp)) {
+            if (!fwrite(&num_variants, sizeof(uint32_t), 1, fp)) {
                 LOG_ERROR("The number of variants in the dataset could not be written!");
             }
             

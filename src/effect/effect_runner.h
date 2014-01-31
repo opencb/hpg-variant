@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
+ * Copyright (c) 2012-2013 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
  * Copyright (c) 2012 Ignacio Medina (ICM-CIPF)
  *
  * This file is part of hpg-variant.
@@ -34,11 +34,15 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <time.h>
+#include <unistd.h>
 
-#include <curl/curl.h>
 #include <omp.h>
 
+#include <bioformats/db/cellbase_connector.h>
+#include <bioformats/features/variant/variant_effect.h>
 #include <bioformats/vcf/vcf_file_structure.h>
 #include <bioformats/vcf/vcf_file.h>
 #include <bioformats/vcf/vcf_filters.h>
@@ -47,7 +51,7 @@
 #include <commons/http_utils.h>
 #include <commons/log.h>
 #include <commons/result.h>
-#include <commons/string_utils.h>
+#include <commons/jansson/jansson.h>
 #include <containers/array_list.h>
 #include <containers/list.h>
 #include <containers/cprops/hashtable.h>
@@ -56,10 +60,14 @@
 #include "error.h"
 #include "hpg_variant_utils.h"
 
-#define CONSEQUENCE_TYPE_WS_NUM_PARAMS  3
-#define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
+#define MAX_VARIANTS_PER_QUERY  1000
 
 enum phenotype_source { SNP_PHENOTYPE = -1, MUTATION_PHENOTYPE = -2};
+
+// Line buffers and their maximum size (one per thread)
+extern char **effect_line, **snp_line, **mutation_line;
+extern int *max_line_size, *snp_max_line_size, *mutation_max_line_size;
+
 
 /**
  * @brief Performs the whole process of invocation of the effect web service and parsing of its output.
@@ -79,61 +87,33 @@ int run_effect(char **urls, shared_options_data_t *global_options_data, effect_o
 
 
 /* **********************************************
- *              Web service request             *
- * **********************************************/
-
-/**
- * @brief Given a list of arguments, compounds a URL to invoke a web service.
- * @param options_data options that define some request arguments
- * @return URL composed from the given arguments, or NULL if any of the mandatory arguments is NULL
- * 
- * Given a list of arguments, compounds a URL to invoke a web service.
- */
-char *compose_effect_ws_request(const char *category, const char *method, shared_options_data_t *options_data);
-
-/**
- * @brief Invokes the effect web service for a list of regions.
- * 
- * @param url URL to invoke the web service through
- * @param records VCF records whose variant effect will be predicted
- * @param num_regions number of regions
- * @param excludes consequence types to exclude from the response
- * @return Whether the request could be successfully serviced
- * 
- * Given a list of genome positions, invokes the web service that returns a list of effect or consequences 
- * of the mutations in them. A callback function in order to parse the response.
- */
-int invoke_effect_ws(const char *url, vcf_record_t **records, int num_records, char *excludes);
-
-int invoke_snp_phenotype_ws(const char *url, vcf_record_t **records, int num_records);
-
-int invoke_mutation_phenotype_ws(const char *url, vcf_record_t **records, int num_records);
-
-
-/* **********************************************
  *              Response management             *
  * **********************************************/
 
 /**
- * @brief Parses the response from the effect web service.
- * @param contents buffer with the response text
- * @param size size of an element in the buffer
- * @param nmemb number of elements in the buffer
- * @param userdata[out] where to write the response to (non-used)
- * @return The number of bytes processed
+ * @brief Parses the response from the effect web service in plain text format.
  * 
- * Reads the contents of the response from the effect web service
+ * Reads the contents of the response from the effect web service in plain text format
  */
-static size_t write_effect_ws_results(char *contents, size_t size, size_t nmemb, void *userdata);
+static void parse_effect_response(int tid, char *output_directory, size_t output_directory_len, cp_hashtable *output_files, 
+                                  list_t *output_list, cp_hashtable *summary_count, cp_hashtable *gene_list);
 
-static size_t write_snp_phenotype_ws_results(char *contents, size_t size, size_t nmemb, void *userdata);
+/**
+ * @brief Parses the response from the effect web service in JSON format.
+ * 
+ * Reads the contents of the response from the effect web service in JSON format
+ */
+static void parse_effect_response_json(int tid, char *output_directory, size_t output_directory_len, cp_hashtable *output_files, 
+                                  list_t *output_list, cp_hashtable *summary_count, cp_hashtable *gene_list);
 
-static size_t write_mutation_phenotype_ws_results(char *contents, size_t size, size_t nmemb, void *userdata);
+static void parse_snp_phenotype_response(int tid, list_t *output_list);
+
+static void parse_mutation_phenotype_response(int tid, list_t *output_list);
 
 /**
  * Writes a summary file containing the number of entries for each of the consequence types processed.
  */
-void write_summary_file(cp_hashtable *summary_count, FILE *summary_file);
+void write_summary_file(cp_hashtable *summary_count, char *output_directory);
 
 /**
  * Writes a file containing the list of genes with any variant taking place in them.
@@ -147,21 +127,31 @@ void write_genes_with_variants_file(cp_hashtable *gene_list, char *output_direct
 void write_result_file(shared_options_data_t *global_options_data, effect_options_data_t *options_data, cp_hashtable *summary_count, char *output_directory);
 
 /**
+ * @param output_directory directory Where the files will be stored
+ * @param output_directory_len length of the path to the output directory
+ * @return Whether the output files descriptor where correctly initialized
+ * 
+ * Initialize the output files where the web service response will be written to.
+ */
+static int initialize_output_files(char *output_directory, size_t output_directory_len, cp_hashtable **output_files);
+
+static void begin_writing_output_files(FILE **files, int num_files);
+
+static void end_writing_output_files(FILE **files, int num_files);
+
+/**
  * @param num_threads the number of threads that parse the response
  * @param output_directory the directory where the output files will be written
- * @return Whether all the structures were successfully initialized
  * 
  * Initialize the structures for storing the web service response and writing it to the output files.
  */
-int initialize_ws_output(shared_options_data_t *global_options_data, effect_options_data_t *options_data);
+static void initialize_output_data_structures(shared_options_data_t *shared_options, list_t **output_list, cp_hashtable **summary_count, cp_hashtable **gene_list);
 
 /**
- * @param num_threads the number of threads that parsed the response
- * @return Whether all the structures were successfully freed
  * 
  * Free the structures for storing the web service response.
  */
-int free_ws_output(int num_threads);
+void free_output_data_structures(cp_hashtable *output_files, cp_hashtable *summary_count, cp_hashtable *gene_list);
 
 /**
  * @param key the unique identifier in a pair (id, file descriptor)
@@ -169,7 +159,6 @@ int free_ws_output(int num_threads);
  * Frees the unique identifier for storing a file descriptor in a map.
  */
 static void free_file_key1(int *key);
-// static void free_file_key1(char *key);
 
 /**
  * @param fd the file descriptor in a pair (id, file descriptor)

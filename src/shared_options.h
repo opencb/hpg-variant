@@ -59,10 +59,10 @@ typedef struct shared_options {
     struct arg_int *batch_lines;        /**< Maximum size of a batch (in lines). */
     struct arg_int *batch_bytes;        /**< Maximum size of a batch (in bytes). */
     struct arg_int *num_threads;        /**< Number of threads when a task runs in parallel. */
-    struct arg_int *entries_per_thread; /**< Number of entries in a batch each thread processes. */
     
     struct arg_int *coverage;           /**< Filter by coverage. */
     struct arg_dbl *maf;                /**< Filter by minimum allele frequency (MAF). */
+    struct arg_int *mendelian_errors;   /**< Filter by mendelian errors. */
     struct arg_dbl *missing;            /**< Filter by missing values. */
     struct arg_int *num_alleles;        /**< Filter by number of alleles. */
     struct arg_int *quality;            /**< Filter by quality. */
@@ -71,12 +71,13 @@ typedef struct shared_options {
     struct arg_file *region_file;       /**< Filter by region (using a GFF file) */
     struct arg_str *region_type;        /**< Filter by region and type (used along with the 'region_file' arg) */
     struct arg_str *snp;                /**< Filter by SNP */
+    struct arg_str *variant_type;       /**< Filter by variant type */
     struct arg_str *indel;              /**< Filter by indel */
     struct arg_dbl *dominant;           /**< Filter by samples following a dominant inheritance model */
     struct arg_dbl *recessive;          /**< Filter by samples following a recessive inheritance model */
     
+    struct arg_str *log_level;          /**< Level to register in the log file */
     struct arg_file *config_file;       /**< Path to the configuration file */
-    
     struct arg_lit *mmap_vcf_files;     /**< Whether to map VCF files to virtual memory or use the I/O API. */
     
     int num_options;
@@ -106,7 +107,9 @@ typedef struct shared_options_data {
     int num_threads;                    /**< Number of threads when a task runs in parallel. */
     int entries_per_thread;             /**< Number of entries in a batch each thread processes. */
     
-    filter_chain *chain; /**< Chain of filters to apply to the VCF records, if that is the case. */
+    filter_chain *chain;                /**< Chain of filters to apply to the VCF records, if that is the case. */
+    
+    int log_level;                      /**< Level to register in the log file */
 } shared_options_data_t;
 
 

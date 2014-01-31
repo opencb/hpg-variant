@@ -63,15 +63,15 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
     compare_risky_heap_func heap_max_func = NULL;
     compare_risky_heap_func heap_min_func = NULL;
     if (options_data->eval_mode == CV_A) {
-        LOG_INFO("Using CV-a as ranking criteria");
+        LOG_INFO("Using CV-a as ranking criteria\n");
         heap_max_func = compare_risky_heap_accuracy_max;
         heap_min_func = compare_risky_heap_accuracy_min;
     } else if (options_data->eval_mode == CV_C) {
-        LOG_INFO("Using CV-c as ranking criteria");
+        LOG_INFO("Using CV-c as ranking criteria\n");
         heap_max_func = compare_risky_heap_count_max;
         heap_min_func = compare_risky_heap_count_min;
     } else {
-        LOG_FATAL("Rank criteria not specified! Must be 'count' or 'accu'");
+        LOG_FATAL("Rank criteria not specified! Must be 'count' or 'accu'\n");
     }
     
     /**************************** End of variables precalculus  ****************************/
@@ -301,8 +301,7 @@ int run_epistasis(shared_options_data_t* shared_options_data, epistasis_options_
             }
             size_t end_block_msg_len = strlen(end_block_msg);
             end_block_msg[end_block_msg_len - 1] = ')';
-            // TODO Add when merged with 'next' branch because new logging system does not add newline at the end
-            //end_block_msg[end_block_msg_len] = '\n';
+            end_block_msg[end_block_msg_len] = '\n';
             
             LOG_INFO(end_block_msg);
         }

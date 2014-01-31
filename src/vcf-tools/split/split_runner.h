@@ -36,8 +36,6 @@
 #include "hpg_variant_utils.h"
 #include "split.h"
 
-#define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
-
 int run_split(shared_options_data_t *shared_options_data, split_options_data_t *options_data);
 
 static int initialize_output(cp_hashtable **output_files);
