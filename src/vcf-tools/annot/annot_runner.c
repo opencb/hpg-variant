@@ -187,20 +187,13 @@ int run_annot(char **urls, shared_options_data_t *shared_options_data, annot_opt
                 int *chunk_sizes = NULL;
                 int *chunk_starts = create_chunks(input_records->size, shared_options_data->entries_per_thread, &num_chunks, &chunk_sizes);
                 
-/*
-                vcf_annot_sample_t *annot_sample;
-*/
-
-
+                
                 int reconnections = 0;
                 int max_reconnections = 3; // TODO allow to configure?
                 int ret_ws_0 = 0;
                 int ret_ws_1 = 0;
 
                 if(options_data->missing > 0) {
-/*
-                    chunk_starts = create_chunks(input_records->size, shared_options_data->entries_per_thread, &num_chunks, &chunk_sizes);
-*/
 #pragma omp parallel for num_threads(shared_options_data->num_threads) 
                     for (int j = 0; j < num_chunks; j++) {
                         vcf_annot_process_chunk((vcf_record_t**)(input_records->items + chunk_starts[j]), chunk_sizes[j], sample_list, vcf_file);
@@ -217,20 +210,10 @@ int run_annot(char **urls, shared_options_data_t *shared_options_data, annot_opt
                         vcf_annot_sample_t *annot_sample = (vcf_annot_sample_t*) array_list_get(j, sample_list);
                         vcf_annot_check_bams(annot_sample, sample_bams);
                     }
-/*
-                    free(chunk_starts);
-                    free(chunk_sizes);
-*/
                 }
                
 
-                if(options_data->dbsnp > 0 || options_data->effect >0){
-
-/*
-                    shared_options_data->entries_per_thread = 100;
-                    chunk_starts = create_chunks(input_records->size, shared_options_data->entries_per_thread, &num_chunks, &chunk_sizes);
-*/
-                    
+                if(options_data->dbsnp > 0 || options_data->effect >0) {
                     do {
 #pragma omp parallel for num_threads(shared_options_data->num_threads)
                         for (int j = 0; j < num_chunks; j++) {
@@ -265,24 +248,7 @@ int run_annot(char **urls, shared_options_data_t *shared_options_data, annot_opt
                             sleep(4);
                         } 
                     } while (reconnections < max_reconnections && (ret_ws_0 || ret_ws_1));
-                    
-/*
-                    free(chunk_starts);
-                    free(chunk_sizes);
-*/
                 }
-
-/*
-                if (shared_options_data->batch_lines > 0) {
-                    shared_options_data->entries_per_thread = MIN(MAX_VARIANTS_PER_QUERY, 
-                            ceil((float) shared_options_data->batch_lines / shared_options_data->num_threads));
-                } else {
-                    shared_options_data->entries_per_thread = MAX_VARIANTS_PER_QUERY;
-                }
-
-                
-                chunk_starts = create_chunks(input_records->size, shared_options_data->entries_per_thread, &num_chunks, &chunk_sizes);
-*/
 
 #pragma omp parallel for num_threads(shared_options_data->num_threads) 
                 for (int j = 0; j < num_chunks; j++) {
@@ -545,7 +511,6 @@ static void vcf_annot_parse_effect_response_json(int tid, vcf_record_t **variant
 static void print_samples(array_list_t* sample_list) {
     vcf_annot_sample_t *annot_sample;
     vcf_annot_chr_t *annot_chr;
-    vcf_annot_pos_t *annot_pos;
     
     for(int i = 0; i < array_list_size(sample_list); i++) {
         annot_sample = (vcf_annot_sample_t*) array_list_get(i, sample_list);
@@ -617,9 +582,7 @@ static size_t save_snp_response(char *contents, size_t size, size_t nmemb, void 
 }
 
 static void vcf_annot_parse_snp_response(int tid, vcf_record_t **variants, int num_variants) { 
-    char *copy_buf;
     int num_lines;
-    vcf_record_t * record;
     char **split_batch = split(snp_line[tid], "\n", &num_lines);
     
     for (int i = 0, j = 0; i < num_lines; i++) {
@@ -628,13 +591,11 @@ static void vcf_annot_parse_snp_response(int tid, vcf_record_t **variants, int n
         char **split_result = split(copy_buf, "\t", &num_columns);
         free(copy_buf);
         
-        // Find consequence type name (always after SO field)
         if (num_columns == 6) {
-            
-            for(; j < num_variants; j++){
-                record = variants[j];
+            for(; j < num_variants; j++) {
+                vcf_record_t *record = variants[j];
 
-                if( strncmp(split_result[1], record->chromosome, record->chromosome_len) == 0 &&  atoi(split_result[2]) == record->position){
+                if (strncmp(split_result[1], record->chromosome, record->chromosome_len) == 0 && atoi(split_result[2]) == record->position) {
                     set_vcf_record_id(strdup(split_result[0]), strlen(split_result[0]), record);
                     break;
                 }
