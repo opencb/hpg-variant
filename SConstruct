@@ -19,7 +19,7 @@ env = Environment(tools = build_tools,
                   LINKFLAGS = ['-fopenmp'])
 
 mode = 'single'
-if ARGUMENTS.get('mode', '') == 'mpi':
+if ARGUMENTS.get('mode', 'single') == 'mpi':
     env['CFLAGS'] += ' -D_USE_MPI'
     env['LIBS'] += ['mpi']
     mode = 'mpi'
@@ -83,3 +83,4 @@ if 'fedora' in COMMAND_LINE_TARGETS:
 
 # By default, create only the executables and install them
 Default(progs, inst1, inst2)
+

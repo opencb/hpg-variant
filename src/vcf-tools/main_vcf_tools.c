@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2012-2013 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
+ * Copyright (c) 2013 Alejandro Alemán Ramos (ICM-CIPF)
  * Copyright (c) 2012 Ignacio Medina (ICM-CIPF)
  *
  * This file is part of hpg-variant.
@@ -22,7 +23,8 @@
 
 int main(int argc, char *argv[]) {
     if (argc == 1 || !strcmp(argv[1], "-h") || !strcmp(argv[1], "--help")) {
-        printf("Usage: %s < filter | merge | split | stats | vcf2epi > < tool-options >\nFor more information about a certain tool, type %s tool-name --help\n", argv[0], argv[0]);
+        printf("Usage: %s < annot | filter | merge | split | stats | vcf2epi > < tool-options >\nFor more information about a certain tool, type %s tool-name --help\n", 
+                argv[0], argv[0]);
         return 0;
     } else if (!strcmp(argv[1], "--version")) {
         show_version("VCF Tools");
@@ -39,7 +41,10 @@ int main(int argc, char *argv[]) {
     int exit_code = 0;
     
     // Parse tool args and run tool
-    if (strcmp(tool, "filter") == 0) {
+    if (strcmp(tool, "annot") == 0) {
+        exit_code = vcf_tool_annot(argc - 1, argv + 1, config);
+        
+    } else if (strcmp(tool, "filter") == 0) {
         exit_code = vcf_tool_filter(argc - 1, argv + 1, config);
         
     } else if (strcmp(tool, "merge") == 0) {
