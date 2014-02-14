@@ -41,7 +41,7 @@ int run_annot(char **urls, shared_options_data_t *shared_options_data, annot_opt
     vcf_annot_pos_t *annot_pos;
     vcf_annot_bam_t *annot_bam;
     char *sample_name;
-    char * copy_buf;
+    char *copy_buf;
     char *directory;
     khiter_t iter;
     int ret;
@@ -238,7 +238,7 @@ int run_annot(char **urls, shared_options_data_t *shared_options_data, annot_opt
                             LOG_DEBUG_F("[%d] WS invocation\n", tid);
                             
                             if(options_data->effect && (!reconnections || ret_ws_0)) {
-                                ret_ws_0 = invoke_effect_ws(urls[0], (vcf_record_t**) (input_records->items + chunk_starts[j]), chunk_sizes[j], NULL);
+                                ret_ws_0 = invoke_effect_ws(urls[0], (vcf_record_t**) (input_records->items + chunk_starts[j]), chunk_sizes[j], "");
                                 if (ret_ws_0 == 0) { vcf_annot_parse_effect_response_json(tid, (vcf_record_t**) (input_records->items + chunk_starts[j]), chunk_sizes[j] ); }
 
                                 free(effect_line[tid]);
@@ -484,6 +484,7 @@ static void vcf_annot_parse_effect_response_json(int tid, vcf_record_t **variant
         json_decref(root);
         return;
     }
+    
     if(!json_is_array(root)) {
         LOG_WARN_F("[%d] Non-valid response from variant effect web service: Data is not a JSON array\n", tid);
         json_decref(root);
@@ -502,7 +503,6 @@ static void vcf_annot_parse_effect_response_json(int tid, vcf_record_t **variant
             long position = json_number_value(json_object_get(data, "position"));
             
             if (!strncmp(record->chromosome, chromosome, record->chromosome_len) && record->position == position) {
-                free(chromosome);
                 break;
             }
             
@@ -528,11 +528,15 @@ static void vcf_annot_parse_effect_response_json(int tid, vcf_record_t **variant
         
         if (curr_length > 0) {
             effects[curr_length - 1] = '\0';
+            char *new_info = set_field_value_in_info("EFF", effects, 0, record->info, record->info_len);
+            record->info = new_info;
+            record->info_len = strlen(new_info);
+        } else {
+            // Needs to be done to avoid memory corruption during the last free
+            record->info = strndup(record->info, record->info_len);
         }
-        char *new_info = set_field_value_in_info("EFF", effects, 0, record->info, record->info_len);
+        
         free(effects);
-        record->info = new_info;
-        record->info_len = strlen(new_info);
     }
     
     json_decref(root);
