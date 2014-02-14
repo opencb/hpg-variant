@@ -335,8 +335,6 @@ int run_annot(char **urls, shared_options_data_t *shared_options_data, annot_opt
             int header_aux = 0;
             char *value;
 
-            int items_freed = 0;
-            
             while(list_item = list_remove_item(output_list)) {
                 if(header_aux == 0) { // Make sure the file header has been already read
                     // Write the header
@@ -362,8 +360,11 @@ int run_annot(char **urls, shared_options_data_t *shared_options_data, annot_opt
                 for (int i = 0; i < batch->records->size; i++) {
                     record = (vcf_record_t*) batch->records->items[i];
                     write_vcf_record(record, output_fd);
+                    
                     // If the effect tool was invoked, the INFO field has been allocated
-                    if (options_data->effect > 0) { free(record->info); items_freed++; }
+                    if (options_data->effect > 0) { free(record->info); }
+                    // If the dbsnp tool was invoked, the ID field has been allocated
+                    if (options_data->dbsnp > 0) { free(record->id); }
                 }
                 vcf_batch_free(batch);
                 list_item_free(list_item);
@@ -371,8 +372,6 @@ int run_annot(char **urls, shared_options_data_t *shared_options_data, annot_opt
             fclose(output_fd);
             free(prefix_filename);
             free(annot_filename);
-            
-            printf("Records freed = %d\n", items_freed);
         }
     } // End Parallel sections
 
@@ -561,62 +560,42 @@ static void print_samples(array_list_t* sample_list) {
 int invoke_snp_ws(const char *url, vcf_record_t **records, int num_records) {
     CURLcode ret_code = CURLE_OK;
 
-    const char *output_format = "txt";
+    const char *output_format = "json";
     int variants_len = 512, current_index = 0;
-    char *variants = (char*) calloc (variants_len, sizeof(char));
+    char *positions = (char*) calloc (variants_len, sizeof(char));
 
-/*
-    char URL_AUX_1[4*1028] = "localhost:8080/cellbase/rest/latest/hsa/genomic/position/";
-    char URL_AUX_2[]="/snp";
-    char *URL;
-*/
-    
     int chr_len, new_len_range;
 
     for (int i = 0; i < num_records; i++) {
         vcf_record_t *record = records[i];
-        if (!strcmp(".", record->id)) {
-            continue;
-        }
-        
         chr_len = record->chromosome_len;
         new_len_range = current_index + chr_len + 32;
         
         // Reallocate memory if next record won't fit
         if (variants_len < (current_index + new_len_range + 1)) {
-            char *aux = (char*) realloc(variants, (variants_len + new_len_range + 1) * sizeof(char));
+            char *aux = (char*) realloc(positions, (variants_len + new_len_range + 1) * sizeof(char));
             if (aux) { 
-                variants = aux; 
+                positions = aux; 
                 variants_len += new_len_range;
             }
         }
         
         // Append region info to buffer
-        strncat(variants, record->chromosome, chr_len);
-        strncat(variants, ":", 1);
+        strncat(positions, record->chromosome, chr_len);
+        strncat(positions, ":", 1);
         current_index += chr_len + 1;
-        sprintf(variants + current_index, "%lu", record->position);
-        strncat(variants, ",", 1);
-        current_index = strlen(variants); // TODO cambiar nombre
+        sprintf(positions + current_index, "%lu", record->position);
+        strncat(positions, ",", 1);
+        current_index = strlen(positions);
     }
-/*
-    // PROVISIONAL
-    URL = (char*) calloc(strlen(URL_AUX_1) + strlen(variants) + strlen(URL_AUX_2) +1, sizeof(char));
-    strcpy(URL, URL_AUX_1);
-    strcat(URL, variants);
-    strcat(URL, URL_AUX_2);
-*/
 
     if (current_index > 0) {
-        char *params[2] = { "of", "position" };
-        char *params_values[2] = { output_format, variants };
-        ret_code = http_post(url, params, params_values, 2, save_snp_response, NULL);
-/*
-        ret_code = http_get(URL, NULL, NULL, 0, save_snp_response, NULL);
-*/
+        char *params[2] = { "of", "positionId" };
+        char *params_values[2] = { output_format, positions };
+        ret_code = http_post_multipart_formdata(url, params, params_values, 2, save_snp_response, NULL);
     }
     
-    free(variants);
+    free(positions);
     
     return ret_code;
 }
@@ -629,7 +608,7 @@ static size_t save_snp_response(char *contents, size_t size, size_t nmemb, void 
     char *buffer = realloc (snp_line[tid], snp_max_line_size[tid] + size * nmemb);
     if (buffer) {
         snp_line[tid] = buffer;
-        max_line_size[tid] += size * nmemb;
+        snp_max_line_size[tid] += size * nmemb;
     } else {
         LOG_FATAL("Error while allocating memory for SNP phenotype web service response");
     }
@@ -682,14 +661,14 @@ static void vcf_annot_parse_snp_response(int tid, vcf_record_t **variants, int n
 static void vcf_annot_parse_snp_response_json(int tid, vcf_record_t **variants, int num_variants) { 
     json_error_t error;
     json_t *root = json_loadb(snp_line[tid], strlen(snp_line[tid]), 0, &error);
-    json_t *query_response = json_object_get(root, "response");
     
     if (!root) {
         LOG_WARN_F("[%d] Non-valid response from SNP by position web service: '%s'\n", tid, error.text);
         json_decref(root);
         return;
     }
-    if(!json_is_object(root)) {
+    
+    if(!json_is_array(root)) {
         LOG_WARN_F("[%d] Non-valid response from SNP by position web service: Data is not a JSON object\n", tid);
         json_decref(root);
         return;
@@ -697,24 +676,43 @@ static void vcf_annot_parse_snp_response_json(int tid, vcf_record_t **variants, 
     
     size_t response_index, result_index;
     json_t *query_result, *result_value;
-    int curr_variant = 0;
     
-    json_array_foreach(query_response, response_index, query_result) {
-        json_t *result = json_object_get(query_result, "result");
+    json_array_foreach(root, response_index, query_result) {
+        vcf_record_t *record = variants[response_index];
+        int max_length = 128, curr_length = 0;
+        char *snp_ids = calloc(max_length, sizeof(char));
         
-        json_array_foreach(result, result_index, result_value) {
-            char *chromosome = json_string_value(json_object_get(result_value, "chromosome"));
-            long position = json_number_value(json_object_get(result_value, "start"));
-            char *id = json_string_value(json_object_get(result_value, "id"));
-            
-            for(; curr_variant < num_variants; curr_variant++){
-                vcf_record_t *record = variants[curr_variant];
-                if (!strncmp(chromosome, record->chromosome, record->chromosome_len) && position == record->position) {
-                    set_vcf_record_id(strdup(chromosome), strlen(chromosome), record);
-                    break;
+        json_array_foreach(query_result, result_index, result_value) {
+            char *id = json_string_value(json_object_get(result_value, "name"));
+            if (snp_ids) {
+                int new_length = curr_length + strlen(id) + 1;
+                if (new_length >= max_length) {
+                    char *aux_ids = realloc(snp_ids, (new_length + 16) * sizeof(char));
+                    if (aux_ids) {
+                        snp_ids = aux_ids;
+                        max_length = new_length + 16;
+                    } else {
+                        LOG_FATAL_F("Error while allocating memory for the effect of variant in position *.%s:%ld\n",
+                                    record->chromosome_len, record->chromosome, record->position);
+                    }
                 }
+                strcat(snp_ids, id);
+                strcat(snp_ids, ",");
+                curr_length = new_length;
+            } else {
+                snp_ids = malloc(strlen(id) * sizeof(char));
             }
         }
+        
+        if (curr_length > 0) {
+            snp_ids[curr_length - 1] = '\0';
+            set_vcf_record_id(snp_ids, strlen(snp_ids), record);
+        } else {
+            // Needs to be done to avoid memory corruption during the last free
+            set_vcf_record_id(strndup(record->id, record->id_len), record->id_len, record);
+            free(snp_ids);
+        }
+        
     }
     
     json_decref(root);

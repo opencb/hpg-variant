@@ -78,7 +78,7 @@ void **parse_annot_options(int argc, char *argv[], annot_options_t *annot_option
 }
 
 void **merge_annot_options(annot_options_t *annot_options, shared_options_t *shared_options, struct arg_end *arg_end) {
-    void **tool_options = malloc (16 * sizeof(void*));
+    void **tool_options = malloc (NUM_ANNOT_OPTIONS * sizeof(void*));
     // Input/output files
     tool_options[0] = shared_options->vcf_filename;
     tool_options[1] = shared_options->output_filename;

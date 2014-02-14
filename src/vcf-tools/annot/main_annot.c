@@ -34,9 +34,9 @@ int vcf_tool_annot(int argc, char *argv[], const char *configuration_file) {
     // If no arguments or only --help are provided, show usage
     void **argtable;
     if (argc == 1 || !strcmp(argv[1], "-h") || !strcmp(argv[1], "--help")) {
-        argtable = merge_annot_options(annot_options, shared_options, arg_end(annot_options->num_options + shared_options->num_options));
+        argtable = merge_annot_options(annot_options, shared_options, arg_end(NUM_ANNOT_OPTIONS));
         show_usage("hpg-var-vcf annot", argtable);
-        arg_freetable(argtable, 16);
+        arg_freetable(argtable, NUM_ANNOT_OPTIONS);
         return 0;
     }
 
@@ -83,9 +83,15 @@ int vcf_tool_annot(int argc, char *argv[], const char *configuration_file) {
     // Step 6: Perform the requested task
     int result = run_annot(urls, shared_options_data, options_data);
 
+    // Step 7: Free memory
+    for (int i = 0; i < num_urls; i++) {
+        free(urls[i]);
+    }
+    free(urls);
+    
     free_annot_options_data(options_data);
     free_shared_options_data(shared_options_data);
-    arg_freetable(argtable, 16);
+    arg_freetable(argtable, NUM_ANNOT_OPTIONS);
 
     return 0;
 
