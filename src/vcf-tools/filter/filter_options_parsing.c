@@ -95,32 +95,33 @@ void **merge_filter_options(filter_options_t *filter_options, shared_options_t *
     tool_options[5] = shared_options->coverage;
     tool_options[6] = shared_options->quality;
     tool_options[7] = shared_options->maf;
-    tool_options[8] = shared_options->missing;
-    tool_options[9] = shared_options->gene;
-    tool_options[10] = shared_options->region;
-    tool_options[11] = shared_options->region_file;
-    tool_options[12] = shared_options->region_type;
-    tool_options[13] = shared_options->snp;
-    tool_options[14] = shared_options->variant_type;
-    tool_options[15] = shared_options->indel;
-    tool_options[16] = shared_options->dominant;
-    tool_options[17] = shared_options->recessive;
-    tool_options[18] = filter_options->save_rejected;
+    tool_options[8] = shared_options->mendelian_errors;
+    tool_options[9] = shared_options->missing;
+    tool_options[10] = shared_options->gene;
+    tool_options[11] = shared_options->region;
+    tool_options[12] = shared_options->region_file;
+    tool_options[13] = shared_options->region_type;
+    tool_options[14] = shared_options->snp;
+    tool_options[15] = shared_options->variant_type;
+    tool_options[16] = shared_options->indel;
+    tool_options[17] = shared_options->dominant;
+    tool_options[18] = shared_options->recessive;
+    tool_options[19] = filter_options->save_rejected;
     
     // Configuration file
-    tool_options[19] = shared_options->log_level;
-    tool_options[20] = shared_options->config_file;
+    tool_options[20] = shared_options->log_level;
+    tool_options[21] = shared_options->config_file;
     
     // Advanced configuration
-    tool_options[21] = shared_options->host_url;
-    tool_options[22] = shared_options->version;
-    tool_options[23] = shared_options->max_batches;
-    tool_options[24] = shared_options->batch_lines;
-    tool_options[25] = shared_options->batch_bytes;
-    tool_options[26] = shared_options->num_threads;
-    tool_options[27] = shared_options->mmap_vcf_files;
+    tool_options[22] = shared_options->host_url;
+    tool_options[23] = shared_options->version;
+    tool_options[24] = shared_options->max_batches;
+    tool_options[25] = shared_options->batch_lines;
+    tool_options[26] = shared_options->batch_bytes;
+    tool_options[27] = shared_options->num_threads;
+    tool_options[28] = shared_options->mmap_vcf_files;
     
-    tool_options[28] = arg_end;
+    tool_options[29] = arg_end;
     
     return tool_options;
 }
@@ -134,16 +135,17 @@ int verify_filter_options(filter_options_t *filter_options, shared_options_t *sh
     }
     
     // Check whether a filter or more has been specified
-    if (!shared_options->coverage->count && !shared_options->num_alleles->count && !shared_options->quality->count && 
-        !shared_options->snp->count && !shared_options->region->count && !shared_options->region_file->count && 
-        !shared_options->maf->count && !shared_options->gene->count && !shared_options->indel->count &&
-        !shared_options->variant_type->count && !shared_options->dominant->count && !shared_options->recessive->count) {
+    if (!shared_options->num_alleles->count && !shared_options->coverage->count && !shared_options->quality->count && 
+        !shared_options->maf->count && !shared_options->mendelian_errors->count && !shared_options->missing->count &&
+        !shared_options->gene->count && !shared_options->region->count && !shared_options->region_file->count && 
+        !shared_options->snp->count && !shared_options->variant_type->count && !shared_options->indel->count && 
+        !shared_options->dominant->count && !shared_options->recessive->count) {
         LOG_ERROR("Please specify at least one filter\n");
         return EMPTY_LIST_OF_FILTERS;
     }
 
     // Check whether the input PED file is defined when needed (for certain filters)
-    if ((shared_options->dominant->count || shared_options->recessive->count) &&
+    if ((shared_options->mendelian_errors->count || shared_options->dominant->count || shared_options->recessive->count) &&
         shared_options->ped_filename->count == 0) {
         LOG_ERROR("Please specify the input PED file.\n");
         return PED_FILE_NOT_SPECIFIED;
