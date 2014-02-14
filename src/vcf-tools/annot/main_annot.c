@@ -103,7 +103,7 @@ annot_options_t *new_annot_cli_options() {
     options->missing = arg_lit0(NULL, "missing", "Annotate the missings values");
     options->dbsnp = arg_lit0(NULL, "dbsnp", "Annotate the dbSNP id");
     options->effect = arg_lit0(NULL, "effect", "Annotate the Effect");
-    options->phase = arg_lit0(NULL, "phase", "Annotate the Phase");
+    //options->phase = arg_lit0(NULL, "phase", "Annotate the Phase");   // TODO To implement
     options->all = arg_lit0(NULL, "all", "Activate all annotations");
     options->num_options = NUM_ANNOT_OPTIONS;
     return options;
@@ -115,8 +115,15 @@ annot_options_data_t *new_annot_options_data(annot_options_t *options) {
     options_data->missing = options->missing->count;
     options_data->dbsnp = options->dbsnp->count;
     options_data->effect = options->effect->count;
-    options_data->phase = options->phase->count;
-    options_data->all = options->all->count;
+    //options_data->phase = options->phase->count;   // TODO To implement
+    
+    if (options->all->count > 0) {
+        options_data->missing = 1;
+        //options_data->phase = 1;
+        options_data->effect = 1;
+        options_data->dbsnp = 1;
+    }
+    
     return options_data;
 }
 

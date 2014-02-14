@@ -49,7 +49,7 @@
 #include "shared_options.h"
 #include "hpg_variant_utils.h"
 
-#define NUM_ANNOT_OPTIONS       16
+#define NUM_ANNOT_OPTIONS       15
 #define MAX_VARIANTS_PER_QUERY  1000
 #define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
 
@@ -59,7 +59,7 @@ typedef struct annot_options {
     struct arg_lit *missing;
     struct arg_lit *dbsnp;
     struct arg_lit *effect;
-    struct arg_lit *phase;
+//    struct arg_lit *phase;    // TODO To implement
     struct arg_lit *all;
     
     int num_options;
@@ -74,8 +74,7 @@ typedef struct annot_options_data {
     int missing;
     int dbsnp;
     int effect;
-    int phase;
-    int all;
+//    int phase;    // TODO To implement
 } annot_options_data_t;
 
 
