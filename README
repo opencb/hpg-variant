@@ -52,7 +52,7 @@ In case you downloaded a tarball with the source code, please follow these instr
 
 PRE-BUILD
 You need a C compiler, the build system SCons and a set of libraries that can be downloaded using yum.
-sudo yum install gcc-c++ glibc-devel scons libcurl-devel gsl-devel libxml2-devel zlib-devel
+sudo yum install gcc-c++ glibc-devel scons libcurl-devel gsl-devel libxml2-devel zlib-devel ncurses-devel
 
 BUILD
 From the root folder of the application, type 'scons'. This will create 3 binaries in the 'bin' subfolder.
