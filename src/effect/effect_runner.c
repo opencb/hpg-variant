@@ -139,7 +139,7 @@ int run_effect(char **urls, shared_options_data_t *shared_options_data, effect_o
             }
             
             // Filename structure outdir/vcfname.errors
-            char *prefix_filename = calloc(strlen(shared_options_data->vcf_filename), sizeof(char));
+            char *prefix_filename = calloc(strlen(shared_options_data->vcf_filename) + 1, sizeof(char));
             get_filename_from_path(shared_options_data->vcf_filename, prefix_filename);
             char *non_processed_filename = malloc((strlen(shared_options_data->output_directory) + strlen(prefix_filename) + 9) * sizeof(char));
             sprintf(non_processed_filename, "%s/%s.errors", shared_options_data->output_directory, prefix_filename);
