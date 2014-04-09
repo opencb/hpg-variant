@@ -1,4 +1,4 @@
 [submodule "lib"]
 	path = lib
-	url = git@github.com:opencb/hpg-libs.git
+	url = https://github.com/opencb/hpg-libs.git
 
