@@ -125,8 +125,7 @@ shared_options_data_t* new_shared_options_data(shared_options_t* options) {
         LOG_DEBUG_F("gene = %s\n", *(options->gene->sval));
     }
     if (options->region->count > 0) {
-        filter = region_exact_filter_new(strdup(*(options->region->sval)), 0,
-                                         strdup(*(options->region_type)->sval),
+        filter = region_exact_filter_new(strdup(*(options->region->sval)), 0, NULL,
                                          *(options->host_url->sval), *(options->species->sval), *(options->version->sval));
         options_data->chain = add_to_filter_chain(filter, options_data->chain);
         LOG_DEBUG_F("regions = %s\n", *(options->region->sval));
