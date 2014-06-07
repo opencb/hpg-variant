@@ -99,10 +99,10 @@ int vcf_tool_annot(int argc, char *argv[], const char *configuration_file) {
 
 annot_options_t *new_annot_cli_options() {
     annot_options_t *options = (annot_options_t*) malloc (sizeof(annot_options_t));
-    options->bam_directory = arg_str1(NULL, "bamdir", NULL, "The folder where the input BAM files are stored");
+    options->bam_directory = arg_str0(NULL, "bamdir", NULL, "The folder where the input BAM files are stored");
     options->missing = arg_lit0(NULL, "missing", "Annotate the missings values");
     options->dbsnp = arg_lit0(NULL, "dbsnp", "Annotate the dbSNP id");
-    options->effect = arg_lit0(NULL, "effect", "Annotate the Effect");
+    options->effect = arg_lit0(NULL, "effect", "Annotate the effect");
     //options->phase = arg_lit0(NULL, "phase", "Annotate the Phase");   // TODO To implement
     options->all = arg_lit0(NULL, "all", "Activate all annotations");
     options->num_options = NUM_ANNOT_OPTIONS;

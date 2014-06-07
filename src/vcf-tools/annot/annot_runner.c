@@ -468,26 +468,24 @@ static void vcf_annot_parse_effect_response_json(int tid, vcf_record_t **variant
             long position = json_number_value(json_object_get(data, "position"));
             
             if (!strncmp(record->chromosome, chromosome, record->chromosome_len) && record->position == position) {
-                break;
-            }
-            
-            char *consequence_type = json_string_value(json_object_get(data, "consequenceTypeObo"));
-            
-            if (!strstr(effects, consequence_type)) {
-                int new_length = curr_length + strlen(consequence_type) + 1;
-                if (new_length >= max_length) {
-                    char *aux_effects = realloc(effects, (new_length + 16) * sizeof(char));
-                    if (aux_effects) {
-                        effects = aux_effects;
-                        max_length = new_length + 16;
-                    } else {
-                        LOG_FATAL_F("Error while allocating memory for the effect of variant in position *.%s:%ld\n",
-                                    record->chromosome_len, record->chromosome, record->position);
+                char *consequence_type = json_string_value(json_object_get(data, "consequenceTypeObo"));
+
+                if (!strstr(effects, consequence_type)) {
+                    int new_length = curr_length + strlen(consequence_type) + 1;
+                    if (new_length >= max_length) {
+                        char *aux_effects = realloc(effects, (new_length + 16) * sizeof(char));
+                        if (aux_effects) {
+                            effects = aux_effects;
+                            max_length = new_length + 16;
+                        } else {
+                            LOG_FATAL_F("Error while allocating memory for the effect of variant in position *.%s:%ld\n",
+                                        record->chromosome_len, record->chromosome, record->position);
+                        }
                     }
+                    strcat(effects, consequence_type);
+                    strcat(effects, ",");
+                    curr_length = new_length;
                 }
-                strcat(effects, consequence_type);
-                strcat(effects, ",");
-                curr_length = new_length;
             }
         }
         
