@@ -1,3 +1,4 @@
+import os
 import buildaux
 
 # Initialize the environment with path variables, CFLAGS, and so on
@@ -17,6 +18,16 @@ env = Environment(tools = build_tools,
                   LIBPATH = [commons_path, bioinfo_path, '/usr/lib', '/usr/local/lib'],
                   LIBS = ['common', 'bioinfo', 'curl', 'dl', 'gsl', 'gslcblas', 'm', 'xml2', 'z'],
                   LINKFLAGS = ['-fopenmp'])
+
+
+if os.environ.has_key('CPATH'):
+    for dir in os.getenv('CPATH').split(':'):
+        env.Append(CPPPATH=[dir])
+
+if os.environ.has_key('LIBRARY_PATH'):
+    for dir in os.getenv('LIBRARY_PATH').split(':'):
+        env.Append(LIBPATH=[dir])
+
 
 mode = 'single'
 if ARGUMENTS.get('mode', 'single') == 'mpi':
