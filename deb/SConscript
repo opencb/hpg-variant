@@ -4,7 +4,7 @@ Import('env') # exported by parent SConstruct
 
 # Here's the core info for the DEBIAN/control file of the package
 DEBNAME = "hpg-variant"
-DEBVERSION = "1.0"
+DEBVERSION = "2.0"
 DEBMAINT = "Cristina Yenyxe Gonzalez Garcia <cgonzalez@cipf.es>"
 DEBARCH = "amd64"
 DEBDEPENDS = "libc6, libcurl4-openssl-dev, libgsl0ldbl, libxml2, zlib1g"
@@ -16,8 +16,8 @@ DEBDESC = ''.join([ "Bioinformatics tool suite for analyzing genomic variations\
 " It contains three binaries:\n",
 "  * hpg-var-effect retrieves the effect of genome variations.\n",
 "  * hpg-var-gwas conducts genomic-wide association analysis such as chi-square\n",
-"    and Fisher's exact test, and family-based analysis such as transmission\n",
-"    disequilibrium test (TDT).\n",
+"    and Fisher's exact test, family-based analysis such as transmission\n",
+"    disequilibrium test (TDT), and epistasis search using the MDR method.\n",
 "  * hpg-var-vcf allows to preprocess files containing genome variations in\n",
 "    Variant Call Format. Filtering, merging, splitting and retrieving \n"
 "    statistics are the features currently implemented." ])

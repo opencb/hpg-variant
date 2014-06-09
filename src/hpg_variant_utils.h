@@ -35,7 +35,7 @@
 
 #include "shared_options.h"
 
-#define HPG_VARIANT_VERSION     "1.0"
+#define HPG_VARIANT_VERSION     "2.0"
 #define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
 
 /* ***********************

@@ -1,5 +1,5 @@
 %define name hpg-variant
-%define version 1.0
+%define version 2.0
 Name:           %{name}
 Version:        %{version}
 Release:        1%{?dist}
@@ -30,8 +30,8 @@ such as CUDA and OpenMP in order to reduce the processing times.
 It contains three binaries:
 * hpg-var-effect retrieves the effect of genome variations.
 * hpg-var-gwas conducts genomic-wide association analysis such as chi-square 
-  and Fisher's exact test, and family-based analysis such as transmission 
-  disequilibrium test (TDT).
+  and Fisher's exact test, family-based analysis such as transmission 
+  disequilibrium test (TDT), and epistasis search using the MDR method.
 * hpg-var-vcf allows to preprocess files containing genome variations in 
   Variant Call Format. Filtering, merging, splitting and retrieving statistics 
   are the features currently implemented.
