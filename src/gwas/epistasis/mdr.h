@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2012 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
- * Copyright (c) 2012 Ignacio Medina (ICM-CIPF)
+ * Copyright (c) 2013 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
+ * Copyright (c) 2013 Ignacio Medina (ICM-CIPF)
  *
  * This file is part of hpg-variant.
  *
@@ -18,33 +18,23 @@
  * along with hpg-variant. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef SPLIT_RUNNER_H
-#define SPLIT_RUNNER_H
+#ifndef EPISTASIS_MDR
+#define EPISTASIS_MDR
 
+#include <assert.h>
+#include <math.h>
+#include <stdbool.h>
 #include <stdlib.h>
 
-#include <omp.h>
+#include <xmmintrin.h>
+#include <smmintrin.h>
 
-#include <bioformats/vcf/vcf_file_structure.h>
-#include <bioformats/vcf/vcf_file.h>
-#include <bioformats/vcf/vcf_filters.h>
-#include <commons/file_utils.h>
 #include <commons/log.h>
-#include <containers/list.h>
-#include <containers/cprops/hashtable.h>
 
-#include "hpg_variant_utils.h"
-#include "split.h"
+bool mdr_high_risk_combinations(unsigned int count_affected, unsigned int count_unaffected, 
+                                unsigned int samples_affected, unsigned int samples_unaffected, void **aux_return_values);
 
-int run_split(shared_options_data_t *shared_options_data, split_options_data_t *options_data);
-
-static int initialize_output(cp_hashtable **output_files);
-
-static void free_output(cp_hashtable *output_files);
-
-static void free_file_key(char *key);
-
-static void free_file_descriptor(FILE *fd);
-
-
+int *mdr_high_risk_combinations2(int *counts_affected, int *counts_unaffected, int num_counts,
+                                 unsigned int num_affected, unsigned int num_unaffected,
+                                 void **aux_return_values);
 #endif

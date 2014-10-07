@@ -43,7 +43,6 @@
 #include "hpg_variant_utils.h"
 #include "merge.h"
 
-#define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
 
 KHASH_MAP_INIT_STR(pos, array_list_t*);
 

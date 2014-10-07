@@ -1,3 +1,4 @@
+import os
 import buildaux
 
 # Initialize the environment with path variables, CFLAGS, and so on
@@ -11,12 +12,30 @@ if compiler == 'icc':
     build_tools.append('intelc')
 
 env = Environment(tools = build_tools,
-                  CFLAGS = '-std=c99 -D_XOPEN_SOURCE=600 -D_GNU_SOURCE -fopenmp -Wuninitialized -Wmissing-braces',
-                  CPPPATH = ['#', '#src', '#include', bioinfo_path, commons_path, math_path, '/usr/include', '/usr/local/include', '/usr/include/libxml2'],
+                  CFLAGS = '-std=c99 -D_XOPEN_SOURCE=600 -D_GNU_SOURCE -msse4.2 -fopenmp -Wuninitialized -Wmissing-braces',
+                  CPPPATH = ['#', '#src', '#include', bioinfo_path, commons_path, math_path,
+                             '/usr/include', '/usr/local/include', '/usr/include/libxml2', '/usr/lib/openmpi/include'],
                   LIBPATH = [commons_path, bioinfo_path, '/usr/lib', '/usr/local/lib'],
                   LIBS = ['common', 'bioinfo', 'curl', 'dl', 'gsl', 'gslcblas', 'm', 'xml2', 'z'],
                   LINKFLAGS = ['-fopenmp'])
-                  
+
+
+if os.environ.has_key('CPATH'):
+    for dir in os.getenv('CPATH').split(':'):
+        env.Append(CPPPATH=[dir])
+
+if os.environ.has_key('LIBRARY_PATH'):
+    for dir in os.getenv('LIBRARY_PATH').split(':'):
+        env.Append(LIBPATH=[dir])
+
+
+mode = 'single'
+if ARGUMENTS.get('mode', 'single') == 'mpi':
+    env['CFLAGS'] += ' -D_USE_MPI'
+    env['LIBS'] += ['mpi']
+    mode = 'mpi'
+
+
 if int(ARGUMENTS.get('debug', '0')) == 1:
     debug = 1
     env['CFLAGS'] += ' -O0 -g'
@@ -38,7 +57,7 @@ SConscript(['%s/SConscript' % bioinfo_path,
 progs = SConscript(['src/effect/SConscript',
             'src/gwas/SConscript',
             'src/vcf-tools/SConscript'
-            ], exports = ['env', 'debug', 'commons_path', 'bioinfo_path', 'math_path'])
+            ], exports = ['env', 'debug', 'mode', 'commons_path', 'bioinfo_path', 'math_path'])
 
 inst1 = env.Install('#bin', [Glob('etc/hpg-variant/*.conf')] + list(progs))
 inst2 = env.Install('#bin/bash_completion', [Glob('etc/bash_completion.d/*')])
@@ -51,7 +70,7 @@ t = SConscript("test/SConscript", exports = ['env', 'debug', 'commons_path', 'bi
 # For the packaging manager: Don't forget to point the XXX_INCLUDE_PATH and XXX_LIBRARY_PATH 
 # variables to the application libraries folder!!
 tb = env.Package(NAME          = 'hpg-variant',
-                VERSION        = '1.0',
+                VERSION        = '2.0',
                 PACKAGEVERSION = 0,
                 PACKAGETYPE    = 'src_targz',
                 source         = env.FindSourceFiles() + env.FindHeaderFiles(progs) + 
@@ -75,3 +94,4 @@ if 'fedora' in COMMAND_LINE_TARGETS:
 
 # By default, create only the executables and install them
 Default(progs, inst1, inst2)
+

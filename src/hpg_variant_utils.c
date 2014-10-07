@@ -177,6 +177,7 @@ char *retrieve_config_file(char *filename, array_list_t *paths_to_search) {
         }
     }
 
+    LOG_INFO_F("Configuration file is in path %s\n", filepath);
     return filepath;
 }
 
@@ -306,6 +307,9 @@ FILE *get_output_file(shared_options_data_t *shared_options_data, char *default_
     
     *path = (char*) malloc ((strlen(output_directory) + strlen(output_filename) + 2) * sizeof(char));
     sprintf(*path, "%s/%s", output_directory, output_filename);
+    
+    LOG_INFO_F("Output file will be saved in path %s\n", *path);
+    
     return fopen(*path, "w");
 }
 
@@ -342,4 +346,8 @@ int *create_chunks(int length, int max_chunk_size, int *num_chunks, int **chunk_
     }
 
     return chunk_starts;
+}
+
+int compare_int(const void *a, const void *b) {
+    return ( *(int*)a - *(int*)b );
 }

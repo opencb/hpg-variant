@@ -35,7 +35,8 @@
 
 #include "shared_options.h"
 
-#define HPG_VARIANT_VERSION     "1.0"
+#define HPG_VARIANT_VERSION     "2.0"
+#define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
 
 /* ***********************
  *     Initialization    *
@@ -115,5 +116,7 @@ void show_version(char *tool);
  * by a maximum distance of max_chunk_size. These records will mark the beginning of each chunk.
  */
 int *create_chunks(int length, int max_chunk_size, int *num_chunks, int **chunk_sizes);
+
+int compare_int(const void *a, const void *b);
 
 #endif

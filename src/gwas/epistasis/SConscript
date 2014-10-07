@@ -1,0 +1,15 @@
+Import('env commons_path bioinfo_path math_path')
+
+#penv = env.Clone()
+
+prog = env.Program('hpg-var-epistasis', 
+             source = [Glob('*.c'), Glob('../*.c'),
+                       "%s/libcommon.a" % commons_path,
+                       "%s/bioformats/libbioformats.a" % bioinfo_path,
+                       "%s/libhpgmath.a" % math_path
+                      ]
+           )
+                      
+env.Install('#bin', 'hpg-var-epistasis')
+
+Return("prog")

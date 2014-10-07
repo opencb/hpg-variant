@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2012 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
- * Copyright (c) 2012 Ignacio Medina (ICM-CIPF)
+ * Copyright (c) 2013 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
+ * Copyright (c) 2013 Ignacio Medina (ICM-CIPF)
  *
  * This file is part of hpg-variant.
  *
@@ -18,43 +18,34 @@
  * along with hpg-variant. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef TDT_RUNNER_H
-#define TDT_RUNNER_H
+#ifndef EPISTASIS_RUNNER_H
+#define EPISTASIS_RUNNER_H
 
-#include <assert.h>
-#include <math.h>
 #include <stdio.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
 #include <omp.h>
 
-#include <bioformats/family/family.h>
-#include <bioformats/ped/ped_file.h>
-#include <bioformats/ped/ped_file_structure.h>
-#include <bioformats/vcf/vcf_file_structure.h>
-#include <bioformats/vcf/vcf_file.h>
-#include <bioformats/vcf/vcf_filters.h>
-#include <bioformats/vcf/vcf_reader.h>
-#include <bioformats/vcf/vcf_util.h>
 #include <commons/log.h>
-#include <commons/string_utils.h>
-#include <containers/list.h>
+#include <containers/heap.h>
 #include <containers/khash.h>
-#include <containers/cprops/hashtable.h>
 
-#include "hpg_variant_utils.h"
 #include "shared_options.h"
-#include "tdt.h"
+#include "hpg_variant_utils.h"
 
+#include "cross_validation.h"
+#include "dataset.h"
+#include "epistasis.h"
+#include "model.h"
 
-int run_tdt_test(shared_options_data_t *global_options_data);
+#ifdef _USE_MPI
+#include <mpi.h>
+#include "mpi/mpi_epistasis_helper.h"
+#endif
 
-
-static void write_output_header(FILE *fd);
-
-static void write_output_body(list_t* output_list, FILE *fd);
-
+int run_epistasis(shared_options_data_t *global_options_data, epistasis_options_data_t* options_data);
 
 #endif

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
+ * Copyright (c) 2012-2013 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
  * Copyright (c) 2012 Ignacio Medina (ICM-CIPF)
  *
  * This file is part of hpg-variant.
@@ -41,6 +41,13 @@
 #define GWAS_TASK_NOT_SPECIFIED                 150
 #define GWAS_MANY_TASKS_SPECIFIED               151
 
+#define EPISTASIS_DATASET_NOT_SPECIFIED         210
+#define EPISTASIS_ORDER_NOT_SPECIFIED           211
+#define EPISTASIS_FOLDS_NOT_SPECIFIED           212
+#define EPISTASIS_CV_RUNS_NOT_SPECIFIED         213
+#define EPISTASIS_EVAL_SUBSET_NOT_SPECIFIED     214
+#define EPISTASIS_EVAL_MODE_NOT_SPECIFIED       215
+#define EPISTASIS_STRIDE_NOT_SPECIFIED          216
 
 // VCF tools errors
 // -- Filter tool errors
@@ -61,6 +68,10 @@
 #define DUPLICATED_VARIABLE                     230
 #define MORE_THAN_TWO_PHENOTYPES                231
 #define VARIABLE_FIELD_NOT_FOUND                232
+
+// -- Annot tool errors
+#define BAM_DIRECTORY_NOT_SPECIFIED             240
+#define EMPTY_LIST_OF_ANNOTATIONS               241
 
 #endif
 

@@ -61,7 +61,6 @@
 #include "hpg_variant_utils.h"
 
 #define MAX_VARIANTS_PER_QUERY  1000
-#define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
 
 enum phenotype_source { SNP_PHENOTYPE = -1, MUTATION_PHENOTYPE = -2};
 
