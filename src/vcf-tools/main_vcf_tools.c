@@ -41,7 +41,10 @@ int main(int argc, char *argv[]) {
     int exit_code = 0;
     
     // Parse tool args and run tool
-    if (strcmp(tool, "annot") == 0) {
+    if (strcmp(tool, "aggregate") == 0) {
+        exit_code = vcf_tool_aggregate(argc - 1, argv + 1, config);
+        
+    } else if (strcmp(tool, "annot") == 0) {
         exit_code = vcf_tool_annot(argc - 1, argv + 1, config);
         
     } else if (strcmp(tool, "filter") == 0) {

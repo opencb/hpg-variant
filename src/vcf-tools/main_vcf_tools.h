@@ -41,6 +41,8 @@
 #include "stats/stats.h"
 #include "annot/annot.h"
 
+int vcf_tool_aggregate(int argc, char *argv[], const char *configuration_file);
+
 int vcf_tool_annot(int argc, char *argv[], const char *configuration_file);
 
 int vcf_tool_filter(int argc, char *argv[], const char *configuration_file);
