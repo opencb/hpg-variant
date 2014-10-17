@@ -168,6 +168,8 @@ int run_aggregate(shared_options_data_t *shared_options_data, aggregate_options_
             write_vcf_header(vcf_file, output_fd);
             write_vcf_delimiter(vcf_file, output_fd);
             
+            // TODO Writer INFO headers for own annotation (if the 'overwrite' flag is set)
+            
             // For each variant, generate a new line
             list_item_t *token_item = NULL;
             while ( token_item = list_remove_item(next_token_list) ) {
@@ -188,12 +190,13 @@ int run_aggregate(shared_options_data_t *shared_options_data, aggregate_options_
                 set_vcf_record_alternate(var_stats->alt_alleles, strlen(var_stats->alt_alleles), final_record);
                 set_vcf_record_quality(aux_data->quality, final_record);
                 set_vcf_record_filter(aux_data->filter, strlen(aux_data->filter), final_record);
-                set_vcf_record_info(var_stats->chromosome, strlen(var_stats->chromosome), final_record);
+                set_vcf_record_info(info, strlen(info), final_record);
                 
-                // TODO Write vcf_record_t to the file
+                // Write vcf_record_t to the file
                 write_vcf_record(final_record, output_fd);
                 
                 // Free resources
+                vcf_record_free_deep(final_record);
                 variant_stats_free(var_stats);
                 variant_auxdata_free(aux_data);
                 list_item_free(output_item);
@@ -220,10 +223,75 @@ int run_aggregate(shared_options_data_t *shared_options_data, aggregate_options_
 
 char *merge_info_and_stats(char *info, variant_stats_t *stats, int overwrite) {
     int num_fields;
-    char **fields = split(info, ";", &num_fields);
+    char *dup_info = strdup(info);
+    char **fields = split(dup_info, ";", &num_fields);
+    khash_t(info_fields) *fields_hash = kh_init(info_fields);
+    
+    // Initialize hash map with fields from the original INFO column
+    for (int i = 0; i < num_fields; i++) {
+        int num_subfields;
+        char **subfields = split(fields[i], "=", &num_subfields);
+        
+        int ret = add_to_hash(fields_hash, subfields[0], (num_subfields > 1) ? subfields[1] : NULL);
+        assert(ret);
+        
+        free(fields[i]);
+    }
+    
+    int ret;
+    // Add some fields from statistics to hash map (AC, AF, AN, MAF)
+    // AC: ALT alleles counts
+    int *new_AC = stats->alleles_count + 1;
+    char *AC_str = (char*) malloc (6 * stats->num_alleles * sizeof(char));
+    for (int i = 0; i < stats->num_alleles - 1; i++) {
+        sprintf(AC_str + strlen(AC_str), "%d,", new_AC[i]);
+    }
+    AC_str[strlen(AC_str)-1] = 0;
+    ret = add_to_hash(fields_hash, "HPG_AC", AC_str); assert(ret);
+    
+    // AF: ALT alleles frequencies
+    float *new_AF = stats->alleles_freq + 1;
+    char *AF_str = (char*) malloc (6 * stats->num_alleles * sizeof(char));
+    for (int i = 0; i < stats->num_alleles - 1; i++) {
+        sprintf(AF_str + strlen(AF_str), "%.3f,", new_AF[i]);
+    }
+    AF_str[strlen(AF_str)-1] = 0;
+    ret = add_to_hash(fields_hash, "HPG_AF", AF_str); assert(ret);
+    
+    // AN: Number of all alleles together
+    int new_AN = 0; 
+    for (int i = 0; i < stats->num_alleles; i++) {
+        new_AN += stats->alleles_count[i];
+    }
+    char *AN_str = (char*) malloc (16 * sizeof(char));
+    ret = add_to_hash(fields_hash, "HPG_AN", AN_str); assert(ret);
+    
+//    float *maf = stats->maf;                    // Minor allele frequency
+//    char *maf_str = (char*) malloc (5 * sizeof(char)); // MAF format = x.abc
+//    sprintf(maf_str, "%.3f", maf);
+//    ret = add_to_hash(fields_hash, "HPG_MAF", maf_str); assert(ret);
+    
+    // TODO Merge them considering the overwriting flag
+    char *new_info = (char*) calloc (strlen(info) + 128, sizeof(char));
+    for (int k = kh_begin(fields_hash); k < kh_end(fields_hash); k++) {
+        if (kh_exist(fields_hash, k)) {
+            char *field = kh_value(fields_hash, k);
+            assert(field);
+        }
+    }
     
     free(fields);
-    return NULL;
+    free(dup_info);
+    return new_info;
+}
+
+int add_to_hash(kh_info_fields_t *hash, char *key, char *value) {
+    int ret;
+    khiter_t k = kh_put(info_fields, hash, key, &ret);
+    if (!ret) kh_del(info_fields, hash, k);
+    kh_value(hash, k) = value;
+    
+    return ret;
 }
 
 variant_auxdata_t *variant_auxdata_new(vcf_record_t *record) {

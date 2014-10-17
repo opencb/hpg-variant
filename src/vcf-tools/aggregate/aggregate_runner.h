@@ -38,10 +38,10 @@
 #include <commons/string_utils.h>
 #include <containers/array_list.h>
 #include <containers/list.h>
+#include <containers/khash.h>
 
 #include "hpg_variant_utils.h"
 #include "aggregate.h"
-
 
 typedef struct {
     char *id;
@@ -50,10 +50,15 @@ typedef struct {
     float quality;
 } variant_auxdata_t;
 
+KHASH_MAP_INIT_STR(info_fields, char*);
+
+
 int run_aggregate(shared_options_data_t *shared_options_data, aggregate_options_data_t *options_data);
 
 
 char *merge_info_and_stats(char *info, variant_stats_t *stats, int overwrite);
+
+static int add_to_hash(kh_info_fields_t *hash, char *key, char *value);
 
 variant_auxdata_t *variant_auxdata_new(vcf_record_t *record);
 
