@@ -196,7 +196,8 @@ int run_aggregate(shared_options_data_t *shared_options_data, aggregate_options_
                 write_vcf_record(final_record, output_fd);
                 
                 // Free resources
-                vcf_record_free_deep(final_record);
+//                vcf_record_free(final_record);
+//                vcf_record_free_deep(final_record);
                 variant_stats_free(var_stats);
                 variant_auxdata_free(aux_data);
                 list_item_free(output_item);
@@ -242,7 +243,7 @@ char *merge_info_and_stats(char *info, variant_stats_t *stats, int overwrite) {
     // Add some fields from statistics to hash map (AC, AF, AN, MAF)
     // AC: ALT alleles counts
     int *new_AC = stats->alleles_count + 1;
-    char *AC_str = (char*) malloc (6 * stats->num_alleles * sizeof(char));
+    char *AC_str = (char*) calloc (6 * stats->num_alleles, sizeof(char));
     for (int i = 0; i < stats->num_alleles - 1; i++) {
         sprintf(AC_str + strlen(AC_str), "%d,", new_AC[i]);
     }
@@ -251,7 +252,7 @@ char *merge_info_and_stats(char *info, variant_stats_t *stats, int overwrite) {
     
     // AF: ALT alleles frequencies
     float *new_AF = stats->alleles_freq + 1;
-    char *AF_str = (char*) malloc (6 * stats->num_alleles * sizeof(char));
+    char *AF_str = (char*) calloc (6 * stats->num_alleles, sizeof(char));
     for (int i = 0; i < stats->num_alleles - 1; i++) {
         sprintf(AF_str + strlen(AF_str), "%.3f,", new_AF[i]);
     }
@@ -264,6 +265,7 @@ char *merge_info_and_stats(char *info, variant_stats_t *stats, int overwrite) {
         new_AN += stats->alleles_count[i];
     }
     char *AN_str = (char*) malloc (16 * sizeof(char));
+    sprintf(AN_str, "%d", new_AN);
     ret = add_to_hash(fields_hash, "HPG_AN", AN_str); assert(ret);
     
 //    // Minor allele frequency
@@ -279,6 +281,8 @@ char *merge_info_and_stats(char *info, variant_stats_t *stats, int overwrite) {
             char *key = kh_key(fields_hash, k);
             char *value = kh_value(fields_hash, k);
             assert(value);
+            
+            printf("%s = %s\n", key, value);
             
             if (overwrite) {
                 if (!strcmp(key, "AC") || !strcmp(key, "AF") || !strcmp(key, "AN")) {
@@ -300,8 +304,9 @@ char *merge_info_and_stats(char *info, variant_stats_t *stats, int overwrite) {
                 strcat(new_info, value);
             }
         }
-        new_info[strlen(new_info)-1] = 0;
+        strcat(new_info, ";");
     }
+    new_info[strlen(new_info)-1] = 0;
     
     free(fields);
     free(dup_info);
