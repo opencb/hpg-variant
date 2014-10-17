@@ -92,11 +92,9 @@ int run_aggregate(shared_options_data_t *shared_options_data, aggregate_options_
             int i = 0;
             vcf_batch_t *batch = NULL;
             while ((batch = fetch_vcf_batch(vcf_file)) != NULL) {
-                if (i % 50 == 0) {
-                    LOG_INFO_F("Batch %d reached by thread %d - %zu/%zu records \n", 
-                                i, omp_get_thread_num(),
-                                batch->records->size, batch->records->capacity);
-                }
+                LOG_INFO_F("Batch %d reached by thread %d - %zu/%zu records \n", 
+                            i, omp_get_thread_num(),
+                            batch->records->size, batch->records->capacity);
 
                 // Divide the list of passed records in ranges of size defined in config file
                 int num_chunks;
@@ -164,16 +162,17 @@ int run_aggregate(shared_options_data_t *shared_options_data, aggregate_options_
             FILE *output_fd = get_output_file(shared_options_data, default_filename, &aggregated_filename);
             LOG_INFO_F("Output filename = %s\n", aggregated_filename);
             
-            // Write header and delimiter line
-            // TODO Header not being properly written!
-            write_vcf_header(vcf_file, output_fd);
-//            write_vcf_delimiter(vcf_file, output_fd);
-            
-            // TODO Writer INFO headers for own annotation (if the 'overwrite' flag is set)
-            
             // For each variant, generate a new line
             list_item_t *token_item = NULL;
+            int header_written = 0;
             while ( token_item = list_remove_item(next_token_list) ) {
+                // Write header and delimiter line
+                if (!header_written) {
+                    write_vcf_header(vcf_file, output_fd);
+                    header_written = 1;
+                    // TODO Write INFO headers for own "HPG_" annotations (if the "overwrite" flag is set)
+                }
+                
                 variant_auxdata_t *aux_data = token_item->data_p; // Get the variant auxiliary data
                 list_item_t *output_item = list_remove_item(output_list[token_item->id]); // Get the statistics
                 assert(output_item);
