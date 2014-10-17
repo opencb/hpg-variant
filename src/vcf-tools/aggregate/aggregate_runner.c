@@ -123,7 +123,7 @@ int run_aggregate(shared_options_data_t *shared_options_data, aggregate_options_
                 for (int t = 0; t < num_chunks; t++) {
                     for (int s = 0; s < chunk_sizes[t]; s++, variant_idx++) {
                         // Create auxiliary information
-                        vcf_record_t *record = (vcf_record_t*) input_records->items[i];
+                        vcf_record_t *record = (vcf_record_t*) input_records->items[variant_idx];
                         variant_auxdata_t *aux = variant_auxdata_new(record);
                         // Link with variant stats
                         list_item_t *token_item = list_item_new(t, 0, aux);
@@ -165,8 +165,9 @@ int run_aggregate(shared_options_data_t *shared_options_data, aggregate_options_
             LOG_INFO_F("Output filename = %s\n", aggregated_filename);
             
             // Write header and delimiter line
+            // TODO Header not being properly written!
             write_vcf_header(vcf_file, output_fd);
-            write_vcf_delimiter(vcf_file, output_fd);
+//            write_vcf_delimiter(vcf_file, output_fd);
             
             // TODO Writer INFO headers for own annotation (if the 'overwrite' flag is set)
             
@@ -196,8 +197,8 @@ int run_aggregate(shared_options_data_t *shared_options_data, aggregate_options_
                 write_vcf_record(final_record, output_fd);
                 
                 // Free resources
-//                vcf_record_free(final_record);
-//                vcf_record_free_deep(final_record);
+                free(info);
+                vcf_record_free(final_record);
                 variant_stats_free(var_stats);
                 variant_auxdata_free(aux_data);
                 list_item_free(output_item);
@@ -237,7 +238,10 @@ char *merge_info_and_stats(char *info, variant_stats_t *stats, int overwrite) {
         assert(ret);
         
         free(fields[i]);
+        free(subfields);
     }
+    free(fields);
+    free(dup_info);
     
     int ret;
     // Add some fields from statistics to hash map (AC, AF, AN, MAF)
@@ -282,8 +286,6 @@ char *merge_info_and_stats(char *info, variant_stats_t *stats, int overwrite) {
             char *value = kh_value(fields_hash, k);
             assert(value);
             
-            printf("%s = %s\n", key, value);
-            
             if (overwrite) {
                 if (!strcmp(key, "AC") || !strcmp(key, "AF") || !strcmp(key, "AN")) {
                     // Ignore, they are going to be overwritten anyway
@@ -303,13 +305,15 @@ char *merge_info_and_stats(char *info, variant_stats_t *stats, int overwrite) {
                 strcat(new_info, "=");
                 strcat(new_info, value);
             }
+            strcat(new_info, ";");
+            
+            if (!starts_with(key, "HPG_")) { free(key); }
+            free(value);
         }
-        strcat(new_info, ";");
     }
     new_info[strlen(new_info)-1] = 0;
     
-    free(fields);
-    free(dup_info);
+    kh_destroy(info_fields, fields_hash);
     return new_info;
 }
 
@@ -334,5 +338,6 @@ variant_auxdata_t *variant_auxdata_new(vcf_record_t *record) {
 void variant_auxdata_free(variant_auxdata_t *data) {
     free(data->filter);
     free(data->id);
+    free(data->info);
     free(data);
 }
