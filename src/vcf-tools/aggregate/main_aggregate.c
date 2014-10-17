@@ -82,27 +82,17 @@ int vcf_tool_aggregate(int argc, char *argv[], const char *configuration_file) {
 
 aggregate_options_t *new_aggregate_cli_options() {
     aggregate_options_t *options = (aggregate_options_t*) malloc (sizeof(aggregate_options_t));
-//    options->save_db = arg_lit0(NULL, "db", "Save statistics to SQLite3 database file");
-//    options->variable = arg_str0(NULL, "variable", NULL, "Name for the variable field");
-//    options->variable_groups = arg_str0(NULL, "variable-group", NULL, "Sequence of variable groups");
-//    options->phenotype = arg_str0(NULL, "phenotype",NULL, "Affected,Unaffected phenotype values");
-    
+    options->overwrite = arg_lit0(NULL, "overwrite", "Overwrite fields in the INFO column (AC, AF, AN...)");
     return options;
 }
 
 aggregate_options_data_t *new_aggregate_options_data(aggregate_options_t *options) {
     aggregate_options_data_t *options_data = (aggregate_options_data_t*) malloc (sizeof(aggregate_options_data_t));
-//    options_data->save_db = options->save_db->count;
-//    options_data->variable = options->variable->count? strdup(*(options->variable->sval)) :NULL;
-//    options_data->variable_groups = options->variable_groups->count? strdup(*(options->variable_groups->sval)) :NULL;
-//    options_data->phenotype = options->phenotype->count? strdup(*options->phenotype->sval) :NULL;
+    options_data->overwrite = options->overwrite->count;
     return options_data;
 }
 
 void free_aggregate_options_data(aggregate_options_data_t *options_data) {
-//    if(options_data->variable) free(options_data->variable);
-//    if(options_data->variable_groups) free(options_data->variable_groups);
-//    if(options_data->phenotype) free(options_data->phenotype);
     free(options_data);
 }
 

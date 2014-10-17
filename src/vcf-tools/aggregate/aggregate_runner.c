@@ -266,7 +266,8 @@ char *merge_info_and_stats(char *info, variant_stats_t *stats, int overwrite) {
     char *AN_str = (char*) malloc (16 * sizeof(char));
     ret = add_to_hash(fields_hash, "HPG_AN", AN_str); assert(ret);
     
-//    float *maf = stats->maf;                    // Minor allele frequency
+//    // Minor allele frequency
+//    float *maf = stats->maf;
 //    char *maf_str = (char*) malloc (5 * sizeof(char)); // MAF format = x.abc
 //    sprintf(maf_str, "%.3f", maf);
 //    ret = add_to_hash(fields_hash, "HPG_MAF", maf_str); assert(ret);
@@ -275,9 +276,31 @@ char *merge_info_and_stats(char *info, variant_stats_t *stats, int overwrite) {
     char *new_info = (char*) calloc (strlen(info) + 128, sizeof(char));
     for (int k = kh_begin(fields_hash); k < kh_end(fields_hash); k++) {
         if (kh_exist(fields_hash, k)) {
-            char *field = kh_value(fields_hash, k);
-            assert(field);
+            char *key = kh_key(fields_hash, k);
+            char *value = kh_value(fields_hash, k);
+            assert(value);
+            
+            if (overwrite) {
+                if (!strcmp(key, "AC") || !strcmp(key, "AF") || !strcmp(key, "AN")) {
+                    // Ignore, they are going to be overwritten anyway
+                } else if (starts_with(key, "HPG_")) {
+                    char *suffix = key + 4;
+                    strcat(new_info, suffix);
+                    strcat(new_info, "=");
+                    strcat(new_info, value);
+                } else {
+                    // Non-overwritten field from the original INFO column
+                    strcat(new_info, key);
+                    strcat(new_info, "=");
+                    strcat(new_info, value);
+                }
+            } else {
+                strcat(new_info, key);
+                strcat(new_info, "=");
+                strcat(new_info, value);
+            }
         }
+        new_info[strlen(new_info)-1] = 0;
     }
     
     free(fields);
