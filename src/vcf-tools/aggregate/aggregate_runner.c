@@ -277,7 +277,11 @@ char *merge_info_and_stats(char *info, variant_stats_t *stats, int overwrite) {
 //    sprintf(maf_str, "%.3f", maf);
 //    ret = add_to_hash(fields_hash, "HPG_MAF", maf_str); assert(ret);
     
-    // TODO Merge them considering the overwriting flag
+    // GTC: Genotype counts
+    char *GTC_str = report_variant_genotypes_stats(stats);
+    ret = add_to_hash(fields_hash, "HPG_GTC", GTC_str); assert(ret);
+    
+    // Merge them considering the overwriting flag
     char *new_info = (char*) calloc (strlen(info) + 128, sizeof(char));
     for (int k = kh_begin(fields_hash); k < kh_end(fields_hash); k++) {
         if (kh_exist(fields_hash, k)) {
@@ -288,13 +292,9 @@ char *merge_info_and_stats(char *info, variant_stats_t *stats, int overwrite) {
             if (overwrite) {
                 if (!strcmp(key, "AC") || !strcmp(key, "AF") || !strcmp(key, "AN")) {
                     // Ignore, they are going to be overwritten anyway
-                } else if (starts_with(key, "HPG_")) {
-                    char *suffix = key + 4;
-                    strcat(new_info, suffix);
-                    strcat(new_info, "=");
-                    strcat(new_info, value);
                 } else {
                     // Non-overwritten field from the original INFO column
+                    // or fields calculated by HPG Variant
                     strcat(new_info, key);
                     strcat(new_info, "=");
                     strcat(new_info, value);
@@ -325,7 +325,38 @@ int add_to_hash(kh_info_fields_t *hash, char *key, char *value) {
     return ret;
 }
 
-variant_auxdata_t *variant_auxdata_new(vcf_record_t *record) {
+char* report_variant_genotypes_stats(variant_stats_t *var_stats) {
+    // The field representation will be allele1/allele2:count, like 0/1:204
+    // It also includes the count of missing genotypes, hence the +1
+    char *genotype_count_field = (char*) calloc ((var_stats->num_alleles * var_stats->num_alleles + 1) * 16, sizeof(char));
+    int num_chars_written = 0;
+    int gt_count = 0;
+//    float gt_freq = 0;
+    
+    for (int i = 0; i < var_stats->num_alleles; i++) {
+        for (int j = i; j < var_stats->num_alleles; j++) {
+            int idx1 = i * var_stats->num_alleles + j;
+            if (i == j) {
+                gt_count = var_stats->genotypes_count[idx1];
+//                gt_freq = var_stats->genotypes_freq[idx1];
+            } else {
+                int idx2 = j * var_stats->num_alleles + i;
+                gt_count = var_stats->genotypes_count[idx1] + var_stats->genotypes_count[idx2];
+//                gt_freq = var_stats->genotypes_freq[idx1] + var_stats->genotypes_freq[idx2];
+            }
+
+            num_chars_written += sprintf(genotype_count_field + num_chars_written, "%d/%d:%d,", i, j, gt_count);
+        }
+    }
+    
+    num_chars_written += sprintf(genotype_count_field + num_chars_written, "./.:%d,", var_stats->missing_genotypes);
+    
+    genotype_count_field[num_chars_written] = 0;
+    
+    return genotype_count_field;
+}
+
+variant_auxdata_t* variant_auxdata_new(vcf_record_t *record) {
     variant_auxdata_t *aux = (variant_auxdata_t*) malloc (sizeof(variant_auxdata_t));
     aux->id = strndup(record->id, record->id_len);
     aux->quality = record->quality;
