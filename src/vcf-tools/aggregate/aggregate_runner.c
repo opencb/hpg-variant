@@ -168,6 +168,7 @@ int run_aggregate(shared_options_data_t *shared_options_data, aggregate_options_
             while ( token_item = list_remove_item(next_token_list) ) {
                 // Write header and delimiter line
                 if (!header_written) {
+                    add_aggregator_header(vcf_file);
                     write_vcf_header(vcf_file, output_fd);
                     header_written = 1;
                     // TODO Write INFO headers for own "HPG_" annotations (if the "overwrite" flag is set)
@@ -220,6 +221,35 @@ int run_aggregate(shared_options_data_t *shared_options_data, aggregate_options_
     vcf_close(vcf_file);
     
     return 0;
+}
+
+void add_aggregator_header(vcf_file_t *vcf_file) {
+    // TODO This should use the --config argument
+    array_list_t *config_search_paths = get_configuration_search_paths(0, NULL);
+    char *configuration_file = retrieve_config_file("vcf-info-fields.conf", config_search_paths);
+    config_t *config = (config_t*) calloc (1, sizeof(config_t));
+    int ret_code = config_read_file(config, configuration_file);
+    assert(ret_code);
+    
+    // Add headers for fields created by HPG Variant
+    assert(add_aggregator_header_entry(config, "HPG_AC", vcf_file));
+    assert(add_aggregator_header_entry(config, "HPG_AF", vcf_file));
+    assert(add_aggregator_header_entry(config, "HPG_AN", vcf_file));
+    assert(add_aggregator_header_entry(config, "HPG_GTC", vcf_file));
+}
+
+int add_aggregator_header_entry(config_t *config, char *info_field_name, vcf_file_t *vcf_file) {
+    char *field_value;
+    int ret_code = config_lookup_string(config, info_field_name, &field_value);
+    if (ret_code == CONFIG_FALSE) {
+        LOG_ERROR_F("Information about subfield '%s' of INFO not found in configuration file\n", info_field_name);
+        return 0;
+    } else {
+        vcf_header_entry_t* header_entry = vcf_header_entry_new();
+        set_vcf_header_entry_name("INFO", 4, header_entry);
+        add_vcf_header_entry_value(field_value, strlen(field_value), header_entry);
+        return add_vcf_header_entry(header_entry, vcf_file);
+    }
 }
 
 char *merge_info_and_stats(char *info, variant_stats_t *stats, int overwrite) {

@@ -26,6 +26,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include <omp.h>
 
@@ -55,6 +56,10 @@ KHASH_MAP_INIT_STR(info_fields, char*);
 
 
 int run_aggregate(shared_options_data_t *shared_options_data, aggregate_options_data_t *options_data);
+
+void add_aggregator_header(vcf_file_t *vcf_file);
+
+int add_aggregator_header_entry(config_t *config, char *info_field_name, vcf_file_t *vcf_file);
 
 
 char* merge_info_and_stats(char *info, variant_stats_t *stats, int overwrite);
