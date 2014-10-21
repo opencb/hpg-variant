@@ -27,7 +27,7 @@ In case you downloaded a tarball with the source code, please follow these instr
 
 PRE-BUILD
 You need a C compiler, the build system SCons and a set of libraries that can be downloaded using apt-get or aptitude.
-sudo apt-get install build-essential scons libcurl4-openssl-dev libgsl0-dev libxml2-dev zlib1g-dev
+sudo apt-get install build-essential scons libcurl4-openssl-dev libgsl0-dev libxml2-dev zlib1g-dev libncurses5-dev
 
 BUILD
 From the root folder of the application, type 'scons'. This will create 3 binaries in the 'bin' subfolder.
