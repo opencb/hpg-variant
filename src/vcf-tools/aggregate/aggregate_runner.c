@@ -239,7 +239,7 @@ void add_aggregator_header(vcf_file_t *vcf_file) {
 }
 
 int add_aggregator_header_entry(config_t *config, char *info_field_name, vcf_file_t *vcf_file) {
-    char *field_value;
+    const char *field_value;
     int ret_code = config_lookup_string(config, info_field_name, &field_value);
     if (ret_code == CONFIG_FALSE) {
         LOG_ERROR_F("Information about subfield '%s' of INFO not found in configuration file\n", info_field_name);
@@ -253,24 +253,27 @@ int add_aggregator_header_entry(config_t *config, char *info_field_name, vcf_fil
 }
 
 char *merge_info_and_stats(char *info, variant_stats_t *stats, int overwrite) {
-    int num_fields;
-    char *dup_info = strdup(info);
-    char **fields = split(dup_info, ";", &num_fields);
     khash_t(info_fields) *fields_hash = kh_init(info_fields);
     
-    // Initialize hash map with fields from the original INFO column
-    for (int i = 0; i < num_fields; i++) {
-        int num_subfields;
-        char **subfields = split(fields[i], "=", &num_subfields);
-        
-        int ret = add_to_hash(fields_hash, subfields[0], (num_subfields > 1) ? subfields[1] : NULL);
-        assert(ret);
-        
-        free(fields[i]);
-        free(subfields);
+    // If the original INFO column was not empty, initialize hash map with its fields
+    if (strcmp(".", info)) {
+        int num_fields;
+        char *dup_info = strdup(info);
+        char **fields = split(dup_info, ";", &num_fields);
+
+        for (int i = 0; i < num_fields; i++) {
+            int num_subfields;
+            char **subfields = split(fields[i], "=", &num_subfields);
+
+            int ret = add_to_hash(fields_hash, subfields[0], (num_subfields > 1) ? subfields[1] : NULL);
+            assert(ret);
+
+            free(fields[i]);
+            free(subfields);
+        }
+        free(fields);
+        free(dup_info);
     }
-    free(fields);
-    free(dup_info);
     
     int ret;
     // Add some fields from statistics to hash map (AC, AF, AN, MAF)
