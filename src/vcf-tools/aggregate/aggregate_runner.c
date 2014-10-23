@@ -169,7 +169,7 @@ int run_aggregate(shared_options_data_t *shared_options_data, aggregate_options_
                 // Write header and delimiter line
                 if (!header_written) {
                     add_aggregator_header(vcf_file, options_data->overwrite);
-                    write_vcf_header(vcf_file, output_fd);
+                    write_vcf_header_nosamples(vcf_file, output_fd);
                     header_written = 1;
                     // TODO Write INFO headers for own "HPG_" annotations (if the "overwrite" flag is set)
                 }
