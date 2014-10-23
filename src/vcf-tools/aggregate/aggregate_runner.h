@@ -57,7 +57,7 @@ KHASH_MAP_INIT_STR(info_fields, char*);
 
 int run_aggregate(shared_options_data_t *shared_options_data, aggregate_options_data_t *options_data);
 
-void add_aggregator_header(vcf_file_t *vcf_file);
+void add_aggregator_header(vcf_file_t *vcf_file, int overwrite);
 
 int add_aggregator_header_entry(config_t *config, char *info_field_name, vcf_file_t *vcf_file);
 

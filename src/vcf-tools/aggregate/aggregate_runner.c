@@ -168,7 +168,7 @@ int run_aggregate(shared_options_data_t *shared_options_data, aggregate_options_
             while ( token_item = list_remove_item(next_token_list) ) {
                 // Write header and delimiter line
                 if (!header_written) {
-                    add_aggregator_header(vcf_file);
+                    add_aggregator_header(vcf_file, options_data->overwrite);
                     write_vcf_header(vcf_file, output_fd);
                     header_written = 1;
                     // TODO Write INFO headers for own "HPG_" annotations (if the "overwrite" flag is set)
@@ -223,7 +223,7 @@ int run_aggregate(shared_options_data_t *shared_options_data, aggregate_options_
     return 0;
 }
 
-void add_aggregator_header(vcf_file_t *vcf_file) {
+void add_aggregator_header(vcf_file_t *vcf_file, int overwrite) {
     // TODO This should use the --config argument
     array_list_t *config_search_paths = get_configuration_search_paths(0, NULL);
     char *configuration_file = retrieve_config_file("vcf-info-fields.conf", config_search_paths);
@@ -232,10 +232,17 @@ void add_aggregator_header(vcf_file_t *vcf_file) {
     assert(ret_code);
     
     // Add headers for fields created by HPG Variant
-    assert(add_aggregator_header_entry(config, "HPG_AC", vcf_file));
-    assert(add_aggregator_header_entry(config, "HPG_AF", vcf_file));
-    assert(add_aggregator_header_entry(config, "HPG_AN", vcf_file));
-    assert(add_aggregator_header_entry(config, "HPG_GTC", vcf_file));
+    if (!overwrite) {
+        assert(add_aggregator_header_entry(config, "HPG_AC", vcf_file));
+        assert(add_aggregator_header_entry(config, "HPG_AF", vcf_file));
+        assert(add_aggregator_header_entry(config, "HPG_AN", vcf_file));
+        assert(add_aggregator_header_entry(config, "HPG_GTC", vcf_file));
+    } else {
+        assert(add_aggregator_header_entry(config, "AC", vcf_file));
+        assert(add_aggregator_header_entry(config, "AF", vcf_file));
+        assert(add_aggregator_header_entry(config, "AN", vcf_file));
+        assert(add_aggregator_header_entry(config, "HPG_GTC", vcf_file));
+    }
 }
 
 int add_aggregator_header_entry(config_t *config, char *info_field_name, vcf_file_t *vcf_file) {
@@ -325,19 +332,27 @@ char *merge_info_and_stats(char *info, variant_stats_t *stats, int overwrite) {
             if (overwrite) {
                 if (!strcmp(key, "AC") || !strcmp(key, "AF") || !strcmp(key, "AN")) {
                     // Ignore, they are going to be overwritten anyway
+                } else if (!strcmp(key, "HPG_AC") || !strcmp(key, "HPG_AF") || !strcmp(key, "HPG_AN")) {
+                    // Remove the HPG part
+                    char *suffix = key + 4;
+                    strcat(new_info, suffix);
+                    strcat(new_info, "=");
+                    strcat(new_info, value);
+                    strcat(new_info, ";");
                 } else {
                     // Non-overwritten field from the original INFO column
                     // or fields calculated by HPG Variant
                     strcat(new_info, key);
                     strcat(new_info, "=");
                     strcat(new_info, value);
+                    strcat(new_info, ";");
                 }
             } else {
                 strcat(new_info, key);
                 strcat(new_info, "=");
                 strcat(new_info, value);
+                strcat(new_info, ";");
             }
-            strcat(new_info, ";");
             
             if (!starts_with(key, "HPG_")) { free(key); }
             free(value);
