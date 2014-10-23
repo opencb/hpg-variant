@@ -397,7 +397,7 @@ char* report_variant_genotypes_stats(variant_stats_t *var_stats) {
         }
     }
     
-    num_chars_written += sprintf(genotype_count_field + num_chars_written, "./.:%d,", var_stats->missing_genotypes);
+    num_chars_written += sprintf(genotype_count_field + num_chars_written, "./.:%d", var_stats->missing_genotypes);
     
     genotype_count_field[num_chars_written] = 0;
     
