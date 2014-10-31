@@ -68,7 +68,7 @@ int vcf_tool_merge(int argc, char *argv[], const char *configuration_file, array
 
     // Step 4: Create XXX_options_data_t structures from valid XXX_options_t
     shared_options_data_t *shared_options_data = new_shared_options_data(shared_options);
-    merge_options_data_t *options_data = new_merge_options_data(merge_options, config_search_paths);
+    merge_options_data_t *options_data = new_merge_options_data(merge_options, shared_options_data, config_search_paths);
 
     init_log_custom(shared_options_data->log_level, 1, "hpg-var-vcf.log", "w");
 
@@ -84,16 +84,18 @@ int vcf_tool_merge(int argc, char *argv[], const char *configuration_file, array
 
 merge_options_t *new_merge_cli_options() {
     merge_options_t *options = (merge_options_t*) malloc (sizeof(merge_options_t));
-    options->input_files = arg_str1(NULL, "vcf-list", NULL, "List of comma-separated input VCF files");
+    options->input_files = arg_str1("v", "vcf-list", NULL, "List of comma-separated input VCF files");
     options->missing_mode = arg_str0(NULL, "missing-mode", NULL, "How to fill missing genotypes (missing = ./., reference = 0/0)");
     options->info_fields = arg_str0(NULL, "info-fields", NULL, "Information to generate in the new INFO column");
     options->strict_reference = arg_lit0(NULL, "strict-ref", "Whether to reject variants whose reference allele is not the same in all files");
     options->copy_filter = arg_lit0(NULL, "copy-filter", "Whether to copy the FILTER column from the original files into the samples");
     options->copy_info = arg_lit0(NULL, "copy-info", "Whether to copy the INFO column from the original files into the samples");
+    options->chrom_sorting = arg_file0(NULL, "chrom-list", NULL, 
+            "File with a list of sorted chromosomes/contigs in the VCF files. If not provided, they will be searched for in CellBase.");
     return options;
 }
 
-merge_options_data_t *new_merge_options_data(merge_options_t *options, array_list_t *config_search_paths) {
+merge_options_data_t *new_merge_options_data(merge_options_t *options, shared_options_data_t *shared_options_data, array_list_t *config_search_paths) {
     merge_options_data_t *options_data = (merge_options_data_t*) calloc (1, sizeof(merge_options_data_t));
     if (!strcasecmp(*(options->missing_mode->sval), "missing")) {
         options_data->missing_mode = MISSING;
@@ -111,6 +113,31 @@ merge_options_data_t *new_merge_options_data(merge_options_t *options, array_lis
     options_data->copy_filter = options->copy_filter->count;
     options_data->copy_info = options->copy_info->count;
     options_data->config_search_paths = config_search_paths;
+    
+    if (options->chrom_sorting->count > 0) {
+        // Check if the file exists
+        if (exists(*(options->chrom_sorting->filename))) {
+            // If the file with a list of sorted chromosomes is provided, read them
+            options_data->chromosome_order = get_chromosome_order_from_file(
+                    *(options->chrom_sorting->filename), &(options_data->num_chromosomes));
+        } else {
+            LOG_FATAL("The file with the list of chromosomes/contigs could not be found and the merging process will be aborted.\n");
+        }
+    } else {
+        // Otherwise, they must be searched for in CellBase
+        options_data->chromosome_order = get_chromosome_order(
+                shared_options_data->host_url, shared_options_data->species,
+                shared_options_data->version, &(options_data->num_chromosomes));
+    }
+    
+    // If no chromosomes/contigs where found, the process can't continue
+    if (options_data->num_chromosomes == 0) {
+        free_merge_options_data(options_data);
+        LOG_ERROR("The list of chromosomes/contigs is empty and the merging process will be aborted.\n");
+    } else {
+        LOG_INFO_F("The list of %ul chromosomes/contigs has been retrieved.\n", options_data->num_chromosomes);
+    }
+
     return options_data;
 }
 
@@ -128,3 +155,25 @@ void free_merge_options_data(merge_options_data_t *options_data) {
     free(options_data);
 }
 
+char **get_chromosome_order_from_file(const char *path, unsigned long *num_chromosomes) {
+    // Count lines from input file and create storage for all of them
+    *num_chromosomes = count_lines(path);
+    char **chromosome_order = (char**) malloc((*num_chromosomes) * sizeof(char*));
+    
+    // Read chromosomes from file
+    char buffer[4096]; memset(buffer, 0, 4096 * sizeof(char));
+    FILE *file = fopen(path, "r");
+    unsigned long i = 0;
+    while (fgets(buffer, 4096, file) != NULL) {
+        size_t line_len = strlen(buffer);
+//        printf("Length is %zu: %s\n", line_len, buffer);
+        chromosome_order[i] = (char*) malloc (line_len * sizeof(char));
+        strncpy(chromosome_order[i], buffer, line_len-1);
+        chromosome_order[i][line_len-1] = '\0';
+//        printf("*** Chromosome %u is %s\n", i, chromosome_order[i]);
+        i++;
+    }
+    fclose(file);
+    
+    return chromosome_order;
+}

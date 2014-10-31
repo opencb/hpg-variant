@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
+ * Copyright (c) 2012-2014 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
  * Copyright (c) 2012 Ignacio Medina (ICM-CIPF)
  *
  * This file is part of hpg-variant.
@@ -22,7 +22,7 @@
 
 #define TREE_LIMIT         (shared_options_data->batch_lines)
 
-static int num_chromosomes;
+static unsigned long num_chromosomes;
 static char **chromosome_order;
 
 static void free_merge_tree(kh_pos_t* positions_read);
@@ -64,8 +64,14 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
         LOG_FATAL_F("Can't create output directory: %s\n", shared_options_data->output_directory);
     }
 
-    chromosome_order = get_chromosome_order(shared_options_data->host_url, shared_options_data->species,
-                                            shared_options_data->version, &num_chromosomes);
+//    chromosome_order = get_chromosome_order(shared_options_data->host_url, shared_options_data->species,
+//                                            shared_options_data->version, &num_chromosomes);
+    chromosome_order = options_data->chromosome_order;
+    num_chromosomes = options_data->num_chromosomes;
+    
+//    for (unsigned long i = 0; i < num_chromosomes; i++) {
+//        printf("Chromosome %d is %s\n", i, chromosome_order[i]);
+//    }
     
 #pragma omp parallel sections private(start, stop, total)
     {
@@ -485,7 +491,7 @@ static int insert_position_read(char key[64], vcf_record_file_link* link, kh_pos
 
 
 static int calculate_merge_interval(vcf_record_t* current_record, char** max_chromosome_merged, long unsigned int* max_position_merged,
-                                    char **chromosome_order, int num_chromosomes) {
+                                    char **chromosome_order, unsigned long num_chromosomes) {
     if (*max_chromosome_merged == NULL) {
         // Max merged chrom:position not set, assign without any other consideration
         *max_chromosome_merged = strndup(current_record->chromosome, current_record->chromosome_len);
@@ -514,7 +520,7 @@ static int calculate_merge_interval(vcf_record_t* current_record, char** max_chr
 
 
 static int merge_interval(kh_pos_t* positions_read, char *max_chromosome_merged, unsigned long max_position_merged,
-                          char **chromosome_order, int num_chromosomes, vcf_file_t **files, 
+                          char **chromosome_order, unsigned long num_chromosomes, vcf_file_t **files, 
                           shared_options_data_t *shared_options_data, merge_options_data_t *options_data, list_t *output_list) {
     int num_entries = 0;
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
+ * Copyright (c) 2012-2014 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
  * Copyright (c) 2012 Ignacio Medina (ICM-CIPF)
  *
  * This file is part of hpg-variant.
@@ -33,6 +33,7 @@
 #include <bioformats/vcf/vcf_file.h>
 #include <bioformats/vcf/vcf_stats.h>
 #include <bioformats/vcf/vcf_util.h>
+#include <commons/file_utils.h>
 #include <commons/log.h>
 #include <commons/string_utils.h>
 #include <commons/config/libconfig.h>
@@ -44,7 +45,7 @@
 #include "hpg_variant_utils.h"
 #include "shared_options.h"
 
-#define NUM_MERGE_OPTIONS   19
+#define NUM_MERGE_OPTIONS   20
 
 
 #define MERGED_RECORD       1
@@ -62,18 +63,22 @@ typedef struct merge_options {
     struct arg_lit *strict_reference;   /**< Whether to reject variants whose reference allele is not the same in all files */
     struct arg_lit *copy_filter;        /**< Whether to copy the contents of the original FILTER field into the samples */
     struct arg_lit *copy_info;          /**< Whether to copy the contents of the original INFO field into the samples */
+    struct arg_file *chrom_sorting;     /**< File containing the list of sorted chromosomes/contigs in the VCF files */
 } merge_options_t;
 
 typedef struct merge_options_data {
-    char **input_files;     /**< List of files used as input */
-    char **info_fields;     /**< List of attributes of the new INFO fields generated */
+    char **input_files;         /**< List of files used as input */
+    char **info_fields;         /**< List of attributes of the new INFO fields generated */
     
-    int num_files;          /**< Number of files used as input */
-    int num_info_fields;    /**< Number of attributes of the new INFO fields generated */ 
+    int num_files;              /**< Number of files used as input */
+    int num_info_fields;        /**< Number of attributes of the new INFO fields generated */ 
     
-    int strict_reference;   /**< Whether to reject variants whose reference allele is not the same in all files */
-    int copy_filter;        /**< Whether to copy the contents of the original FILTER field into the samples */
-    int copy_info;          /**< Whether to copy the contents of the original INFO field into the samples */
+    int strict_reference;       /**< Whether to reject variants whose reference allele is not the same in all files */
+    int copy_filter;            /**< Whether to copy the contents of the original FILTER field into the samples */
+    int copy_info;              /**< Whether to copy the contents of the original INFO field into the samples */
+    
+    char **chromosome_order;    /**< List of sorted chromosomes/contigs in the VCF files */
+    unsigned long num_chromosomes;        /**< Number of chromosomes to be sorted */
     
     enum missing_mode missing_mode;   /**< How to fill a missing sample field whenever its data is missing */
     
@@ -93,7 +98,7 @@ static merge_options_t *new_merge_cli_options(void);
 /**
  * Initialize a merge_options_data_t structure mandatory fields.
  */
-static merge_options_data_t *new_merge_options_data(merge_options_t *options, array_list_t *config_search_paths);
+static merge_options_data_t *new_merge_options_data(merge_options_t *options, shared_options_data_t *shared_options_data, array_list_t *config_search_paths);
 
 /**
  * Free memory associated to a merge_options_data_t structure.
@@ -171,6 +176,6 @@ void **merge_merge_options(merge_options_t *merge_options, shared_options_t *sha
  */
 int verify_merge_options(merge_options_t *options_data, shared_options_t *shared_options_data);
 
-
+static char **get_chromosome_order_from_file(const char *path, unsigned long *num_chromosomes);
 
 #endif

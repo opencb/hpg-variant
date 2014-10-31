@@ -66,14 +66,14 @@ static int insert_position_read(char key[64], vcf_record_file_link *link, kh_pos
  * @return Whether the max chromosome and position merged were updated
  */
 static int calculate_merge_interval(vcf_record_t* current_record, char** max_chromosome_merged, long unsigned int* max_position_merged,
-                                     char **chromosome_order, int num_chromosomes);
+                                     char **chromosome_order, unsigned long num_chromosomes);
 
 static int merge_interval(kh_pos_t* positions_read, char *max_chromosome_merged, unsigned long max_position_merged,
-                           char **chromosome_order, int num_chromosomes, vcf_file_t **files, 
-                           shared_options_data_t *shared_options_data, merge_options_data_t *options_data, list_t *output_list);
+                          char **chromosome_order, unsigned long num_chromosomes, vcf_file_t **files, 
+                          shared_options_data_t *shared_options_data, merge_options_data_t *options_data, list_t *output_list);
 
-static int merge_remaining_interval(kh_pos_t* positions_read, vcf_file_t **files,
-                                     shared_options_data_t *shared_options_data, merge_options_data_t *options_data, list_t *output_list);
+static int merge_remaining_interval(kh_pos_t* positions_read, vcf_file_t **files, shared_options_data_t *shared_options_data, 
+                                    merge_options_data_t *options_data, list_t *output_list);
 
 static void check_files_ahead_last_merged(int num_files, int file_ahead_last_merged[num_files], 
                                           char *last_chromosome_read[num_files], long last_position_read[num_files], 

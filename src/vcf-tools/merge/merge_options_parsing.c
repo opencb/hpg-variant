@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
+ * Copyright (c) 2012-2014 Cristina Yenyxe Gonzalez Garcia (ICM-CIPF)
  * Copyright (c) 2012 Ignacio Medina (ICM-CIPF)
  *
  * This file is part of hpg-variant.
@@ -107,21 +107,22 @@ void **merge_merge_options(merge_options_t *merge_options, shared_options_t *sha
     tool_options[6] = merge_options->copy_filter;
     tool_options[7] = merge_options->copy_info;
     tool_options[8] = merge_options->info_fields;
+    tool_options[9] = merge_options->chrom_sorting;
     
     // Configuration file
-    tool_options[9] = shared_options->log_level;
-    tool_options[10] = shared_options->config_file;
+    tool_options[10] = shared_options->log_level;
+    tool_options[11] = shared_options->config_file;
     
     // Advanced configuration
-    tool_options[11] = shared_options->host_url;
-    tool_options[12] = shared_options->version;
-    tool_options[13] = shared_options->max_batches;
-    tool_options[14] = shared_options->batch_lines;
-    tool_options[15] = shared_options->batch_bytes;
-    tool_options[16] = shared_options->num_threads;
-    tool_options[17] = shared_options->mmap_vcf_files;
+    tool_options[12] = shared_options->host_url;
+    tool_options[13] = shared_options->version;
+    tool_options[14] = shared_options->max_batches;
+    tool_options[15] = shared_options->batch_lines;
+    tool_options[16] = shared_options->batch_bytes;
+    tool_options[17] = shared_options->num_threads;
+    tool_options[18] = shared_options->mmap_vcf_files;
     
-    tool_options[18] = arg_end;
+    tool_options[19] = arg_end;
     
     return tool_options;
 }
