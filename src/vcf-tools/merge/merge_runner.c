@@ -20,12 +20,17 @@
 
 #include "merge_runner.h"
 
-#define TREE_LIMIT         (shared_options_data->batch_lines)
+#define TREE_LIMIT         (shared_options_data->batch_lines * 2)
+//KBTREE_INIT(chrtree, char*, kb_str_cmp);
 
 static unsigned long num_chromosomes;
 static char **chromosome_order;
+static khash_t(chrtree) *chromosomes_tree;
 
-static void free_merge_tree(kh_pos_t* positions_read);
+static khash_t(chrtree)* build_chromosomes_search_tree();
+static int is_valid_chromosome_in_tree(char *chromosome);//, khash_t(chrtree) *chromosomes);
+static int compare_chromosomes_in_tree(char *chromosome_1, char *chromosome_2);
+static void free_merge_tree(khash_t(pos) *positions_read);
 
 
 int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *options_data) {
@@ -68,6 +73,7 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
 //                                            shared_options_data->version, &num_chromosomes);
     chromosome_order = options_data->chromosome_order;
     num_chromosomes = options_data->num_chromosomes;
+    chromosomes_tree = build_chromosomes_search_tree();
     
 //    for (unsigned long i = 0; i < num_chromosomes; i++) {
 //        printf("Chromosome %d is %s\n", i, chromosome_order[i]);
@@ -231,7 +237,8 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
                         }
                         
                         // Check that the record is in a valid chromosome for this species
-                        if (is_valid_chromosome(aux_chr, chromosome_order, num_chromosomes)) {
+//                        if (is_valid_chromosome(aux_chr, chromosome_order, num_chromosomes)) {
+//                        if (is_valid_chromosome_in_tree(aux_chr)) {
                             vcf_record_file_link *link = vcf_record_file_link_new(record, files[i]);
                             char key[64];
                             compose_key_value(aux_chr, record->position, key);
@@ -241,10 +248,10 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
                             if(last_chromosome_read[i]) { free(last_chromosome_read[i]); }
                             last_chromosome_read[i] = aux_chr;
                             last_position_read[i] = record->position;
-                        } else {
-                            LOG_WARN_F("Chromosome %.*s from file %s ignored\n", record->chromosome_len, record->chromosome, files[i]->filename);
-                            free(aux_chr);
-                        }
+//                        } else {
+//                            LOG_WARN_F("Chromosome %.*s from file %s ignored\n", record->chromosome_len, record->chromosome, files[i]->filename);
+//                            free(aux_chr);
+//                        }
                     }
                     
                     // Free batch and its contents
@@ -302,7 +309,8 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
                         max_position_merged = file_position;
                     } else {
                         // printf("current = %s:%ld\tmax = %s:%ld\n", file_chromosome, file_position, max_chromosome_merged, max_position_merged);
-                        int chrom_comparison = compare_chromosomes(file_chromosome, max_chromosome_merged, chromosome_order, num_chromosomes);
+//                        int chrom_comparison = compare_chromosomes(file_chromosome, max_chromosome_merged, chromosome_order, num_chromosomes);
+                        int chrom_comparison = compare_chromosomes_in_tree(file_chromosome, max_chromosome_merged);
                         int position_comparison = compare_positions(file_position, max_position_merged);
 
                         // Max merged chrom:position is greater than the last one in this batch
@@ -451,6 +459,7 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
     free(output_list);
     free(output_header_list);
     free(merge_tokens_list);
+    kh_destroy(chrtree, chromosomes_tree);
     
     return ret_code;
 }
@@ -502,7 +511,8 @@ static int calculate_merge_interval(vcf_record_t* current_record, char** max_chr
         long unsigned int current_position = current_record->position;
         
 //         printf("current = %s:%ld\tmax = %s:%ld\n", current_chromosome, current_position, *max_chromosome_merged, *max_position_merged);
-        int chrom_comparison = compare_chromosomes(current_chromosome, *max_chromosome_merged, chromosome_order, num_chromosomes);
+//        int chrom_comparison = compare_chromosomes(current_chromosome, *max_chromosome_merged, chromosome_order, num_chromosomes);
+        int chrom_comparison = compare_chromosomes_in_tree(current_chromosome, *max_chromosome_merged);
         int position_comparison = compare_positions(current_position, *max_position_merged);
         
         // Max merged chrom:position is greater than the last one in this batch
@@ -535,7 +545,8 @@ static int merge_interval(kh_pos_t* positions_read, char *max_chromosome_merged,
             int num_links = 0;
             
             // Remove positions prior to the last chromosome:position to merge
-            int cmp_chrom = compare_chromosomes(record->chromosome, max_chromosome_merged, chromosome_order, num_chromosomes);
+//            int cmp_chrom = compare_chromosomes(record->chromosome, max_chromosome_merged, chromosome_order, num_chromosomes);
+            int cmp_chrom = compare_chromosomes_in_tree(record->chromosome, max_chromosome_merged);
             if (cmp_chrom < 0 || (cmp_chrom == 0 && compare_positions(record->position, max_position_merged) <= 0)) {
                 links = (vcf_record_file_link**) records_in_position->items;
                 num_links = records_in_position->size;
@@ -614,7 +625,8 @@ static void check_files_ahead_last_merged(int num_files, int file_ahead_last_mer
 
             char *file_chromosome = last_chromosome_read[i];
             long file_position = last_position_read[i];
-            int chrom_comparison = compare_chromosomes(file_chromosome, max_chromosome_merged, chromosome_order, num_chromosomes);
+//            int chrom_comparison = compare_chromosomes(file_chromosome, max_chromosome_merged, chromosome_order, num_chromosomes);
+            int chrom_comparison = compare_chromosomes_in_tree(file_chromosome, max_chromosome_merged);
             int position_comparison = compare_positions(file_position, max_position_merged);
 
             if (chrom_comparison > 0 || (chrom_comparison == 0 && position_comparison > 0)) {
@@ -626,6 +638,43 @@ static void check_files_ahead_last_merged(int num_files, int file_ahead_last_mer
     LOG_DEBUG("\n");
 }
 
+
+static khash_t(chrtree)* build_chromosomes_search_tree() {
+    chromosomes_tree = kh_init(chrtree);
+    for (unsigned long i = 0; i < num_chromosomes; ++i) {
+        khiter_t iter = kh_get(chrtree, chromosomes_tree, chromosome_order[i]);
+        int ret;
+        if (iter == kh_end(chromosomes_tree)) {
+//            records_in_position = array_list_new(8, 1.5, COLLECTION_MODE_SYNCHRONIZED);
+//            ret = array_list_insert(link, records_in_position);
+            iter = kh_put(chrtree, chromosomes_tree, chromosome_order[i], &ret);
+            if (ret) {
+                kh_value(chromosomes_tree, iter) = i;
+            }
+        }
+        
+//        if (kb_get(chrtree, chromosomes_tree, chromosome_order[i]) == NULL) {
+//            kb_put(chrtree, chromosomes_tree, chromosome_order[i]);
+//        }
+    }
+    
+    return chromosomes_tree;
+}
+
+static int is_valid_chromosome_in_tree(char *chromosome) {//, khash_t(chrtree) *chromosomes) {
+//    return kh_exist(chromosomes, chromosome) != kh_end(chromosomes);
+    return kh_get(chrtree, chromosomes_tree, chromosome) != kh_end(chromosomes_tree);
+}
+
+static int compare_chromosomes_in_tree(char *chromosome_1, char *chromosome_2) {
+    khiter_t iter1 = kh_get(chrtree, chromosomes_tree, chromosome_1);
+    khiter_t iter2 = kh_get(chrtree, chromosomes_tree, chromosome_2);
+    
+    int idx1 = kh_value(chromosomes_tree, iter1);
+    int idx2 = kh_value(chromosomes_tree, iter2);
+    
+    return idx1 - idx2;
+}
 
 static void compose_key_value(const char *chromosome, const long position, char *key) {
     assert(key);

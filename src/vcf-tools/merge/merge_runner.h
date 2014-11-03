@@ -43,8 +43,9 @@
 #include "hpg_variant_utils.h"
 #include "merge.h"
 
-
 KHASH_MAP_INIT_STR(pos, array_list_t*);
+//KHASH_SET_INIT_STR(chrtree);
+KHASH_MAP_INIT_STR(chrtree, int);
 
 int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *options_data);
 
@@ -78,8 +79,6 @@ static int merge_remaining_interval(kh_pos_t* positions_read, vcf_file_t **files
 static void check_files_ahead_last_merged(int num_files, int file_ahead_last_merged[num_files], 
                                           char *last_chromosome_read[num_files], long last_position_read[num_files], 
                                           char *max_chromosome_merged, long max_position_merged, int num_eof_found);
-
-
 
 static void compose_key_value(const char *chromosome, const long position, char *key);
 
