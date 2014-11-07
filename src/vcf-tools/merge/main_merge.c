@@ -152,6 +152,11 @@ void free_merge_options_data(merge_options_data_t *options_data) {
     }
     free(options_data->info_fields);
     
+    for (int i = 0; i < options_data->num_chromosomes; i++) {
+        free(options_data->chromosome_order[i]);
+    }
+    free(options_data->chromosome_order);
+    
     free(options_data);
 }
 
