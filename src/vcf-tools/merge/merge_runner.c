@@ -238,7 +238,7 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
                         
                         // Check that the record is in a valid chromosome for this species
 //                        if (is_valid_chromosome(aux_chr, chromosome_order, num_chromosomes)) {
-//                        if (is_valid_chromosome_in_tree(aux_chr)) {
+                        if (is_valid_chromosome_in_tree(aux_chr)) {
                             vcf_record_file_link *link = vcf_record_file_link_new(record, files[i]);
                             char key[64];
                             compose_key_value(aux_chr, record->position, key);
@@ -248,10 +248,10 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
                             if(last_chromosome_read[i]) { free(last_chromosome_read[i]); }
                             last_chromosome_read[i] = aux_chr;
                             last_position_read[i] = record->position;
-//                        } else {
-//                            LOG_WARN_F("Chromosome %.*s from file %s ignored\n", record->chromosome_len, record->chromosome, files[i]->filename);
-//                            free(aux_chr);
-//                        }
+                        } else {
+                            LOG_WARN_F("Chromosome %.*s from file %s ignored\n", record->chromosome_len, record->chromosome, files[i]->filename);
+                            free(aux_chr);
+                        }
                     }
                     
                     // Free batch and its contents
