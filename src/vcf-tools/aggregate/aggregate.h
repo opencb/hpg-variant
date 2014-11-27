@@ -36,7 +36,7 @@
 //#include <bioformats/vcf/vcf_aggregate_report.h>
 #include <commons/file_utils.h>
 #include <commons/log.h>
-#include <commons/config/libconfig.h>
+#include <config/libconfig.h>
 //#include <commons/sqlite/sqlite3.h>
 #include <containers/khash.h>
 

@@ -30,10 +30,10 @@
 #include <bioformats/vcf/vcf_file.h>
 #include <bioformats/vcf/vcf_util.h>
 #include <commons/log.h>
-#include <commons/argtable/argtable2.h>
-#include <commons/config/libconfig.h>
+#include <argtable/argtable2.h>
+#include <config/libconfig.h>
 #include <containers/list.h>
-#include <containers/cprops/hashtable.h>
+#include <cprops/hashtable.h>
 
 #include "assoc_basic_test.h"
 #include "assoc_fisher_test.h"

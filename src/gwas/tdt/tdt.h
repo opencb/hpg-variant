@@ -34,11 +34,11 @@
 #include <bioformats/vcf/vcf_file_structure.h>
 #include <bioformats/vcf/vcf_util.h>
 #include <commons/log.h>
-#include <commons/argtable/argtable2.h>
-#include <commons/config/libconfig.h>
+#include <argtable/argtable2.h>
+#include <config/libconfig.h>
 #include <containers/list.h>
 #include <containers/khash.h>
-#include <containers/cprops/hashtable.h>
+#include <cprops/hashtable.h>
 
 #include "error.h"
 #include "hpg_variant_utils.h"

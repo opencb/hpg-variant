@@ -42,7 +42,7 @@
 #include <commons/string_utils.h>
 #include <containers/list.h>
 #include <containers/khash.h>
-#include <containers/cprops/hashtable.h>
+#include <cprops/hashtable.h>
 
 #include "hpg_variant_utils.h"
 #include "shared_options.h"

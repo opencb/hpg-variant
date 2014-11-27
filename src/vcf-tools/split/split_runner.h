@@ -31,7 +31,7 @@
 #include <commons/file_utils.h>
 #include <commons/log.h>
 #include <containers/list.h>
-#include <containers/cprops/hashtable.h>
+#include <cprops/hashtable.h>
 
 #include "hpg_variant_utils.h"
 #include "split.h"

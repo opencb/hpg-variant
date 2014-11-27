@@ -1,10 +1,11 @@
-Import('env commons_path bioinfo_path math_path')
+Import('env hpglib_path third_party_samtools_path third_party_hts_path')
 
 prog = env.Program('hpg-var-vcf', 
              source = [Glob('*.c'), Glob('aggregate/*.c'), Glob('annot/*.c'), Glob('filter/*.c'), Glob('merge/*.c'), 
                        Glob('split/*.c'), Glob('stats/*.c'), Glob('vcf2epi/*.c'), Glob('../*.c'),
-                       "%s/libcommon.a" % commons_path,
-                       "%s/libbioinfo.a" % bioinfo_path
+                       "%s/build/libhpg.a" % hpglib_path,
+                       "%s/libhts.a" % third_party_hts_path,
+                       "%s/libbam.a" % third_party_samtools_path
                       ]
            )
 

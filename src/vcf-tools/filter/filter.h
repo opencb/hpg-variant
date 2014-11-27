@@ -34,7 +34,7 @@
 #include <bioformats/vcf/vcf_write.h>
 #include <commons/file_utils.h>
 #include <commons/log.h>
-#include <commons/config/libconfig.h>
+#include <config/libconfig.h>
 #include <containers/list.h>
 
 #include "error.h"

@@ -28,7 +28,7 @@
 
 #include <bioformats/vcf/vcf_file_structure.h>
 #include <commons/log.h>
-#include <commons/config/libconfig.h>
+#include <config/libconfig.h>
 #include <containers/list.h>
 
 #include "error.h"

@@ -2,9 +2,15 @@ import os
 import buildaux
 
 # Initialize the environment with path variables, CFLAGS, and so on
-bioinfo_path = '#lib/bioinfo-libs'
-commons_path = '#lib/common-libs'
-math_path = '#lib/math'
+hpglib_path = '#lib/c/'
+third_party_path = '#/lib/third_party'
+#third_party_cram_path = '#/lib/third_party/htslib/cram'
+third_party_hts_path = '#/lib/third_party/htslib'
+third_party_samtools_path = '#/lib/third_party/samtools'
+
+#bioinfo_path = '#lib/bioinfo-libs'
+#commons_path = '#lib/common-libs'
+#math_path = '#lib/math'
 
 compiler = ARGUMENTS.get('compiler', 'gcc')
 build_tools = [ 'default', 'packaging' ]
@@ -13,10 +19,10 @@ if compiler == 'icc':
 
 env = Environment(tools = build_tools,
                   CFLAGS = '-std=c99 -D_XOPEN_SOURCE=600 -D_GNU_SOURCE -msse4.2 -fopenmp -Wuninitialized -Wmissing-braces',
-                  CPPPATH = ['#', '#src', '#include', bioinfo_path, commons_path, math_path,
+                  CPPPATH = ['#', '#src', '#include', hpglib_path + 'src', third_party_path, third_party_samtools_path, third_party_hts_path,
                              '/usr/include', '/usr/local/include', '/usr/include/libxml2', '/usr/lib/openmpi/include'],
-                  LIBPATH = [commons_path, bioinfo_path, '/usr/lib', '/usr/local/lib'],
-                  LIBS = ['common', 'bioinfo', 'curl', 'dl', 'gsl', 'gslcblas', 'm', 'xml2', 'z'],
+                  LIBPATH = [hpglib_path + 'build', third_party_hts_path, third_party_samtools_path, '/usr/lib', '/usr/local/lib'],
+                  LIBS = ['curl', 'dl', 'gsl', 'gslcblas', 'm', 'xml2', 'z'],
                   LINKFLAGS = ['-fopenmp'])
 
 
@@ -48,23 +54,23 @@ env['objects'] = []
 ##### Targets
 
 # Compile dependencies
-SConscript(['%s/SConscript' % bioinfo_path,
-            '%s/SConscript' % commons_path,
-            '%s/SConscript' % math_path
-            ], exports = ['env', 'debug', 'compiler'])
+#SConscript(['%s/SConscript' % bioinfo_path,
+#'%s/SConscript' % commons_path,
+#'%s/SConscript' % math_path
+#], exports = ['env', 'debug', 'compiler'])
 
 # Create binaries and copy them to 'bin' folder
 progs = SConscript(['src/effect/SConscript',
             'src/gwas/SConscript',
             'src/vcf-tools/SConscript'
-            ], exports = ['env', 'debug', 'mode', 'commons_path', 'bioinfo_path', 'math_path'])
+            ], exports = ['env', 'debug', 'mode', 'hpglib_path', 'third_party_hts_path', 'third_party_samtools_path'])
 
 inst1 = env.Install('#bin', [Glob('etc/hpg-variant/*.conf')] + list(progs))
 inst2 = env.Install('#bin/bash_completion', [Glob('etc/bash_completion.d/*')])
 
 
 # Run tests
-t = SConscript("test/SConscript", exports = ['env', 'debug', 'commons_path', 'bioinfo_path', 'math_path'] )
+t = SConscript("test/SConscript", exports = ['env', 'debug', 'hpglib_path', 'third_party_hts_path', 'third_party_samtools_path'] )
 
 # Create tarball
 # For the packaging manager: Don't forget to point the XXX_INCLUDE_PATH and XXX_LIBRARY_PATH 

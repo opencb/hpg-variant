@@ -1,4 +1,4 @@
-Import('env commons_path bioinfo_path math_path')
+Import('env hpglib_path')
 
 penv = env.Clone()
 penv['LIBS'] += ['check']
@@ -6,70 +6,56 @@ penv['LIBS'] += ['check']
 check_fam = penv.Program('checks_family.test', 
              source = ['test_checks_family.c', 
                        Glob('#src/*.o'), Glob('#src/gwas/assoc/*.o'), Glob('#src/gwas/tdt/*.o'),
-                       "%s/libcommon.a" % commons_path,
-                       "%s/libbioinfo.a" % bioinfo_path,
-                       "%s/libhpgmath.a" % math_path
+                       "%s/build/libhpg.a" % hpglib_path
                       ]
            )
 
 effect = penv.Program('effect.test', 
              source = ['test_effect_runner.c', 
                        Glob('#src/*.o'), '#src/effect/auxiliary_files_writer.o', '#src/effect/effect_options_parsing.o', '#src/effect/effect_runner.o',
-                       "%s/libcommon.a" % commons_path,
-                       "%s/libbioinfo.a" % bioinfo_path
+                       "%s/build/libhpg.a" % hpglib_path
                       ]
            )
 
 epi_cv = penv.Program('epistasis_cross_validation.test', 
              source = ['test_cross_validation.c', 
                        Glob('#src/*.o'), '#src/gwas/epistasis/cross_validation.o', '#src/gwas/epistasis/dataset.o', '#src/gwas/epistasis/mdr.o', '#src/gwas/epistasis/model.o',  
-                       "%s/libcommon.a" % commons_path,
-                       "%s/libbioinfo.a" % bioinfo_path,
-                       "%s/libhpgmath.a" % math_path
+                       "%s/build/libhpg.a" % hpglib_path
                       ]
            )
 
 epi_data = penv.Program('epistasis_dataset.test', 
              source = ['test_epistasis_dataset.c', 
                        Glob('#src/*.o'), '#src/gwas/epistasis/dataset.o', 
-                       "%s/libcommon.a" % commons_path,
-                       "%s/libbioinfo.a" % bioinfo_path
+                       "%s/build/libhpg.a" % hpglib_path
                       ]
            )
 
 #epi_mdr = penv.Program('epistasis_mdr.test', 
              #source = ['test_mdr.c', 
-                       #Glob('#src/*.o'), '#src/gwas/epistasis/cross_validation.o', '#src/gwas/epistasis/dataset.o', '#src/gwas/epistasis/mdr.o', '#src/gwas/epistasis/model.o',  
-                       #"%s/libcommon.a" % commons_path,
-                       #"%s/libbioinfo.a" % bioinfo_path,
-                       #"%s/libhpgmath.a" % math_path
+                       #Glob('#src/*.o'), '#src/gwas/epistasis/cross_validation.o', '#src/gwas/epistasis/dataset.o', '#src/gwas/epistasis/mdr.o', '#src/gwas/epistasis/model.o',
+                       #"%s/build/libhpg.a" % hpglib_path
                       #]
            #)
 
 epi_model = penv.Program('epistasis_model.test', 
              source = ['test_epistasis_model.c', 
                        Glob('#src/*.o'), '#src/gwas/epistasis/cross_validation.o', '#src/gwas/epistasis/dataset.o', '#src/gwas/epistasis/mdr.o', '#src/gwas/epistasis/model.o', 
-                       "%s/libcommon.a" % commons_path,
-                       "%s/libbioinfo.a" % bioinfo_path,
-                       "%s/libhpgmath.a" % math_path
+                       "%s/build/libhpg.a" % hpglib_path
                       ]
            )
 
 #merge = penv.Program('merge.test', 
              #source = ['test_merge.c',
                        #Glob('#src/*.o'), Glob('#src/vcf-tools/merge/*.o'),
-                       #"%s/libcommon.a" % commons_path,
-                       #"%s/libbioinfo.a" % bioinfo_path,
-                       #"%s/libhpgmath.a" % math_path
+                       #"%s/build/libhpg.a" % hpglib_path
                       #]
            #)
 
 tdt = penv.Program('tdt.test', 
              source = ['test_tdt_runner.c',
                        Glob('#src/*.o'), Glob('#src/gwas/tdt/*.o'),
-                       "%s/libcommon.a" % commons_path,
-                       "%s/libbioinfo.a" % bioinfo_path,
-                       "%s/libhpgmath.a" % math_path
+                       "%s/build/libhpg.a" % hpglib_path
                       ]
            )
 
@@ -79,9 +65,7 @@ mpi_env.Append(LIBS = 'mpi')
 mpi_blocks = mpi_env.Program('mpi_blocks.test', 
              source = ['mpi_blocks_test.c', 
                        Glob('#src/*.o'), '#src/gwas/epistasis/cross_validation.o', '#src/gwas/epistasis/dataset.o', '#src/gwas/epistasis/mdr.o', '#src/gwas/epistasis/model.o', 
-                       "%s/libcommon.a" % commons_path,
-                       "%s/libbioinfo.a" % bioinfo_path,
-                       "%s/libhpgmath.a" % math_path
+                       "%s/build/libhpg.a" % hpglib_path
                       ]
            )
 

@@ -31,8 +31,8 @@
 
 #include <stdlib.h>
 
-#include <commons/argtable/argtable2.h>
-#include <commons/config/libconfig.h>
+#include <argtable/argtable2.h>
+#include <config/libconfig.h>
 #include <commons/log.h>
 
 #include "error.h"

@@ -38,7 +38,7 @@
 #include <containers/array_list.h>
 #include <containers/khash.h>
 #include <containers/list.h>
-#include <containers/cprops/hashtable.h>
+#include <cprops/hashtable.h>
 
 #include "hpg_variant_utils.h"
 #include "merge.h"
