@@ -101,8 +101,9 @@ void **merge_aggregate_options(aggregate_options_t *aggregate_options, shared_op
     tool_options[8] = shared_options->batch_bytes;
     tool_options[9] = shared_options->num_threads;
     tool_options[10] = shared_options->mmap_vcf_files;
+    tool_options[11] = shared_options->compression;
     
-    tool_options[11] = arg_end;
+    tool_options[12] = arg_end;
     
     return tool_options;
 }

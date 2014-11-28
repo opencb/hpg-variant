@@ -49,7 +49,7 @@
 #include "shared_options.h"
 #include "hpg_variant_utils.h"
 
-#define NUM_ANNOT_OPTIONS       15
+#define NUM_ANNOT_OPTIONS       16
 #define MAX_VARIANTS_PER_QUERY  1000
 #define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
 

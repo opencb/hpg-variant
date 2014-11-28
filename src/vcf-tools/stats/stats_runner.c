@@ -33,13 +33,10 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
     int ret_code;
     double start, stop, total;
     
-    vcf_file_t *vcf_file = vcf_open(shared_options_data->vcf_filename, shared_options_data->max_batches);
+    vcf_file_t *vcf_file = vcf_open(shared_options_data->vcf_filename, shared_options_data->max_batches, shared_options_data->compression);
     if (!vcf_file) {
         LOG_FATAL("VCF file does not exist!\n");
     }
-    
-    vcf_file->compression = shared_options_data->compression;
-    printf("compression: %d\n", vcf_file->compression);
     
     ped_file_t *ped_file = NULL;
     if (shared_options_data->ped_filename) {

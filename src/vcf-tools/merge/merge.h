@@ -45,7 +45,7 @@
 #include "hpg_variant_utils.h"
 #include "shared_options.h"
 
-#define NUM_MERGE_OPTIONS   20
+#define NUM_MERGE_OPTIONS   21
 
 
 #define MERGED_RECORD       1

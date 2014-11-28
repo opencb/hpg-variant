@@ -19,6 +19,7 @@
  */
 
 #include "vcf2epi.h"
+#include "gwas/epistasis/epistasis.h"
 
 
 int read_vcf2epi_configuration(const char *filename, vcf2epi_options_t *vcf2epi_options, shared_options_t *shared_options) {
@@ -77,8 +78,7 @@ void **parse_vcf2epi_options(int argc, char *argv[], vcf2epi_options_t *vcf2epi_
 }
 
 void **merge_vcf2epi_options(vcf2epi_options_t *vcf2epi_options, shared_options_t *shared_options, struct arg_end *arg_end) {
-    size_t opts_size = vcf2epi_options->num_options + shared_options->num_options;
-    void **tool_options = malloc (opts_size * sizeof(void*));
+    void **tool_options = malloc (NUM_EPISTASIS_OPTIONS * sizeof(void*));
     // Input/output files
     tool_options[0] = shared_options->vcf_filename;
     tool_options[1] = shared_options->ped_filename;
@@ -114,8 +114,9 @@ void **merge_vcf2epi_options(vcf2epi_options_t *vcf2epi_options, shared_options_
     tool_options[23] = shared_options->batch_bytes;
     tool_options[24] = shared_options->num_threads;
     tool_options[25] = shared_options->mmap_vcf_files;
+    tool_options[26] = shared_options->compression;
     
-    tool_options[26] = arg_end;
+    tool_options[27] = arg_end;
     
     return tool_options;
 }

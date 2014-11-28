@@ -117,8 +117,9 @@ void **merge_tdt_options(tdt_options_t *tdt_options, shared_options_t *shared_op
     tool_options[26] = shared_options->batch_bytes;
     tool_options[27] = shared_options->num_threads;
     tool_options[28] = shared_options->mmap_vcf_files;
+    tool_options[29] = shared_options->compression;
     
-    tool_options[29] = arg_end;
+    tool_options[30] = arg_end;
     
     return tool_options;
 }

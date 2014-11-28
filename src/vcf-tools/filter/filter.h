@@ -41,7 +41,7 @@
 #include "shared_options.h"
 #include "hpg_variant_utils.h"
 
-#define NUM_FILTER_OPTIONS  30
+#define NUM_FILTER_OPTIONS  31
 
 typedef struct filter_options {
     struct arg_lit *save_rejected;  /**< Flag that sets whether to write a file containing the rejected records */
