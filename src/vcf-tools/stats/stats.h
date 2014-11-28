@@ -44,7 +44,7 @@
 #include "shared_options.h"
 #include "hpg_variant_utils.h"
 
-#define NUM_STATS_OPTIONS  16
+#define NUM_STATS_OPTIONS  17
 #define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
 
 

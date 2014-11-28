@@ -58,7 +58,8 @@ shared_options_t *new_shared_cli_options(int ped_required) {
     options_data->log_level = arg_str0("l", "log-level", NULL, "Level of the messages to log (debug, info, warn, error, fatal, nothing)");
     options_data->config_file = arg_file0("c", "config", NULL, "File that contains the parameters for configuring the application");
     options_data->mmap_vcf_files = arg_lit0(NULL, "mmap-vcf", "Whether to map VCF files to virtual memory or use the I/O API");
-    
+    options_data->compression = arg_str0(NULL, "compression", NULL, "Type of compression of the vcf. (gzip, bgzip or bcf)");
+
     options_data->num_options = NUM_GLOBAL_OPTIONS;
     
     return options_data;
@@ -193,6 +194,20 @@ shared_options_data_t* new_shared_options_data(shared_options_t* options) {
     // If not previously defined, set the value present in the command-line
     if (!mmap_vcf) {
         mmap_vcf = options->mmap_vcf_files->count;
+    }
+    
+    if (options->compression->count == 1) {
+        if (!strcasecmp(*(options->compression->sval), "bgzip")) {
+            options_data->compression = VCF_FILE_BGZIP;
+        } else if (!strcasecmp(*(options->compression->sval), "gzip")) {
+            options_data->compression = VCF_FILE_GZIP;
+        } else if (!strcasecmp(*(options->compression->sval), "bcf")) {
+            options_data->compression = VCF_FILE_BCF;
+        } else {
+            options_data->compression = VCF_FILE_VCF;
+        }
+    } else {
+        options_data->compression = VCF_FILE_VCF;
     }
     
     return options_data;

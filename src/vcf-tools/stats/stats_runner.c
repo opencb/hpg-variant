@@ -38,6 +38,9 @@ int run_stats(shared_options_data_t *shared_options_data, stats_options_data_t *
         LOG_FATAL("VCF file does not exist!\n");
     }
     
+    vcf_file->compression = shared_options_data->compression;
+    printf("compression: %d\n", vcf_file->compression);
+    
     ped_file_t *ped_file = NULL;
     if (shared_options_data->ped_filename) {
         ped_file = ped_open(shared_options_data->ped_filename);
