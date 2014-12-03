@@ -54,6 +54,7 @@ env['objects'] = []
 ##### Targets
 
 # Compile dependencies
+SConscript(['lib/SConstruct'])
 #SConscript(['%s/SConscript' % bioinfo_path,
 #'%s/SConscript' % commons_path,
 #'%s/SConscript' % math_path
