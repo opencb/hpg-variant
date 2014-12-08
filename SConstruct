@@ -12,9 +12,9 @@ third_party_samtools_path = '#/lib/third_party/samtools'
 #commons_path = '#lib/common-libs'
 #math_path = '#lib/math'
 
-compiler = ARGUMENTS.get('compiler', 'gcc')
+compiler = ARGUMENTS.get('compiler', 'gnu')
 build_tools = [ 'default', 'packaging' ]
-if compiler == 'icc':
+if compiler == 'intel':
     build_tools.append('intelc')
 
 env = Environment(tools = build_tools,
