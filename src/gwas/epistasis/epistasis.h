@@ -38,10 +38,10 @@
 #include <mpi.h>
 #endif
 
-#include <commons/argtable/argtable2.h>
-#include <commons/config/libconfig.h>
+#include <argtable/argtable2.h>
+#include <config/libconfig.h>
 #include <commons/log.h>
-#include <math_utils.h>
+#include <math/math_utils.h>
 
 #include "error.h"
 #include "shared_options.h"

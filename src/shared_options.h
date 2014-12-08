@@ -35,15 +35,15 @@
 #include <bioformats/vcf/vcf_filters.h>
 #include <bioformats/vcf/vcf_util.h>
 #include <commons/log.h>
-#include <commons/argtable/argtable2.h>
-#include <commons/config/libconfig.h>
+#include <argtable/argtable2.h>
+#include <config/libconfig.h>
 
 #include "error.h"
 
 /**
  * Number of options applicable to the whole application.
  */
-#define NUM_GLOBAL_OPTIONS  27
+#define NUM_GLOBAL_OPTIONS  28
 
 typedef struct shared_options {
     struct arg_file *vcf_filename;      /**< VCF file used as input. */
@@ -79,6 +79,7 @@ typedef struct shared_options {
     struct arg_str *log_level;          /**< Level to register in the log file */
     struct arg_file *config_file;       /**< Path to the configuration file */
     struct arg_lit *mmap_vcf_files;     /**< Whether to map VCF files to virtual memory or use the I/O API. */
+    struct arg_str *compression;        /**< Type of compression (see compression_t in vcf_file_structure). */
     
     int num_options;
 } shared_options_t;
@@ -106,6 +107,7 @@ typedef struct shared_options_data {
     int batch_bytes;                    /**< Maximum size of a batch (in bytes). */
     int num_threads;                    /**< Number of threads when a task runs in parallel. */
     int entries_per_thread;             /**< Number of entries in a batch each thread processes. */
+    int compression;                    /**< Type of compression (see compression_t in vcf_file_structure). */
     
     filter_chain *chain;                /**< Chain of filters to apply to the VCF records, if that is the case. */
     

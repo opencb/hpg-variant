@@ -120,8 +120,9 @@ void **merge_filter_options(filter_options_t *filter_options, shared_options_t *
     tool_options[26] = shared_options->batch_bytes;
     tool_options[27] = shared_options->num_threads;
     tool_options[28] = shared_options->mmap_vcf_files;
+    tool_options[29] = shared_options->compression;
     
-    tool_options[29] = arg_end;
+    tool_options[30] = arg_end;
     
     return tool_options;
 }

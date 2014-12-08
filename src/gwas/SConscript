@@ -1,21 +1,19 @@
-Import('env mode commons_path bioinfo_path math_path')
+Import('env mode hpglib_path third_party_hts_path')
 
 
 if mode == 'single':
     prog = env.Program('hpg-var-gwas', 
                 source = [Glob('*.c'), Glob('assoc/*.c'), Glob('epistasis/*.c'), Glob('epistasis/singlenode/*.c'), Glob('tdt/*.c'), Glob('../*.c'),
-                        "%s/libcommon.a" % commons_path,
-                        "%s/libbioinfo.a" % bioinfo_path,
-                        "%s/libhpgmath.a" % math_path
+                        "%s/build/libhpg.a" % hpglib_path,
+                       "%s/libhts.a" % third_party_hts_path
                         ]
             )
 
 elif mode == 'mpi':
     prog = env.Program('hpg-var-gwas', 
                 source = [Glob('*.c'), Glob('assoc/*.c'), Glob('epistasis/*.c'), Glob('epistasis/mpi/*.c'), Glob('tdt/*.c'), Glob('../*.c'),
-                        "%s/libcommon.a" % commons_path,
-                        "%s/libbioinfo.a" % bioinfo_path,
-                        "%s/libhpgmath.a" % math_path
+                        "%s/build/libhpg.a" % hpglib_path,
+                       "%s/libhts.a" % third_party_hts_path
                         ]
             )
 

@@ -6,7 +6,7 @@
 #include <stdint.h>
 
 #include <commons/log.h>
-#include <data/array_utils.h>
+#include <math/data/array_utils.h>
 
 #include "hpg_variant_utils.h"
 #include "model.h"

@@ -36,7 +36,7 @@
 //#include <bioformats/vcf/vcf_aggregate_report.h>
 #include <commons/file_utils.h>
 #include <commons/log.h>
-#include <commons/config/libconfig.h>
+#include <config/libconfig.h>
 //#include <commons/sqlite/sqlite3.h>
 #include <containers/khash.h>
 
@@ -44,7 +44,7 @@
 #include "shared_options.h"
 #include "hpg_variant_utils.h"
 
-#define NUM_AGGREGATE_OPTIONS  12
+#define NUM_AGGREGATE_OPTIONS  13
 #define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
 
 

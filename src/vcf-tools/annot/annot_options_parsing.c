@@ -100,8 +100,9 @@ void **merge_annot_options(annot_options_t *annot_options, shared_options_t *sha
     tool_options[11] = shared_options->batch_bytes;
     tool_options[12] = shared_options->num_threads;
     tool_options[13] = shared_options->mmap_vcf_files;
+    tool_options[14] = shared_options->compression;
 
-    tool_options[14] = arg_end;
+    tool_options[15] = arg_end;
 
     return tool_options;
 }

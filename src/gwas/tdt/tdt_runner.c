@@ -25,7 +25,7 @@ int run_tdt_test(shared_options_data_t* shared_options_data) {
     list_init("output", shared_options_data->num_threads, INT_MAX, output_list);
 
     int ret_code = 0;
-    vcf_file_t *vcf_file = vcf_open(shared_options_data->vcf_filename, shared_options_data->max_batches);
+    vcf_file_t *vcf_file = vcf_open(shared_options_data->vcf_filename, shared_options_data->max_batches, shared_options_data->compression);
     if (!vcf_file) {
         LOG_FATAL("VCF file does not exist!\n");
     }

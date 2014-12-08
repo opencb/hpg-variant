@@ -55,7 +55,7 @@ int run_merge(shared_options_data_t *shared_options_data, merge_options_data_t *
     
     // Initialize variables related to the different files
     for (int i = 0; i < options_data->num_files; i++) {
-        files[i] = vcf_open(options_data->input_files[i], shared_options_data->max_batches);
+        files[i] = vcf_open(options_data->input_files[i], shared_options_data->max_batches, shared_options_data->compression);
         if (!files[i]) {
             LOG_FATAL_F("VCF file %s does not exist!\n", options_data->input_files[i]);
         }

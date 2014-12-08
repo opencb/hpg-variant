@@ -1,9 +1,9 @@
-Import('env commons_path bioinfo_path')
+Import('env  hpglib_path third_party_hts_path')
 
 prog = env.Program('hpg-var-effect', 
              source = [Glob('*.c'), Glob('../*.c'),
-                       "%s/libcommon.a" % commons_path,
-                       "%s/libbioinfo.a" % bioinfo_path
+                       "%s/build/libhpg.a" % hpglib_path,
+                       "%s/libhts.a" % third_party_hts_path
                       ]
            )
  

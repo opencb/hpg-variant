@@ -28,13 +28,13 @@
 
 #include <bioformats/vcf/vcf_file_structure.h>
 #include <commons/log.h>
-#include <commons/config/libconfig.h>
+#include <config/libconfig.h>
 #include <containers/list.h>
 
 #include "error.h"
 #include "shared_options.h"
 
-#define NUM_SPLIT_OPTIONS  12
+#define NUM_SPLIT_OPTIONS  13
 
 enum Split_criterion { NONE, SPLIT_CHROMOSOME, SPLIT_COVERAGE };
 

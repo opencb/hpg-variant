@@ -122,8 +122,9 @@ void **merge_effect_options(effect_options_t *effect_options, shared_options_t *
     tool_options[28] = shared_options->batch_bytes;
     tool_options[29] = shared_options->num_threads;
     tool_options[30] = shared_options->mmap_vcf_files;
+    tool_options[31] = shared_options->compression;
     
-    tool_options[31] = arg_end;
+    tool_options[32] = arg_end;
     
     return tool_options;
 }

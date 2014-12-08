@@ -51,10 +51,10 @@
 #include <commons/http_utils.h>
 #include <commons/log.h>
 #include <commons/result.h>
-#include <commons/jansson/jansson.h>
+#include <jansson/jansson.h>
 #include <containers/array_list.h>
 #include <containers/list.h>
-#include <containers/cprops/hashtable.h>
+#include <cprops/hashtable.h>
 
 #include "effect.h"
 #include "error.h"
