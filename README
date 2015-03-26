@@ -30,7 +30,9 @@ You need a C compiler, the build system SCons and a set of libraries that can be
 sudo apt-get install build-essential scons libcurl4-openssl-dev libgsl0-dev libxml2-dev zlib1g-dev libncurses5-dev
 
 BUILD
-From the root folder of the application, type 'scons'. This will create 3 binaries in the 'bin' subfolder.
+From the root folder of the application, type:
+* 'git submodule update --init' to initialize the submodules with libraries' code
+* 'scons' to compile HPG Variant. This will create 3 binaries in the 'bin' subfolder.
 If you have a computer with more than one core, you can use the -j parameter to speed-up the compilation, like in 'scons -j4'. This is the typical situation for most modern machines.
 
 RUN
@@ -55,7 +57,9 @@ You need a C compiler, the build system SCons and a set of libraries that can be
 sudo yum install gcc-c++ glibc-devel scons libcurl-devel gsl-devel libxml2-devel zlib-devel ncurses-devel
 
 BUILD
-From the root folder of the application, type 'scons'. This will create 3 binaries in the 'bin' subfolder.
+From the root folder of the application, type:
+* 'git submodule update --init' to initialize the submodules with libraries' code
+* 'scons' to compile HPG Variant. This will create 3 binaries in the 'bin' subfolder.
 If you have a computer with more than one core, you can use the -j parameter to speed-up the compilation, like in 'scons -j4'. This is the typical situation for most modern machines.
 
 RUN
