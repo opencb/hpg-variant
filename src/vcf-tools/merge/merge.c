@@ -755,16 +755,22 @@ array_list_t* merge_samples(vcf_record_file_link** position_in_files, int positi
                             } else {
                                 if (options->strict_reference) {
                                     concat_sample_allele_strict(allele1, len, sample, alleles_table, split_alternates);
-                                    strncat(sample, split_sample[idx] + 1, 1);
+                                    len = strlen(sample);
+                                    
+                                    strncat(sample, split_sample[idx] + 1, 1); // TODO Could cause issues if the source has more than 10 alleles
+                                    len++;
+                                    
                                     concat_sample_allele_strict(allele2, len, sample, alleles_table, split_alternates);
-                                    len += 3;
+                                    len = strlen(sample);
                                 } else {
                                     concat_sample_allele_tolerant(allele1, len, sample, alleles_table, dupreference, split_alternates);
+                                    len = strlen(sample);
+                                    
+                                    strncat(sample, split_sample[idx] + 1, 1); // TODO Could cause issues if the source has more than 10 alleles
                                     len++;
-                                    strncat(sample, split_sample[idx] + 1, 1);
-                                    len++;
+                                    
                                     concat_sample_allele_tolerant(allele2, len, sample, alleles_table, dupreference, split_alternates);
-                                    len++;
+                                    len = strlen(sample);
                                 }
                             }
                         } else if (k == filter_pos) {
@@ -779,7 +785,6 @@ array_list_t* merge_samples(vcf_record_file_link** position_in_files, int positi
                             len += strlen(split_sample[idx]);
                         }
                     }
-                    
                     
                     if (k < format_fields->size - 1) {
                         strncat(sample, ":", 1);
